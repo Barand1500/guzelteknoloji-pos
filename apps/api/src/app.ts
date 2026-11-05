@@ -15,6 +15,7 @@ import type { AuthRepository } from './modules/auth/auth.repository';
 import { createAuthRouter } from './modules/auth/auth.routes';
 import { AuthService } from './modules/auth/auth.service';
 import type { GoogleOidcClient } from './modules/auth/google.client';
+import { createAppleOidcClient } from './modules/auth/apple.client';
 import { createHealthRouter } from './modules/health/health.routes';
 
 export interface AppDeps {
@@ -24,6 +25,7 @@ export interface AppDeps {
   hasher: PasswordHasher;
   mailer: Mailer;
   google: GoogleOidcClient | null;
+  apple?: GoogleOidcClient | null;
   checkDatabase?: () => Promise<void>;
 }
 
@@ -74,9 +76,24 @@ export function createApp(deps: AppDeps): Express {
     sessionTtlMs: env.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
   });
 
-  app.use('/api', originCheck(env.allowedOrigins));
+  const checkOrigin = originCheck(env.allowedOrigins);
+  app.use('/api', (req, res, next) => {
+    // Apple callback authenticates the request with signed flow cookie + state + nonce.
+    if (req.method === 'POST' && req.path === '/auth/apple/callback') return next();
+    return checkOrigin(req, res, next);
+  });
   app.use('/api/health', createHealthRouter(deps.checkDatabase));
-  app.use('/api/auth', createAuthRouter({ env, service, google: deps.google, logger }));
+  app.use(
+    '/api/auth',
+    createAuthRouter({
+      env,
+      service,
+      google: deps.google,
+      apple:
+        deps.apple !== undefined ? deps.apple : env.apple ? createAppleOidcClient(env.apple) : null,
+      logger,
+    }),
+  );
   app.use('/api', notFoundHandler);
 
   // Tek origin dağıtımı: derlenmiş SPA aynı sunucudan sunulur.

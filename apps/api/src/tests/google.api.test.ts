@@ -70,6 +70,7 @@ describe('Google OAuth', () => {
     expect(cb.status).toBe(303);
     expect(cb.headers.location).toBe(`${APP_URL}/login`);
     expect(repo.identities).toHaveLength(1);
+    expect(repo.sessions[0]?.loginMethod).toBe('GOOGLE');
 
     const me = await agent.get('/api/auth/me');
     expect(me.body.user.email).toBe('yeni@example.com');

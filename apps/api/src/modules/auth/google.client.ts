@@ -36,6 +36,10 @@ export function createGoogleOidcClient(config: {
   const getConfig = () => {
     discovered ??= oidc
       .discovery(GOOGLE_ISSUER, config.clientId, config.clientSecret)
+      .then((configuration) => {
+        oidc.enableNonRepudiationChecks(configuration);
+        return configuration;
+      })
       .catch((error: unknown) => {
         discovered = null;
         throw error;

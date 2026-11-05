@@ -62,3 +62,29 @@ export function readOAuthCookie(req: Request): OAuthFlowCookie | null {
 export function clearOAuthCookie(res: Response, env: Env) {
   res.clearCookie(OAUTH_COOKIE_NAME, { ...baseOptions(env), path: OAUTH_COOKIE_PATH });
 }
+
+export function setAppleFlow(res: Response, env: Env, flow: OAuthFlowCookie) {
+  res.cookie('gt_apple_oauth', JSON.stringify(flow), {
+    ...baseOptions(env),
+    sameSite: 'none',
+    secure: true,
+    path: '/api/auth/apple',
+    signed: true,
+    maxAge: OAUTH_COOKIE_MAX_AGE_MS,
+  });
+}
+export function readAppleFlow(req: Request): OAuthFlowCookie | null {
+  try {
+    return oauthFlowCookieSchema.parse(JSON.parse(req.signedCookies?.gt_apple_oauth));
+  } catch {
+    return null;
+  }
+}
+export function clearAppleFlow(res: Response, env: Env) {
+  res.clearCookie('gt_apple_oauth', {
+    ...baseOptions(env),
+    sameSite: 'none',
+    secure: true,
+    path: '/api/auth/apple',
+  });
+}

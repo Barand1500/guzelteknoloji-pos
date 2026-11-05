@@ -35,6 +35,9 @@ const envSchema = z
     /** Reverse proxy (CloudPanel/Nginx) arkasında gerçek istemci IP'si için hop sayısı. */
     TRUST_PROXY: z.coerce.number().int().min(0).default(0),
 
+    APPLE_CLIENT_ID: optionalString,
+    APPLE_CLIENT_SECRET: optionalString,
+    APPLE_REDIRECT_URI: z.url().optional(),
     GOOGLE_CLIENT_ID: optionalString,
     GOOGLE_CLIENT_SECRET: optionalString,
     GOOGLE_REDIRECT_URI: z.url().optional(),
@@ -66,6 +69,13 @@ const envSchema = z
     RATE_LIMIT_ENABLED: booleanish.optional(),
   })
   .superRefine((env, ctx) => {
+    if (Boolean(env.APPLE_CLIENT_ID) !== Boolean(env.APPLE_CLIENT_SECRET)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['APPLE_CLIENT_SECRET'],
+        message: 'APPLE_CLIENT_ID ve APPLE_CLIENT_SECRET birlikte tan?mlanmal?d?r.',
+      });
+    }
     const hasId = Boolean(env.GOOGLE_CLIENT_ID);
     const hasSecret = Boolean(env.GOOGLE_CLIENT_SECRET);
     if (hasId !== hasSecret) {
@@ -99,6 +109,7 @@ export interface Env extends RawEnv {
   /** Gömülü destek formunun origin'i (CSP frame-src) veya null. */
   supportFormOrigin: string | null;
   rateLimitEnabled: boolean;
+  apple: { clientId: string; clientSecret: string; redirectUri: string } | null;
   google: { clientId: string; clientSecret: string; redirectUri: string } | null;
   smtp: {
     host: string;
@@ -157,6 +168,14 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
             pass: env.SMTP_PASS,
             from: env.MAIL_FROM,
             caFile: env.SMTP_TLS_CA_FILE,
+          }
+        : null,
+    apple:
+      env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET
+        ? {
+            clientId: env.APPLE_CLIENT_ID,
+            clientSecret: env.APPLE_CLIENT_SECRET,
+            redirectUri: env.APPLE_REDIRECT_URI ?? `${env.APP_URL}/api/auth/apple/callback`,
           }
         : null,
     google:

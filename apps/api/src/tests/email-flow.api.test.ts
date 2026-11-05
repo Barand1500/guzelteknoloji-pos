@@ -50,6 +50,10 @@ describe('POST /api/auth/email/start', () => {
     const res = await start(app, 'yeni@example.com');
     expect(res.status).toBe(503);
     expect(res.body.error.code).toBe('EMAIL_UNAVAILABLE');
+    mailer.fail = false;
+    const retry = await start(app, 'yeni@example.com');
+    expect(retry.status).toBe(200);
+    expect(mailer.sent).toHaveLength(1);
   });
 
   it('geçersiz e-postayı reddeder', async () => {

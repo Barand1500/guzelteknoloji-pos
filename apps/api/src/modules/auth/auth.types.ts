@@ -1,7 +1,8 @@
 import type { PublicUser } from '@gt/shared';
 
 export type UserStatus = 'ACTIVE' | 'DISABLED';
-export type AuthProvider = 'GOOGLE';
+export type AuthProvider = 'GOOGLE' | 'APPLE';
+export type LoginMethod = AuthProvider | 'EMAIL';
 
 export interface UserRecord {
   id: string;

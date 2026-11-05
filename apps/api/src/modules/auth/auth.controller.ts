@@ -25,11 +25,13 @@ import {
 import { GoogleLoginError, type AuthService } from './auth.service';
 import { toPublicUser, type RequestMeta } from './auth.types';
 import type { GoogleOidcClient } from './google.client';
+import { setAppleFlow, readAppleFlow, clearAppleFlow } from './auth.cookies';
 
 export interface AuthControllerDeps {
   env: Env;
   service: AuthService;
   google: GoogleOidcClient | null;
+  apple?: GoogleOidcClient | null;
   logger: Logger;
 }
 
@@ -37,7 +39,7 @@ function requestMeta(req: Request): RequestMeta {
   return { ipAddress: req.ip ?? null, userAgent: req.get('user-agent') ?? null };
 }
 
-export function createAuthController({ env, service, google, logger }: AuthControllerDeps) {
+export function createAuthController({ env, service, google, apple, logger }: AuthControllerDeps) {
   const loginPageUrl = (error?: GoogleErrorCode) => {
     const url = new URL('/login', env.APP_URL);
     if (error) url.searchParams.set('hata', error);
@@ -47,7 +49,7 @@ export function createAuthController({ env, service, google, logger }: AuthContr
   return {
     providers(_req: Request, res: Response<ProvidersResponse>) {
       // Apple ile giriş arayüzde vardır ama henüz yapılandırılmamıştır (Apple Developer hesabı gerekir).
-      res.json({ google: google !== null, apple: false });
+      res.json({ google: google !== null, apple: Boolean(apple) });
     },
 
     async emailStart(req: Request, res: Response<EmailStartResponse>) {
@@ -68,8 +70,39 @@ export function createAuthController({ env, service, google, logger }: AuthContr
       res.json({ user: toPublicUser(session.user) });
     },
 
-    appleStart(_req: Request, res: Response) {
-      res.redirect(303, loginPageUrl('apple_yapilandirilmamis'));
+    async appleStart(_req: Request, res: Response) {
+      if (!apple) return res.redirect(303, loginPageUrl('apple_yapilandirilmamis'));
+      try {
+        const flow = await apple.createAuthRequest();
+        setAppleFlow(res, env, flow);
+        res.redirect(303, flow.url);
+      } catch {
+        res.redirect(303, loginPageUrl('apple_dogrulama'));
+      }
+    },
+
+    async appleCallback(req: Request, res: Response) {
+      const flow = readAppleFlow(req);
+      clearAppleFlow(res, env);
+      if (!apple) return res.redirect(303, loginPageUrl('apple_yapilandirilmamis'));
+      const parsed = googleCallbackQuerySchema.safeParse(req.body);
+      if (!flow || !parsed.success || !parsed.data.code || parsed.data.state !== flow.state) {
+        return res.redirect(303, loginPageUrl('apple_dogrulama'));
+      }
+      try {
+        const params = new URLSearchParams({ code: parsed.data.code, state: parsed.data.state });
+        const claims = await apple.exchangeCode(params, flow);
+        // Lax session cookies are intentionally unavailable on Apple's cross-site POST.
+        const session = await service.loginWithProvider('APPLE', claims, requestMeta(req));
+        setSessionCookie(res, env, session.token, session.expiresAt);
+        return res.redirect(303, new URL(env.POST_LOGIN_PATH, env.APP_URL).href);
+      } catch (error) {
+        const code =
+          error instanceof GoogleLoginError && error.code === 'google_hesap_mevcut'
+            ? 'apple_hesap_mevcut'
+            : 'apple_dogrulama';
+        return res.redirect(303, loginPageUrl(code));
+      }
     },
 
     async login(req: Request, res: Response<MeResponse>) {

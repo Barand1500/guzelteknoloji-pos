@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, urlencoded } from 'express';
 import { createRateLimiter } from '../../middleware/rate-limit';
 import { createAuthController, type AuthControllerDeps } from './auth.controller';
 
@@ -37,6 +37,12 @@ export function createAuthRouter(deps: AuthControllerDeps): Router {
   router.post('/email/start', emailStartIpLimiter, emailStartAccountLimiter, controller.emailStart);
   router.post('/email/verify', loginIpLimiter, emailVerifyLimiter, controller.emailVerify);
   router.get('/apple', googleLimiter, controller.appleStart);
+  router.post(
+    '/apple/callback',
+    googleLimiter,
+    urlencoded({ extended: false, limit: '10kb' }),
+    controller.appleCallback,
+  );
   router.post('/login', loginIpLimiter, loginAccountLimiter, controller.login);
   router.get('/me', controller.me);
   router.post('/logout', controller.logout);

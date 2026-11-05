@@ -2,12 +2,14 @@ import { randomUUID } from 'node:crypto';
 import type { AuthRepository } from '../modules/auth/auth.repository';
 import type {
   AuthProvider,
+  LoginMethod,
   EmailCodeRecord,
   SessionRecord,
   UserRecord,
 } from '../modules/auth/auth.types';
 
 interface StoredSession extends SessionRecord {
+  loginMethod: LoginMethod;
   tokenHash: string;
   revokedAt: Date | null;
 }
@@ -70,6 +72,7 @@ export class InMemoryAuthRepository implements AuthRepository {
     const session: StoredSession = {
       id: randomUUID(),
       userId: data.userId,
+      loginMethod: data.loginMethod,
       tokenHash: data.tokenHash,
       expiresAt: data.expiresAt,
       lastSeenAt: new Date(),

@@ -1,5 +1,11 @@
 import type { PrismaClient } from '../../lib/prisma';
-import type { AuthProvider, EmailCodeRecord, SessionRecord, UserRecord } from './auth.types';
+import type {
+  AuthProvider,
+  LoginMethod,
+  EmailCodeRecord,
+  SessionRecord,
+  UserRecord,
+} from './auth.types';
 
 /**
  * Veri erişim sözleşmesi. Servis bu arayüze bağımlıdır; böylece testler
@@ -27,6 +33,7 @@ export interface AuthRepository {
   touchIdentity(provider: AuthProvider, providerUserId: string, at: Date): Promise<void>;
   createSession(data: {
     userId: string;
+    loginMethod: LoginMethod;
     tokenHash: string;
     expiresAt: Date;
     ipAddress: string | null;
@@ -130,9 +137,16 @@ export class PrismaAuthRepository implements AuthRepository {
   }
 
   createSession(data: Parameters<AuthRepository['createSession']>[0]) {
-    return this.db.session.create({
-      data,
-      select: { id: true, userId: true, expiresAt: true, lastSeenAt: true },
+    return this.db.$transaction(async (tx) => {
+      const session = await tx.session.create({
+        data,
+        select: { id: true, userId: true, expiresAt: true, lastSeenAt: true },
+      });
+      await tx.user.update({
+        where: { id: data.userId },
+        data: { lastLoginMethod: data.loginMethod, lastLoginAt: new Date() },
+      });
+      return session;
     });
   }
 

@@ -96,5 +96,7 @@ export const GOOGLE_ERROR_CODES = [
   'google_hesap_mevcut',
   'google_sunucu',
   'apple_yapilandirilmamis',
+  'apple_dogrulama',
+  'apple_hesap_mevcut',
 ] as const;
 export type GoogleErrorCode = (typeof GOOGLE_ERROR_CODES)[number];

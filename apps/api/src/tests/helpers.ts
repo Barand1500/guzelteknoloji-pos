@@ -36,6 +36,7 @@ export function buildTestApp(
   options: {
     env?: Record<string, string | undefined>;
     google?: GoogleOidcClient | null;
+    apple?: GoogleOidcClient | null;
     repo?: InMemoryAuthRepository;
     mailer?: FakeMailer;
   } = {},
@@ -50,6 +51,7 @@ export function buildTestApp(
     hasher: argon2Hasher,
     mailer,
     google: options.google ?? null,
+    apple: options.apple ?? null,
   });
   return { app, repo, env, mailer };
 }

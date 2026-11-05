@@ -12,7 +12,14 @@ import type { Mailer } from '../../lib/mailer';
 import type { PasswordHasher } from '../../lib/password';
 import type { AuthRepository } from './auth.repository';
 import type { GoogleClaims } from './google.client';
-import type { IssuedSession, RequestMeta, SessionRecord, UserRecord } from './auth.types';
+import type {
+  AuthProvider,
+  LoginMethod,
+  IssuedSession,
+  RequestMeta,
+  SessionRecord,
+  UserRecord,
+} from './auth.types';
 
 /** lastSeenAt her istekte değil, bu aralıktan seyrek güncellenir (gereksiz DB yazımı önlenir). */
 const SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
@@ -100,7 +107,7 @@ export class AuthService {
 
     // Kriptografik olarak güvenli rastgele 6 haneli kod (baştaki sıfırlar korunur).
     const code = String(randomInt(0, 10 ** CODE_LENGTH)).padStart(CODE_LENGTH, '0');
-    await this.repo.createLoginCode({
+    const pendingCode = await this.repo.createLoginCode({
       email,
       codeHash: hashLoginCode(this.codeSecret, email, code),
       expiresAt: new Date(now.getTime() + CODE_TTL_SECONDS * 1000),
@@ -109,6 +116,7 @@ export class AuthService {
     try {
       await this.mailer.sendLoginCode(email, code, CODE_TTL_SECONDS / 60);
     } catch {
+      await this.repo.consumeLoginCode(pendingCode.id, this.now());
       throw new HttpError(
         503,
         'EMAIL_UNAVAILABLE',
@@ -192,23 +200,32 @@ export class AuthService {
     meta: RequestMeta,
     currentToken?: string,
   ): Promise<IssuedSession> {
+    return this.loginWithProvider('GOOGLE', claims, meta, currentToken);
+  }
+
+  async loginWithProvider(
+    provider: AuthProvider,
+    claims: GoogleClaims,
+    meta: RequestMeta,
+    currentToken?: string,
+  ): Promise<IssuedSession> {
     const now = this.now();
-    const linkedUser = await this.repo.findUserByIdentity('GOOGLE', claims.sub);
+    const linkedUser = await this.repo.findUserByIdentity(provider, claims.sub);
     if (linkedUser) {
       if (linkedUser.status !== 'ACTIVE') throw new GoogleLoginError('google_dogrulama');
-      await this.repo.touchIdentity('GOOGLE', claims.sub, now);
-      return this.rotateSession(linkedUser, meta, currentToken);
+      await this.repo.touchIdentity(provider, claims.sub, now);
+      return this.rotateSession(linkedUser, meta, currentToken, provider);
     }
 
     const current = currentToken ? await this.getSession(currentToken) : null;
     if (current) {
       await this.repo.linkIdentity({
         userId: current.user.id,
-        provider: 'GOOGLE',
+        provider: provider,
         providerUserId: claims.sub,
         email: claims.email ? normalizeEmail(claims.email) : null,
       });
-      return this.rotateSession(current.user, meta, currentToken);
+      return this.rotateSession(current.user, meta, currentToken, provider);
     }
 
     if (!claims.email || !claims.emailVerified) {
@@ -224,10 +241,10 @@ export class AuthService {
       emailVerifiedAt: now,
       displayName: claims.name?.slice(0, 120) ?? null,
       avatarUrl: claims.picture && claims.picture.length <= 2048 ? claims.picture : null,
-      provider: 'GOOGLE',
+      provider: provider,
       providerUserId: claims.sub,
     });
-    return this.issueSession(user, meta);
+    return this.issueSession(user, meta, provider);
   }
 
   async getSession(token: string): Promise<{ user: UserRecord; session: SessionRecord } | null> {
@@ -246,16 +263,26 @@ export class AuthService {
   }
 
   /** Session fixation'a karşı: girişte eski token iptal edilir ve her zaman yeni token üretilir. */
-  private async rotateSession(user: UserRecord, meta: RequestMeta, previousToken?: string) {
+  private async rotateSession(
+    user: UserRecord,
+    meta: RequestMeta,
+    previousToken?: string,
+    method: LoginMethod = 'EMAIL',
+  ) {
     if (previousToken) await this.logout(previousToken);
-    return this.issueSession(user, meta);
+    return this.issueSession(user, meta, method);
   }
 
-  private async issueSession(user: UserRecord, meta: RequestMeta): Promise<IssuedSession> {
+  private async issueSession(
+    user: UserRecord,
+    meta: RequestMeta,
+    method: LoginMethod,
+  ): Promise<IssuedSession> {
     const token = generateSessionToken();
     const expiresAt = new Date(this.now().getTime() + this.sessionTtlMs);
     await this.repo.createSession({
       userId: user.id,
+      loginMethod: method,
       tokenHash: hashToken(token),
       expiresAt,
       ipAddress: meta.ipAddress?.slice(0, 45) ?? null,
