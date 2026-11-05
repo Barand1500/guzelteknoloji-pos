@@ -145,3 +145,9 @@ Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada 
 - **Birim satırı = bir kart:** birim + çarpan (ilk satırda 1, kilitli), Ana Birim/Varsayılan (satırlar arasında yalnızca biri), yan yana Alış ve Satış blokları (fiyat, para birimi, iskonto, net fiyat otomatik, KDV oranı, Hariç/Dahil, "KDV dahil" toplamı), barkodlar, ağırlık, hacim, açıklama. Her fiyat listesinin (sekmenin) kendi birim satırları vardır.
 - **Alt çubuk:** Telefonda ekranın altına **yapışık** (üst köşeleri yuvarlak, "+" hafif taşar); masaüstünde yüzen hap.
 - **Henüz yapılmayanlar (referansta var):** hesap makinesi düğmesi, sayfa üstündeki bilgi/liste/önceki-sonraki düğmeleri, alış/satış fiyatındaki "⋮" menüsü. Ürün sahibi anlatınca eklenecek.
+
+### 8.6 Geniş ekran düzeni (güncelleme)
+
+- Uygulama içeriği **tam genişlik** kullanır (en fazla 120rem); ortada dar sütun bırakılmaz. Yan boşluk yalnızca kenar dolgusudur.
+- **xl (≥1280px):** solda "Ürün Bilgisi" (12 sütun) ve "Fiyat ve Birimler" kartları, sağda yapışkan özet (kart doluluğu çubuğu, birim başına fiyat/kâr, Kaydet). Gelişmiş alanlar geniş ekranda baştan açıktır. **2xl (≥1536px):** Alış ve Satış blokları yan yana; daha dar ekranda alt alta. **xl altı:** 3 adımlı sihirbaz.
+- Barkod, ağırlık, hacim ve açıklama geniş ekranda tek satırdadır.

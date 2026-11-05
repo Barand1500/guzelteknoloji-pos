@@ -13,7 +13,7 @@ export function AppShell() {
     <div data-theme={mode} className="min-h-dvh bg-surface text-ink">
       <TopBar />
       {/* pb-32: alttaki yüzen çubuğun içeriği kapatmaması için boşluk */}
-      <main className="mx-auto w-full max-w-7xl px-4 pt-5 pb-32 tablet:px-8">
+      <main className="mx-auto w-full max-w-[120rem] px-4 pt-5 pb-32 tablet:px-8 2xl:px-12">
         <Outlet />
       </main>
       <Dock />

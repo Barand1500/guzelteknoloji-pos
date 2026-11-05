@@ -1,4 +1,12 @@
-import { ArrowLeft, CheckCircle2, ChevronDown, Plus } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ChevronDown,
+  Coins,
+  Plus,
+  Tag,
+  type LucideIcon,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { SelectField } from '../../../components/ui/SelectField';
@@ -21,8 +29,12 @@ import { UnitCard } from './UnitCard';
 const STEPS = ['Temel Bilgi', 'Fiyat ve Birim', 'Özet'] as const;
 const LAST_STEP = STEPS.length - 1;
 
-/** Telefonda yalnızca aktif adım görünür; `lg` ve üstünde hepsi görünür. */
-const showOnStep = (current: number, mine: number) => (current === mine ? '' : 'hidden lg:block');
+/** Dar ekranda yalnızca aktif adım görünür; `xl` ve üstünde hepsi görünür. */
+const showOnStep = (current: number, mine: number) => (current === mine ? '' : 'hidden xl:block');
+
+/** Bölüm kartı görünümü (iki kartta ortak). */
+const cardClass =
+  'animate-rise-in rounded-[1.75rem] border border-line bg-surface-raised p-5 shadow-soft tablet:p-7';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
 function editable(list: OptionList, noun: string, onCreated: (value: string) => void) {
@@ -68,7 +80,10 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
   const [activeList, setActiveList] = useState(firstListId);
   const [errors, setErrors] = useState<DraftErrors>({});
   const [step, setStep] = useState(0);
-  const [moreOpen, setMoreOpen] = useState(false);
+  // Geniş ekranda gelişmiş alanlar baştan açık (yer var); dar ekranda katlı.
+  const [moreOpen, setMoreOpen] = useState(
+    () => window.matchMedia?.('(min-width: 80rem)').matches ?? false,
+  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -193,19 +208,18 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="lg:hidden">
+      <div className="xl:hidden">
         <Stepper steps={STEPS} current={step} />
       </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
+      {/* Geniş ekranda (xl+) tam genişlik: solda iki kart, sağda yapışkan özet. Daha dar ekranda adımlar. */}
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_25rem] 2xl:grid-cols-[minmax(0,1fr)_28rem]">
         <div className="flex min-w-0 flex-col gap-6">
-          {/* ---- 1. Temel bilgi ---- */}
-          <section
-            aria-label="Temel Bilgi"
-            className={`animate-rise-in rounded-[1.75rem] bg-surface-raised p-5 shadow-soft tablet:p-8 ${showOnStep(step, 0)}`}
-          >
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
-              <div className="col-span-2">
+          {/* ---- 1. Ürün bilgisi ---- */}
+          <section aria-label="Temel Bilgi" className={`${cardClass} ${showOnStep(step, 0)}`}>
+            <SectionTitle icon={Tag} title="Ürün Bilgisi" />
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-6 xl:grid-cols-12">
+              <div className="col-span-2 md:col-span-3 xl:col-span-3">
                 <SelectField
                   label="Stok Tipi"
                   value={draft.stockType}
@@ -213,8 +227,13 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
                   {...editable(stockTypes, 'stok tipi', (v) => set('stockType', v))}
                 />
               </div>
-              <div className="col-span-2">{text('code', 'Stok Kodu')}</div>
-              <div className="col-span-2">
+              <div className="col-span-2 md:col-span-3 xl:col-span-4">
+                {text('code', 'Stok Kodu')}
+              </div>
+              <div className="col-span-2 md:col-span-6 xl:col-span-5">
+                {text('name', 'Stok Adı')}
+              </div>
+              <div className="col-span-2 md:col-span-3 xl:col-span-3">
                 <SelectField
                   label="Marka"
                   options={lookups.brands}
@@ -222,8 +241,7 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
                   onChange={(v) => set('brand', v)}
                 />
               </div>
-              <div className="col-span-2 lg:col-span-6">{text('name', 'Stok Adı')}</div>
-              <div className="col-span-2">
+              <div className="col-span-2 md:col-span-3 xl:col-span-3">
                 <SelectField
                   label="KDV Departmanı"
                   value={draft.vatDepartment}
@@ -231,7 +249,7 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
                   {...editable(vatDepartments, 'KDV departmanı', (v) => set('vatDepartment', v))}
                 />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-2 md:col-span-3 xl:col-span-3">
                 <SelectField
                   label="Stok Nevi"
                   value={draft.stockKind}
@@ -239,7 +257,7 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
                   {...editable(stockKinds, 'stok nevi', (v) => set('stockKind', v))}
                 />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-2 md:col-span-3 xl:col-span-3">
                 <SelectField
                   label="Envanter Takibi"
                   options={lookups.inventoryTracking}
@@ -252,7 +270,7 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
                 type="button"
                 onClick={() => setMoreOpen((v) => !v)}
                 aria-expanded={moreOpen}
-                className="col-span-2 inline-flex min-h-11 items-center gap-2 self-start rounded-full px-1 text-sm font-semibold text-brand-ink lg:col-span-6"
+                className="col-span-2 inline-flex min-h-11 items-center gap-2 self-start rounded-full px-1 text-sm font-semibold text-brand-ink md:col-span-6 xl:col-span-12"
               >
                 Daha Fazla Alan
                 <ChevronDown
@@ -262,11 +280,19 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
               </button>
               {moreOpen ? (
                 <>
-                  <div className="lg:col-span-2">{text('lowerLimit', 'Alt Limit', true)}</div>
-                  <div className="lg:col-span-2">{text('upperLimit', 'Üst Limit', true)}</div>
-                  <div className="col-span-2">{text('gtip', 'GTIP Kodu')}</div>
-                  <div className="col-span-2 lg:col-span-3">{text('origin', 'Menşei')}</div>
-                  <div className="col-span-2 lg:col-span-3">
+                  <div className="col-span-1 md:col-span-3 xl:col-span-2">
+                    {text('lowerLimit', 'Alt Limit', true)}
+                  </div>
+                  <div className="col-span-1 md:col-span-3 xl:col-span-2">
+                    {text('upperLimit', 'Üst Limit', true)}
+                  </div>
+                  <div className="col-span-2 md:col-span-2 xl:col-span-2">
+                    {text('gtip', 'GTIP Kodu')}
+                  </div>
+                  <div className="col-span-2 md:col-span-2 xl:col-span-3">
+                    {text('origin', 'Menşei')}
+                  </div>
+                  <div className="col-span-2 md:col-span-2 xl:col-span-3">
                     <SelectField
                       label="Diğer Vergi Ekle"
                       options={lookups.otherTaxes}
@@ -280,11 +306,9 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
           </section>
 
           {/* ---- 2. Fiyat ve birimler ---- */}
-          <section
-            aria-label="Fiyat ve Birim"
-            className={`animate-rise-in rounded-[1.75rem] bg-surface-raised p-5 shadow-soft tablet:p-8 ${showOnStep(step, 1)}`}
-          >
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <section aria-label="Fiyat ve Birim" className={`${cardClass} ${showOnStep(step, 1)}`}>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+              <SectionTitle icon={Coins} title="Fiyat ve Birimler" className="mb-0" />
               <PriceTabs
                 lists={priceLists.options}
                 activeId={activeList}
@@ -319,8 +343,8 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
           </section>
         </div>
 
-        {/* ---- 3. Canlı önizleme (masaüstünde sağda yapışkan, telefonda son adım) ---- */}
-        <div className={`lg:sticky lg:top-6 ${showOnStep(step, LAST_STEP)}`}>
+        {/* ---- 3. Canlı özet (xl+ sağda yapışkan; daha dar ekranda son adım) ---- */}
+        <div className={`xl:sticky xl:top-6 ${showOnStep(step, LAST_STEP)}`}>
           <StockPreview
             draft={draft}
             lookups={{
@@ -336,8 +360,8 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
         </div>
       </div>
 
-      {/* Telefonda adım düğmeleri (masaüstünde her şey tek sayfada) */}
-      <div className="flex items-center justify-between gap-3 lg:hidden">
+      {/* Dar ekranda adım düğmeleri (xl+ ekranda her şey tek sayfada) */}
+      <div className="flex items-center justify-between gap-3 xl:hidden">
         {step > 0 ? (
           <Button
             variant="ghost"
@@ -358,5 +382,28 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Kart başlığı: ikon rozeti + ad. Bölümleri görsel olarak ayırır. */
+function SectionTitle({
+  icon: Icon,
+  title,
+  className = 'mb-5',
+}: {
+  icon: LucideIcon;
+  title: string;
+  className?: string;
+}) {
+  return (
+    <h2 className={`flex items-center gap-3 text-lg font-extrabold tracking-tight ${className}`}>
+      <span
+        aria-hidden="true"
+        className="flex size-9 items-center justify-center rounded-xl bg-brand-50 text-brand-ink"
+      >
+        <Icon className="size-5" />
+      </span>
+      {title}
+    </h2>
   );
 }

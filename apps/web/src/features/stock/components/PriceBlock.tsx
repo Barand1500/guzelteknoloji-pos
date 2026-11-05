@@ -26,14 +26,18 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
   return (
     <fieldset className="min-w-0 rounded-2xl bg-surface p-4">
       <legend className="sr-only">{title}</legend>
-      <p
-        className="mb-3 text-sm font-bold tracking-wide text-ink-muted uppercase"
-        aria-hidden="true"
-      >
-        {title}
-      </p>
-      <div className="grid grid-cols-6 gap-3">
-        <div className="col-span-3">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <p className="text-sm font-bold tracking-wide text-ink-muted uppercase" aria-hidden="true">
+          {title}
+        </p>
+        <p className="text-sm text-ink-muted">
+          KDV dahil:{' '}
+          <span className="font-bold text-ink">{formatMoney(totals.incl, data.currency)}</span>
+        </p>
+      </div>
+      {/* Telefonda 6 sütun (2 alan/satır), md+ ekranda 12 sütunla 2 sıkı satır. */}
+      <div className="grid grid-cols-6 gap-3 md:grid-cols-12">
+        <div className="col-span-3 md:col-span-5">
           <TextField
             label={`${title} Fiyatı`}
             inputMode="decimal"
@@ -41,7 +45,7 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
             onChange={(e) => onChange({ amount: e.target.value })}
           />
         </div>
-        <div className="col-span-3">
+        <div className="col-span-3 md:col-span-3">
           <SelectField
             label="Para Birimi"
             options={lookups.currencies}
@@ -49,7 +53,7 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
             onChange={(currency) => onChange({ currency })}
           />
         </div>
-        <div className="col-span-3">
+        <div className="col-span-3 md:col-span-4">
           <TextField
             label="İskonto (%)"
             inputMode="decimal"
@@ -57,15 +61,7 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
             onChange={(e) => onChange({ discount: e.target.value })}
           />
         </div>
-        <div className="col-span-3">
-          <TextField
-            label="Net Fiyat"
-            readOnly
-            tabIndex={-1}
-            value={formatMoney(totals.net, data.currency)}
-          />
-        </div>
-        <div className="col-span-3">
+        <div className="col-span-3 md:col-span-4">
           <SelectField
             label={`${title} KDV`}
             options={lookups.vatRates}
@@ -73,7 +69,7 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
             onChange={(vatRate) => onChange({ vatRate })}
           />
         </div>
-        <div className="col-span-3 flex items-center">
+        <div className="col-span-3 flex items-center md:col-span-4">
           <div className="w-full">
             <Segmented
               label={`${title} KDV durumu`}
@@ -83,11 +79,15 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
             />
           </div>
         </div>
+        <div className="col-span-3 md:col-span-4">
+          <TextField
+            label="Net Fiyat"
+            readOnly
+            tabIndex={-1}
+            value={formatMoney(totals.net, data.currency)}
+          />
+        </div>
       </div>
-      <p className="mt-3 text-sm text-ink-muted">
-        KDV dahil:{' '}
-        <span className="font-semibold text-ink">{formatMoney(totals.incl, data.currency)}</span>
-      </p>
     </fieldset>
   );
 }

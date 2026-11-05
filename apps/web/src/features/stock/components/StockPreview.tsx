@@ -1,6 +1,6 @@
-import { Package } from 'lucide-react';
+import { Check, Circle, Package } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { formatMoney, blockTotals, marginPercent } from '../stock.calc';
+import { blockTotals, formatMoney, marginPercent, parseNumber } from '../stock.calc';
 import type { StockCardDraft, StockLookups, UnitRow } from '../types';
 
 interface StockPreviewProps {
@@ -26,10 +26,21 @@ export function StockPreview({ draft, lookups, rows, priceListLabel, footer }: S
     labelOf(lookups.vatDepartments, draft.vatDepartment),
   ].filter(Boolean);
 
+  // Kartın "doldurulmuşluk" göstergesi: kullanıcıya eksikleri nazikçe hatırlatır (zorunlu değildir).
+  const allRows = Object.values(draft.units).flat();
+  const checks = [
+    { label: 'Kod', ok: draft.code.trim() !== '' },
+    { label: 'Ad', ok: draft.name.trim() !== '' },
+    { label: 'Marka', ok: draft.brand !== '' },
+    { label: 'Satış fiyatı', ok: allRows.some((r) => parseNumber(r.sale.amount) > 0) },
+    { label: 'Barkod', ok: allRows.some((r) => r.barcodes.length > 0) },
+  ];
+  const done = checks.filter((x) => x.ok).length;
+
   return (
     <aside
       aria-label="Kart önizlemesi"
-      className="flex flex-col gap-5 rounded-[1.75rem] bg-surface-raised p-5 shadow-soft tablet:p-6"
+      className="flex flex-col gap-5 rounded-[1.75rem] border border-line bg-surface-raised p-5 shadow-soft tablet:p-6"
     >
       <div className="flex items-start gap-3">
         <span
@@ -46,6 +57,46 @@ export function StockPreview({ draft, lookups, rows, priceListLabel, footer }: S
           </p>
           <p className="mt-0.5 font-mono text-sm text-ink-muted">{draft.code || 'STOK-KODU'}</p>
         </div>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between text-xs font-bold tracking-wide text-ink-muted uppercase">
+          <span>Kart Doluluğu</span>
+          <span>
+            {done}/{checks.length}
+          </span>
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Kart doluluğu"
+          aria-valuemin={0}
+          aria-valuemax={checks.length}
+          aria-valuenow={done}
+          className="h-2 overflow-hidden rounded-full bg-surface-muted"
+        >
+          <div
+            className="h-full rounded-full bg-brand-600 transition-[width] duration-500"
+            style={{ width: `${(done / checks.length) * 100}%` }}
+          />
+        </div>
+        <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Doluluk listesi">
+          {checks.map((x) => (
+            <li
+              key={x.label}
+              className={[
+                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold',
+                x.ok ? 'bg-brand-50 text-brand-ink' : 'bg-surface-muted text-ink-muted',
+              ].join(' ')}
+            >
+              {x.ok ? (
+                <Check className="size-3" aria-hidden="true" />
+              ) : (
+                <Circle className="size-3" aria-hidden="true" />
+              )}
+              {x.label}
+            </li>
+          ))}
+        </ul>
       </div>
 
       {chips.length > 0 ? (

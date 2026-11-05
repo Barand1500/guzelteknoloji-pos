@@ -82,7 +82,7 @@ export function UnitCard({ row, index, lookups, units, onChange, onRemove }: Uni
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid gap-4 2xl:grid-cols-2">
         <PriceBlock
           title="Alış"
           data={row.purchase}
@@ -92,12 +92,15 @@ export function UnitCard({ row, index, lookups, units, onChange, onRemove }: Uni
         <PriceBlock title="Satış" data={row.sale} lookups={lookups} onChange={patchBlock('sale')} />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <BarcodeEditor
-          barcodes={row.barcodes}
-          types={lookups.barcodeTypes}
-          onChange={(barcodes) => onChange({ barcodes })}
-        />
+      {/* Barkod, ölçüler ve açıklama: geniş ekranda tek satır */}
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,5fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="md:col-span-2 xl:col-span-1">
+          <BarcodeEditor
+            barcodes={row.barcodes}
+            types={lookups.barcodeTypes}
+            onChange={(barcodes) => onChange({ barcodes })}
+          />
+        </div>
         <TextField
           label="Ağırlık (kg)"
           inputMode="decimal"
@@ -110,14 +113,13 @@ export function UnitCard({ row, index, lookups, units, onChange, onRemove }: Uni
           value={row.volume}
           onChange={(e) => onChange({ volume: e.target.value })}
         />
-      </div>
-
-      <div className="mt-4">
-        <TextField
-          label="Birim Açıklama"
-          value={row.note}
-          onChange={(e) => onChange({ note: e.target.value })}
-        />
+        <div className="md:col-span-2 xl:col-span-1">
+          <TextField
+            label="Birim Açıklama"
+            value={row.note}
+            onChange={(e) => onChange({ note: e.target.value })}
+          />
+        </div>
       </div>
     </article>
   );
