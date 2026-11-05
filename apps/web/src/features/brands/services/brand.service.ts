@@ -1,84 +1,42 @@
-import { brandSeeds, productSeeds } from '../../../mocks/brand.mock';
+import { apiRequest, API_BASE_URL } from '../../../lib/http';
 import type { Brand, BrandDraft, ProductRef } from '../types';
 
-/**
- * Marka verisine erişimin TEK kapısı. Şimdilik bellekte tutulan sahte veri (sayfa yenilenince
- * başa döner); gerçek API gelince yalnızca bu dosya değişir, bileşenler aynı kalır.
- */
-type Row = Omit<Brand, 'productCount'>;
-let rows: Row[] = brandSeeds.map((b) => ({ ...b }));
-let products: ProductRef[] = productSeeds.map((p) => ({ ...p }));
-let seq = 0;
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const withCount = (row: Row): Brand => ({
-  ...row,
-  productCount: products.filter((p) => p.brandId === row.id).length,
+export interface BrandService {
+  list(): Promise<Brand[]>;
+  create(draft: BrandDraft): Promise<Brand>;
+  update(id: string, draft: BrandDraft): Promise<Brand>;
+  setActive(id: string, active: boolean): Promise<void>;
+  remove(id: string): Promise<void>;
+  reorder(ids: string[]): Promise<void>;
+  listProducts(): Promise<ProductRef[]>;
+  assignProducts(id: string, productIds: string[]): Promise<void>;
+  unassignProducts(id: string, productIds: string[]): Promise<void>;
+}
+const path = (id: string) => '/api/markalar/' + encodeURIComponent(id);
+const withLogo = (brand: Brand): Brand => ({
+  ...brand,
+  logoUrl: brand.logoUrl ? API_BASE_URL + brand.logoUrl : null,
 });
-
-export const brandService = {
-  /** Yalnızca testler için: sahte veriyi başlangıç haline döndürür. */
-  reset(): void {
-    rows = brandSeeds.map((b) => ({ ...b }));
-    products = productSeeds.map((p) => ({ ...p }));
-  },
-
-  /** Mağazadaki gösterim sırasıyla markalar. */
-  async list(): Promise<Brand[]> {
-    await wait(60);
-    return rows.map(withCount);
-  },
-
-  async create(draft: BrandDraft): Promise<Brand> {
-    await wait(0);
-    const row: Row = { id: `yeni-${++seq}`, ...draft };
-    rows = [...rows, row];
-    return withCount(row);
-  },
-
-  async update(id: string, draft: BrandDraft): Promise<Brand> {
-    await wait(0);
-    rows = rows.map((r) => (r.id === id ? { ...r, ...draft } : r));
-    return withCount(rows.find((r) => r.id === id) as Row);
-  },
-
-  async setActive(id: string, active: boolean): Promise<void> {
-    await wait(0);
-    rows = rows.map((r) => (r.id === id ? { ...r, active } : r));
-  },
-
-  /** Markayı siler; markayı kullanan ürünlerin markası boş kalır. */
-  async remove(id: string): Promise<void> {
-    await wait(0);
-    rows = rows.filter((r) => r.id !== id);
-    products = products.map((p) => (p.brandId === id ? { ...p, brandId: null } : p));
-  },
-
-  /** Verilen kimlik sırasını kalıcı yapar. */
-  async reorder(ids: string[]): Promise<void> {
-    await wait(0);
-    const byId = new Map(rows.map((r) => [r.id, r]));
-    rows = ids.map((id) => byId.get(id)).filter((r): r is Row => Boolean(r));
-  },
-
-  async listProducts(): Promise<ProductRef[]> {
-    await wait(100);
-    return products.map((p) => ({ ...p }));
-  },
-
-  /** Ürünleri bu markadan çıkarır (ürünün markası boş kalır). */
-  async unassignProducts(brandId: string, productIds: string[]): Promise<void> {
-    await wait(0);
-    const picked = new Set(productIds);
-    products = products.map((p) =>
-      picked.has(p.id) && p.brandId === brandId ? { ...p, brandId: null } : p,
-    );
-  },
-
-  /** Seçili ürünleri markaya atar (başka markadaysa taşınır). */
-  async assignProducts(brandId: string, productIds: string[]): Promise<void> {
-    await wait(0);
-    const picked = new Set(productIds);
-    products = products.map((p) => (picked.has(p.id) ? { ...p, brandId } : p));
-  },
+const payload = (draft: BrandDraft) => ({
+  ...draft,
+  logoUrl:
+    API_BASE_URL && draft.logoUrl?.startsWith(API_BASE_URL + '/api/markalar/')
+      ? draft.logoUrl.slice(API_BASE_URL.length)
+      : draft.logoUrl,
+});
+export const brandService: BrandService = {
+  list: async () => (await apiRequest<Brand[]>('/api/markalar')).map(withLogo),
+  create: async (draft) =>
+    withLogo(await apiRequest('/api/markalar', { method: 'POST', body: payload(draft) })),
+  update: async (id, draft) =>
+    withLogo(await apiRequest(path(id), { method: 'POST', body: payload(draft) })),
+  setActive: (id, active) =>
+    apiRequest(path(id) + '/aktiflik', { method: 'POST', body: { active } }),
+  remove: (id) => apiRequest(path(id) + '/sil', { method: 'POST' }),
+  reorder: (ids) => apiRequest('/api/markalar/sirala', { method: 'POST', body: { ids } }),
+  listProducts: () => apiRequest('/api/markalar/urunler'),
+  assignProducts: (id, productIds) =>
+    apiRequest(path(id) + '/urunler/ata', { method: 'POST', body: { productIds } }),
+  unassignProducts: (id, productIds) =>
+    apiRequest(path(id) + '/urunler/cikar', { method: 'POST', body: { productIds } }),
 };

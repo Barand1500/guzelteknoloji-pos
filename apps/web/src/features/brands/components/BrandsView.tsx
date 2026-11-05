@@ -1,6 +1,8 @@
 import { Plus, Tag } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
+import { stockErrorMessage } from '../../stock/services/stock.service';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
@@ -27,7 +29,19 @@ type FormState = { brandId: string | null } | null;
  * Sıra, mağazada markaların gösterim sırasıdır (arama sırasında sıralama kapalıdır).
  */
 export function BrandsView() {
-  const { brands, loading, toggleActive, reorder, save, remove, assign, unassign } = useBrands();
+  const {
+    brands,
+    loading,
+    error,
+    busy,
+    reload,
+    toggleActive,
+    reorder,
+    save,
+    remove,
+    assign,
+    unassign,
+  } = useBrands();
   const phone = !useMediaQuery('(min-width: 48rem)');
 
   const [query, setQuery] = useState('');
@@ -36,6 +50,7 @@ export function BrandsView() {
   // Satırdaki "Ürünler" işlemi: yalnızca ürünler penceresi (düzenleme formu açılmaz).
   const [productsFor, setProductsFor] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Brand | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number>(undefined);
   useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
@@ -78,16 +93,28 @@ export function BrandsView() {
   const confirmDelete = async () => {
     if (!deleting) return;
     const { id, name } = deleting;
-    setDeleting(null);
     setSwipeOpenId(null);
-    await remove(id);
-    showNotice(`${name} silindi.`);
+    try {
+      await remove(id);
+      setDeleting(null);
+      showNotice(`${name} silindi.`);
+    } catch (error) {
+      setDeleteError(stockErrorMessage(error));
+    }
   };
 
   const openAdd = () => setForm({ brandId: null });
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4" aria-busy={busy}>
+      {error ? (
+        <>
+          <Alert tone="error">{error}</Alert>
+          <Button fullWidth={false} onClick={() => void reload()}>
+            Yeniden Yükle
+          </Button>
+        </>
+      ) : null}
       <div className="flex min-w-0 flex-col gap-4">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
@@ -129,7 +156,7 @@ export function BrandsView() {
               <div key={i} className="h-[4.25rem] animate-pulse rounded-3xl bg-surface-muted" />
             ))}
           </div>
-        ) : brands.length === 0 ? (
+        ) : brands.length === 0 && error ? null : brands.length === 0 ? (
           <EmptyState
             title="Henüz marka yok"
             text="İlk markanı ekleyerek başla."
@@ -150,7 +177,7 @@ export function BrandsView() {
             items={paging.pageItems}
             getId={(b) => b.id}
             getLabel={(b) => b.name}
-            disabled={searching}
+            disabled={searching || busy}
             onDragStart={() => setSwipeOpenId(null)}
             // Sürükleme geçerli sayfa içindedir; sıra tüm listeye yansıtılır.
             onReorder={(nextPage) =>
@@ -165,7 +192,7 @@ export function BrandsView() {
                 brand={brand}
                 phone={phone}
                 sortable={ctx}
-                sortingDisabled={searching}
+                sortingDisabled={searching || busy}
                 swipeOpen={swipeOpenId === brand.id}
                 onSwipeOpenChange={(open) => setSwipeOpenId(open ? brand.id : null)}
                 onEdit={() => {
@@ -176,7 +203,10 @@ export function BrandsView() {
                   setSwipeOpenId(null);
                   setProductsFor(brand.id);
                 }}
-                onDelete={() => setDeleting(brand)}
+                onDelete={() => {
+                  setDeleteError(null);
+                  setDeleting(brand);
+                }}
                 onToggle={(active) => toggleActive(brand.id, active)}
               />
             )}
@@ -249,11 +279,12 @@ export function BrandsView() {
         danger
         title={deleting ? `${deleting.name} Silinsin Mi?` : ''}
         description={
-          deleting
+          deleteError ??
+          (deleting
             ? deleting.productCount > 0
               ? `${deleting.name} markası ${deleting.productCount} üründe kullanılıyor. Silerseniz bu ürünlerin markası boş kalır.`
               : `${deleting.name} markası kalıcı olarak silinecek.`
-            : ''
+            : '')
         }
         confirmLabel="Sil"
         onConfirm={() => void confirmDelete()}

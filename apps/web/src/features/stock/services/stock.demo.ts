@@ -1,6 +1,6 @@
 ﻿import type { SelectOption } from '../../../components/ui/SelectField';
 import { stockLookupsMock } from '../../../mocks/stock.mock';
-import { brandService } from '../../brands/services/brand.service';
+import { demoBrandService } from '../../brands/services/brand.demo';
 import type { OptionListKey, StockCardDraft, StockLookups } from '../types';
 import type { StockService } from './stock.service';
 
@@ -11,7 +11,7 @@ const fakeDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms)
 export const demoStockService: StockService = {
   async getLookups(): Promise<StockLookups> {
     await fakeDelay();
-    const brands = (await brandService.list())
+    const brands = (await demoBrandService.list())
       .filter((brand) => brand.active)
       .map((brand) => ({ value: brand.id, label: brand.name }));
     return { ...stockLookupsMock, brands };

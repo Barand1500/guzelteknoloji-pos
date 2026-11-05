@@ -19,6 +19,8 @@ import { createAppleOidcClient } from './modules/auth/apple.client';
 import { createHealthRouter } from './modules/health/health.routes';
 import { createStockRouter } from './modules/stock/stock.routes';
 import type { StockRepository } from './modules/stock/stock.repository';
+import { createBrandRouter } from './modules/brands/brand.routes';
+import type { PrismaBrandRepository } from './modules/brands/brand.repository';
 
 export interface AppDeps {
   env: Env;
@@ -30,6 +32,7 @@ export interface AppDeps {
   apple?: GoogleOidcClient | null;
   checkDatabase?: () => Promise<void>;
   stockRepo?: StockRepository;
+  brandRepo?: PrismaBrandRepository;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -69,6 +72,7 @@ export function createApp(deps: AppDeps): Express {
 
   app.use(requestLogger(logger));
   app.use('/api/stok', express.json({ limit: '512kb' }));
+  app.use('/api/markalar', express.json({ limit: '3mb' }));
   app.use(express.json({ limit: '10kb' }));
   app.use(cookieParser(env.COOKIE_SECRET));
 
@@ -99,6 +103,7 @@ export function createApp(deps: AppDeps): Express {
     }),
   );
   if (deps.stockRepo) app.use('/api/stok', createStockRouter(env, service, deps.stockRepo));
+  if (deps.brandRepo) app.use('/api/markalar', createBrandRouter(env, service, deps.brandRepo));
   app.use('/api', notFoundHandler);
 
   // Tek origin dağıtımı: derlenmiş SPA aynı sunucudan sunulur.

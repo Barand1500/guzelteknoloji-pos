@@ -1,5 +1,5 @@
 import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import { Alert } from '../../../components/ui/Alert';
 
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -14,23 +14,19 @@ interface LogoPickerProps {
 
 /**
  * Logo seçici: dokunarak seç ya da (masaüstünde) dosyayı sürükleyip bırak. Seçilen dosya hemen
- * önizlenir. Yalnızca görsel dosyalar ve en çok 2 MB kabul edilir. Tarayıcı belleğindeki geçici
- * adresler (blob) bileşen kapanınca serbest bırakılır; gerçek yükleme API'ye bağlanınca yapılır.
+ * önizlenir. Yalnızca belirtilen görsel türleri ve en çok 2 MB kabul edilir.
+ * Dosya içeriği formla gönderilir; sunucu doğrulayıp kalıcı WebP logosuna dönüştürür.
  */
 export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const created = useRef<string[]>([]);
+  const sequence = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [over, setOver] = useState(false);
 
-  useEffect(() => {
-    const urls = created.current;
-    return () => urls.forEach((url) => URL.revokeObjectURL?.(url));
-  }, []);
-
   const take = (file: File | undefined) => {
+    const current = ++sequence.current;
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
+    if (!ACCEPT.split(',').includes(file.type)) {
       setError('Yalnızca görsel dosyaları (PNG, JPG, WebP, SVG) yükleyebilirsiniz.');
       return;
     }
@@ -39,9 +35,15 @@ export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
       return;
     }
     setError(null);
-    const url = URL.createObjectURL?.(file) ?? '';
-    if (url) created.current.push(url);
-    onChange(url || null);
+    const reader = new FileReader();
+    reader.onerror = () => {
+      if (sequence.current === current) setError('Logo okunamadı. Tekrar seçin.');
+    };
+    reader.onload = () => {
+      if (sequence.current === current && typeof reader.result === 'string')
+        onChange(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const onDrop = (event: DragEvent) => {
@@ -114,7 +116,10 @@ export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
           </button>
           <button
             type="button"
-            onClick={() => onChange(null)}
+            onClick={() => {
+              sequence.current++;
+              onChange(null);
+            }}
             className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-control border border-field-border text-sm font-semibold text-danger transition-colors hover:bg-danger-soft"
           >
             <Trash2 className="size-4" aria-hidden="true" />

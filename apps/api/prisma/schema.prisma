@@ -142,10 +142,26 @@ model StokSecenegi {
   vergiKartlari     StokKarti[]        @relation("StockTax")
   fiyatListeleri    StokFiyatListesi[]
   birimler          StokBirimi[]
+  markaBilgisi      Marka?
 
   @@unique([kullaniciKimligi, listeTuru, secenekKodu], map: "stok_secenekleri_kod_tekil")
   @@unique([kullaniciKimligi, listeTuru, adOzeti], map: "stok_secenekleri_ad_tekil")
   @@map("stok_secenekleri")
+}
+
+/// Marka adı, kullanıcı ve sıra ortak seçenek kaydındadır; ayrıntıları burada tutulur.
+/// Mevcut stok kartlarının marka kimlikleri ve ilişkileri aynen korunur.
+model Marka {
+  kimlik           String       @id @map("kimlik") @db.Char(36)
+  aciklama         String       @map("aciklama") @db.Text
+  logoVerisi       Bytes?       @map("logo_verisi") @db.MediumBlob
+  logoOzeti        String?      @map("logo_ozeti") @db.Char(64)
+  seoBasligi       String       @map("seo_basligi") @db.VarChar(250)
+  seoAciklamasi    String       @map("seo_aciklamasi") @db.VarChar(1000)
+  guncellemeZamani DateTime     @updatedAt @map("guncelleme_zamani")
+  secenek          StokSecenegi @relation(fields: [kimlik], references: [kimlik], onDelete: Cascade, map: "markalar_secenek_baglantisi")
+
+  @@map("markalar")
 }
 
 model StokKarti {

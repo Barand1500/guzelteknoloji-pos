@@ -2,7 +2,9 @@ import { Check, Minus, PackageOpen, Undo2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { SearchField } from '../../../components/ui/SearchField';
-import { brandService } from '../services/brand.service';
+import { useBrandService } from '../hooks/useBrandService';
+import { Alert } from '../../../components/ui/Alert';
+import { stockErrorMessage } from '../../stock/services/stock.service';
 import type { Brand, ProductRef } from '../types';
 import { BrandLogo } from './BrandLogo';
 
@@ -35,6 +37,11 @@ export function BrandProductsPanel({
   onAssign,
   onUnassign,
 }: BrandProductsPanelProps) {
+  const brandService = useBrandService();
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const pending = useRef(false);
   const [products, setProducts] = useState<ProductRef[] | null>(null);
   const [tab, setTab] = useState<Tab>('in');
   const [query, setQuery] = useState('');
@@ -46,13 +53,18 @@ export function BrandProductsPanel({
 
   useEffect(() => {
     let active = true;
-    void brandService.listProducts().then((list) => active && setProducts(list));
+    void brandService
+      .listProducts()
+      .then((list) => active && setProducts(list))
+      .catch((e) => {
+        if (active) setError(stockErrorMessage(e));
+      });
     const pending = timers.current;
     return () => {
       active = false;
       pending.forEach((t) => window.clearTimeout(t));
     };
-  }, []);
+  }, [brandService, retry]);
 
   const mine = useMemo(
     () => (products ?? []).filter((p) => p.brandId === brand.id),
@@ -85,13 +97,28 @@ export function BrandProductsPanel({
   };
 
   // Anında uygula: ekran hemen güncellenir, kayıt arkadan yapılır.
-  const apply = (ids: string[], toBrand: boolean) => {
+  const apply = async (ids: string[], toBrand: boolean) => {
+    if (pending.current) return false;
+    const before = products;
+    pending.current = true;
+    setBusy(true);
+    setError(null);
     setProducts((list) =>
       (list ?? []).map((p) =>
         ids.includes(p.id) ? { ...p, brandId: toBrand ? brand.id : null } : p,
       ),
     );
-    void (toBrand ? onAssign(brand.id, ids) : onUnassign(brand.id, ids));
+    try {
+      await (toBrand ? onAssign(brand.id, ids) : onUnassign(brand.id, ids));
+      return true;
+    } catch (e) {
+      setProducts(before);
+      setError(stockErrorMessage(e));
+      return false;
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
   };
 
   const togglePick = (id: string) =>
@@ -112,10 +139,10 @@ export function BrandProductsPanel({
       return next;
     });
 
-  const addPicked = () => {
+  const addPicked = async () => {
     const ids = [...picked];
     if (ids.length === 0) return;
-    apply(ids, true);
+    if (!(await apply(ids, true))) return;
     setPicked(new Set());
     setQuery('');
     setUndo(null);
@@ -125,15 +152,15 @@ export function BrandProductsPanel({
     setTab('in');
   };
 
-  const removeOne = (p: ProductRef) => {
-    apply([p.id], false);
+  const removeOne = async (p: ProductRef) => {
+    if (!(await apply([p.id], false))) return;
     setUndo({ ids: [p.id], label: p.name });
     later(() => setUndo((u) => (u?.ids[0] === p.id ? null : u)), UNDO_MS);
   };
 
-  const undoRemove = () => {
+  const undoRemove = async () => {
     if (!undo) return;
-    apply(undo.ids, true);
+    if (!(await apply(undo.ids, true))) return;
     setFresh(new Set(undo.ids));
     later(() => setFresh(new Set()), FRESH_MS);
     setUndo(null);
@@ -152,7 +179,24 @@ export function BrandProductsPanel({
   ];
 
   return (
-    <div className="flex min-h-full flex-col gap-4">
+    <fieldset
+      disabled={busy}
+      aria-busy={busy}
+      className="m-0 flex min-h-full min-w-0 flex-col gap-4 border-0 p-0"
+    >
+      {error ? (
+        <>
+          <Alert tone="error">{error}</Alert>
+          <Button
+            onClick={() => {
+              setError(null);
+              setRetry((n) => n + 1);
+            }}
+          >
+            Tekrar Dene
+          </Button>
+        </>
+      ) : null}
       <div
         role="tablist"
         aria-label="Ürün işlemleri"
@@ -182,7 +226,7 @@ export function BrandProductsPanel({
         ))}
       </div>
 
-      {products === null ? (
+      {products === null && error ? null : products === null ? (
         <div className="h-40 animate-pulse rounded-3xl bg-surface-muted" aria-busy="true" />
       ) : (
         <>
@@ -360,7 +404,7 @@ export function BrandProductsPanel({
           ) : null}
         </>
       )}
-    </div>
+    </fieldset>
   );
 }
 

@@ -107,17 +107,19 @@ export class PrismaStockRepository implements StockRepository {
     await retryWrite(() =>
       this.db.stokSecenegi.createMany({
         skipDuplicates: true,
-        data: (Object.keys(DEFAULT_STOCK_LOOKUPS) as (keyof StockLookups)[]).flatMap((listKey) =>
-          DEFAULT_STOCK_LOOKUPS[listKey].map((option, position) => ({
-            kullaniciKimligi: userId,
-            listeTuru: listKey,
-            secenekKodu: option.value,
-            secenekAdi: option.label,
-            adOzeti: labelHash(option.label),
-            silinebilir: option.removable ?? false,
-            sira: position,
-          })),
-        ),
+        data: (Object.keys(DEFAULT_STOCK_LOOKUPS) as (keyof StockLookups)[])
+          .filter((key) => key !== 'brands')
+          .flatMap((listKey) =>
+            DEFAULT_STOCK_LOOKUPS[listKey].map((option, position) => ({
+              kullaniciKimligi: userId,
+              listeTuru: listKey,
+              secenekKodu: option.value,
+              secenekAdi: option.label,
+              adOzeti: labelHash(option.label),
+              silinebilir: option.removable ?? false,
+              sira: position,
+            })),
+          ),
       }),
     );
   }

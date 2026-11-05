@@ -14,6 +14,7 @@ Uygulama tabloları, sütunları ve Prisma model/alan adları Türkçedir. Araç
 - StokFiyati: stok_fiyatlari
 - StokEkFiyati: stok_ek_fiyatlari
 - StokBarkodu: stok_barkodlari
+- Marka: markalar
 
 `_prisma_migrations`, Prisma'nın yönettiği teknik tablodur; adı ve sütunları değiştirilmez. Google/Apple marka adları korunur. Prisma'daki `AKTIF`, `DEVRE_DISI`, `EPOSTA` değerleri `@map` ile veritabanındaki mevcut `ACTIVE`, `DISABLED`, `EMAIL` değerlerine bağlanır.
 

@@ -195,6 +195,8 @@ Geniş ekranda (xl) "Envanter Takibi + seçime göre alanlar + Menşei + Diğer 
 
 ### 8.14 Markalar ekranı ve yönetim listesi parçaları (Kategoriler/Fırsat/Özellikler de bunları kullanır)
 
+**Kalıcı veri:** Gerçek oturum `brand.service.ts` ile API/MySQL kullanır; yalnızca test kullanıcısı `brand.demo.ts` kullanır. Marka kimliği ve adı mevcut stok seçeneğiyle ortaktır; Türkçe `markalar` tablosu ayrıntıları bire bir saklar. Ürün atama/silme ve sıralama kullanıcıya özel, transaction içindedir. Ayrıntılar: `docs/markalar-veritabani.md`.
+
 - **Tasarım (seçilen: "Kaydırmalı Satırlar"):** logo + ad + ürün sayısı + anahtar. Telefonda satır **sola kaydırınca** Düzenle / Tanımla / Sil çıkar; satıra dokunmak düzenler. Masaüstünde satırın içinde ⠿ tutamağı ve ikon düğmeleri bulunur (yan özet kartı YOK, istenmedi).
 - **Sıralama = sürükle-bırak, ayrı "Sıralama" düğmesi YOKTUR:** telefonda satırı ~0,35 sn **basılı tut** → satır havaya kalkar, diğerleri kayarak yer açar, sayfa kenarında kendiliğinden kayar; masaüstünde ⠿ tutamağından; klavyede tutamağa odaklanıp ↑ ↓. Arama yapılırken sıralama kapalıdır. Sıra mağazadaki gösterim sırasıdır.
 - **Ortak parçalar (yeniden kullanın):** `components/ui/SortableList` (sürükle-bırak + klavye + duyuru), `SwipeRow` (sola kaydırma), `ToggleSwitch`, `SearchField`, `TextAreaField`, `ConfirmSheet`, `Button variant="danger"`. Veri `features/<ad>/services` üzerinden; sahte veri `src/mocks`.

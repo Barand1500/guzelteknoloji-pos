@@ -1,34 +1,5 @@
-export interface Brand {
-  id: string;
-  name: string;
-  description: string;
-  /** Yüklenen logonun adresi; yoksa ad baş harfleriyle bir rozet gösterilir. */
-  logoUrl: string | null;
-  active: boolean;
-  seoTitle: string;
-  seoDescription: string;
-  /** Bu markayı kullanan ürün sayısı (sunucudan hesaplanır). */
-  productCount: number;
-}
-
-/** Marka ekleme/düzenleme formunun değerleri. */
-export interface BrandDraft {
-  name: string;
-  description: string;
-  logoUrl: string | null;
-  active: boolean;
-  seoTitle: string;
-  seoDescription: string;
-}
-
-/** "Ürünlere Tanımla" ekranında listelenen ürünün kısa özeti. */
-export interface ProductRef {
-  id: string;
-  code: string;
-  name: string;
-  barcode: string;
-  brandId: string | null;
-}
+import type { BrandDraft } from '@gt/shared';
+export type { Brand, BrandDraft, ProductRef } from '@gt/shared';
 
 export const emptyBrandDraft: BrandDraft = {
   name: '',

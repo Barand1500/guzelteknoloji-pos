@@ -7,6 +7,7 @@ import { createPrismaClient } from './lib/prisma';
 import { PrismaAuthRepository } from './modules/auth/auth.repository';
 import { createGoogleOidcClient } from './modules/auth/google.client';
 import { PrismaStockRepository } from './modules/stock/stock.repository';
+import { PrismaBrandRepository } from './modules/brands/brand.repository';
 
 let env;
 try {
@@ -39,6 +40,7 @@ const app = createApp({
   logger,
   repo: new PrismaAuthRepository(prisma),
   stockRepo: new PrismaStockRepository(prisma),
+  brandRepo: new PrismaBrandRepository(prisma),
   hasher: argon2Hasher,
   mailer: createMailer(env, logger),
   google: env.google ? createGoogleOidcClient(env.google) : null,
