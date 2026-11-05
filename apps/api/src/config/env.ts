@@ -61,6 +61,7 @@ const envSchema = z
     SMTP_PASS: optionalString,
     /** Gönderen adresi, ör. Güzel Teknoloji <destek@guzelteknoloji.com> */
     MAIL_FROM: optionalString,
+    SMTP_FROM: optionalString,
 
     /** Giriş sonrası yönlendirilecek web yolu. */
     POST_LOGIN_PATH: z.string().startsWith('/').default('/login'),
@@ -73,7 +74,7 @@ const envSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['APPLE_CLIENT_SECRET'],
-        message: 'APPLE_CLIENT_ID ve APPLE_CLIENT_SECRET birlikte tan?mlanmal?d?r.',
+        message: 'APPLE_CLIENT_ID ve APPLE_CLIENT_SECRET birlikte tanımlanmalıdır.',
       });
     }
     const hasId = Boolean(env.GOOGLE_CLIENT_ID);
@@ -85,7 +86,14 @@ const envSchema = z
         message: 'GOOGLE_CLIENT_ID ve GOOGLE_CLIENT_SECRET birlikte tanımlanmalıdır.',
       });
     }
-    if (env.SMTP_HOST && !env.MAIL_FROM) {
+    if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASS)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SMTP_PASS'],
+        message: 'SMTP_USER ve SMTP_PASS birlikte tanımlanmalıdır.',
+      });
+    }
+    if (env.SMTP_HOST && !env.MAIL_FROM && !env.SMTP_FROM) {
       ctx.addIssue({
         code: 'custom',
         path: ['MAIL_FROM'],
@@ -145,7 +153,7 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
       .join('\n');
     throw new Error(`Geçersiz ortam değişkenleri:\n${details}`);
   }
-  const env = result.data;
+  const env = { ...result.data, MAIL_FROM: result.data.MAIL_FROM ?? result.data.SMTP_FROM };
   const extraOrigins = (env.CORS_ORIGINS ?? '')
     .split(',')
     .map((o) => o.trim())

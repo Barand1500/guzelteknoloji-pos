@@ -18,28 +18,25 @@ export interface Mailer {
  */
 export function createMailer(env: Env, logger: Logger): Mailer {
   if (env.smtp) {
-    const { host, port, secure, user, pass, from, caFile } = env.smtp;
-    // Kendinden imzalı sertifika: doğrulama kapatılmaz, yalnızca bu sertifika güvenilir eklenir.
-    const ca = caFile ? readFileSync(caFile, 'utf8') : undefined;
-    const transport = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      // 587'de (STARTTLS) bağlantı mutlaka şifrelenir; şifrelenemezse gönderilmez.
-      requireTLS: !secure,
-      ...(ca ? { tls: { ca } } : {}),
-      ...(user && pass ? { auth: { user, pass } } : {}),
-      connectionTimeout: 8_000,
-      greetingTimeout: 8_000,
-      socketTimeout: 10_000,
-    });
+    const { from } = env.smtp;
+    const transport = createSmtpTransport(env.smtp);
     return {
       async sendLoginCode(to, code, expiresInMinutes) {
-        await transport.sendMail({
-          from,
-          to,
-          ...loginCodeEmail({ code, expiresInMinutes, brandName: BRAND_NAME, appUrl: env.APP_URL }),
-        });
+        try {
+          await transport.sendMail({
+            from,
+            to,
+            ...loginCodeEmail({
+              code,
+              expiresInMinutes,
+              brandName: BRAND_NAME,
+              appUrl: env.APP_URL,
+            }),
+          });
+        } catch (error) {
+          logger.error(smtpFailure(error), 'SMTP e-posta gönderimi başarısız');
+          throw error;
+        }
       },
     };
   }
@@ -57,4 +54,81 @@ export function createMailer(env: Env, logger: Logger): Mailer {
       throw new Error('SMTP yapılandırılmadığı için e-posta gönderilemiyor.');
     },
   };
+}
+
+function createSmtpTransport(smtp: NonNullable<Env['smtp']>) {
+  const { host, port, secure, user, pass, caFile } = smtp;
+  // Kendinden imzalı sertifika: doğrulama kapatılmaz, yalnızca bu sertifika güvenilir eklenir.
+  const ca = caFile ? readFileSync(caFile, 'utf8') : undefined;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    // 587'de (STARTTLS) bağlantı mutlaka şifrelenir; şifrelenemezse gönderilmez.
+    requireTLS: !secure,
+    ...(ca ? { tls: { ca } } : {}),
+    ...(user && pass ? { auth: { user, pass } } : {}),
+    connectionTimeout: 8_000,
+    greetingTimeout: 8_000,
+    socketTimeout: 10_000,
+  });
+}
+
+/** Ham SMTP cevabında adres, kod veya kimlik bilgisi bulunabilir; yalnızca izinli tanı alanları kaydedilir. */
+export function smtpFailure(error: unknown) {
+  const row = error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
+  const codes = [
+    'EAUTH',
+    'ECONNECTION',
+    'ETIMEDOUT',
+    'EDNS',
+    'ESOCKET',
+    'ETLS',
+    'EENVELOPE',
+    'EMESSAGE',
+    'ECONNREFUSED',
+    'ECONNRESET',
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'ENOENT',
+    'SELF_SIGNED_CERT_IN_CHAIN',
+    'DEPTH_ZERO_SELF_SIGNED_CERT',
+    'CERT_HAS_EXPIRED',
+    'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  ];
+  const smtpCode = typeof row.code === 'string' && codes.includes(row.code) ? row.code : 'UNKNOWN';
+  const responseCode =
+    typeof row.responseCode === 'number' &&
+    Number.isInteger(row.responseCode) &&
+    row.responseCode >= 100 &&
+    row.responseCode <= 599
+      ? row.responseCode
+      : undefined;
+  const category =
+    smtpCode === 'EAUTH'
+      ? 'authentication'
+      : smtpCode === 'ETIMEDOUT'
+        ? 'timeout'
+        : [
+              'ETLS',
+              'ESOCKET',
+              'SELF_SIGNED_CERT_IN_CHAIN',
+              'DEPTH_ZERO_SELF_SIGNED_CERT',
+              'CERT_HAS_EXPIRED',
+              'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+            ].includes(smtpCode)
+          ? 'tls'
+          : 'connection_or_delivery';
+  return { smtpCode, responseCode, category };
+}
+
+/** Mesaj göndermeden DNS, bağlantı, TLS ve SMTP kimlik doğrulamasını sınar. */
+export async function verifySmtp(env: Env) {
+  if (!env.smtp) throw new Error('SMTP_NOT_CONFIGURED');
+  const transport = createSmtpTransport(env.smtp);
+  try {
+    await transport.verify();
+  } finally {
+    transport.close();
+  }
 }
