@@ -46,6 +46,7 @@ export function createUnitRow(first: boolean, unit = 'adet'): UnitRow {
     sale: emptyBlock(),
     barcodes: [],
     weight: '',
+    weightUnit: 'kg',
     volume: '',
     note: '',
     isMain: first,

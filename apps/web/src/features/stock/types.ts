@@ -18,6 +18,8 @@ export interface StockLookups {
   barcodeTypes: SelectOption[];
 }
 
+export type WeightUnit = 'kg' | 'g';
+
 /** Ana fiyata ek, açıklamalı fiyat (ör. kampanya, bayi fiyatı). */
 export interface ExtraPrice {
   id: string;
@@ -52,6 +54,8 @@ export interface UnitRow {
   sale: PriceBlockData;
   barcodes: BarcodeEntry[];
   weight: string;
+  /** Ağırlığın birimi: kg ya da g. Hacim her zaman desidir. */
+  weightUnit: WeightUnit;
   volume: string;
   note: string;
   isMain: boolean;

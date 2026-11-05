@@ -1,6 +1,6 @@
-import { Check, Circle, Package } from 'lucide-react';
+import { Check, ChevronRight, Circle, Package } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { blockTotals, formatMoney, marginPercent, parseNumber } from '../stock.calc';
+import { blockTotals, formatMoney, getCompletion, marginPercent } from '../stock.calc';
 import type { StockCardDraft, StockLookups, UnitRow } from '../types';
 
 interface StockPreviewProps {
@@ -10,6 +10,8 @@ interface StockPreviewProps {
   priceListLabel: string;
   /** Kaydet düğmesi vb. kartın altına eklenir. */
   footer: ReactNode;
+  /** Verilirse (geniş ekranda) kartı sağa doğru kapatan ok düğmesi gösterilir. */
+  onCollapse?: (() => void) | undefined;
 }
 
 const labelOf = (options: { value: string; label: string }[], value: string) =>
@@ -19,22 +21,21 @@ const labelOf = (options: { value: string; label: string }[], value: string) =>
  * Canlı kart önizlemesi: kullanıcı yazdıkça ürünün nasıl görüneceğini ve fiyat/kâr hesabını
  * anında gösterir. Masaüstünde sağda yapışkan durur (boş alan kullanılır), telefonda son adımdır.
  */
-export function StockPreview({ draft, lookups, rows, priceListLabel, footer }: StockPreviewProps) {
+export function StockPreview({
+  draft,
+  lookups,
+  rows,
+  priceListLabel,
+  footer,
+  onCollapse,
+}: StockPreviewProps) {
   const chips = [
     labelOf(lookups.stockTypes, draft.stockType),
     labelOf(lookups.brands, draft.brand),
     labelOf(lookups.vatDepartments, draft.vatDepartment),
   ].filter(Boolean);
 
-  // Kartın "doldurulmuşluk" göstergesi: kullanıcıya eksikleri nazikçe hatırlatır (zorunlu değildir).
-  const allRows = Object.values(draft.units).flat();
-  const checks = [
-    { label: 'Kod', ok: draft.code.trim() !== '' },
-    { label: 'Ad', ok: draft.name.trim() !== '' },
-    { label: 'Marka', ok: draft.brand !== '' },
-    { label: 'Satış fiyatı', ok: allRows.some((r) => parseNumber(r.sale.amount) > 0) },
-    { label: 'Barkod', ok: allRows.some((r) => r.barcodes.length > 0) },
-  ];
+  const checks = getCompletion(draft);
   const done = checks.filter((x) => x.ok).length;
 
   return (
@@ -49,7 +50,7 @@ export function StockPreview({ draft, lookups, rows, priceListLabel, footer }: S
         >
           <Package className="size-6" />
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p
             className={`text-lg leading-tight font-extrabold break-words ${draft.name ? '' : 'text-ink-muted'}`}
           >
@@ -57,6 +58,17 @@ export function StockPreview({ draft, lookups, rows, priceListLabel, footer }: S
           </p>
           <p className="mt-0.5 font-mono text-sm text-ink-muted">{draft.code || 'STOK-KODU'}</p>
         </div>
+        {onCollapse ? (
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label="Özeti Kapat"
+            title="Özeti kapat"
+            className="hidden size-10 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink xl:inline-flex"
+          >
+            <ChevronRight className="size-5" aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
 
       <div>

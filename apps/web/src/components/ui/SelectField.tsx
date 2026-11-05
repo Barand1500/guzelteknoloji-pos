@@ -17,8 +17,19 @@ export interface SelectOption {
 
 export interface SelectCreator {
   placeholder: string;
-  /** Kullanıcı listenin altına yeni bir ad yazıp onayladığında çağrılır. */
-  onCreate: (label: string) => void;
+  /** Verilirse adın yanında bir oran (%) kutusu da çıkar ve zorunlu olur (ör. KDV departmanı). */
+  ratePlaceholder?: string;
+  /** Kullanıcı yeni öğeyi onayladığında çağrılır; `rate` doğrulanmış, virgüllü yazımdır (örn. "8,5"). */
+  onCreate: (label: string, rate?: string) => void;
+}
+
+/** "10", "%10", "8,5" → "10" / "8,5"; geçersiz ya da 0-100 dışıysa null. */
+export function parseRate(text: string): string | null {
+  const cleaned = text.replace('%', '').replace(',', '.').trim();
+  if (cleaned === '') return null;
+  const value = Number(cleaned);
+  if (!Number.isFinite(value) || value < 0 || value > 100) return null;
+  return String(value).replace('.', ',');
 }
 
 interface SelectFieldProps {
@@ -67,6 +78,7 @@ export function SelectField({
   const [openUp, setOpenUp] = useState(false);
   const [query, setQuery] = useState('');
   const [newLabel, setNewLabel] = useState('');
+  const [newRate, setNewRate] = useState('');
   const [active, setActive] = useState(0);
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -89,6 +101,7 @@ export function SelectField({
     }
     setQuery('');
     setNewLabel('');
+    setNewRate('');
     setActive(
       Math.max(
         0,
@@ -170,11 +183,25 @@ export function SelectField({
     }
   };
 
+  // Oran (örn. KDV %) isteniyorsa: "10", "%10", "8,5" kabul edilir; 0-100 dışı geçersizdir.
+  const parsedRate = parseRate(newRate);
+  const canSubmit = newLabel.trim() !== '' && (!creator?.ratePlaceholder || parsedRate !== null);
+
   const submitNew = () => {
     const text = newLabel.trim();
-    if (!text || !creator) return;
-    creator.onCreate(text);
+    if (!creator || !canSubmit) return;
+    creator.onCreate(text, parsedRate ?? undefined);
     closeList(true);
+  };
+  const onCreatorKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitNew();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeList(true);
+    }
   };
 
   // role=presentation: klavye olayları yalnızca içteki combobox/arama kutusundan yukarı çıkanları yakalar.
@@ -293,24 +320,28 @@ export function SelectField({
                 data-creator="true"
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    submitNew();
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    closeList(true);
-                  }
-                }}
+                onKeyDown={onCreatorKeyDown}
                 placeholder={creator.placeholder}
                 aria-label={creator.placeholder}
                 className="h-10 min-w-0 flex-1 rounded-xl bg-surface-muted px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
               />
+              {creator.ratePlaceholder ? (
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  data-creator="true"
+                  value={newRate}
+                  onChange={(e) => setNewRate(e.target.value)}
+                  onKeyDown={onCreatorKeyDown}
+                  placeholder="%"
+                  aria-label={creator.ratePlaceholder}
+                  className="h-10 w-20 shrink-0 rounded-xl bg-surface-muted px-3 text-right text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
+                />
+              ) : null}
               <button
                 type="button"
                 onClick={submitNew}
-                disabled={newLabel.trim() === ''}
+                disabled={!canSubmit}
                 aria-label="Ekle"
                 className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-700 text-white transition-opacity disabled:opacity-40"
               >

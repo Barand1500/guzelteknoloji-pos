@@ -161,3 +161,10 @@ Uygulama tablolari ve sutunlari Turkce, kucuk harf ve alt cizgi ile adlandirilir
 - **Ek Alış/Satış Fiyatları:** Referanstaki ayrı "Alış Fiyatları/Satış Fiyatları" penceresi yerine, her fiyat bloğunun altında katlanan satır içi panel (açıklama + fiyat + iskonto + para birimi → Ekle; liste, net tutar, silme). Modal AÇILMAZ.
 - **Ağırlık/Hacim Hesapla:** Alanın içindeki hesap makinesi düğmesi, alanın üstünde küçük bir panel açar (Esc/X/dışarı tıklama ile kapanır). Şekil: Prizma, Küp, Silindir. Ağırlık = hacim (cm³) × yoğunluk (g/cm³), 1000 g ve üzeri kg gösterilir, "Uygula" kg olarak forma yazar; Hacim (desi) = cm³ ÷ 3000. Hesaplar `stock.calc.ts` içindedir (testli).
 - **Açılır liste/yığın bağlamı (hata dersi):** `animate-rise-in` dolgu kipi (`both`) KULLANMAZ; aksi halde her kart kalıcı bir yığın bağlamı oluşturur ve açılır listeler alttaki kartın arkasında kalır. Açılır panel içeren kartlar ayrıca `relative focus-within:z-20` taşır. Yeni kartlarda/animasyonlarda bu kurala uyun.
+
+### 8.9 Birimler, KDV oranı ve daraltılabilir özet
+
+- **Ağırlık** kg ya da g'dir: alanın sonunda kg|g seçici görünür. Hesaplayıcı sonucu 1000 g altında g, üzerinde kg yazar ve birimi otomatik ayarlar. **Hacim** yalnızca desidir ("desi" alanın sonunda sabit yazar).
+- **KDV departmanı eklerken** ad yanında ayrı bir oran (%) kutusu çıkar; oran girilmeden "Ekle" kapalıdır ("10", "%10", "8,5" kabul, 0-100). Seçenek "Ad (%oran)" biçiminde kaydedilir. Oran isteyen başka listeler için `creator.ratePlaceholder` kullanılır.
+- **Sağdaki özet** geniş ekranda ok ile sağa kapanır/açılır; kapalıyken ince şerit (aç oku, doluluk sayısı, kaydet) kalır ve sol alan genişler. Dar ekranda özet son adımdır.
+- Gece modunda tema düğmesi dolu güneş ikonudur.

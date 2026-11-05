@@ -1,5 +1,6 @@
 import { Check, Copy, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import type { WeightUnit } from '../types';
 import {
   SHAPE_FIELDS,
   formatNumber,
@@ -14,8 +15,8 @@ type Mode = 'weight' | 'volume';
 
 interface MeasureCalculatorProps {
   mode: Mode;
-  /** Hesaplanan değer forma yazılır: ağırlıkta kg, hacimde desi. */
-  onApply: (value: string) => void;
+  /** Hesaplanan değer forma yazılır: ağırlıkta g (1000 g ve üzeri kg), hacimde desi. */
+  onApply: (value: string, unit?: WeightUnit) => void;
   onClose: () => void;
 }
 
@@ -66,6 +67,7 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
 
   // Sonuç: ağırlıkta gram (1000'den büyükse kg gösterilir), hacimde desi.
   let resultValue = 0;
+  let resultUnit: WeightUnit | undefined;
   let resultText = '—';
   if (volume > 0) {
     if (mode === 'volume') {
@@ -74,9 +76,10 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
     } else {
       const grams = volume * parseNumber(density);
       if (grams > 0) {
-        resultValue = grams / 1000; // kg
-        resultText =
-          grams >= 1000 ? `${formatNumber(grams / 1000)} kg` : `${formatNumber(grams)} g`;
+        // 1000 g ve üzeri kg, altı g olarak gösterilir ve forma aynı birimle yazılır.
+        resultUnit = grams >= 1000 ? 'kg' : 'g';
+        resultValue = resultUnit === 'kg' ? grams / 1000 : grams;
+        resultText = `${formatNumber(resultValue)} ${resultUnit}`;
       }
     }
   }
@@ -203,7 +206,7 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
             type="button"
             disabled={!hasResult}
             onClick={() => {
-              onApply(toInputValue(resultValue));
+              onApply(toInputValue(resultValue), resultUnit);
               onClose();
             }}
             className="min-h-10 rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white disabled:opacity-40"

@@ -22,6 +22,7 @@ import {
 import type { StockCardDraft, StockLookups, UnitRow } from '../types';
 import { PriceTabs } from './PriceTabs';
 import { Stepper } from './Stepper';
+import { CollapsedSummary } from './CollapsedSummary';
 import { StockPreview } from './StockPreview';
 import { UnitCard } from './UnitCard';
 
@@ -37,12 +38,22 @@ const cardClass =
   'relative animate-rise-in rounded-[1.75rem] border border-line bg-surface-raised p-5 shadow-soft focus-within:z-20 tablet:p-7';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
-function editable(list: OptionList, noun: string, onCreated: (value: string) => void) {
+function editable(
+  list: OptionList,
+  noun: string,
+  onCreated: (value: string) => void,
+  withRate = false,
+) {
   return {
     options: list.options,
     creator: {
       placeholder: `Yeni ${noun} adı…`,
-      onCreate: (label: string) => void list.add(label).then((o) => onCreated(o.value)),
+      ...(withRate ? { ratePlaceholder: `${noun} oranı (%)` } : {}),
+      // Oran varsa ada parantez içinde eklenir: "Gıda" + 10 → "Gıda (%10)".
+      onCreate: (label: string, rate?: string) =>
+        void list
+          .add(withRate && rate ? `${label} (%${rate})` : label)
+          .then((o) => onCreated(o.value)),
     },
     onRemove: list.remove,
   };
@@ -85,6 +96,8 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
     () => window.matchMedia?.('(min-width: 80rem)').matches ?? false,
   );
   const [saving, setSaving] = useState(false);
+  // Sağdaki özet kartı geniş ekranda ok ile kapanıp açılır (kapalıyken sol alan genişler).
+  const [previewOpen, setPreviewOpen] = useState(true);
   const [saved, setSaved] = useState(false);
 
   // ---- Temel alanlar ---------------------------------------------------------------
@@ -213,7 +226,14 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
       </div>
 
       {/* Geniş ekranda (xl+) tam genişlik: solda iki kart, sağda yapışkan özet. Daha dar ekranda adımlar. */}
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_25rem] 2xl:grid-cols-[minmax(0,1fr)_28rem]">
+      <div
+        className={[
+          'grid items-start gap-6 transition-[grid-template-columns] duration-300',
+          previewOpen
+            ? 'xl:grid-cols-[minmax(0,1fr)_25rem] 2xl:grid-cols-[minmax(0,1fr)_28rem]'
+            : 'xl:grid-cols-[minmax(0,1fr)_3.5rem]',
+        ].join(' ')}
+      >
         <div className="flex min-w-0 flex-col gap-6">
           {/* ---- 1. Ürün bilgisi ---- */}
           <section aria-label="Temel Bilgi" className={`${cardClass} ${showOnStep(step, 0)}`}>
@@ -246,7 +266,12 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
                   label="KDV Departmanı"
                   value={draft.vatDepartment}
                   onChange={(v) => set('vatDepartment', v)}
-                  {...editable(vatDepartments, 'KDV departmanı', (v) => set('vatDepartment', v))}
+                  {...editable(
+                    vatDepartments,
+                    'KDV departmanı',
+                    (v) => set('vatDepartment', v),
+                    true,
+                  )}
                 />
               </div>
               <div className="col-span-2 md:col-span-3 xl:col-span-3">
@@ -345,18 +370,32 @@ function StockCardEditor({ lookups }: { lookups: StockLookups }) {
 
         {/* ---- 3. Canlı özet (xl+ sağda yapışkan; daha dar ekranda son adım) ---- */}
         <div className={`xl:sticky xl:top-6 ${showOnStep(step, LAST_STEP)}`}>
-          <StockPreview
-            draft={draft}
-            lookups={{
-              ...lookups,
-              units: units.options,
-              stockTypes: stockTypes.options,
-              vatDepartments: vatDepartments.options,
-            }}
-            rows={rows}
-            priceListLabel={activeListLabel}
-            footer={saveButton}
-          />
+          {/* Kapalıyken xl'de gizlenir; dar ekranda (son adım) her zaman görünür. */}
+          <div className={previewOpen ? '' : 'xl:hidden'}>
+            <StockPreview
+              draft={draft}
+              lookups={{
+                ...lookups,
+                units: units.options,
+                stockTypes: stockTypes.options,
+                vatDepartments: vatDepartments.options,
+              }}
+              rows={rows}
+              priceListLabel={activeListLabel}
+              footer={saveButton}
+              onCollapse={() => setPreviewOpen(false)}
+            />
+          </div>
+          {previewOpen ? null : (
+            <div className="hidden xl:block">
+              <CollapsedSummary
+                draft={draft}
+                saving={saving}
+                onOpen={() => setPreviewOpen(true)}
+                onSave={save}
+              />
+            </div>
+          )}
         </div>
       </div>
 

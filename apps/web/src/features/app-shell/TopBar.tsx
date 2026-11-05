@@ -41,7 +41,7 @@ export function TopBar() {
         className={iconButton}
       >
         {mode === 'dark' ? (
-          <Sun className="size-5" aria-hidden="true" />
+          <Sun className="size-5" fill="currentColor" aria-hidden="true" />
         ) : (
           <Moon className="size-5" aria-hidden="true" />
         )}

@@ -4,7 +4,7 @@ import { SelectField } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import { ToggleChip } from '../../../components/ui/ToggleChip';
 import type { OptionList } from '../hooks/useOptionList';
-import type { PriceBlockData, StockLookups, UnitRow } from '../types';
+import type { PriceBlockData, StockLookups, UnitRow, WeightUnit } from '../types';
 import { BarcodeEditor } from './BarcodeEditor';
 import { MeasureCalculator } from './MeasureCalculator';
 import { PriceBlock } from './PriceBlock';
@@ -107,27 +107,42 @@ export function UnitCard({ row, index, lookups, units, onChange, onRemove }: Uni
         </div>
         <div className="relative">
           <TextField
-            label="Ağırlık (kg)"
+            label="Ağırlık"
             inputMode="decimal"
             value={row.weight}
             onChange={(e) => onChange({ weight: e.target.value })}
-            trailing={<CalcButton label="Ağırlık Hesapla" onClick={() => setCalc('weight')} />}
+            className="pr-32!"
+            trailing={
+              <div className="flex items-center gap-1">
+                <UnitToggle
+                  value={row.weightUnit}
+                  onChange={(weightUnit) => onChange({ weightUnit })}
+                />
+                <CalcButton label="Ağırlık Hesapla" onClick={() => setCalc('weight')} />
+              </div>
+            }
           />
           {calc === 'weight' ? (
             <MeasureCalculator
               mode="weight"
-              onApply={(weight) => onChange({ weight })}
+              onApply={(weight, unit) => onChange(unit ? { weight, weightUnit: unit } : { weight })}
               onClose={() => setCalc(null)}
             />
           ) : null}
         </div>
         <div className="relative">
           <TextField
-            label="Hacim (desi)"
+            label="Hacim"
             inputMode="decimal"
             value={row.volume}
             onChange={(e) => onChange({ volume: e.target.value })}
-            trailing={<CalcButton label="Hacim Hesapla" onClick={() => setCalc('volume')} />}
+            className="pr-28!"
+            trailing={
+              <div className="flex items-center gap-1">
+                <span className="px-2 text-sm font-bold text-ink-muted">desi</span>
+                <CalcButton label="Hacim Hesapla" onClick={() => setCalc('volume')} />
+              </div>
+            }
           />
           {calc === 'volume' ? (
             <MeasureCalculator
@@ -161,5 +176,38 @@ function CalcButton({ label, onClick }: { label: string; onClick: () => void }) 
     >
       <Calculator className="size-5" aria-hidden="true" />
     </button>
+  );
+}
+
+/** Ağırlık biriminin (kg / g) alanın sonunda görünen küçük seçici düğmeleri. */
+function UnitToggle({
+  value,
+  onChange,
+}: {
+  value: WeightUnit;
+  onChange: (unit: WeightUnit) => void;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Ağırlık birimi"
+      className="flex rounded-full bg-surface-muted p-0.5"
+    >
+      {(['kg', 'g'] as const).map((unit) => (
+        <button
+          key={unit}
+          type="button"
+          role="radio"
+          aria-checked={value === unit}
+          onClick={() => onChange(unit)}
+          className={[
+            'h-8 min-w-8 rounded-full px-2 text-xs font-bold transition-colors',
+            value === unit ? 'bg-surface-raised text-brand-ink shadow-soft' : 'text-ink-muted',
+          ].join(' ')}
+        >
+          {unit}
+        </button>
+      ))}
+    </div>
   );
 }

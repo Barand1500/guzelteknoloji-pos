@@ -1,4 +1,4 @@
-import type { PriceBlockData, UnitRow } from './types';
+import type { PriceBlockData, StockCardDraft, UnitRow } from './types';
 
 /** "12,5" ve "12.5" ikisi de kabul edilir; geçersiz/boş değer 0 sayılır. */
 export function parseNumber(text: string): number {
@@ -74,3 +74,15 @@ export const formatNumber = (value: number): string =>
 /** Forma yazılacak değer: virgüllü, en çok 3 ondalık, gereksiz sıfırsız. */
 export const toInputValue = (value: number): string =>
   String(Math.round(value * 1000) / 1000).replace('.', ',');
+
+/** Kartın "doluluk" kontrolleri: zorunlu değil, kullanıcıya eksikleri hatırlatır. */
+export function getCompletion(draft: StockCardDraft): { label: string; ok: boolean }[] {
+  const allRows = Object.values(draft.units).flat();
+  return [
+    { label: 'Kod', ok: draft.code.trim() !== '' },
+    { label: 'Ad', ok: draft.name.trim() !== '' },
+    { label: 'Marka', ok: draft.brand !== '' },
+    { label: 'Satış fiyatı', ok: allRows.some((r) => parseNumber(r.sale.amount) > 0) },
+    { label: 'Barkod', ok: allRows.some((r) => r.barcodes.length > 0) },
+  ];
+}

@@ -85,7 +85,7 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     await user.type(within(dialog).getByLabelText(/Yoğunluk/), '0,5');
     expect(within(dialog).getByText('3 kg')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Uygula' }));
-    expect(screen.getByLabelText('Ağırlık (kg)')).toHaveValue('3');
+    expect(screen.getByLabelText('Ağırlık')).toHaveValue('3');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     // Ek alış fiyatı
@@ -94,5 +94,60 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     await user.type(extraList, '80');
     await user.click(screen.getAllByRole('button', { name: 'Ekle' })[0]!);
     expect(screen.getByRole('list', { name: 'Ek alış fiyatları' })).toHaveTextContent('80,00');
+  });
+
+  it('küçük ağırlık gram olarak yazılır (birim otomatik g olur)', async () => {
+    mockFetch(anonymousRoutes);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(
+      await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Ağırlık Hesapla' }));
+    const dialog = screen.getByRole('dialog', { name: 'Ağırlık Hesapla' });
+    await user.type(within(dialog).getByLabelText(/En/), '10');
+    await user.type(within(dialog).getByLabelText(/Boy/), '10');
+    await user.type(within(dialog).getByLabelText(/Yükseklik/), '10');
+    await user.type(within(dialog).getByLabelText(/Yoğunluk/), '0,5');
+    expect(within(dialog).getByText('500 g')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Uygula' }));
+    expect(screen.getByLabelText('Ağırlık')).toHaveValue('500');
+    expect(screen.getByRole('radio', { name: 'g' })).toBeChecked();
+  });
+
+  it('KDV departmanı eklerken oran ayrı kutuya yazılır ve ad (%oran) olarak biçimlenir', async () => {
+    mockFetch(anonymousRoutes);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(
+      await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
+    );
+
+    await user.click(await screen.findByRole('combobox', { name: 'KDV Departmanı' }));
+    await user.type(screen.getByLabelText('Yeni KDV departmanı adı…'), 'Tekstil');
+    // Oran girilmeden Ekle kapalıdır.
+    expect(screen.getByRole('button', { name: 'Ekle' })).toBeDisabled();
+    await user.type(screen.getByLabelText('KDV departmanı oranı (%)'), '%8,5');
+    await user.click(screen.getByRole('button', { name: 'Ekle' }));
+    expect(await screen.findByRole('combobox', { name: 'KDV Departmanı' })).toHaveTextContent(
+      'Tekstil (%8,5)',
+    );
+  });
+
+  it('özet paneli ok ile kapanıp açılır; kapalıyken kaydet düğmesi şeritte kalır', async () => {
+    mockFetch(anonymousRoutes);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(
+      await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Özeti Kapat' }));
+    expect(screen.getByRole('button', { name: 'Özeti Aç' })).toBeInTheDocument();
+    // jsdom CSS çalıştırmaz: dar ekran özeti DOM'da kalır, şerit düğmesi de vardır (en az biri).
+    expect(screen.getAllByRole('button', { name: 'Kaydet' }).length).toBeGreaterThanOrEqual(1);
+    await user.click(screen.getByRole('button', { name: 'Özeti Aç' }));
+    expect(screen.getByRole('button', { name: 'Özeti Kapat' })).toBeInTheDocument();
   });
 });
