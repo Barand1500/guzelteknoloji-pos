@@ -1,16 +1,28 @@
+import type { SelectOption } from '../../../components/ui/SelectField';
 import { stockLookupsMock } from '../../../mocks/stock.mock';
-import type { StockCardDraft, StockLookups } from '../types';
+import type { OptionListKey, StockCardDraft, StockLookups } from '../types';
 
 /**
  * Stok verisine erişimin TEK kapısı. Şimdilik sahte veri döner; gerçek API gelince yalnızca
  * bu dosya değişir (bileşenler aynı kalır).
  */
-const fakeDelay = () => new Promise((resolve) => setTimeout(resolve, 250));
+const fakeDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const stockService = {
   async getLookups(): Promise<StockLookups> {
     await fakeDelay();
     return stockLookupsMock;
+  },
+
+  /** Listeye yeni seçenek ekler (ör. yeni birim "PALET"). Sahte: sunucuya yazılmaz. */
+  async addOption(_list: OptionListKey, label: string): Promise<SelectOption> {
+    await fakeDelay(0);
+    return { value: `ozel-${Math.random().toString(36).slice(2, 9)}`, label, removable: true };
+  },
+
+  /** Listeden seçenek siler. Sahte: sunucuya yazılmaz. */
+  async removeOption(_list: OptionListKey, _value: string): Promise<void> {
+    await fakeDelay(0);
   },
 
   async save(draft: StockCardDraft): Promise<{ id: string }> {

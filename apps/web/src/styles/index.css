@@ -262,11 +262,6 @@
     font-size: 0.8125rem;
     font-weight: 600;
   }
-  .field-select {
-    appearance: none;
-    padding-right: 2.75rem;
-    cursor: pointer;
-  }
 
   /* Modal / bottom sheet: arka plana tıklayınca KAPANMAZ; yalnızca Esc veya X ile kapanır. */
   .modal-backdrop {

@@ -35,7 +35,7 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     expect(await screen.findByRole('heading', { name: 'Ürünler' })).toBeInTheDocument();
   });
 
-  it('stok kartı sihirbazı adım adım ilerleyip kaydeder', async () => {
+  it('stok kartı: açılır liste, listeye yeni ekleme, birim ekleme ve kayıt çalışır', async () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
     renderApp();
@@ -45,10 +45,25 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
 
     await user.type(await screen.findByLabelText('Stok Kodu'), 'A-1');
     await user.type(screen.getByLabelText('Stok Adı'), 'Deneme Ürünü');
-    await user.click(screen.getByRole('button', { name: 'Devam Et' }));
-    await user.click(await screen.findByRole('button', { name: 'Devam Et' }));
-    await user.click(await screen.findByRole('button', { name: 'Devam Et' }));
-    expect(await screen.findByText('Deneme Ürünü')).toBeInTheDocument();
+    // Canlı önizleme yazdıkça güncellenir.
+    expect(screen.getByLabelText('Kart önizlemesi')).toHaveTextContent('Deneme Ürünü');
+
+    // Özel açılır liste: aç, seç.
+    await user.click(screen.getByRole('combobox', { name: 'Marka' }));
+    await user.click(screen.getByRole('option', { name: 'ASYS' }));
+    expect(screen.getByRole('combobox', { name: 'Marka' })).toHaveTextContent('ASYS');
+
+    // Listeye yeni öğe ekleme (ayrı pencere yok).
+    await user.click(screen.getByRole('combobox', { name: 'Birim' }));
+    await user.type(screen.getByLabelText('Yeni birim adı…'), 'PALET');
+    await user.click(screen.getByRole('button', { name: 'Ekle' }));
+    expect(await screen.findByRole('combobox', { name: 'Birim' })).toHaveTextContent('PALET');
+
+    // İkinci birim satırı.
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Birim Ekle' }));
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('Stok kartı kaydedildi!')).toBeInTheDocument();
   });

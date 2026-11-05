@@ -128,6 +128,7 @@ Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada 
 7. Kategori / marka / özellikler, stok kartı alanlarını besler. Menü: Anasayfa → Ürünler → (Ürün, Kategoriler, Markalar, Özellikler, Toplu Görsel Yükleme).
 
 ### 8.4 Kod düzeni (uygulama aşaması)
+
 - **Renkler:** gündüz değerleri `styles/index.css` `@theme`, gece değerleri `styles/theme.css` (aynı token adları). Bileşende renk kodu yazılmaz; metin olarak vurgu için `text-brand-ink`.
 - **Yollar/menü:** `config/navigation.ts`; yeni sayfa = oraya giriş + `app/App.tsx` içine route.
 - **Kabuk:** `features/app-shell` (TopBar, Dock = alttaki yüzen çubuk, RequireAccess). Tema: `features/theme`.
@@ -136,6 +137,21 @@ Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada 
 - **Geçici kod:** `features/dev-login` + LoginPage'deki buton + `RequireAccess`/`TopBar`'daki "GEÇİCİ" satırları; gerçek giriş gelince silinir.
 - Kod temiz, küçük bileşenli ve Türkçe yorumlu yazılır; sık revize edileceği için "neden"i açıklayan yorumlar bırakılır.
 
-### Veritabani adlandirma
+### 8.5 Stok kartı ekranı: tasarım kararları
+
+- **Açılır liste:** Projede tek bileşen: `components/ui/SelectField.tsx` (özel combobox, tarayıcının çirkin yerel seçicisi kullanılmaz). Her yerde aynı stil; 7'den fazla seçenekte arama; altta yer yoksa yukarı açılır.
+- **"+" için modal AÇILMAZ:** Listeye yeni öğe ekleme (stok tipi, KDV departmanı, stok nevi, birim) açılır listenin **altındaki "Yeni ekle" satırından**, silme satırdaki çöp kutusundan yapılır. "Sabit" öğelerde çöp kutusu yoktur (`removable`). Fiyat adı (FİYAT/PERAKENDE/TOPTAN) sekmelerinde "+" satır içinde yazı kutusuna dönüşür. Barkod: tür seç + yaz + (+) ile ekle, etiketler olarak listelenir.
+- **Masaüstü (lg+):** Sol: Temel Bilgi + Fiyat ve Birim kartları; sağ: yapışkan **canlı önizleme** (ürün adı/kodu, birim başına KDV dahil satış, kâr %, barkod, Kaydet). Boş alan bu şekilde kullanılır. **Telefon:** 3 adımlı sihirbaz (Temel Bilgi → Fiyat ve Birim → Özet).
+- **Birim satırı = bir kart:** birim + çarpan (ilk satırda 1, kilitli), Ana Birim/Varsayılan (satırlar arasında yalnızca biri), yan yana Alış ve Satış blokları (fiyat, para birimi, iskonto, net fiyat otomatik, KDV oranı, Hariç/Dahil, "KDV dahil" toplamı), barkodlar, ağırlık, hacim, açıklama. Her fiyat listesinin (sekmenin) kendi birim satırları vardır.
+- **Alt çubuk:** Telefonda ekranın altına **yapışık** (üst köşeleri yuvarlak, "+" hafif taşar); masaüstünde yüzen hap.
+- **Henüz yapılmayanlar (referansta var):** hesap makinesi düğmesi, sayfa üstündeki bilgi/liste/önceki-sonraki düğmeleri, alış/satış fiyatındaki "⋮" menüsü. Ürün sahibi anlatınca eklenecek.
+
+### 8.6 Geniş ekran düzeni (güncelleme)
+
+- Uygulama içeriği **tam genişlik** kullanır (en fazla 120rem); ortada dar sütun bırakılmaz. Yan boşluk yalnızca kenar dolgusudur.
+- **xl (≥1280px):** solda "Ürün Bilgisi" (12 sütun) ve "Fiyat ve Birimler" kartları, sağda yapışkan özet (kart doluluğu çubuğu, birim başına fiyat/kâr, Kaydet). Gelişmiş alanlar geniş ekranda baştan açıktır. **2xl (≥1536px):** Alış ve Satış blokları yan yana; daha dar ekranda alt alta. **xl altı:** 3 adımlı sihirbaz.
+- Barkod, ağırlık, hacim ve açıklama geniş ekranda tek satırdadır.
+
+### 8.7 Veritabani adlandirma
 
 Uygulama tablolari ve sutunlari Turkce, kucuk harf ve alt cizgi ile adlandirilir; uyumluluk icin Turkce karakter kullanilmaz. Prisma model/alanlari @map ve @@map ile eslenir. Mevcut veriler silinmez: ad degisiklikleri RENAME migration ile yapilir. _prisma_migrations teknik sistem tablosu korunur. Ayrintilar: docs/veritabani-adlari.md.

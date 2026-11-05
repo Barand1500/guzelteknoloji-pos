@@ -1,4 +1,4 @@
-import type { StockCardDraft } from './types';
+import type { PriceBlockData, StockCardDraft, UnitRow } from './types';
 
 /**
  * Zorunlu alanlar. Şimdilik BOŞ: hangi alanların zorunlu olacağını ürün sahibi sonra bildirecek.
@@ -8,11 +8,11 @@ export const REQUIRED_FIELDS: readonly (keyof StockCardDraft)[] = [];
 
 export const REQUIRED_MESSAGE = 'Bu alan zorunlu.';
 
+export type DraftErrors = Partial<Record<keyof StockCardDraft, string>>;
+
 /** Boş bırakılmış zorunlu alanları döndürür: { alan: mesaj }. */
-export function validateRequired(
-  draft: StockCardDraft,
-): Partial<Record<keyof StockCardDraft, string>> {
-  const errors: Partial<Record<keyof StockCardDraft, string>> = {};
+export function validateRequired(draft: StockCardDraft): DraftErrors {
+  const errors: DraftErrors = {};
   for (const field of REQUIRED_FIELDS) {
     const value = draft[field];
     if (typeof value === 'string' && value.trim() === '') errors[field] = REQUIRED_MESSAGE;
@@ -20,31 +20,52 @@ export function validateRequired(
   return errors;
 }
 
-export const emptyDraft: StockCardDraft = {
-  stockType: 'basit',
-  code: '',
-  name: '',
-  vatDepartment: '',
-  brand: '',
-  stockKind: 'resmi',
-  inventoryTracking: 'normal',
-  lowerLimit: '',
-  upperLimit: '',
-  gtip: '',
-  origin: '',
-  priceList: 'fiyat',
-  unit: 'adet',
-  multiplier: '1',
-  purchasePrice: '',
-  salePrice: '',
+let seq = 0;
+/** Ekranda anahtar olarak kullanılan, sunucuya gitmeyen geçici kimlik. */
+export const uid = (): string => `t${++seq}`;
+
+const emptyBlock = (): PriceBlockData => ({
+  amount: '',
   currency: 'TRY',
   discount: '',
   vatRate: '20',
   vatIncluded: false,
-  barcode: '',
-  weight: '',
-  volume: '',
-  unitNote: '',
-  isMainUnit: true,
-  isDefaultUnit: true,
-};
+});
+
+/**
+ * Yeni birim satırı. İlk satır ana/varsayılan birimdir ve çarpanı 1'dir;
+ * sonraki satırlarda çarpanı kullanıcı girer (ör. 1 KOLİ = 12 ADET).
+ */
+export function createUnitRow(first: boolean, unit = 'adet'): UnitRow {
+  return {
+    id: uid(),
+    unit,
+    multiplier: first ? '1' : '',
+    purchase: emptyBlock(),
+    sale: emptyBlock(),
+    barcodes: [],
+    weight: '',
+    volume: '',
+    note: '',
+    isMain: first,
+    isDefault: first,
+  };
+}
+
+export function createEmptyDraft(firstPriceListId: string): StockCardDraft {
+  return {
+    stockType: 'basit',
+    code: '',
+    name: '',
+    brand: '',
+    vatDepartment: '',
+    stockKind: 'resmi',
+    inventoryTracking: 'normal',
+    lowerLimit: '',
+    upperLimit: '',
+    gtip: '',
+    origin: '',
+    otherTax: '',
+    units: { [firstPriceListId]: [createUnitRow(true)] },
+  };
+}
