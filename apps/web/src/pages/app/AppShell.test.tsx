@@ -253,4 +253,36 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     await user.type(screen.getByLabelText('Satış Fiyatı'), '4x5,0y');
     expect(screen.getByLabelText('Satış Fiyatı')).toHaveValue('45,0');
   });
+
+  it('envanter satırındaki kutular boşluk bırakmaz: Yok 3, Normal/Seri No 5, LOT/Ömür 4+2 sütun', async () => {
+    mockFetch(anonymousRoutes);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(
+      await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
+    );
+    await screen.findByLabelText('Stok Kodu');
+
+    const cols = () =>
+      Array.from(document.querySelectorAll<HTMLElement>('[style*=--cols]')).map((el) =>
+        el.style.getPropertyValue('--cols'),
+      );
+    const pick = async (name: string) => {
+      await user.click(screen.getByRole('combobox', { name: 'Envanter Takibi' }));
+      await user.click(screen.getByRole('option', { name }));
+    };
+
+    expect(cols()).toEqual(['5']); // Normal: Envanter + Alt + Üst + Menşei + Diğer Vergi
+    await pick('Yok');
+    expect(cols()).toEqual(['3']);
+    await pick('Seri No');
+    expect(cols()).toEqual(['5']);
+    await pick('LOT');
+    expect(cols()).toEqual(['4', '2']);
+    await pick('Ömür');
+    expect(cols()).toEqual(['4', '2']);
+
+    // Menşei en uzun ülke adına göre sınırlı (40 karakter)
+    expect(screen.getByLabelText('Menşei')).toHaveAttribute('maxlength', '40');
+  });
 });

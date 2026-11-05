@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import type { OptionList } from '../hooks/useOptionList';
@@ -42,16 +43,81 @@ const cell = 'col-span-2 md:col-span-3 xl:col-span-3';
 export function BasicInfoSection({ editor }: { editor: StockEditor }) {
   const { draft, errors, set, lookups, lists } = editor;
 
-  const text = (key: 'code' | 'name' | 'gtip' | 'origin', label: string) => (
+  const text = (key: 'code' | 'name' | 'gtip' | 'origin', label: string, maxLength?: number) => (
     <TextField
       label={label}
       value={draft[key]}
       error={errors[key]}
+      maxLength={maxLength}
       onChange={(e) => set(key, e.target.value)}
     />
   );
 
   const inventoryFields = INVENTORY_FIELDS[draft.inventoryTracking] ?? [];
+
+  // Satırdaki kutular, geniş ekranda (xl) kendi içinde eşit bölünür; dar ekranda ana ızgaraya karışır
+  // ("contents"), bu yüzden telefon/tablet düzeni değişmez.
+  const inner = 'col-span-2 md:col-span-3 xl:col-span-1';
+  const items = [
+    <div key="envanter" className={inner}>
+      <SelectField
+        label="Envanter Takibi"
+        options={lookups.inventoryTracking}
+        value={draft.inventoryTracking}
+        onChange={(v) => set('inventoryTracking', v)}
+      />
+    </div>,
+    ...inventoryFields.map((field) => (
+      <div key={`${draft.inventoryTracking}-${field.key}`} className={`${inner} animate-fade-in`}>
+        {field.kind === 'yesno' ? (
+          <SelectField
+            label={field.label}
+            options={YES_NO}
+            value={draft[field.key] ? 'evet' : 'hayir'}
+            onChange={(v) => set(field.key, v === 'evet')}
+          />
+        ) : (
+          <TextField
+            label={field.label}
+            value={draft[field.key]}
+            error={errors[field.key]}
+            // Sayı alanlarına yalnızca rakam girilir; "Önek" alanları serbest metindir.
+            numeric={field.kind === 'text' ? undefined : field.kind}
+            onChange={(e) => set(field.key, e.target.value)}
+          />
+        )}
+      </div>
+    )),
+    <div key="mensei" className={inner}>
+      {/* En uzun ülke adı ("Güney Georgia ve Güney Sandviç Adaları") 37 karakterdir → 40 sınır. */}
+      {text('origin', 'Menşei', 40)}
+    </div>,
+    <div key="diger-vergi" className={inner}>
+      <SelectField
+        label="Diğer Vergi Ekle"
+        options={lookups.otherTaxes}
+        value={draft.otherTax}
+        onChange={(v) => set('otherTax', v)}
+      />
+    </div>,
+  ];
+  // 3 ek alan olan türlerde (LOT, Ömür) satır 4 + 2 olarak bölünür (zaten tam sığar);
+  // diğerlerinde (Yok: 3, Normal/Seri No: 5) hepsi tek satırda eşit genişlikte durur.
+  const rowSizes = inventoryFields.length >= 3 ? [inventoryFields.length + 1, 2] : [items.length];
+  let taken = 0;
+  const inventoryRows = rowSizes.map((size, index) => {
+    const rowItems = items.slice(taken, taken + size);
+    taken += size;
+    return (
+      <div
+        key={index}
+        style={{ '--cols': size } as CSSProperties}
+        className="contents xl:col-span-12 xl:grid xl:gap-4 xl:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]"
+      >
+        {rowItems}
+      </div>
+    );
+  });
 
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-6 xl:grid-cols-12">
@@ -97,46 +163,9 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
       </div>
       <div className={cell}>{text('gtip', 'GTIP Kodu')}</div>
 
-      {/* Envanter takibi + seçime göre değişen alanlar (Yok: ek alan yok) */}
-      <div className={cell}>
-        <SelectField
-          label="Envanter Takibi"
-          options={lookups.inventoryTracking}
-          value={draft.inventoryTracking}
-          onChange={(v) => set('inventoryTracking', v)}
-        />
-      </div>
-      {inventoryFields.map((field) => (
-        <div key={`${draft.inventoryTracking}-${field.key}`} className={`${cell} animate-fade-in`}>
-          {field.kind === 'yesno' ? (
-            <SelectField
-              label={field.label}
-              options={YES_NO}
-              value={draft[field.key] ? 'evet' : 'hayir'}
-              onChange={(v) => set(field.key, v === 'evet')}
-            />
-          ) : (
-            <TextField
-              label={field.label}
-              value={draft[field.key]}
-              error={errors[field.key]}
-              // Sayı alanlarına yalnızca rakam girilir; "Önek" alanları serbest metindir.
-              numeric={field.kind === 'text' ? undefined : field.kind}
-              onChange={(e) => set(field.key, e.target.value)}
-            />
-          )}
-        </div>
-      ))}
-
-      <div className="col-span-2 md:col-span-3 xl:col-span-6">{text('origin', 'Menşei')}</div>
-      <div className="col-span-2 md:col-span-3 xl:col-span-6">
-        <SelectField
-          label="Diğer Vergi Ekle"
-          options={lookups.otherTaxes}
-          value={draft.otherTax}
-          onChange={(v) => set('otherTax', v)}
-        />
-      </div>
+      {/* Envanter takibi + seçime göre değişen alanlar + Menşei + Diğer Vergi: boşluk kalmasın diye
+          satırdaki kutu sayısına göre sütunlar eşit bölünür (bkz. inventoryRows). */}
+      {inventoryRows}
     </div>
   );
 }
