@@ -33,6 +33,8 @@ describe('Giriş seçenekleri ekranı', () => {
       'Apple İle Devam Et',
       'E-Posta İle Devam Et',
       'Yardıma Mı İhtiyacınız Var?',
+      // GEÇİCİ: gerçek giriş gelince bu satır ve buton silinir (features/dev-login).
+      'Test Kullanıcısı Olarak Devam Et',
     ]);
     expect(screen.getByRole('separator')).toHaveTextContent('veya');
     expect(screen.queryByText(/facebook/i)).not.toBeInTheDocument();

@@ -97,3 +97,41 @@ Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada 
 - Kod sunucuya **Git ile** taşınır (özel depo + deploy key); **zip paketi kullanılmaz** (kullanıcı istemedi). Güncelleme: `bash deploy/update.sh`. `.gitignore` gizli dosyaları, `node_modules`, `dist`, sertifikaları ve arşivleri dışarıda tutar; yeni gizli dosya türü eklenirse oraya da ekleyin.
 - Production'da CSP: `script-src 'self'` ve `style-src 'self'`; yalnızca satır içi `style=` nitelikleri açıktır (`style-src-attr`). Yeni kod satır içi `<script>`/`<style>` bloğu eklememeli, harici CDN kullanmamalı.
 - Secret'lar (SMTP şifresi, DB şifresi, COOKIE_SECRET) yalnızca sunucudaki `.env` dosyasında durur; repoya girmez. `COOKIE_SECRET` rastgele üretilmelidir (elle yazılmış değer kullanılmaz).
+
+## 8. Uygulama aşaması: giriş sonrası ekranlar (stok kartı)
+
+**Ürünün amacı:** Patronun istediği **stok kartı girme** uygulaması. Giriş sonrası ekranlar bunun etrafında kurulur (stok kartı formu, ürün listesi, kategoriler, markalar, özellikler, toplu görsel yükleme). Bu kapsam, kural 1'deki "yalnızca giriş" sınırını **genişletir**; yeni modüller bu bölümün kurallarına uyar.
+
+**Geçici giriş (sonradan kaldırılacak):** "Yardıma Mı İhtiyacınız Var?" bağlantısının altında **"Test Kullanıcısı Olarak Devam Et"** butonu bulunur; tıklanınca doğrudan uygulamaya girilir. Bu bir geliştirme kolaylığıdır, kalıcı değildir: kodda tek yerde toplanmalı, "GEÇİCİ" diye işaretlenmeli ve kolayca silinebilmelidir. Üretimde gerçek kimlik doğrulamayı atlayan güvenli olmayan bir yol bırakılmaz (nasıl yapılacağı ayrıca kararlaştırılır).
+
+### 8.1 Kullanım kuralları (en önemli kural)
+
+1. **Sade, hoş, güzel.** Amaç, bilgisayar bilgisi az bir kullanıcının rahatça kullanabilmesidir. "Maymun bile kullanabilmeli": ne yapacağı ekrana bakınca anlaşılmalı.
+2. **Az yazı.** Ekranı metinle boğma; kısa etiketler, net ikonlar. Açıklama gerekiyorsa tek kısa satır ya da ipucu balonu.
+3. **Her iş kolay ve az adımda** yapılabilmeli. Gelişmiş/nadir alanlar varsayılan olarak kapalı/katlı olabilir.
+4. **Mobil uyumlu (responsive) zorunlu.** Her ekran telefon, tablet ve masaüstünde tasarlanır ve denenir.
+5. Referans ekran görüntüleri yalnızca **ne yapıldığını anlamak** içindir: tasarımları **birebir kopyalanmaz**; sistemin kendi ortak tasarım sistemi (kural 4) kullanılır.
+
+### 8.2 Git ve ortak çalışma
+
+- Projede birden fazla kişi GitHub üzerinden çalışır. `git pull`/çekme yapmadan önce karşı tarafın **ne değiştirdiği incelenir** (`git fetch` → `git log HEAD..origin/main`, `git diff HEAD...origin/main`); çakışma ve beklenmedik değişiklik varsa körü körüne birleştirilmez, kullanıcıya özetlenir.
+- Kullanıcı istemeden commit/push yapılmaz.
+
+### 8.3 Kararlar (uygulama aşaması)
+
+1. **Tema:** Gündüz/gece modu olur. Renkler **60-30-10 kuralına** göre seçilir (60 zemin, 30 yüzey/ikincil, 10 vurgu), yumuşak ve göze hoş; ana vurgu şimdilik turuncu (değişebilir).
+2. **Renkler tek yerden gelir:** Tüm renkler yalnızca merkezi **tema token'larından** (CSS değişkenleri / `@theme`) okunur; bileşenlerde sabit renk kodu yazılmaz. Renk değişikliği tek dosyadan yapılabilmelidir.
+3. **Veri:** Şimdilik **mock data**; hepsi tek bir klasörde (ör. `apps/web/src/mocks/`) durur ve gerçek API'ye geçerken klasör silinip yerine servis katmanı konabilmelidir. Bileşenler veriyi doğrudan mock dosyasından değil bir servis/hook arayüzünden alır.
+4. **İlk ekran:** Girişten sonra doğrudan **yeni stok kartı ekleme** ekranı.
+5. **Özgün tasarım:** Klasik "soldaki menü" yapay zeka şablonuna benzemeyecek; yaratıcı, özgün bir gezinme (mobilde alt gezinme dahil). Responsive zorunlu.
+6. **Test butonu** sunucuda da görünür; kodda yorum satırı ile "GEÇİCİ — sonra kaldırılacak" diye işaretlenir.
+7. Kategori / marka / özellikler, stok kartı alanlarını besler. Menü: Anasayfa → Ürünler → (Ürün, Kategoriler, Markalar, Özellikler, Toplu Görsel Yükleme).
+
+### 8.4 Kod düzeni (uygulama aşaması)
+- **Renkler:** gündüz değerleri `styles/index.css` `@theme`, gece değerleri `styles/theme.css` (aynı token adları). Bileşende renk kodu yazılmaz; metin olarak vurgu için `text-brand-ink`.
+- **Yollar/menü:** `config/navigation.ts`; yeni sayfa = oraya giriş + `app/App.tsx` içine route.
+- **Kabuk:** `features/app-shell` (TopBar, Dock = alttaki yüzen çubuk, RequireAccess). Tema: `features/theme`.
+- **Özellik klasörü:** `features/<ad>/{components,services,types}`; veri yalnızca `services/` üzerinden; mock veriler `src/mocks/` (sonra silinir).
+- **Zorunlu alanlar:** `features/stock/stock.rules.ts` → `REQUIRED_FIELDS` (şimdilik boş, ürün sahibi bildirecek).
+- **Geçici kod:** `features/dev-login` + LoginPage'deki buton + `RequireAccess`/`TopBar`'daki "GEÇİCİ" satırları; gerçek giriş gelince silinir.
+- Kod temiz, küçük bileşenli ve Türkçe yorumlu yazılır; sık revize edileceği için "neden"i açıklayan yorumlar bırakılır.

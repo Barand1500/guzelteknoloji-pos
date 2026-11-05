@@ -6,6 +6,15 @@ cd "$(dirname "$0")/.."
 echo "▶ Kod çekiliyor"
 git pull --ff-only
 
+# Depoda olmayan (zip'ten ya da elle kalmış) dosyalar derlemeyi bozabilir: git, bilgisayarda
+# silinen bir dosyayı sunucuda silmez. .well-known (SSL doğrulaması) bilerek yok sayılır.
+LEFTOVERS="$(git status --short | grep '^??' | grep -v '\.well-known' || true)"
+if [ -n "$LEFTOVERS" ]; then
+  echo "⚠ Git'in takip etmediği dosyalar var (eski kalıntı olabilir, derlemeyi bozabilir):"
+  echo "$LEFTOVERS"
+  echo "  Eski kalıntıysa silin:  rm <dosya>   (ya da önce önizleme: git clean -nd -e .well-known)"
+fi
+
 echo "▶ Bağımlılıklar"
 npm ci
 

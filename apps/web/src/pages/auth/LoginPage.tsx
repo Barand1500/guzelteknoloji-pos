@@ -9,6 +9,7 @@ import { EmailLoginForm } from '../../features/auth/components/EmailLoginForm';
 import { SignedInPanel } from '../../features/auth/components/SignedInPanel';
 import { useSession } from '../../features/auth/hooks/session-context';
 import { googleErrorMessage } from '../../features/auth/services/auth.messages';
+import { DevLoginButton } from '../../features/dev-login/DevLoginButton';
 import { SupportSheet } from '../../features/support/SupportSheet';
 
 export const LOGIN_PATH = '/login';
@@ -100,6 +101,10 @@ export function LoginPage({ view }: { view: 'options' | 'email' }) {
             <LifeBuoy className="size-5" aria-hidden="true" />
             Yardıma Mı İhtiyacınız Var?
           </button>
+        </div>
+        {/* GEÇİCİ: gerçek giriş hazır olunca silinir (features/dev-login). */}
+        <div>
+          <DevLoginButton />
         </div>
       </div>
 
