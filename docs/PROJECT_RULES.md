@@ -168,3 +168,5 @@ Uygulama tablolari ve sutunlari Turkce, kucuk harf ve alt cizgi ile adlandirilir
 - **KDV departmanı eklerken** ad yanında ayrı bir oran (%) kutusu çıkar; oran girilmeden "Ekle" kapalıdır ("10", "%10", "8,5" kabul, 0-100). Seçenek "Ad (%oran)" biçiminde kaydedilir. Oran isteyen başka listeler için `creator.ratePlaceholder` kullanılır.
 - **Sağdaki özet** geniş ekranda ok ile sağa kapanır/açılır; kapalıyken ince şerit (aç oku, doluluk sayısı, kaydet) kalır ve sol alan genişler. Dar ekranda özet son adımdır.
 - Gece modunda tema düğmesi dolu güneş ikonudur.
+- **Hesaplayıcılar (Ağırlık Hesapla / Desi Hesapla):** vurgu şeritli, ikon rozetli kart; telefonda alt çubuğun üstünde, geniş ekranda alanın üstünde açılır. Modal kuralı gereği arka plana tıklayınca KAPANMAZ (Esc, X ya da Uygula). **Desi = (En × Boy × Yükseklik) ÷ bölen:** Yurt İçi ÷ 3000, Yurt Dışı ÷ 5000 (`DESI_DIVISORS`, `stock.calc.ts`); formül seçime göre ekranda yazılır. Ağırlıkta şekil (prizma/küp/silindir) + yoğunluk vardır.
+- **Zorunlu alanlar** ürün sahibi bildirene kadar BOŞ bırakılır (`REQUIRED_FIELDS`); ek fiyat penceresi satır içi yapılmıştır.

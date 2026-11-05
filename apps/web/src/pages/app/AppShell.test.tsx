@@ -150,4 +150,42 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     await user.click(screen.getByRole('button', { name: 'Özeti Aç' }));
     expect(screen.getByRole('button', { name: 'Özeti Kapat' })).toBeInTheDocument();
   });
+
+  it('desi hesaplayıcı yurt içi ÷3000, yurt dışı ÷5000 ile hesaplar', async () => {
+    mockFetch(anonymousRoutes);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(
+      await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Desi Hesapla' }));
+    const dialog = screen.getByRole('dialog', { name: 'Desi Hesapla' });
+    await user.type(within(dialog).getByLabelText(/En/), '30');
+    await user.type(within(dialog).getByLabelText(/Boy/), '40');
+    await user.type(within(dialog).getByLabelText(/Yükseklik/), '50');
+    // 60.000 cm³ ÷ 3000 = 20 desi
+    expect(within(dialog).getByText('Desi = (En × Boy × Yükseklik) ÷ 3000')).toBeInTheDocument();
+    expect(within(dialog).getByText('20 desi')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('radio', { name: 'Yurt Dışı' }));
+    expect(within(dialog).getByText('Desi = (En × Boy × Yükseklik) ÷ 5000')).toBeInTheDocument();
+    expect(within(dialog).getByText('12 desi')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Uygula' }));
+    expect(screen.getByLabelText('Hacim')).toHaveValue('12');
+  });
+
+  it('hesaplayıcı arka plana tıklayınca kapanmaz, Esc ile kapanır', async () => {
+    mockFetch(anonymousRoutes);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(
+      await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Desi Hesapla' }));
+    await user.click(screen.getByLabelText('Stok Kodu'));
+    expect(screen.getByRole('dialog', { name: 'Desi Hesapla' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });

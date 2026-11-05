@@ -1,15 +1,18 @@
-import { Check, Copy, X } from 'lucide-react';
+import { Check, Copy, Ruler, Scale, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { WeightUnit } from '../types';
+import { Segmented } from '../../../components/ui/Segmented';
 import {
+  DESI_DIVISORS,
   SHAPE_FIELDS,
   formatNumber,
   parseNumber,
   shapeVolumeCm3,
   toInputValue,
   volumeToDesi,
+  type DesiRegion,
   type Shape,
 } from '../stock.calc';
+import type { WeightUnit } from '../types';
 
 type Mode = 'weight' | 'volume';
 
@@ -20,58 +23,59 @@ interface MeasureCalculatorProps {
   onClose: () => void;
 }
 
-const SHAPES: { value: Shape; label: string }[] = [
+const SHAPES = [
   { value: 'prizma', label: 'Prizma' },
   { value: 'kup', label: 'Küp' },
   { value: 'silindir', label: 'Silindir' },
 ];
 
-const inputClass =
-  'w-full bg-transparent text-right text-base text-ink outline-none placeholder:text-ink-muted';
+const REGIONS = [
+  { value: 'yurtici', label: 'Yurt İçi' },
+  { value: 'yurtdisi', label: 'Yurt Dışı' },
+];
 
 /**
- * Ağırlık / hacim hesaplayıcı. Ayrı pencere değil, alanın üstünde açılan küçük panel:
- * Esc, dışarı tıklama ya da X ile kapanır. Ağırlık = hacim (cm³) × yoğunluk (g/cm³);
- * 1000 g ve üzeri otomatik kg gösterilir. Hacim (desi) = hacim (cm³) / 3000.
+ * Ağırlık / Desi hesaplayıcı. Pencere gibi görünür ama arka plana tıklayınca KAPANMAZ
+ * (modal kuralı): yalnızca Esc, X ya da "Uygula" ile kapanır. Geniş ekranda alanın üstünde,
+ * telefonda alt çubuğun üstünde açılır.
+ *
+ * - Ağırlık = hacim (cm³) × yoğunluk (g/cm³); 1000 g ve üzeri kg gösterilir.
+ * - Desi = (En × Boy × Yükseklik) ÷ bölen. Yurt içi kargoda bölen 3000, yurt dışı
+ *   (DHL/UPS/FedEx gibi uluslararası taşıyıcılar) 5000'dir.
  */
 export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorProps) {
   const [shape, setShape] = useState<Shape>('prizma');
+  const [region, setRegion] = useState<DesiRegion>('yurtici');
   const [dims, setDims] = useState({ a: '', b: '', c: '' });
   const [density, setDensity] = useState('');
   const [copied, setCopied] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
   const firstRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     firstRef.current?.focus();
-    const onPointerDown = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) onClose();
-    };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
-  const fields = SHAPE_FIELDS[shape];
-  const volume = shapeVolumeCm3(shape, {
+  const isWeight = mode === 'weight';
+  // Desi hesabında şekil yoktur: kargo kolisi her zaman prizmadır (En × Boy × Yükseklik).
+  const activeShape: Shape = isWeight ? shape : 'prizma';
+  const fields = SHAPE_FIELDS[activeShape];
+  const volume = shapeVolumeCm3(activeShape, {
     a: parseNumber(dims.a),
     b: parseNumber(dims.b),
     c: parseNumber(dims.c),
   });
 
-  // Sonuç: ağırlıkta gram (1000'den büyükse kg gösterilir), hacimde desi.
   let resultValue = 0;
   let resultUnit: WeightUnit | undefined;
   let resultText = '—';
   if (volume > 0) {
-    if (mode === 'volume') {
-      resultValue = volumeToDesi(volume);
+    if (!isWeight) {
+      resultValue = volumeToDesi(volume, region);
       resultText = `${formatNumber(resultValue)} desi`;
     } else {
       const grams = volume * parseNumber(density);
@@ -85,6 +89,10 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
   }
   const hasResult = resultValue > 0;
 
+  const formula = isWeight
+    ? 'Ağırlık = Hacim (cm³) × Yoğunluk (g/cm³)'
+    : `Desi = (En × Boy × Yükseklik) ÷ ${DESI_DIVISORS[region]}`;
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(resultText);
@@ -95,57 +103,70 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
     }
   };
 
-  const title = mode === 'weight' ? 'Ağırlık Hesapla' : 'Hacim Hesapla';
+  const title = isWeight ? 'Ağırlık Hesapla' : 'Desi Hesapla';
+  const Icon = isWeight ? Scale : Ruler;
 
   return (
     <div
-      ref={rootRef}
       role="dialog"
       aria-label={title}
-      className="absolute right-0 bottom-full z-40 mb-2 w-[min(24rem,calc(100vw-2rem))] animate-fade-in rounded-3xl border border-line bg-surface-raised p-4 shadow-card"
+      className={[
+        // Telefon: alt çubuğun üstünde, yanlardan boşluklu. Geniş ekran: alanın üstünde, sağa hizalı.
+        'fixed inset-x-4 bottom-24 z-50 max-h-[calc(100dvh-8rem)] overflow-y-auto',
+        'md:absolute md:inset-x-auto md:right-0 md:bottom-full md:mb-3 md:max-h-none md:w-[26rem] md:overflow-visible',
+        'animate-rise-in rounded-[1.75rem] border border-line bg-surface-raised shadow-card',
+      ].join(' ')}
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-lg font-extrabold">{title}</p>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Kapat"
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-surface-muted px-3 text-xs font-bold text-ink-muted"
-        >
-          <X className="size-4" aria-hidden="true" />
-          ESC
-        </button>
-      </div>
+      {/* Üst vurgu şeridi */}
+      <div
+        aria-hidden="true"
+        className="h-1.5 rounded-t-[1.75rem] bg-gradient-to-r from-brand-600 to-accent"
+      />
 
-      <div role="radiogroup" aria-label="Şekil" className="mb-3 flex gap-2">
-        {SHAPES.map((s) => (
-          <button
-            key={s.value}
-            type="button"
-            role="radio"
-            aria-checked={shape === s.value}
-            onClick={() => setShape(s.value)}
-            className={[
-              'min-h-10 rounded-xl border px-4 text-sm font-bold transition-colors',
-              shape === s.value
-                ? 'border-brand-600 bg-brand-50 text-brand-ink'
-                : 'border-field-border text-ink-muted hover:border-brand-500',
-            ].join(' ')}
+      <div className="flex flex-col gap-4 p-5">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-ink"
           >
-            {s.label}
+            <Icon className="size-6" />
+          </span>
+          <p className="min-w-0 flex-1 text-xl font-extrabold tracking-tight">{title}</p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Kapat"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-surface-muted px-3.5 text-xs font-bold text-ink-muted transition-colors hover:text-ink"
+          >
+            <X className="size-4" aria-hidden="true" />
+            ESC
           </button>
-        ))}
-      </div>
+        </div>
 
-      <div className="flex flex-col gap-2">
+        {isWeight ? (
+          <Segmented
+            label="Şekil"
+            value={shape}
+            options={SHAPES}
+            onChange={(v) => setShape(v as Shape)}
+          />
+        ) : (
+          <Segmented
+            label="Bölge"
+            value={region}
+            options={REGIONS}
+            onChange={(v) => setRegion(v as DesiRegion)}
+          />
+        )}
+
         <div
-          className="grid gap-2"
+          className="grid gap-2.5"
           style={{ gridTemplateColumns: `repeat(${fields.length}, minmax(0, 1fr))` }}
         >
           {fields.map((f, index) => (
             <label
               key={f.key}
-              className="flex min-w-0 flex-col gap-0.5 rounded-xl border border-field-border px-3 py-2 focus-within:border-brand-600"
+              className="flex min-w-0 flex-col gap-1 rounded-2xl border border-field-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-brand-600 focus-within:bg-surface-raised"
             >
               <span className="text-xs font-bold text-brand-ink">{f.label} (cm)</span>
               <input
@@ -154,65 +175,66 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
                 placeholder="0"
                 value={dims[f.key]}
                 onChange={(e) => setDims((d) => ({ ...d, [f.key]: e.target.value }))}
-                className="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-muted"
+                className="w-full bg-transparent text-lg font-semibold text-ink outline-none placeholder:text-ink-muted"
               />
             </label>
           ))}
         </div>
 
-        {mode === 'weight' ? (
-          <label className="flex items-center gap-2 rounded-xl border border-field-border px-3 py-2 focus-within:border-brand-600">
-            <span className="text-sm font-bold text-brand-ink">Yoğunluk</span>
+        {isWeight ? (
+          <label className="flex items-center gap-3 rounded-2xl border border-field-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-brand-600 focus-within:bg-surface-raised">
+            <span className="text-xs font-bold text-brand-ink">Yoğunluk</span>
             <input
               inputMode="decimal"
               placeholder="0"
               value={density}
               onChange={(e) => setDensity(e.target.value)}
-              className={inputClass}
+              className="min-w-0 flex-1 bg-transparent text-right text-lg font-semibold text-ink outline-none placeholder:text-ink-muted"
             />
-            <span className="text-xs text-ink-muted">g/cm³</span>
+            <span className="text-xs font-semibold text-ink-muted">g/cm³</span>
           </label>
         ) : null}
-      </div>
 
-      <p className="mt-3 text-xs text-ink-muted">
-        {mode === 'weight'
-          ? 'Ağırlık = hacim (cm³) × yoğunluk — 1000 g ve üzeri otomatik kg.'
-          : 'Hacim (desi) = hacim (cm³) ÷ 3000.'}
-      </p>
+        <p className="rounded-xl bg-surface-muted px-3.5 py-2 text-center text-sm font-semibold text-ink-muted">
+          {formula}
+        </p>
 
-      <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-line p-3">
-        <div className="min-w-0">
-          <p className="text-xs font-bold tracking-wide text-ink-muted uppercase">Sonuç</p>
-          <p className="truncate text-xl font-extrabold" aria-live="polite">
-            {resultText}
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            onClick={() => void copy()}
-            disabled={!hasResult}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-field-border px-3 text-sm font-semibold disabled:opacity-40"
-          >
-            {copied ? (
-              <Check className="size-4" aria-hidden="true" />
-            ) : (
-              <Copy className="size-4" aria-hidden="true" />
-            )}
-            {copied ? 'Kopyalandı' : 'Kopyala'}
-          </button>
-          <button
-            type="button"
-            disabled={!hasResult}
-            onClick={() => {
-              onApply(toInputValue(resultValue), resultUnit);
-              onClose();
-            }}
-            className="min-h-10 rounded-xl bg-brand-700 px-4 text-sm font-semibold text-white disabled:opacity-40"
-          >
-            Uygula
-          </button>
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-brand-50 p-4">
+          <div className="min-w-0">
+            <p className="text-xs font-bold tracking-wide text-brand-ink uppercase">Sonuç</p>
+            <p className="truncate text-2xl font-extrabold" aria-live="polite">
+              {resultText}
+            </p>
+            {isWeight && volume > 0 ? (
+              <p className="text-xs text-ink-muted">Hacim: {formatNumber(volume)} cm³</p>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => void copy()}
+              disabled={!hasResult}
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-field-border bg-surface-raised px-3.5 text-sm font-semibold transition-opacity disabled:opacity-40"
+            >
+              {copied ? (
+                <Check className="size-4" aria-hidden="true" />
+              ) : (
+                <Copy className="size-4" aria-hidden="true" />
+              )}
+              {copied ? 'Kopyalandı' : 'Kopyala'}
+            </button>
+            <button
+              type="button"
+              disabled={!hasResult}
+              onClick={() => {
+                onApply(toInputValue(resultValue), resultUnit);
+                onClose();
+              }}
+              className="min-h-11 rounded-xl bg-brand-700 px-5 text-sm font-semibold text-white transition-opacity disabled:opacity-40"
+            >
+              Uygula
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -64,8 +64,14 @@ export function shapeVolumeCm3(shape: Shape, dims: { a: number; b: number; c: nu
   return dims.a * dims.b * dims.c;
 }
 
-/** Kargo hacmi (desi): cm³ / 3000. */
-export const volumeToDesi = (cm3: number): number => cm3 / 3000;
+export type DesiRegion = 'yurtici' | 'yurtdisi';
+
+/** Desi bölenleri: yurt içi kargoda 3000, yurt dışı (DHL/UPS/FedEx gibi) taşımada 5000. */
+export const DESI_DIVISORS: Record<DesiRegion, number> = { yurtici: 3000, yurtdisi: 5000 };
+
+/** Kargo hacmi (desi) = hacim (cm³) ÷ bölen. */
+export const volumeToDesi = (cm3: number, region: DesiRegion = 'yurtici'): number =>
+  cm3 / DESI_DIVISORS[region];
 
 /** Sayıyı Türkçe biçimde (en çok 3 ondalık) yazar. */
 export const formatNumber = (value: number): string =>

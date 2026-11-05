@@ -8,8 +8,10 @@ describe('stok hesapları', () => {
     expect(shapeVolumeCm3('silindir', { a: 10, b: 0, c: 10 })).toBeCloseTo(785.398, 3);
   });
 
-  it('desi = cm³ / 3000', () => {
+  it('desi: yurt içi ÷ 3000, yurt dışı ÷ 5000', () => {
     expect(volumeToDesi(6000)).toBe(2);
+    expect(volumeToDesi(6000, 'yurtici')).toBe(2);
+    expect(volumeToDesi(6000, 'yurtdisi')).toBe(1.2);
   });
 
   it('formda virgüllü ve en çok 3 ondalıklı yazar', () => {

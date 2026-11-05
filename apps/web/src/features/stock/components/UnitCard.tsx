@@ -96,9 +96,9 @@ export function UnitCard({ row, index, lookups, units, onChange, onRemove }: Uni
         <PriceBlock title="Satış" data={row.sale} lookups={lookups} onChange={patchBlock('sale')} />
       </div>
 
-      {/* Barkod, ölçüler ve açıklama: geniş ekranda tek satır */}
-      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,5fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(0,3fr)]">
-        <div className="md:col-span-2 xl:col-span-1">
+      {/* Barkod kendi satırında; altında ağırlık, desi ve açıklama yan yana (alanlar rahat sığsın diye) */}
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div className="md:col-span-3">
           <BarcodeEditor
             barcodes={row.barcodes}
             types={lookups.barcodeTypes}
@@ -140,7 +140,7 @@ export function UnitCard({ row, index, lookups, units, onChange, onRemove }: Uni
             trailing={
               <div className="flex items-center gap-1">
                 <span className="px-2 text-sm font-bold text-ink-muted">desi</span>
-                <CalcButton label="Hacim Hesapla" onClick={() => setCalc('volume')} />
+                <CalcButton label="Desi Hesapla" onClick={() => setCalc('volume')} />
               </div>
             }
           />
@@ -152,7 +152,7 @@ export function UnitCard({ row, index, lookups, units, onChange, onRemove }: Uni
             />
           ) : null}
         </div>
-        <div className="md:col-span-2 xl:col-span-1">
+        <div>
           <TextField
             label="Birim Açıklama"
             value={row.note}
