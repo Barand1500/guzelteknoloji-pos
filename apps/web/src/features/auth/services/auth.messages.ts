@@ -40,8 +40,8 @@ const googleMessages: Record<GoogleErrorCode, string> = {
   google_dogrulama: 'Google ile giriş doğrulanamadı. Lütfen tekrar deneyin.',
   google_eposta_dogrulanmamis:
     'Google hesabınızın e-posta adresi doğrulanmamış. Doğruladıktan sonra tekrar deneyin.',
-  apple_dogrulama: 'Apple ile giri? do?rulanamad?. L?tfen tekrar deneyin.',
-  apple_hesap_mevcut: 'Bu e-posta ile bir hesap zaten var. E-posta y?ntemiyle giri? yap?n.',
+  apple_dogrulama: 'Apple ile giriş doğrulanamadı. Lütfen tekrar deneyin.',
+  apple_hesap_mevcut: 'Bu e-posta ile bir hesap zaten var. E-posta yöntemiyle giriş yapın.',
   apple_yapilandirilmamis: APPLE_NOT_CONFIGURED_MESSAGE,
   google_sunucu: 'Şu anda giriş yapılamıyor. Lütfen biraz sonra tekrar deneyin.',
   google_hesap_mevcut:

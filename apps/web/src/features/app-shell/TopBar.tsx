@@ -24,7 +24,7 @@ export function TopBar() {
   };
 
   return (
-    <header className="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 pt-4 tablet:px-8 tablet:pt-6">
+    <header className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 pt-4 tablet:px-8 tablet:pt-6">
       <span
         aria-hidden="true"
         className="flex size-10 items-center justify-center rounded-2xl bg-brand-700 text-sm font-extrabold text-white"

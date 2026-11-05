@@ -34,16 +34,16 @@ function DockLink({ item }: { item: NavItem }) {
 }
 
 /**
- * Ekranın altında yüzen, yarı saydam yuvarlak çubuk (telefonda ve masaüstünde aynı).
+ * Alt çubuk: telefonda ekranın altına YAPIŞIK (üst köşeleri yuvarlak, "+" düğmesi hafif taşar); masaüstünde yüzen, yarı saydam hap.
  * Ortadaki büyük "+" yeni stok kartı açar. Klasik sol menü bilerek KULLANILMAZ.
  */
 export function Dock() {
   return (
     <nav
       aria-label="Ana gezinme"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center md:px-3 md:pb-3"
     >
-      <div className="pointer-events-auto flex w-full max-w-md items-center gap-1 rounded-[2rem] border border-line bg-surface-raised/85 p-1.5 shadow-card backdrop-blur-xl md:w-auto md:max-w-none md:gap-2 md:px-3">
+      <div className="pointer-events-auto flex w-full items-center gap-1 rounded-t-[1.75rem] border-t border-line bg-surface-raised/90 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-card backdrop-blur-xl md:w-auto md:gap-2 md:rounded-[2rem] md:border md:p-1.5 md:px-3">
         {navLeft.map((item) => (
           <DockLink key={item.id} item={item} />
         ))}
@@ -51,7 +51,7 @@ export function Dock() {
         <NavLink
           to={STOCK_CREATE_PATH}
           aria-label="Yeni Stok Kartı"
-          className="mx-1 flex size-14 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white shadow-soft transition-transform duration-200 hover:scale-105 active:scale-95"
+          className="-mt-7 mx-1 flex size-14 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white shadow-soft transition-transform duration-200 ring-4 ring-surface-raised hover:scale-105 active:scale-95 md:mt-0 md:ring-0"
         >
           <Plus className="size-7" aria-hidden="true" />
         </NavLink>

@@ -21,7 +21,7 @@ export function Segmented({ label, value, options, onChange }: SegmentedProps) {
             aria-checked={active}
             onClick={() => onChange(o.value)}
             className={[
-              'min-h-10 flex-1 rounded-full px-4 text-sm font-semibold transition-all duration-200',
+              'min-h-10 flex-1 rounded-full px-3 text-sm whitespace-nowrap font-semibold transition-all duration-200',
               active
                 ? 'bg-surface-raised text-brand-ink shadow-soft'
                 : 'text-ink-muted hover:text-ink',
