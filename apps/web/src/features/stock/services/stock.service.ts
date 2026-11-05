@@ -1,5 +1,6 @@
 import type { SelectOption } from '../../../components/ui/SelectField';
 import { stockLookupsMock } from '../../../mocks/stock.mock';
+import { brandService } from '../../brands/services/brand.service';
 import type { OptionListKey, StockCardDraft, StockLookups } from '../types';
 
 /**
@@ -11,7 +12,11 @@ const fakeDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms)
 export const stockService = {
   async getLookups(): Promise<StockLookups> {
     await fakeDelay();
-    return stockLookupsMock;
+    // Marka seçenekleri Markalar ekranındaki aktif markalardır (aynı sırada).
+    const brands = (await brandService.list())
+      .filter((b) => b.active)
+      .map((b) => ({ value: b.id, label: b.name }));
+    return { ...stockLookupsMock, brands };
   },
 
   /** Listeye yeni seçenek ekler (ör. yeni birim "PALET"). Sahte: sunucuya yazılmaz. */

@@ -18,16 +18,8 @@ export const stockLookupsMock: StockLookups = {
     { value: 'temel-gida', label: 'Temel Gıda (%1)' },
     { value: 'kitap', label: 'Kitap (%0)' },
   ],
-  brands: [
-    { value: 'alatel', label: 'ALATEL' },
-    { value: 'anypay', label: 'ANYPAY' },
-    { value: 'asys', label: 'ASYS' },
-    { value: 'banknotemaster', label: 'BANKNOTEMASTER' },
-    { value: 'bmt', label: 'BMT' },
-    { value: 'bmx', label: 'BMX' },
-    { value: 'bng-plus', label: 'BNG PLUS' },
-    { value: 'cas', label: 'CAS' },
-  ],
+  // Markalar buradan değil, Markalar ekranının servisinden (brandService) gelir.
+  brands: [],
   stockKinds: [
     { value: 'resmi', label: 'Resmî' },
     { value: 'gayriresmi', label: 'Gayriresmî' },

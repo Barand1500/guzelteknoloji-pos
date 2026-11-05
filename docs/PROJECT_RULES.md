@@ -192,3 +192,10 @@ Uygulama tablolari ve sutunlari Turkce, kucuk harf ve alt cizgi ile adlandirilir
 ### 8.13 Envanter satırı: boşluk bırakmayan düzen
 
 Geniş ekranda (xl) "Envanter Takibi + seçime göre alanlar + Menşei + Diğer Vergi Ekle" kutuları satırda **eşit bölünür**: Yok → 3 kutu, Normal ve Seri No → 5 kutu, LOT ve Ömür → 4 + 2 (zaten tam sığar). Satır genişliği `--cols` değişkeniyle verilir (`BasicInfoSection`); dar ekranda bu sarmalayıcı `contents` olur ve telefon/tablet ızgarası değişmez. Menşei en çok 40 karakter (en uzun ülke adı "Güney Georgia ve Güney Sandviç Adaları" = 37). Yeni bir envanter türü eklenirse satır sayısı otomatik uyar; kutu sayısı 3'ü aşan ek alan olursa `rowSizes` kuralına bakın.
+
+### 8.14 Markalar ekranı ve yönetim listesi parçaları (Kategoriler/Fırsat/Özellikler de bunları kullanır)
+
+- **Tasarım (seçilen: "Kaydırmalı Satırlar"):** logo + ad + ürün sayısı + anahtar. Telefonda satır **sola kaydırınca** Düzenle / Tanımla / Sil çıkar; satıra dokunmak düzenler. Masaüstünde satırın içinde ⠿ tutamağı ve ikon düğmeleri, sağda özet kartı (xl) bulunur.
+- **Sıralama = sürükle-bırak, ayrı "Sıralama" düğmesi YOKTUR:** telefonda satırı ~0,35 sn **basılı tut** → satır havaya kalkar, diğerleri kayarak yer açar, sayfa kenarında kendiliğinden kayar; masaüstünde ⠿ tutamağından; klavyede tutamağa odaklanıp ↑ ↓. Arama yapılırken sıralama kapalıdır. Sıra mağazadaki gösterim sırasıdır.
+- **Ortak parçalar (yeniden kullanın):** `components/ui/SortableList` (sürükle-bırak + klavye + duyuru), `SwipeRow` (sola kaydırma), `ToggleSwitch`, `SearchField`, `TextAreaField`, `ConfirmSheet`, `Button variant="danger"`. Veri `features/<ad>/services` üzerinden; sahte veri `src/mocks`.
+- **Marka kuralları:** gerekli tek alan marka adı; logo dokun/sürükle-bırak ile yüklenir (görsel, en çok 2 MB, 800×230 oranı önerilir; logo zemini her zaman açık renk); açıklama ve SEO "Gelişmiş" altında. Ürünü olan marka silinirken kaç üründe kullanıldığı söylenir ve onay istenir (ürünlerin markası boş kalır). "Ürünlere Tanımla": ad/kod/barkodla ara, çoklu seç, "Ata". Pazaryeri menüleri YOKTUR (istenmedi). Pasif marka stok kartındaki marka listesinde görünmez (aynı servis).

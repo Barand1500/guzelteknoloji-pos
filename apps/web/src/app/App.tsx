@@ -4,6 +4,7 @@ import { AppShell } from '../features/app-shell/AppShell';
 import { RequireAccess } from '../features/app-shell/RequireAccess';
 import { SessionProvider } from '../features/auth/hooks/session-context';
 import { ThemeProvider } from '../features/theme/ThemeProvider';
+import { BrandsPage } from '../pages/app/BrandsPage';
 import { ComingSoonPage } from '../pages/app/ComingSoonPage';
 import { StockCardCreatePage } from '../pages/app/StockCardCreatePage';
 import { EMAIL_LOGIN_PATH, LOGIN_PATH, LoginPage } from '../pages/auth/LoginPage';
@@ -30,7 +31,7 @@ export function App() {
             {/* Sıradaki adımlarda tek tek tasarlanacak sayfalar */}
             <Route path="urunler" element={<ComingSoonPage />} />
             <Route path="kategoriler" element={<ComingSoonPage />} />
-            <Route path="markalar" element={<ComingSoonPage />} />
+            <Route path="markalar" element={<BrandsPage />} />
             <Route path="ozellikler" element={<ComingSoonPage />} />
           </Route>
 
