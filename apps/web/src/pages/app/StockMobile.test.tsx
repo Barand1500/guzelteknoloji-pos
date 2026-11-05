@@ -78,7 +78,7 @@ describe('Telefon düzeni (sekmeler + yana kaydırmalı birim kartları)', () =>
       within(screen.getByLabelText('Kart özeti')).getByText('Deneme Ürünü'),
     ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
-    expect(await screen.findByText('Stok kartı kaydedildi!')).toBeInTheDocument();
+    expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
   });
 
   it('listeler telefonda da açılır ve seçim yapılır (portal)', async () => {
@@ -134,7 +134,7 @@ describe('Telefon düzeni (sekmeler + yana kaydırmalı birim kartları)', () =>
     expect(screen.getByLabelText('Satış iskontosu')).toHaveTextContent('100');
 
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
-    expect(await screen.findByText('Stok kartı kaydedildi!')).toBeInTheDocument();
+    expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
   });
 
   it('telefonda açılır liste alttan açılan sheet olur (Kapat düğmesi ile)', async () => {

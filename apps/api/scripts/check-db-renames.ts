@@ -90,6 +90,84 @@ try {
       assert.equal((await repo.findUserByIdentity(provider, 'test-' + provider))?.id, userId);
     assert.equal((await repo.findLatestLoginCode('test@example.com'))?.attempts, 2);
     assert.equal((await repo.findActiveSession('a'.repeat(64), new Date()))?.user.id, userId);
+    assert.equal((await repo.findUserById(userId))?.status, 'ACTIVE');
+    await prisma.kullanici.update({ where: { kimlik: userId }, data: { durum: 'DEVRE_DISI' } });
+    assert.equal((await repo.findUserByEmail('test@example.com'))?.status, 'DISABLED');
+    await prisma.kullanici.update({ where: { kimlik: userId }, data: { durum: 'AKTIF' } });
+    const at = new Date();
+    await repo.markEmailVerified(userId, at);
+    assert.equal((await repo.findUserById(userId))?.emailVerifiedAt?.getTime(), at.getTime());
+    const code = await repo.createLoginCode({
+      email: 'new@example.com',
+      codeHash: 'd'.repeat(64),
+      expiresAt: new Date(Date.now() + 60000),
+      ipAddress: null,
+    });
+    await repo.incrementLoginCodeAttempts(code.id);
+    await repo.consumeLoginCode(code.id, at);
+    assert.equal((await repo.findLatestLoginCode('new@example.com'))?.attempts, 1);
+    assert.equal(
+      (await repo.findLatestLoginCode('new@example.com'))?.consumedAt?.getTime(),
+      at.getTime(),
+    );
+    assert.equal(await repo.countLoginCodesSince('new@example.com', new Date(0)), 1);
+    const verified = await repo.createVerifiedUser({
+      email: 'new@example.com',
+      emailVerifiedAt: at,
+    });
+    await repo.upsertPasswordUser({
+      email: 'new@example.com',
+      passwordHash: 'first',
+      displayName: 'Yeni',
+    });
+    await repo.upsertPasswordUser({
+      email: 'new@example.com',
+      passwordHash: 'second',
+      displayName: 'Yeni',
+    });
+    assert.equal((await repo.findPasswordLogin('new@example.com'))?.passwordHash, 'second');
+    await repo.linkIdentity({
+      userId: verified.id,
+      provider: 'APPLE',
+      providerUserId: 'new-apple',
+      email: verified.email,
+    });
+    await repo.touchIdentity('APPLE', 'new-apple', at);
+    assert.equal((await repo.findUserByIdentity('APPLE', 'new-apple'))?.id, verified.id);
+    const oauth = await repo.createUserWithIdentity({
+      email: 'oauth@example.com',
+      emailVerifiedAt: at,
+      displayName: 'OAuth',
+      avatarUrl: null,
+      provider: 'GOOGLE',
+      providerUserId: 'new-google',
+    });
+    assert.equal((await repo.findUserByIdentity('GOOGLE', 'new-google'))?.id, oauth.id);
+    const session = await repo.createSession({
+      userId: verified.id,
+      tokenHash: 'e'.repeat(64),
+      expiresAt: new Date(Date.now() + 60000),
+      loginMethod: 'EMAIL',
+      ipAddress: null,
+      userAgent: null,
+    });
+    assert.equal(
+      (await prisma.kullanici.findUnique({ where: { kimlik: verified.id } }))?.sonGirisYontemi,
+      'EPOSTA',
+    );
+    const [physical] = await connection.query(
+      'SELECT son_giris_yontemi FROM kullanicilar WHERE kimlik = ?',
+      [verified.id],
+    );
+    assert.equal(physical.son_giris_yontemi, 'EMAIL');
+    await repo.touchSession(session.id, at);
+    assert.equal(
+      (await repo.findActiveSession('e'.repeat(64), at))?.session.lastSeenAt.getTime(),
+      at.getTime(),
+    );
+    await repo.revokeSessionByTokenHash('e'.repeat(64), at);
+    assert.equal(await repo.findActiveSession('e'.repeat(64), at), null);
+    await prisma.kullanici.deleteMany({ where: { kimlik: { in: [verified.id, oauth.id] } } });
     await repo.createSession({
       userId,
       tokenHash: 'c'.repeat(64),
@@ -99,14 +177,14 @@ try {
       userAgent: null,
     });
     assert.equal(
-      (await prisma.user.findUnique({ where: { id: userId } }))?.lastLoginMethod,
+      (await prisma.kullanici.findUnique({ where: { kimlik: userId } }))?.sonGirisYontemi,
       'APPLE',
     );
-    await assert.rejects(prisma.user.create({ data: { email: 'test@example.com' } }));
-    await prisma.user.delete({ where: { id: userId } });
-    assert.equal(await prisma.authIdentity.count(), 0);
-    assert.equal(await prisma.session.count(), 0);
-    assert.equal(await prisma.passwordCredential.count(), 0);
+    await assert.rejects(prisma.kullanici.create({ data: { eposta: 'test@example.com' } }));
+    await prisma.kullanici.delete({ where: { kimlik: userId } });
+    assert.equal(await prisma.girisKimligi.count(), 0);
+    assert.equal(await prisma.oturum.count(), 0);
+    assert.equal(await prisma.sifreBilgisi.count(), 0);
     console.log(
       'PASS: MySQL migration, all row values, Prisma queries, login methods, unique constraints and cascading relations.',
     );

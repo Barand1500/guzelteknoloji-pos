@@ -1,14 +1,23 @@
 # Veritabani adlari
 
-Uygulama tablolari ve sutunlari Turkce, kucuk harf ve alt cizgi ile adlandirilir. Tasima ve arac uyumu icin Turkce karakter kullanilmaz. Prisma @map/@@map sayesinde kodun kullandigi alanlar ayni kalir.
+Uygulama tabloları, sütunları ve Prisma model/alan adları Türkçedir. Araç uyumluluğu için adlarda Türkçe karakter kullanılmaz. SQL adları `alt_cizgi`, Prisma alanları `kucukHarfleBaslayan` biçimindedir. `@map`/`@@map` mevcut SQL adlarını korur; API yanıtları repository katmanında mevcut sözleşmeye çevrilir.
 
-- User: kullanicilar
-- PasswordCredential: sifre_bilgileri
-- AuthIdentity: giris_kimlikleri
-- Session: oturumlar
-- EmailLoginCode: eposta_giris_kodlari
+- Kullanici: kullanicilar
+- SifreBilgisi: sifre_bilgileri
+- GirisKimligi: giris_kimlikleri
+- Oturum: oturumlar
+- EpostaGirisKodu: eposta_giris_kodlari
+- StokSecenegi: stok_secenekleri
+- StokKarti: stok_kartlari
+- StokFiyatListesi: stok_fiyat_listeleri
+- StokBirimi: stok_birimleri
+- StokFiyati: stok_fiyatlari
+- StokEkFiyati: stok_ek_fiyatlari
+- StokBarkodu: stok_barkodlari
 
-_prisma_migrations, Prisma'nin yonettigi teknik migration tablosudur; adi ve sutunlari degistirilmez. GOOGLE/APPLE gibi saglayici degerleri ve mevcut enum degerleri korunur.
+`_prisma_migrations`, Prisma'nın yönettiği teknik tablodur; adı ve sütunları değiştirilmez. Google/Apple marka adları korunur. Prisma'daki `AKTIF`, `DEVRE_DISI`, `EPOSTA` değerleri `@map` ile veritabanındaki mevcut `ACTIVE`, `DISABLED`, `EMAIL` değerlerine bağlanır.
+
+Yalnızca Prisma adlarının Türkçeleştirilmesi yeni migration gerektirmez. Yeni kodla birlikte `npm run db:generate` çalıştırılıp API yeniden derlenir ve başlatılır. Aşağıdaki migration adımları eski İngilizce SQL tablo adlarından geçiş içindir.
 
 ## Canliya uygulama
 

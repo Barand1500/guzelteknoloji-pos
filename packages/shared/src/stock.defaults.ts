@@ -1,0 +1,76 @@
+import type { StockLookups } from './stock';
+export const DEFAULT_STOCK_LOOKUPS: StockLookups = {
+  stockTypes: [
+    { value: 'basit', label: 'Basit Ürün' },
+    { value: 'grup', label: 'Grup Ürün' },
+    { value: 'varyasyonlu', label: 'Varyasyonlu Ürün' },
+  ],
+  vatDepartments: [
+    { value: 'genel', label: 'Genel (%20)' },
+    { value: 'gida', label: 'Gıda (%10)' },
+    { value: 'temel-gida', label: 'Temel Gıda (%1)' },
+    { value: 'kitap', label: 'Kitap (%0)' },
+  ],
+  brands: [
+    { value: 'alatel', label: 'ALATEL' },
+    { value: 'anypay', label: 'ANYPAY' },
+    { value: 'asys', label: 'ASYS' },
+    { value: 'banknotemaster', label: 'BANKNOTEMASTER' },
+    { value: 'bmt', label: 'BMT' },
+    { value: 'bmx', label: 'BMX' },
+    { value: 'bng-plus', label: 'BNG PLUS' },
+    { value: 'cas', label: 'CAS' },
+  ],
+  stockKinds: [
+    { value: 'resmi', label: 'Resmî' },
+    { value: 'gayriresmi', label: 'Gayriresmî' },
+  ],
+  inventoryTracking: [
+    { value: 'yok', label: 'Yok' },
+    { value: 'normal', label: 'Normal' },
+    { value: 'seri', label: 'Seri No' },
+    { value: 'lot', label: 'LOT' },
+    { value: 'omur', label: 'Ömür' },
+  ],
+  otherTaxes: [
+    { value: '', label: 'Seçilmedi' },
+    { value: 'otv', label: 'ÖTV' },
+    { value: 'oiv', label: 'ÖİV' },
+    { value: 'konaklama', label: 'Konaklama Vergisi' },
+  ],
+  units: [
+    { value: 'adet', label: 'ADET' },
+    { value: 'koli', label: 'KOLİ', removable: true },
+    { value: 'paket', label: 'PAKET', removable: true },
+    { value: 'kutu', label: 'KUTU', removable: true },
+    { value: 'set', label: 'SET', removable: true },
+    { value: 'kg', label: 'KG', removable: true },
+  ],
+  currencies: [
+    { value: 'TRY', label: '₺ TRY' },
+    { value: 'USD', label: '$ USD' },
+    { value: 'EUR', label: '€ EUR' },
+  ],
+  priceLists: [
+    { value: 'fiyat', label: 'FİYAT' },
+    { value: 'perakende', label: 'PERAKENDE', removable: true },
+    { value: 'toptan', label: 'TOPTAN', removable: true },
+  ],
+  vatRates: [
+    { value: '0', label: '% 0' },
+    { value: '1', label: '% 1' },
+    { value: '10', label: '% 10' },
+    { value: '20', label: '% 20' },
+  ],
+  barcodeTypes: [
+    { value: 'none', label: 'Hiçbiri' },
+    { value: 'EAN8', label: 'EAN8' },
+    { value: 'EAN13', label: 'EAN13' },
+    { value: 'UPC', label: 'UPC' },
+    { value: 'CODE39', label: 'CODE39' },
+    { value: 'CODE93', label: 'CODE93' },
+    { value: 'CODE128', label: 'CODE128' },
+    { value: 'GRAMAJ', label: 'GRAMAJ' },
+    { value: 'ADET', label: 'ADET' },
+  ],
+};

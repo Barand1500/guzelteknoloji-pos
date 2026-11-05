@@ -1,0 +1,52 @@
+import { addStockOptionSchema, createStockSchema, removeStockOptionSchema } from '@gt/shared';
+import { stockValidationMessage } from '@gt/shared';
+import { Router } from 'express';
+import { z } from 'zod';
+import type { Env } from '../../config/env';
+import { HttpError } from '../../lib/http-error';
+import { createRateLimiter } from '../../middleware/rate-limit';
+import { readSessionToken } from '../auth/auth.cookies';
+import type { AuthService } from '../auth/auth.service';
+import type { StockRepository } from './stock.repository';
+
+function parse<T>(schema: z.ZodType<T>, body: unknown): T {
+  const result = schema.safeParse(body);
+  if (!result.success)
+    throw new HttpError(400, 'VALIDATION_ERROR', stockValidationMessage(result.error));
+  return result.data;
+}
+
+export function createStockRouter(env: Env, service: AuthService, repo: StockRepository) {
+  const router = Router();
+  router.use(async (req, res, next) => {
+    const token = readSessionToken(req, env);
+    const session = token ? await service.getSession(token) : null;
+    if (!session)
+      throw new HttpError(401, 'UNAUTHENTICATED', 'Stok kaydı için hesabınıza giriş yapın.');
+    res.locals.stockUserId = session.user.id;
+    res.set('Cache-Control', 'no-store');
+    next();
+  });
+  router.use(createRateLimiter({ enabled: env.rateLimitEnabled, windowMs: 60000, limit: 120 }));
+  router.get('/secenekler', async (_req, res) =>
+    res.json(await repo.getLookups(res.locals.stockUserId as string)),
+  );
+  router.post('/secenekler/ekle', async (req, res) => {
+    const { list, label } = parse(addStockOptionSchema, req.body);
+    res.status(201).json(await repo.addOption(res.locals.stockUserId as string, list, label));
+  });
+  router.post('/secenekler/kaldir', async (req, res) => {
+    const { list, value } = parse(removeStockOptionSchema, req.body);
+    await repo.removeOption(res.locals.stockUserId as string, list, value);
+    res.status(204).end();
+  });
+  router.post('/kartlar', async (req, res) => {
+    const input = parse(createStockSchema, req.body);
+    res.status(201).json(await repo.create(res.locals.stockUserId as string, input));
+  });
+  router.get('/kartlar/:id', async (req, res) => {
+    const id = parse(z.uuid({ error: 'Geçersiz stok kartı kimliği.' }), req.params.id);
+    res.json(await repo.get(res.locals.stockUserId as string, id));
+  });
+  return router;
+}

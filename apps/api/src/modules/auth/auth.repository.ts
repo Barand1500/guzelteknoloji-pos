@@ -1,4 +1,5 @@
 import type { PrismaClient } from '../../lib/prisma';
+import type { EpostaGirisKodu, Prisma } from '../../generated/prisma/client';
 import type {
   AuthProvider,
   LoginMethod,
@@ -68,186 +69,231 @@ export interface AuthRepository {
 }
 
 const userSelect = {
-  id: true,
-  email: true,
-  emailVerifiedAt: true,
-  displayName: true,
-  avatarUrl: true,
-  status: true,
+  kimlik: true,
+  eposta: true,
+  epostaDogrulamaZamani: true,
+  gorunenAd: true,
+  profilResmiAdresi: true,
+  durum: true,
 } as const;
+
+type KullaniciKaydi = Prisma.KullaniciGetPayload<{
+  select: typeof userSelect;
+}>;
+const toUser = (row: KullaniciKaydi): UserRecord => ({
+  id: row.kimlik,
+  email: row.eposta,
+  emailVerifiedAt: row.epostaDogrulamaZamani,
+  displayName: row.gorunenAd,
+  avatarUrl: row.profilResmiAdresi,
+  status: row.durum === 'AKTIF' ? 'ACTIVE' : 'DISABLED',
+});
+const optionalUser = (row: KullaniciKaydi | null) => (row ? toUser(row) : null);
+const toSession = (row: {
+  kimlik: string;
+  kullaniciKimligi: string;
+  gecerlilikBitisZamani: Date;
+  sonGorulmeZamani: Date;
+}): SessionRecord => ({
+  id: row.kimlik,
+  userId: row.kullaniciKimligi,
+  expiresAt: row.gecerlilikBitisZamani,
+  lastSeenAt: row.sonGorulmeZamani,
+});
+const toCode = (row: EpostaGirisKodu): EmailCodeRecord => ({
+  id: row.kimlik,
+  email: row.eposta,
+  codeHash: row.kodOzeti,
+  expiresAt: row.gecerlilikBitisZamani,
+  attempts: row.denemeSayisi,
+  consumedAt: row.kullanimZamani,
+  createdAt: row.olusturmaZamani,
+});
 
 export class PrismaAuthRepository implements AuthRepository {
   constructor(private readonly db: PrismaClient) {}
 
   findUserById(id: string) {
-    return this.db.user.findUnique({ where: { id }, select: userSelect });
+    return this.db.kullanici
+      .findUnique({ where: { kimlik: id }, select: userSelect })
+      .then(optionalUser);
   }
-
   findUserByEmail(email: string) {
-    return this.db.user.findUnique({ where: { email }, select: userSelect });
+    return this.db.kullanici
+      .findUnique({ where: { eposta: email }, select: userSelect })
+      .then(optionalUser);
   }
-
   async findPasswordLogin(email: string) {
-    const row = await this.db.user.findUnique({
-      where: { email },
-      select: { ...userSelect, passwordCredential: { select: { passwordHash: true } } },
+    const row = await this.db.kullanici.findUnique({
+      where: { eposta: email },
+      select: { ...userSelect, sifreBilgisi: { select: { sifreOzeti: true } } },
     });
-    if (!row?.passwordCredential) return null;
-    const { passwordCredential, ...user } = row;
-    return { user, passwordHash: passwordCredential.passwordHash };
+    if (!row?.sifreBilgisi) return null;
+    return { user: toUser(row), passwordHash: row.sifreBilgisi.sifreOzeti };
   }
-
   async findUserByIdentity(provider: AuthProvider, providerUserId: string) {
-    const identity = await this.db.authIdentity.findUnique({
-      where: { provider_providerUserId: { provider, providerUserId } },
-      select: { user: { select: userSelect } },
-    });
-    return identity?.user ?? null;
-  }
-
-  createUserWithIdentity(data: Parameters<AuthRepository['createUserWithIdentity']>[0]) {
-    return this.db.user.create({
-      data: {
-        email: data.email,
-        emailVerifiedAt: data.emailVerifiedAt,
-        displayName: data.displayName,
-        avatarUrl: data.avatarUrl,
-        identities: {
-          create: {
-            provider: data.provider,
-            providerUserId: data.providerUserId,
-            email: data.email,
-            lastUsedAt: new Date(),
-          },
+    const row = await this.db.girisKimligi.findUnique({
+      where: {
+        saglayici_saglayiciKullaniciKimligi: {
+          saglayici: provider,
+          saglayiciKullaniciKimligi: providerUserId,
         },
       },
-      select: userSelect,
+      select: { kullanici: { select: userSelect } },
     });
+    return row ? toUser(row.kullanici) : null;
   }
-
+  createUserWithIdentity(data: Parameters<AuthRepository['createUserWithIdentity']>[0]) {
+    return this.db.kullanici
+      .create({
+        data: {
+          eposta: data.email,
+          epostaDogrulamaZamani: data.emailVerifiedAt,
+          gorunenAd: data.displayName,
+          profilResmiAdresi: data.avatarUrl,
+          girisKimlikleri: {
+            create: {
+              saglayici: data.provider,
+              saglayiciKullaniciKimligi: data.providerUserId,
+              eposta: data.email,
+              sonKullanimZamani: new Date(),
+            },
+          },
+        },
+        select: userSelect,
+      })
+      .then(toUser);
+  }
   async linkIdentity(data: Parameters<AuthRepository['linkIdentity']>[0]) {
-    await this.db.authIdentity.create({ data: { ...data, lastUsedAt: new Date() } });
-  }
-
-  async touchIdentity(provider: AuthProvider, providerUserId: string, at: Date) {
-    await this.db.authIdentity.update({
-      where: { provider_providerUserId: { provider, providerUserId } },
-      data: { lastUsedAt: at },
+    await this.db.girisKimligi.create({
+      data: {
+        kullaniciKimligi: data.userId,
+        saglayici: data.provider,
+        saglayiciKullaniciKimligi: data.providerUserId,
+        eposta: data.email,
+        sonKullanimZamani: new Date(),
+      },
     });
   }
-
+  async touchIdentity(provider: AuthProvider, providerUserId: string, at: Date) {
+    await this.db.girisKimligi.update({
+      where: {
+        saglayici_saglayiciKullaniciKimligi: {
+          saglayici: provider,
+          saglayiciKullaniciKimligi: providerUserId,
+        },
+      },
+      data: { sonKullanimZamani: at },
+    });
+  }
   createSession(data: Parameters<AuthRepository['createSession']>[0]) {
     return this.db.$transaction(async (tx) => {
-      const session = await tx.session.create({
-        data,
-        select: { id: true, userId: true, expiresAt: true, lastSeenAt: true },
+      const row = await tx.oturum.create({
+        data: {
+          kullaniciKimligi: data.userId,
+          girisYontemi: data.loginMethod === 'EMAIL' ? 'EPOSTA' : data.loginMethod,
+          oturumAnahtariOzeti: data.tokenHash,
+          gecerlilikBitisZamani: data.expiresAt,
+          ipAdresi: data.ipAddress,
+          istemciBilgisi: data.userAgent,
+        },
       });
-      await tx.user.update({
-        where: { id: data.userId },
-        data: { lastLoginMethod: data.loginMethod, lastLoginAt: new Date() },
+      await tx.kullanici.update({
+        where: { kimlik: data.userId },
+        data: {
+          sonGirisYontemi: data.loginMethod === 'EMAIL' ? 'EPOSTA' : data.loginMethod,
+          sonGirisZamani: new Date(),
+        },
       });
-      return session;
+      return toSession(row);
     });
   }
-
   async findActiveSession(tokenHash: string, now: Date) {
-    const row = await this.db.session.findFirst({
-      where: { tokenHash, revokedAt: null, expiresAt: { gt: now } },
-      select: {
-        id: true,
-        userId: true,
-        expiresAt: true,
-        lastSeenAt: true,
-        user: { select: userSelect },
+    const row = await this.db.oturum.findFirst({
+      where: {
+        oturumAnahtariOzeti: tokenHash,
+        iptalZamani: null,
+        gecerlilikBitisZamani: { gt: now },
       },
+      include: { kullanici: { select: userSelect } },
     });
-    if (!row) return null;
-    const { user, ...session } = row;
-    return { session, user };
+    return row ? { session: toSession(row), user: toUser(row.kullanici) } : null;
   }
-
   async touchSession(sessionId: string, at: Date) {
-    await this.db.session.update({ where: { id: sessionId }, data: { lastSeenAt: at } });
+    await this.db.oturum.update({ where: { kimlik: sessionId }, data: { sonGorulmeZamani: at } });
   }
-
   async revokeSessionByTokenHash(tokenHash: string, at: Date) {
-    await this.db.session.updateMany({
-      where: { tokenHash, revokedAt: null },
-      data: { revokedAt: at },
+    await this.db.oturum.updateMany({
+      where: { oturumAnahtariOzeti: tokenHash, iptalZamani: null },
+      data: { iptalZamani: at },
     });
   }
-
-  findLatestLoginCode(email: string) {
-    return this.db.emailLoginCode.findFirst({
-      where: { email },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        codeHash: true,
-        expiresAt: true,
-        attempts: true,
-        consumedAt: true,
-        createdAt: true,
-      },
+  async findLatestLoginCode(email: string) {
+    const row = await this.db.epostaGirisKodu.findFirst({
+      where: { eposta: email },
+      orderBy: { olusturmaZamani: 'desc' },
     });
+    return row ? toCode(row) : null;
   }
-
   countLoginCodesSince(email: string, since: Date) {
-    return this.db.emailLoginCode.count({ where: { email, createdAt: { gte: since } } });
+    return this.db.epostaGirisKodu.count({
+      where: { eposta: email, olusturmaZamani: { gte: since } },
+    });
   }
-
   createLoginCode(data: Parameters<AuthRepository['createLoginCode']>[0]) {
-    return this.db.emailLoginCode.create({
-      data,
-      select: {
-        id: true,
-        email: true,
-        codeHash: true,
-        expiresAt: true,
-        attempts: true,
-        consumedAt: true,
-        createdAt: true,
-      },
-    });
+    return this.db.epostaGirisKodu
+      .create({
+        data: {
+          eposta: data.email,
+          kodOzeti: data.codeHash,
+          gecerlilikBitisZamani: data.expiresAt,
+          ipAdresi: data.ipAddress,
+        },
+      })
+      .then(toCode);
   }
-
   async incrementLoginCodeAttempts(id: string) {
-    await this.db.emailLoginCode.update({ where: { id }, data: { attempts: { increment: 1 } } });
-  }
-
-  async consumeLoginCode(id: string, at: Date) {
-    await this.db.emailLoginCode.update({ where: { id }, data: { consumedAt: at } });
-  }
-
-  createVerifiedUser(data: Parameters<AuthRepository['createVerifiedUser']>[0]) {
-    return this.db.user.create({ data, select: userSelect });
-  }
-
-  async markEmailVerified(userId: string, at: Date) {
-    await this.db.user.updateMany({
-      where: { id: userId, emailVerifiedAt: null },
-      data: { emailVerifiedAt: at },
+    await this.db.epostaGirisKodu.update({
+      where: { kimlik: id },
+      data: { denemeSayisi: { increment: 1 } },
     });
   }
-
+  async consumeLoginCode(id: string, at: Date) {
+    await this.db.epostaGirisKodu.update({ where: { kimlik: id }, data: { kullanimZamani: at } });
+  }
+  createVerifiedUser(data: Parameters<AuthRepository['createVerifiedUser']>[0]) {
+    return this.db.kullanici
+      .create({
+        data: { eposta: data.email, epostaDogrulamaZamani: data.emailVerifiedAt },
+        select: userSelect,
+      })
+      .then(toUser);
+  }
+  async markEmailVerified(userId: string, at: Date) {
+    await this.db.kullanici.updateMany({
+      where: { kimlik: userId, epostaDogrulamaZamani: null },
+      data: { epostaDogrulamaZamani: at },
+    });
+  }
   upsertPasswordUser(data: Parameters<AuthRepository['upsertPasswordUser']>[0]) {
-    return this.db.user.upsert({
-      where: { email: data.email },
-      create: {
-        email: data.email,
-        displayName: data.displayName,
-        passwordCredential: { create: { passwordHash: data.passwordHash } },
-      },
-      update: {
-        passwordCredential: {
-          upsert: {
-            create: { passwordHash: data.passwordHash },
-            update: { passwordHash: data.passwordHash },
+    return this.db.kullanici
+      .upsert({
+        where: { eposta: data.email },
+        create: {
+          eposta: data.email,
+          gorunenAd: data.displayName,
+          sifreBilgisi: { create: { sifreOzeti: data.passwordHash } },
+        },
+        update: {
+          sifreBilgisi: {
+            upsert: {
+              create: { sifreOzeti: data.passwordHash },
+              update: { sifreOzeti: data.passwordHash },
+            },
           },
         },
-      },
-      select: userSelect,
-    });
+        select: userSelect,
+      })
+      .then(toUser);
   }
 }

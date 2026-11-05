@@ -1,38 +1,32 @@
 import type { SelectOption } from '../../../components/ui/SelectField';
-import { stockLookupsMock } from '../../../mocks/stock.mock';
-import { brandService } from '../../brands/services/brand.service';
+import { ApiError, apiRequest, NetworkError } from '../../../lib/http';
 import type { OptionListKey, StockCardDraft, StockLookups } from '../types';
 
-/**
- * Stok verisine erişimin TEK kapısı. Şimdilik sahte veri döner; gerçek API gelince yalnızca
- * bu dosya değişir (bileşenler aynı kalır).
- */
-const fakeDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
+export interface StockService {
+  getLookups(): Promise<StockLookups>;
+  addOption(list: OptionListKey, label: string): Promise<SelectOption>;
+  removeOption(list: OptionListKey, value: string): Promise<void>;
+  save(draft: StockCardDraft, requestId: string): Promise<{ id: string }>;
+}
 
-export const stockService = {
-  async getLookups(): Promise<StockLookups> {
-    await fakeDelay();
-    // Marka seçenekleri Markalar ekranındaki aktif markalardır (aynı sırada).
-    const brands = (await brandService.list())
-      .filter((b) => b.active)
-      .map((b) => ({ value: b.id, label: b.name }));
-    return { ...stockLookupsMock, brands };
-  },
-
-  /** Listeye yeni seçenek ekler (ör. yeni birim "PALET"). Sahte: sunucuya yazılmaz. */
-  async addOption(_list: OptionListKey, label: string): Promise<SelectOption> {
-    await fakeDelay(0);
-    return { value: `ozel-${Math.random().toString(36).slice(2, 9)}`, label, removable: true };
-  },
-
-  /** Listeden seçenek siler. Sahte: sunucuya yazılmaz. */
-  async removeOption(_list: OptionListKey, _value: string): Promise<void> {
-    await fakeDelay(0);
-  },
-
-  async save(draft: StockCardDraft): Promise<{ id: string }> {
-    await fakeDelay();
-    // Sahte kayıt: hiçbir yere yazılmaz.
-    return { id: `mock-${draft.code || 'yeni'}` };
-  },
+export const stockService: StockService = {
+  getLookups: () => apiRequest('/api/stok/secenekler'),
+  addOption: (list, label) =>
+    apiRequest('/api/stok/secenekler/ekle', { method: 'POST', body: { list, label } }),
+  removeOption: (list, value) =>
+    apiRequest('/api/stok/secenekler/kaldir', { method: 'POST', body: { list, value } }),
+  save: (draft, requestId) =>
+    apiRequest('/api/stok/kartlar', { method: 'POST', body: { draft, requestId } }),
 };
+
+export function stockErrorMessage(error: unknown): string {
+  if (error instanceof NetworkError)
+    return 'Sunucuya ulaşılamadı. Bilgileriniz korundu; tekrar deneyin.';
+  if (error instanceof ApiError) {
+    if (error.code === 'UNAUTHENTICATED') return 'Oturumunuz sona erdi. Tekrar giriş yapın.';
+    if (error.code === 'VALIDATION_ERROR' || error.code === 'CONFLICT') return error.message;
+    if (error.code === 'RATE_LIMITED')
+      return 'Çok fazla işlem yapıldı. Biraz bekleyip tekrar deneyin.';
+  }
+  return 'İşlem tamamlanamadı. Bilgileriniz korundu; tekrar deneyin.';
+}

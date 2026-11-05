@@ -80,6 +80,7 @@ export const API_ERROR_CODES = [
   'FORBIDDEN_ORIGIN',
   'NOT_FOUND',
   'INTERNAL_ERROR',
+  'CONFLICT',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
 

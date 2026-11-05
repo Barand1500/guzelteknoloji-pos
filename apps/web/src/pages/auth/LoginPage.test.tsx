@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import {
@@ -177,8 +177,9 @@ describe('E-Posta İle Devam Et', () => {
     expect(busy).toHaveAttribute('aria-busy', 'true');
 
     resolveLogin(jsonResponse(200, { user }));
-    expect(await screen.findByRole('heading', { name: 'Giriş yaptınız' })).toBeInTheDocument();
-    expect(screen.getByText('Ayşe Yılmaz')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Ana gezinme' })).toBeInTheDocument();
+    expect(sessionStorage.getItem('gt-dev-access')).toBeNull();
   });
 
   it('şifre görünürlüğünü değiştirir', async () => {
@@ -251,7 +252,7 @@ describe('E-Posta İle Devam Et', () => {
     expect(screen.getByRole('button', { name: /Kodu Tekrar Gönder \(\d+ sn\)/ })).toBeDisabled();
 
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
-    expect(await screen.findByRole('heading', { name: 'Giriş yaptınız' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
   });
 
   it('hatalı kodda Türkçe mesaj gösterir', async () => {
@@ -317,22 +318,26 @@ describe('E-Posta İle Devam Et', () => {
 });
 
 describe('Oturum', () => {
-  it('sunucu oturumu doğrularsa giriş yapılmış durumu gösterir ve çıkış yapılabilir', async () => {
-    let loggedIn = true;
-    mockFetch({
-      ...anonymousRoutes,
-      'GET /api/auth/me': () =>
-        loggedIn
-          ? jsonResponse(200, { user })
-          : jsonResponse(401, { error: { code: 'UNAUTHENTICATED', message: '' } }),
-      'POST /api/auth/logout': () => {
-        loggedIn = false;
-        return new Response(null, { status: 204 });
-      },
-    });
-    renderApp();
-    const panel = await screen.findByRole('region', { name: 'Giriş yaptınız' });
-    await userEvent.click(within(panel).getByRole('button', { name: /Çıkış Yap/ }));
-    expect(await screen.findByRole('heading', { name: optionsHeading })).toBeInTheDocument();
-  });
+  it.each(['/login', '/login/e-posta'])(
+    'aktif oturumla %s stok ekranini acar ve cikis yapilabilir',
+    async (path) => {
+      let loggedIn = true;
+      mockFetch({
+        ...anonymousRoutes,
+        'GET /api/auth/me': () =>
+          loggedIn
+            ? jsonResponse(200, { user })
+            : jsonResponse(401, { error: { code: 'UNAUTHENTICATED', message: '' } }),
+        'POST /api/auth/logout': () => {
+          loggedIn = false;
+          return new Response(null, { status: 204 });
+        },
+      });
+      renderApp(path);
+      await screen.findByRole('heading', { name: 'Yeni Stok Kartı' });
+      expect(screen.queryByText(/Hesap paneli bir sonraki/)).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /Çıkış Yap/ }));
+      expect(await screen.findByRole('heading', { name: optionsHeading })).toBeInTheDocument();
+    },
+  );
 });

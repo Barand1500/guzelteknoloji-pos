@@ -21,7 +21,10 @@ function editable(
       onCreate: (label: string, rate?: string) =>
         void list
           .add(withRate && rate ? `${label} (%${rate})` : label)
-          .then((o) => onCreated(o.value)),
+          .then((o) => onCreated(o.value))
+          .catch(() => {
+            /* Hata düzenleyicide gösterilir. */
+          }),
     },
     onRemove: list.remove,
   };
