@@ -1,5 +1,6 @@
-import { Check, ChevronDown, Plus, Search, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search, Trash2, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 import {
   useCallback,
   useEffect,
@@ -96,6 +97,8 @@ export function SelectField({
   const searchRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Telefonda (48rem altı) liste ALTTAN açılan sheet olur; tablet/masaüstünde tetiğe bağlı panel.
+  const phone = !useMediaQuery('(min-width: 48rem)');
   const showSearch = searchable ?? options.length > 7;
   const visible = useMemo(
     () => (query ? options.filter((o) => fold(o.label).includes(fold(query))) : options),
@@ -147,7 +150,8 @@ export function SelectField({
   // Açılınca arama kutusuna odaklan; dışarı tıklayınca kapat.
   useEffect(() => {
     if (!open) return;
-    if (showSearch) searchRef.current?.focus();
+    // Telefonda arama kutusuna otomatik odaklanmayız: ekran klavyesi listeyi kapatır.
+    if (showSearch && !phone) searchRef.current?.focus();
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!rootRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
@@ -161,7 +165,7 @@ export function SelectField({
       window.removeEventListener('scroll', place, true);
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [open, showSearch, place]);
+  }, [open, showSearch, phone, place]);
 
   // Klavyeyle gezerken etkin satır görünür kalsın.
   useEffect(() => {
@@ -268,123 +272,145 @@ export function SelectField({
 
       {open && pos && portalTarget
         ? createPortal(
-            <div
-              ref={panelRef}
-              style={{ position: 'fixed', ...pos }}
-              className="z-50 animate-fade-in overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-card"
-            >
-              {showSearch ? (
-                <div className="relative border-b border-line p-2">
-                  <Search
-                    aria-hidden="true"
-                    className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-ink-muted"
-                  />
-                  <input
-                    ref={searchRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => {
-                      setQuery(e.target.value);
-                      setActive(0);
-                    }}
-                    placeholder="Ara…"
-                    aria-label={`${label} içinde ara`}
-                    className="h-10 w-full rounded-xl bg-surface-muted pr-3 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
-                  />
-                </div>
+            <>
+              {phone ? (
+                <div aria-hidden="true" className="fixed inset-0 z-40 animate-fade-in bg-ink/40" />
               ) : null}
-
-              <ul
-                id={listId}
-                role="listbox"
-                aria-label={label}
-                tabIndex={-1}
-                aria-activedescendant={visible[active] ? optionId(active) : undefined}
-                className="max-h-60 overflow-y-auto p-1.5"
+              <div
+                ref={panelRef}
+                style={phone ? undefined : { position: 'fixed', ...pos }}
+                className={
+                  phone
+                    ? 'fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] animate-sheet-in flex-col overflow-hidden rounded-t-[1.75rem] border-t border-line bg-surface-raised pb-[env(safe-area-inset-bottom)] shadow-card'
+                    : 'z-50 animate-fade-in overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-card'
+                }
               >
-                {visible.length === 0 ? (
-                  <li className="px-3 py-3 text-sm text-ink-muted">Sonuç yok</li>
-                ) : (
-                  visible.map((option, index) => {
-                    const isSelected = option.value === value;
-                    const canRemove = Boolean(onRemove) && option.removable === true;
-                    return (
-                      // Klavye ile seçim, odaktaki combobox tarafından (Enter + oklar) yapılır; satırın kendisi odaklanmaz.
-                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events
-                      <li
-                        key={option.value}
-                        id={optionId(index)}
-                        role="option"
-                        aria-selected={isSelected}
-                        onPointerEnter={() => setActive(index)}
-                        onClick={() => choose(option)}
-                        className={[
-                          'flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3 text-base',
-                          isSelected ? 'font-semibold text-brand-ink' : 'text-ink',
-                          index === active ? 'bg-surface-muted' : '',
-                          isSelected && index !== active ? 'bg-brand-50' : '',
-                        ].join(' ')}
-                      >
-                        <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                        {isSelected ? (
-                          <Check className="size-4 shrink-0" aria-hidden="true" />
-                        ) : null}
-                        {canRemove ? (
-                          <button
-                            type="button"
-                            aria-label={`${option.label} seçeneğini sil`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRemove?.(option.value);
-                            }}
-                            className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
-                          >
-                            <Trash2 className="size-4" aria-hidden="true" />
-                          </button>
-                        ) : null}
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
+                {phone ? (
+                  <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2">
+                    <p className="text-lg font-extrabold">{label}</p>
+                    <button
+                      type="button"
+                      onClick={() => closeList(true)}
+                      aria-label="Kapat"
+                      className="inline-flex size-10 items-center justify-center rounded-full bg-surface-muted text-ink-muted"
+                    >
+                      <X className="size-5" aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : null}
+                {showSearch ? (
+                  <div className="relative border-b border-line p-2">
+                    <Search
+                      aria-hidden="true"
+                      className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-ink-muted"
+                    />
+                    <input
+                      ref={searchRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        setActive(0);
+                      }}
+                      placeholder="Ara…"
+                      aria-label={`${label} içinde ara`}
+                      className="h-10 w-full rounded-xl bg-surface-muted pr-3 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
+                    />
+                  </div>
+                ) : null}
 
-              {creator ? (
-                <div className="flex items-center gap-2 border-t border-line p-2">
-                  <input
-                    type="text"
-                    data-creator="true"
-                    value={newLabel}
-                    onChange={(e) => setNewLabel(e.target.value)}
-                    onKeyDown={onCreatorKeyDown}
-                    placeholder={creator.placeholder}
-                    aria-label={creator.placeholder}
-                    className="h-10 min-w-0 flex-1 rounded-xl bg-surface-muted px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
-                  />
-                  {creator.ratePlaceholder ? (
+                <ul
+                  id={listId}
+                  role="listbox"
+                  aria-label={label}
+                  tabIndex={-1}
+                  aria-activedescendant={visible[active] ? optionId(active) : undefined}
+                  className={`${phone ? 'max-h-[48dvh] min-h-0 flex-1' : 'max-h-60'} overflow-y-auto p-1.5`}
+                >
+                  {visible.length === 0 ? (
+                    <li className="px-3 py-3 text-sm text-ink-muted">Sonuç yok</li>
+                  ) : (
+                    visible.map((option, index) => {
+                      const isSelected = option.value === value;
+                      const canRemove = Boolean(onRemove) && option.removable === true;
+                      return (
+                        // Klavye ile seçim, odaktaki combobox tarafından (Enter + oklar) yapılır; satırın kendisi odaklanmaz.
+                        // eslint-disable-next-line jsx-a11y/click-events-have-key-events
+                        <li
+                          key={option.value}
+                          id={optionId(index)}
+                          role="option"
+                          aria-selected={isSelected}
+                          onPointerEnter={() => setActive(index)}
+                          onClick={() => choose(option)}
+                          className={[
+                            'flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3 text-base',
+                            isSelected ? 'font-semibold text-brand-ink' : 'text-ink',
+                            index === active ? 'bg-surface-muted' : '',
+                            isSelected && index !== active ? 'bg-brand-50' : '',
+                          ].join(' ')}
+                        >
+                          <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                          {isSelected ? (
+                            <Check className="size-4 shrink-0" aria-hidden="true" />
+                          ) : null}
+                          {canRemove ? (
+                            <button
+                              type="button"
+                              aria-label={`${option.label} seçeneğini sil`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRemove?.(option.value);
+                              }}
+                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                            >
+                              <Trash2 className="size-4" aria-hidden="true" />
+                            </button>
+                          ) : null}
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+
+                {creator ? (
+                  <div className="flex items-center gap-2 border-t border-line p-2">
                     <input
                       type="text"
-                      inputMode="decimal"
                       data-creator="true"
-                      value={newRate}
-                      onChange={(e) => setNewRate(e.target.value)}
+                      value={newLabel}
+                      onChange={(e) => setNewLabel(e.target.value)}
                       onKeyDown={onCreatorKeyDown}
-                      placeholder="%"
-                      aria-label={creator.ratePlaceholder}
-                      className="h-10 w-20 shrink-0 rounded-xl bg-surface-muted px-3 text-right text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
+                      placeholder={creator.placeholder}
+                      aria-label={creator.placeholder}
+                      className="h-10 min-w-0 flex-1 rounded-xl bg-surface-muted px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
                     />
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={submitNew}
-                    disabled={!canSubmit}
-                    aria-label="Ekle"
-                    className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-700 text-white transition-opacity disabled:opacity-40"
-                  >
-                    <Plus className="size-5" aria-hidden="true" />
-                  </button>
-                </div>
-              ) : null}
-            </div>,
+                    {creator.ratePlaceholder ? (
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        data-creator="true"
+                        value={newRate}
+                        onChange={(e) => setNewRate(e.target.value)}
+                        onKeyDown={onCreatorKeyDown}
+                        placeholder="%"
+                        aria-label={creator.ratePlaceholder}
+                        className="h-10 w-20 shrink-0 rounded-xl bg-surface-muted px-3 text-right text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
+                      />
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={submitNew}
+                      disabled={!canSubmit}
+                      aria-label="Ekle"
+                      className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-700 text-white transition-opacity disabled:opacity-40"
+                    >
+                      <Plus className="size-5" aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </>,
             portalTarget,
           )
         : null}

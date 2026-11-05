@@ -1,16 +1,25 @@
-import { Check, type LucideIcon, Package, Ruler, ScanBarcode, Coins } from 'lucide-react';
+import {
+  Check,
+  Coins,
+  type LucideIcon,
+  Package,
+  Plus,
+  Ruler,
+  ScanBarcode,
+  Settings2,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Spinner } from '../../../components/ui/Spinner';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { blockTotals, formatMoney, getCompletion, marginPercent } from '../stock.calc';
 import type { UnitRow } from '../types';
 import { BasicInfoSection } from './BasicInfoSection';
+import { KasaPriceEditor } from './KasaPriceEditor';
 import { PriceTabs } from './PriceTabs';
 import {
   UnitBarcodeField,
   UnitHeaderFields,
   UnitMeasureFields,
-  UnitPriceFields,
   type UnitPartProps,
 } from './UnitCard';
 import { UnitPager } from './UnitPager';
@@ -35,6 +44,9 @@ export function MobileStockLayout({ editor }: { editor: StockEditor }) {
   const [activeUnit, setActiveUnit] = useState(0);
   const { rows, lists, lookups, errors } = editor;
   const unitIndex = Math.min(activeUnit, rows.length - 1);
+  const activeRow = rows[unitIndex];
+  // Fiyat sekmesinde birim ayarları (birim, çarpan, ana/varsayılan, silme) başta kapalıdır.
+  const [unitSettingsOpen, setUnitSettingsOpen] = useState(false);
 
   const part = (row: UnitRow, index: number): UnitPartProps => ({
     row,
@@ -120,7 +132,7 @@ export function MobileStockLayout({ editor }: { editor: StockEditor }) {
         })}
       </div>
 
-      <SummaryStrip editor={editor} />
+      {tab !== 'fiyat' ? <SummaryStrip editor={editor} /> : null}
 
       <div
         role="tabpanel"
@@ -149,18 +161,77 @@ export function MobileStockLayout({ editor }: { editor: StockEditor }) {
               }}
               onRemove={editor.removePriceList}
             />
-            {pager(
-              (row, index) => (
-                <div className="flex flex-col gap-4">
-                  <UnitHeaderFields
-                    {...part(row, index)}
-                    onRemove={rows.length > 1 ? () => editor.removeRow(row.id) : undefined}
-                  />
-                  <UnitPriceFields {...part(row, index)} />
-                </div>
-              ),
-              'Birimler ve fiyatlar',
-            )}
+
+            {/* Birim çipleri: dokununca o birimin fiyatı düzenlenir; dişli = birim ayarları */}
+            <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div role="radiogroup" aria-label="Birim" className="flex gap-2">
+                {rows.map((row, index) => (
+                  <button
+                    key={row.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={index === unitIndex}
+                    onClick={() => setActiveUnit(index)}
+                    className={[
+                      'min-h-10 rounded-full border px-4 text-sm font-bold whitespace-nowrap transition-colors',
+                      index === unitIndex
+                        ? 'border-brand-600 bg-brand-700 text-white'
+                        : 'border-field-border bg-surface-raised text-ink-muted',
+                    ].join(' ')}
+                  >
+                    {unitLabel(row)}
+                    {row.multiplier && row.multiplier !== '1' ? ` × ${row.multiplier}` : ''}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addUnit}
+                aria-label="Birim Ekle"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-dashed border-line-strong/60 text-brand-ink"
+              >
+                <Plus className="size-5" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setUnitSettingsOpen((v) => !v)}
+                aria-expanded={unitSettingsOpen}
+                aria-label="Birim ayarları"
+                className={[
+                  'ml-auto inline-flex size-10 shrink-0 items-center justify-center rounded-full transition-colors',
+                  unitSettingsOpen ? 'bg-brand-50 text-brand-ink' : 'text-ink-muted',
+                ].join(' ')}
+              >
+                <Settings2 className="size-5" aria-hidden="true" />
+              </button>
+            </div>
+
+            {unitSettingsOpen && activeRow ? (
+              <div className={`${slideClass} animate-fade-in`}>
+                <UnitHeaderFields
+                  {...part(activeRow, unitIndex)}
+                  onRemove={
+                    rows.length > 1
+                      ? () => {
+                          editor.removeRow(activeRow.id);
+                          setUnitSettingsOpen(false);
+                        }
+                      : undefined
+                  }
+                />
+              </div>
+            ) : null}
+
+            {activeRow ? (
+              <KasaPriceEditor
+                key={activeRow.id}
+                row={activeRow}
+                unitLabel={unitLabel(activeRow)}
+                lookups={lookups}
+                onChange={(patch) => editor.updateRow(activeRow.id, patch)}
+                onSave={() => void editor.save(() => setTab('urun'))}
+              />
+            ) : null}
           </>
         ) : null}
 
@@ -189,21 +260,23 @@ export function MobileStockLayout({ editor }: { editor: StockEditor }) {
           : null}
       </div>
 
-      {/* Yüzen Kaydet düğmesi (alt çubuğun üstünde) */}
-      <button
-        type="button"
-        onClick={() => void editor.save(() => setTab('urun'))}
-        disabled={editor.saving}
-        aria-label="Kaydet"
-        title="Kaydet"
-        className="fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 flex size-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-card transition-transform active:scale-95 disabled:opacity-70 md:right-8"
-      >
-        {editor.saving ? (
-          <Spinner className="size-6" />
-        ) : (
-          <Check className="size-7" aria-hidden="true" />
-        )}
-      </button>
+      {/* Yüzen Kaydet düğmesi (alt çubuğun üstünde); Fiyat sekmesinde tuş takımındaki Kaydet kullanılır */}
+      {tab !== 'fiyat' ? (
+        <button
+          type="button"
+          onClick={() => void editor.save(() => setTab('urun'))}
+          disabled={editor.saving}
+          aria-label="Kaydet"
+          title="Kaydet"
+          className="fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 flex size-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-card transition-transform active:scale-95 disabled:opacity-70 md:right-8"
+        >
+          {editor.saving ? (
+            <Spinner className="size-6" />
+          ) : (
+            <Check className="size-7" aria-hidden="true" />
+          )}
+        </button>
+      ) : null}
     </div>
   );
 }

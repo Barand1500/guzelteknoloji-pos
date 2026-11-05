@@ -108,138 +108,142 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
   const Icon = isWeight ? Scale : Ruler;
 
   return (
-    <div
-      role="dialog"
-      aria-label={title}
-      className={[
-        // Telefon: alt çubuğun üstünde, yanlardan boşluklu. Geniş ekran: alanın üstünde, sağa hizalı.
-        'fixed inset-x-4 bottom-24 z-50 max-h-[calc(100dvh-8rem)] overflow-y-auto',
-        'md:absolute md:inset-x-auto md:right-0 md:bottom-full md:mb-3 md:max-h-none md:w-[26rem] md:overflow-visible',
-        'animate-rise-in rounded-[1.75rem] border border-line bg-surface-raised shadow-card',
-      ].join(' ')}
-    >
-      {/* Üst vurgu şeridi */}
+    <>
+      {/* Telefonda arka plan kararır (kapanma yalnızca Esc/X/Uygula ile; modal kuralı) */}
+      <div aria-hidden="true" className="fixed inset-0 z-40 animate-fade-in bg-ink/40 md:hidden" />
       <div
-        aria-hidden="true"
-        className="h-1.5 rounded-t-[1.75rem] bg-gradient-to-r from-brand-600 to-accent"
-      />
-
-      <div className="flex flex-col gap-4 p-5">
-        <div className="flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-ink"
-          >
-            <Icon className="size-6" />
-          </span>
-          <p className="min-w-0 flex-1 text-xl font-extrabold tracking-tight">{title}</p>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Kapat"
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-surface-muted px-3.5 text-xs font-bold text-ink-muted transition-colors hover:text-ink"
-          >
-            <X className="size-4" aria-hidden="true" />
-            ESC
-          </button>
-        </div>
-
-        {isWeight ? (
-          <Segmented
-            label="Şekil"
-            value={shape}
-            options={SHAPES}
-            onChange={(v) => setShape(v as Shape)}
-          />
-        ) : (
-          <Segmented
-            label="Bölge"
-            value={region}
-            options={REGIONS}
-            onChange={(v) => setRegion(v as DesiRegion)}
-          />
-        )}
-
+        role="dialog"
+        aria-label={title}
+        className={[
+          // Telefon: ALTTAN açılan sheet. Geniş ekran: alanın üstünde, sağa hizalı açılır pencere.
+          'fixed inset-x-0 bottom-0 z-50 max-h-[92dvh] animate-sheet-in overflow-y-auto rounded-t-[1.75rem] pb-[env(safe-area-inset-bottom)]',
+          'md:absolute md:inset-x-auto md:right-0 md:bottom-full md:mb-3 md:max-h-none md:w-[26rem] md:animate-rise-in md:overflow-visible md:rounded-[1.75rem] md:pb-0',
+          'border border-line bg-surface-raised shadow-card',
+        ].join(' ')}
+      >
+        {/* Üst vurgu şeridi */}
         <div
-          className="grid gap-2.5"
-          style={{ gridTemplateColumns: `repeat(${fields.length}, minmax(0, 1fr))` }}
-        >
-          {fields.map((f, index) => (
-            <label
-              key={f.key}
-              className="flex min-w-0 flex-col gap-1 rounded-2xl border border-field-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-brand-600 focus-within:bg-surface-raised"
+          aria-hidden="true"
+          className="h-1.5 rounded-t-[1.75rem] bg-gradient-to-r from-brand-600 to-accent"
+        />
+
+        <div className="flex flex-col gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-ink"
             >
-              <span className="text-xs font-bold text-brand-ink">{f.label} (cm)</span>
+              <Icon className="size-6" />
+            </span>
+            <p className="min-w-0 flex-1 text-xl font-extrabold tracking-tight">{title}</p>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Kapat"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-surface-muted px-3.5 text-xs font-bold text-ink-muted transition-colors hover:text-ink"
+            >
+              <X className="size-4" aria-hidden="true" />
+              ESC
+            </button>
+          </div>
+
+          {isWeight ? (
+            <Segmented
+              label="Şekil"
+              value={shape}
+              options={SHAPES}
+              onChange={(v) => setShape(v as Shape)}
+            />
+          ) : (
+            <Segmented
+              label="Bölge"
+              value={region}
+              options={REGIONS}
+              onChange={(v) => setRegion(v as DesiRegion)}
+            />
+          )}
+
+          <div
+            className="grid gap-2.5"
+            style={{ gridTemplateColumns: `repeat(${fields.length}, minmax(0, 1fr))` }}
+          >
+            {fields.map((f, index) => (
+              <label
+                key={f.key}
+                className="flex min-w-0 flex-col gap-1 rounded-2xl border border-field-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-brand-600 focus-within:bg-surface-raised"
+              >
+                <span className="text-xs font-bold text-brand-ink">{f.label} (cm)</span>
+                <input
+                  ref={index === 0 ? firstRef : undefined}
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={dims[f.key]}
+                  onChange={(e) =>
+                    setDims((d) => ({ ...d, [f.key]: sanitizeNumeric(e.target.value, 'decimal') }))
+                  }
+                  className="w-full bg-transparent text-lg font-semibold text-ink outline-none placeholder:text-ink-muted"
+                />
+              </label>
+            ))}
+          </div>
+
+          {isWeight ? (
+            <label className="flex items-center gap-3 rounded-2xl border border-field-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-brand-600 focus-within:bg-surface-raised">
+              <span className="text-xs font-bold text-brand-ink">Yoğunluk</span>
               <input
-                ref={index === 0 ? firstRef : undefined}
                 inputMode="decimal"
                 placeholder="0"
-                value={dims[f.key]}
-                onChange={(e) =>
-                  setDims((d) => ({ ...d, [f.key]: sanitizeNumeric(e.target.value, 'decimal') }))
-                }
-                className="w-full bg-transparent text-lg font-semibold text-ink outline-none placeholder:text-ink-muted"
+                value={density}
+                onChange={(e) => setDensity(sanitizeNumeric(e.target.value, 'decimal'))}
+                className="min-w-0 flex-1 bg-transparent text-right text-lg font-semibold text-ink outline-none placeholder:text-ink-muted"
               />
+              <span className="text-xs font-semibold text-ink-muted">g/cm³</span>
             </label>
-          ))}
-        </div>
+          ) : null}
 
-        {isWeight ? (
-          <label className="flex items-center gap-3 rounded-2xl border border-field-border bg-surface px-3.5 py-2.5 transition-colors focus-within:border-brand-600 focus-within:bg-surface-raised">
-            <span className="text-xs font-bold text-brand-ink">Yoğunluk</span>
-            <input
-              inputMode="decimal"
-              placeholder="0"
-              value={density}
-              onChange={(e) => setDensity(sanitizeNumeric(e.target.value, 'decimal'))}
-              className="min-w-0 flex-1 bg-transparent text-right text-lg font-semibold text-ink outline-none placeholder:text-ink-muted"
-            />
-            <span className="text-xs font-semibold text-ink-muted">g/cm³</span>
-          </label>
-        ) : null}
+          <p className="rounded-xl bg-surface-muted px-3.5 py-2 text-center text-sm font-semibold text-ink-muted">
+            {formula}
+          </p>
 
-        <p className="rounded-xl bg-surface-muted px-3.5 py-2 text-center text-sm font-semibold text-ink-muted">
-          {formula}
-        </p>
-
-        <div className="flex items-center justify-between gap-3 rounded-2xl bg-brand-50 p-4">
-          <div className="min-w-0">
-            <p className="text-xs font-bold tracking-wide text-brand-ink uppercase">Sonuç</p>
-            <p className="truncate text-2xl font-extrabold" aria-live="polite">
-              {resultText}
-            </p>
-            {isWeight && volume > 0 ? (
-              <p className="text-xs text-ink-muted">Hacim: {formatNumber(volume)} cm³</p>
-            ) : null}
-          </div>
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => void copy()}
-              disabled={!hasResult}
-              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-field-border bg-surface-raised px-3.5 text-sm font-semibold transition-opacity disabled:opacity-40"
-            >
-              {copied ? (
-                <Check className="size-4" aria-hidden="true" />
-              ) : (
-                <Copy className="size-4" aria-hidden="true" />
-              )}
-              {copied ? 'Kopyalandı' : 'Kopyala'}
-            </button>
-            <button
-              type="button"
-              disabled={!hasResult}
-              onClick={() => {
-                onApply(toInputValue(resultValue), resultUnit);
-                onClose();
-              }}
-              className="min-h-11 rounded-xl bg-brand-700 px-5 text-sm font-semibold text-white transition-opacity disabled:opacity-40"
-            >
-              Uygula
-            </button>
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-brand-50 p-4">
+            <div className="min-w-0">
+              <p className="text-xs font-bold tracking-wide text-brand-ink uppercase">Sonuç</p>
+              <p className="truncate text-2xl font-extrabold" aria-live="polite">
+                {resultText}
+              </p>
+              {isWeight && volume > 0 ? (
+                <p className="text-xs text-ink-muted">Hacim: {formatNumber(volume)} cm³</p>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => void copy()}
+                disabled={!hasResult}
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-field-border bg-surface-raised px-3.5 text-sm font-semibold transition-opacity disabled:opacity-40"
+              >
+                {copied ? (
+                  <Check className="size-4" aria-hidden="true" />
+                ) : (
+                  <Copy className="size-4" aria-hidden="true" />
+                )}
+                {copied ? 'Kopyalandı' : 'Kopyala'}
+              </button>
+              <button
+                type="button"
+                disabled={!hasResult}
+                onClick={() => {
+                  onApply(toInputValue(resultValue), resultUnit);
+                  onClose();
+                }}
+                className="min-h-11 rounded-xl bg-brand-700 px-5 text-sm font-semibold text-white transition-opacity disabled:opacity-40"
+              >
+                Uygula
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
