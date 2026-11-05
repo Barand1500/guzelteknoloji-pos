@@ -56,7 +56,7 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
         </div>
         <div className="col-span-3 md:col-span-4">
           <TextField
-            label="İskonto (%)"
+            label="İskonto %"
             inputMode="decimal"
             value={data.discount}
             onChange={(e) => onChange({ discount: e.target.value })}

@@ -28,8 +28,10 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto] items-start gap-2">
-        <SelectField label="Barkod Türü" options={types} value={type} onChange={setType} />
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto]">
+        <div className="col-span-2 md:col-span-1">
+          <SelectField label="Barkod Türü" options={types} value={type} onChange={setType} />
+        </div>
         <TextField
           label="Barkod"
           inputMode="numeric"

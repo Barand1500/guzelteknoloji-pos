@@ -170,3 +170,10 @@ Uygulama tablolari ve sutunlari Turkce, kucuk harf ve alt cizgi ile adlandirilir
 - Gece modunda tema düğmesi dolu güneş ikonudur.
 - **Hesaplayıcılar (Ağırlık Hesapla / Desi Hesapla):** vurgu şeritli, ikon rozetli kart; telefonda alt çubuğun üstünde, geniş ekranda alanın üstünde açılır. Modal kuralı gereği arka plana tıklayınca KAPANMAZ (Esc, X ya da Uygula). **Desi = (En × Boy × Yükseklik) ÷ bölen:** Yurt İçi ÷ 3000, Yurt Dışı ÷ 5000 (`DESI_DIVISORS`, `stock.calc.ts`); formül seçime göre ekranda yazılır. Ağırlıkta şekil (prizma/küp/silindir) + yoğunluk vardır.
 - **Zorunlu alanlar** ürün sahibi bildirene kadar BOŞ bırakılır (`REQUIRED_FIELDS`); ek fiyat penceresi satır içi yapılmıştır.
+
+### 8.10 Telefon/tablet düzeni: sekmeli + yana kaydırmalı (seçilen tasarım dili)
+
+- **xl (≥80rem) altında** stok kartı sekmelidir: **Ürün · Fiyat · Barkod · Ölçü**. Birimler yana kaydırılan kartlardır (`UnitPager`, scroll-snap, noktalı gösterge, sonda "Birim Ekle" kartı); **seçili birim sekmeler arasında korunur**. Sekmelerin altında ince canlı özet (ad, KDV dahil fiyat, kâr, doluluk), sağ altta yüzen ✓ Kaydet.
+- Görünüm `useMediaQuery('(min-width: 80rem)')` ile seçilir; aynı anda yalnızca biri çizilir. Durum ve işlemler tek yerde: `useStockEditor`. Ürün alanları `BasicInfoSection`, birim parçaları `UnitCard.tsx` içindeki `Unit*Fields` bileşenleridir (masaüstü kartı ve telefon sekmeleri aynı parçaları kullanır).
+- **Açılır liste artık portal ile ekranın üstünde (fixed) çizilir** ve en az 14rem genişliktedir: kaydırmalı/kırpan kapların içinde kesilmez. Yeni kırpan kap (overflow) eklerken bu sayede sorun çıkmaz.
+- Eski adım adım sihirbaz (Stepper) kaldırıldı. Diğer 4 tasarım önerisi `docs/tasarim-onerileri/mobil-stok-karti.html` içinde durur (gerekirse dönülür).

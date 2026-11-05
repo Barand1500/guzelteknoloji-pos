@@ -1,0 +1,253 @@
+import { Check, type LucideIcon, Package, Ruler, ScanBarcode, Coins } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Spinner } from '../../../components/ui/Spinner';
+import type { StockEditor } from '../hooks/useStockEditor';
+import { blockTotals, formatMoney, getCompletion, marginPercent } from '../stock.calc';
+import type { UnitRow } from '../types';
+import { BasicInfoSection } from './BasicInfoSection';
+import { PriceTabs } from './PriceTabs';
+import {
+  UnitBarcodeField,
+  UnitHeaderFields,
+  UnitMeasureFields,
+  UnitPriceFields,
+  type UnitPartProps,
+} from './UnitCard';
+import { UnitPager } from './UnitPager';
+
+type TabId = 'urun' | 'fiyat' | 'barkod' | 'olcu';
+
+const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
+  { id: 'urun', label: 'Ürün', icon: Package },
+  { id: 'fiyat', label: 'Fiyat', icon: Coins },
+  { id: 'barkod', label: 'Barkod', icon: ScanBarcode },
+  { id: 'olcu', label: 'Ölçü', icon: Ruler },
+];
+
+const slideClass = 'rounded-3xl border border-line bg-surface-raised p-4 shadow-soft';
+
+/**
+ * Telefon / tablet düzeni: üstte Ürün · Fiyat · Barkod · Ölçü sekmeleri, birimler yana
+ * kaydırılan kartlar, sağ altta yüzen Kaydet. Seçili birim sekmeler arasında korunur.
+ */
+export function MobileStockLayout({ editor }: { editor: StockEditor }) {
+  const [tab, setTab] = useState<TabId>('urun');
+  const [activeUnit, setActiveUnit] = useState(0);
+  const { rows, lists, lookups, errors } = editor;
+  const unitIndex = Math.min(activeUnit, rows.length - 1);
+
+  const part = (row: UnitRow, index: number): UnitPartProps => ({
+    row,
+    index,
+    lookups,
+    units: lists.units,
+    onChange: (patch) => editor.updateRow(row.id, patch),
+  });
+
+  const addUnit = () => {
+    editor.addRow();
+    setActiveUnit(rows.length); // yeni birim = son sıra
+  };
+
+  const unitLabel = (row: UnitRow) =>
+    lists.units.options.find((o) => o.value === row.unit)?.label ?? row.unit;
+
+  /** Barkod/Ölçü sekmelerinde kartın başlığı: hangi birimi düzenlediğini gösterir. */
+  const badge = (row: UnitRow): ReactNode => (
+    <p className="mb-3 flex items-center gap-2 text-sm font-bold">
+      <span className="rounded-full bg-brand-50 px-3 py-1 text-brand-ink">
+        {unitLabel(row)}
+        {row.multiplier && row.multiplier !== '1' ? ` × ${row.multiplier}` : ''}
+      </span>
+      {row.isDefault ? <span className="text-xs text-ink-muted">Varsayılan</span> : null}
+    </p>
+  );
+
+  const pager = (render: (row: UnitRow, index: number) => ReactNode, label: string) => (
+    <UnitPager
+      key={`${tab}-${editor.activeList}`}
+      label={label}
+      active={unitIndex}
+      onActiveChange={setActiveUnit}
+      onAdd={addUnit}
+      slides={rows.map((row, index) => (
+        <article key={row.id} aria-label={`${index + 1}. birim`} className={slideClass}>
+          {render(row, index)}
+        </article>
+      ))}
+    />
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Yapışkan sekme çubuğu */}
+      <div
+        role="tablist"
+        aria-label="Stok kartı bölümleri"
+        className="sticky top-0 z-20 -mx-4 flex border-b border-line bg-surface/90 px-4 backdrop-blur-md tablet:-mx-8 tablet:px-8"
+      >
+        {TABS.map((t) => {
+          const selected = t.id === tab;
+          const hasError = t.id === 'urun' && Object.values(errors).some(Boolean);
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              id={`sekme-${t.id}`}
+              aria-selected={selected}
+              aria-controls="sekme-icerik"
+              onClick={() => setTab(t.id)}
+              className={[
+                'relative flex min-h-12 flex-1 items-center justify-center gap-1.5 text-sm font-bold transition-colors',
+                selected ? 'text-brand-ink' : 'text-ink-muted',
+              ].join(' ')}
+            >
+              <t.icon className="size-4" aria-hidden="true" />
+              {t.label}
+              {hasError ? (
+                <span aria-label="Eksik alan var" className="size-2 rounded-full bg-danger" />
+              ) : null}
+              <span
+                aria-hidden="true"
+                className={[
+                  'absolute inset-x-[22%] bottom-0 h-[3px] rounded-full bg-brand-600 transition-opacity',
+                  selected ? 'opacity-100' : 'opacity-0',
+                ].join(' ')}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      <SummaryStrip editor={editor} />
+
+      <div
+        role="tabpanel"
+        id="sekme-icerik"
+        aria-labelledby={`sekme-${tab}`}
+        className="flex flex-col gap-4"
+      >
+        {tab === 'urun' ? (
+          <section aria-label="Ürün Bilgisi" className={`${slideClass} animate-rise-in`}>
+            <BasicInfoSection editor={editor} />
+          </section>
+        ) : null}
+
+        {tab === 'fiyat' ? (
+          <>
+            <PriceTabs
+              lists={lists.priceLists.options}
+              activeId={editor.activeList}
+              onSelect={(id) => {
+                setActiveUnit(0);
+                editor.setActiveList(id);
+              }}
+              onAdd={(label) => {
+                setActiveUnit(0);
+                void editor.addPriceList(label);
+              }}
+              onRemove={editor.removePriceList}
+            />
+            {pager(
+              (row, index) => (
+                <div className="flex flex-col gap-4">
+                  <UnitHeaderFields
+                    {...part(row, index)}
+                    onRemove={rows.length > 1 ? () => editor.removeRow(row.id) : undefined}
+                  />
+                  <UnitPriceFields {...part(row, index)} />
+                </div>
+              ),
+              'Birimler ve fiyatlar',
+            )}
+          </>
+        ) : null}
+
+        {tab === 'barkod'
+          ? pager(
+              (row, index) => (
+                <>
+                  {badge(row)}
+                  <UnitBarcodeField {...part(row, index)} />
+                </>
+              ),
+              'Birim barkodları',
+            )
+          : null}
+
+        {tab === 'olcu'
+          ? pager(
+              (row, index) => (
+                <>
+                  {badge(row)}
+                  <UnitMeasureFields {...part(row, index)} />
+                </>
+              ),
+              'Birim ölçüleri',
+            )
+          : null}
+      </div>
+
+      {/* Yüzen Kaydet düğmesi (alt çubuğun üstünde) */}
+      <button
+        type="button"
+        onClick={() => void editor.save(() => setTab('urun'))}
+        disabled={editor.saving}
+        aria-label="Kaydet"
+        title="Kaydet"
+        className="fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 flex size-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-card transition-transform active:scale-95 disabled:opacity-70 md:right-8"
+      >
+        {editor.saving ? (
+          <Spinner className="size-6" />
+        ) : (
+          <Check className="size-7" aria-hidden="true" />
+        )}
+      </button>
+    </div>
+  );
+}
+
+/** Sekmelerin altında ince, canlı özet: ürün adı, varsayılan birimin KDV dahil satış fiyatı, kâr, doluluk. */
+function SummaryStrip({ editor }: { editor: StockEditor }) {
+  const { draft, rows } = editor;
+  const row = rows.find((r) => r.isDefault) ?? rows[0];
+  const checks = getCompletion(draft);
+  const done = checks.filter((c) => c.ok).length;
+  const margin = row ? marginPercent(row) : null;
+
+  return (
+    <div
+      aria-label="Kart özeti"
+      className="flex items-center gap-3 rounded-2xl border border-line bg-surface-raised px-4 py-2.5"
+    >
+      <div className="min-w-0 flex-1">
+        <p className={`truncate text-sm font-bold ${draft.name ? '' : 'text-ink-muted'}`}>
+          {draft.name || 'Yeni ürün'}
+        </p>
+        <p className="truncate text-xs text-ink-muted">
+          {row ? (
+            <>
+              KDV dahil{' '}
+              <span className="font-bold text-ink">
+                {formatMoney(blockTotals(row.sale).incl, row.sale.currency)}
+              </span>
+              {margin !== null ? (
+                <span className="font-semibold text-success">
+                  {' '}
+                  · Kâr %{margin.toFixed(1).replace('.', ',')}
+                </span>
+              ) : null}
+            </>
+          ) : null}
+        </p>
+      </div>
+      <span
+        title="Kart doluluğu"
+        className="shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-ink"
+      >
+        {done}/{checks.length}
+      </span>
+    </div>
+  );
+}

@@ -15,7 +15,7 @@ export function ToggleChip({ label, checked, onChange }: ToggleChipProps) {
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={[
-        'inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-200',
+        'inline-flex min-h-10 items-center gap-1 rounded-full border px-3 text-[0.8125rem] font-semibold sm:gap-1.5 sm:px-3.5 sm:text-sm transition-colors duration-200',
         checked
           ? 'border-brand-600 bg-brand-50 text-brand-ink'
           : 'border-field-border text-ink-muted hover:border-brand-500 hover:text-ink',

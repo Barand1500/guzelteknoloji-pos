@@ -79,7 +79,7 @@ export function ExtraPrices({
             </div>
             <div className="col-span-3 md:col-span-3">
               <TextField
-                label="İskonto (%)"
+                label="İskonto %"
                 inputMode="decimal"
                 value={discount}
                 onChange={(e) => setDiscount(e.target.value)}
