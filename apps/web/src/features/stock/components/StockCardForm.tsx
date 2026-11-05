@@ -34,7 +34,7 @@ const showOnStep = (current: number, mine: number) => (current === mine ? '' : '
 
 /** Bölüm kartı görünümü (iki kartta ortak). */
 const cardClass =
-  'animate-rise-in rounded-[1.75rem] border border-line bg-surface-raised p-5 shadow-soft tablet:p-7';
+  'relative animate-rise-in rounded-[1.75rem] border border-line bg-surface-raised p-5 shadow-soft focus-within:z-20 tablet:p-7';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
 function editable(list: OptionList, noun: string, onCreated: (value: string) => void) {

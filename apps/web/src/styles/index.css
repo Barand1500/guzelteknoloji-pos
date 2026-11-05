@@ -57,7 +57,8 @@
 
   --animate-sheet-in: sheet-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-fade-in: fade-in 200ms ease-out;
-  --animate-rise-in: rise-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* Dolgu kipi (both) YOK: animasyon bitince transform kalmaz, böylece kartlar kendi yığın bağlamını oluşturmaz ve açılır listeler alttaki kartların üstünde görünür. */
+  --animate-rise-in: rise-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-draw: draw 600ms ease-out 200ms both;
   --animate-pop: pop 480ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-in-from-top: in-from-top 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;

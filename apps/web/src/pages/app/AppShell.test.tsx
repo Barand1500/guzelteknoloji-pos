@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
@@ -66,5 +66,33 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
 
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('Stok kartı kaydedildi!')).toBeInTheDocument();
+  });
+
+  it('ağırlık hesaplayıcı sonucu forma yazar; ek fiyat eklenir', async () => {
+    mockFetch(anonymousRoutes);
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(
+      await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
+    );
+
+    // Ağırlık: 10×20×30 cm prizma × 0,5 g/cm³ = 3000 g = 3 kg
+    await user.click(await screen.findByRole('button', { name: 'Ağırlık Hesapla' }));
+    const dialog = screen.getByRole('dialog', { name: 'Ağırlık Hesapla' });
+    await user.type(within(dialog).getByLabelText(/En/), '10');
+    await user.type(within(dialog).getByLabelText(/Boy/), '20');
+    await user.type(within(dialog).getByLabelText(/Yükseklik/), '30');
+    await user.type(within(dialog).getByLabelText(/Yoğunluk/), '0,5');
+    expect(within(dialog).getByText('3 kg')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Uygula' }));
+    expect(screen.getByLabelText('Ağırlık (kg)')).toHaveValue('3');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // Ek alış fiyatı
+    await user.click(screen.getByRole('button', { name: /Ek Alış Fiyatları/ }));
+    const extraList = screen.getAllByLabelText('Fiyat')[0]!;
+    await user.type(extraList, '80');
+    await user.click(screen.getAllByRole('button', { name: 'Ekle' })[0]!);
+    expect(screen.getByRole('list', { name: 'Ek alış fiyatları' })).toHaveTextContent('80,00');
   });
 });

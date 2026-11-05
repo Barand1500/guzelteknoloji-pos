@@ -30,6 +30,7 @@ const emptyBlock = (): PriceBlockData => ({
   discount: '',
   vatRate: '20',
   vatIncluded: false,
+  extras: [],
 });
 
 /**

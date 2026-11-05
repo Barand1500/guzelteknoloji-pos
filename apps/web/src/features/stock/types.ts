@@ -18,6 +18,15 @@ export interface StockLookups {
   barcodeTypes: SelectOption[];
 }
 
+/** Ana fiyata ek, açıklamalı fiyat (ör. kampanya, bayi fiyatı). */
+export interface ExtraPrice {
+  id: string;
+  note: string;
+  amount: string;
+  discount: string;
+  currency: string;
+}
+
 export interface BarcodeEntry {
   id: string;
   type: string;
@@ -31,6 +40,7 @@ export interface PriceBlockData {
   discount: string;
   vatRate: string;
   vatIncluded: boolean;
+  extras: ExtraPrice[];
 }
 
 /** Bir fiyat listesindeki (ör. "Perakende") bir birim satırı. */

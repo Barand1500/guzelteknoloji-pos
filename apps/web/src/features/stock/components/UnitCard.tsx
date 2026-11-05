@@ -1,10 +1,12 @@
-import { Trash2 } from 'lucide-react';
+import { Calculator, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import { ToggleChip } from '../../../components/ui/ToggleChip';
 import type { OptionList } from '../hooks/useOptionList';
 import type { PriceBlockData, StockLookups, UnitRow } from '../types';
 import { BarcodeEditor } from './BarcodeEditor';
+import { MeasureCalculator } from './MeasureCalculator';
 import { PriceBlock } from './PriceBlock';
 
 interface UnitCardProps {
@@ -23,13 +25,15 @@ interface UnitCardProps {
  * ağırlık/hacim ve açıklama. Referanstaki yan yana sıkışık alanlar yerine mantıksal gruplar.
  */
 export function UnitCard({ row, index, lookups, units, onChange, onRemove }: UnitCardProps) {
+  // Hangi hesaplayıcı açık: ağırlık / hacim (aynı anda biri).
+  const [calc, setCalc] = useState<'weight' | 'volume' | null>(null);
   const patchBlock = (key: 'purchase' | 'sale') => (patch: Partial<PriceBlockData>) =>
     onChange({ [key]: { ...row[key], ...patch } });
 
   return (
     <article
       aria-label={`${index + 1}. birim`}
-      className="animate-rise-in rounded-3xl border border-line p-4 tablet:p-5"
+      className="relative animate-rise-in rounded-3xl border border-line p-4 focus-within:z-20 tablet:p-5"
     >
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1 basis-40 sm:max-w-56">
@@ -101,18 +105,38 @@ export function UnitCard({ row, index, lookups, units, onChange, onRemove }: Uni
             onChange={(barcodes) => onChange({ barcodes })}
           />
         </div>
-        <TextField
-          label="Ağırlık (kg)"
-          inputMode="decimal"
-          value={row.weight}
-          onChange={(e) => onChange({ weight: e.target.value })}
-        />
-        <TextField
-          label="Hacim (desi)"
-          inputMode="decimal"
-          value={row.volume}
-          onChange={(e) => onChange({ volume: e.target.value })}
-        />
+        <div className="relative">
+          <TextField
+            label="Ağırlık (kg)"
+            inputMode="decimal"
+            value={row.weight}
+            onChange={(e) => onChange({ weight: e.target.value })}
+            trailing={<CalcButton label="Ağırlık Hesapla" onClick={() => setCalc('weight')} />}
+          />
+          {calc === 'weight' ? (
+            <MeasureCalculator
+              mode="weight"
+              onApply={(weight) => onChange({ weight })}
+              onClose={() => setCalc(null)}
+            />
+          ) : null}
+        </div>
+        <div className="relative">
+          <TextField
+            label="Hacim (desi)"
+            inputMode="decimal"
+            value={row.volume}
+            onChange={(e) => onChange({ volume: e.target.value })}
+            trailing={<CalcButton label="Hacim Hesapla" onClick={() => setCalc('volume')} />}
+          />
+          {calc === 'volume' ? (
+            <MeasureCalculator
+              mode="volume"
+              onApply={(volume) => onChange({ volume })}
+              onClose={() => setCalc(null)}
+            />
+          ) : null}
+        </div>
         <div className="md:col-span-2 xl:col-span-1">
           <TextField
             label="Birim Açıklama"
@@ -122,5 +146,20 @@ export function UnitCard({ row, index, lookups, units, onChange, onRemove }: Uni
         </div>
       </div>
     </article>
+  );
+}
+
+/** Alanın içindeki küçük hesap makinesi düğmesi. */
+function CalcButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="inline-flex size-10 items-center justify-center rounded-full text-brand-ink transition-colors hover:bg-brand-50"
+    >
+      <Calculator className="size-5" aria-hidden="true" />
+    </button>
   );
 }
