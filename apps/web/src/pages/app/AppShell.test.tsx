@@ -63,9 +63,10 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     expect(screen.getAllByRole('article')).toHaveLength(1);
     await user.click(screen.getByRole('button', { name: 'Birim Ekle' }));
     expect(screen.getAllByRole('article')).toHaveLength(2);
+    await user.type(screen.getAllByLabelText('Çarpan')[1]!, '12');
 
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
-    expect(await screen.findByText('Stok kartı kaydedildi!')).toBeInTheDocument();
+    expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
   });
 
   it('ağırlık hesaplayıcı sonucu forma yazar; ek fiyat eklenir', async () => {

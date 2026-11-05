@@ -33,6 +33,19 @@ export function errorHandler(logger: Logger): ErrorRequestHandler {
     ) {
       status = 400;
       body = { error: { code: 'VALIDATION_ERROR', message: 'Geçersiz istek gövdesi.' } };
+    } else if (
+      typeof error === 'object' &&
+      error !== null &&
+      'type' in error &&
+      error.type === 'entity.too.large'
+    ) {
+      status = 413;
+      body = {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Gönderilen bilgiler çok büyük. Birim ve ek fiyat sayısını azaltın.',
+        },
+      };
     } else {
       // Ayrıntı yalnızca sunucu log'una; istemciye iç hata bilgisi sızdırılmaz.
       logger.error({ err: error, method: req.method, path: req.path }, 'İşlenmeyen hata');

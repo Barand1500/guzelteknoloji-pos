@@ -121,7 +121,7 @@ Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada 
 
 1. **Tema:** Gündüz/gece modu olur. Renkler **60-30-10 kuralına** göre seçilir (60 zemin, 30 yüzey/ikincil, 10 vurgu), yumuşak ve göze hoş; ana vurgu şimdilik turuncu (değişebilir).
 2. **Renkler tek yerden gelir:** Tüm renkler yalnızca merkezi **tema token'larından** (CSS değişkenleri / `@theme`) okunur; bileşenlerde sabit renk kodu yazılmaz. Renk değişikliği tek dosyadan yapılabilmelidir.
-3. **Veri:** Şimdilik **mock data**; hepsi tek bir klasörde (ör. `apps/web/src/mocks/`) durur ve gerçek API'ye geçerken klasör silinip yerine servis katmanı konabilmelidir. Bileşenler veriyi doğrudan mock dosyasından değil bir servis/hook arayüzünden alır.
+3. **Veri:** Gerçek oturumda stok kartı ve seçenekler API üzerinden MySQL'e kaydedilir. Test kullanıcısı ayrı demo servisini kullanır; veritabanına yazmaz. Bileşenler veriyi servis/hook üzerinden alır. Ayrıntı: `docs/stok-karti-veritabani.md`.
 4. **İlk ekran:** Girişten sonra doğrudan **yeni stok kartı ekleme** ekranı.
 5. **Özgün tasarım:** Klasik "soldaki menü" yapay zeka şablonuna benzemeyecek; yaratıcı, özgün bir gezinme (mobilde alt gezinme dahil). Responsive zorunlu.
 6. **Test butonu** sunucuda da görünür; kodda yorum satırı ile "GEÇİCİ — sonra kaldırılacak" diye işaretlenir.
@@ -154,7 +154,7 @@ Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada 
 
 ### 8.7 Veritabani adlandirma
 
-Uygulama tablolari ve sutunlari Turkce, kucuk harf ve alt cizgi ile adlandirilir; uyumluluk icin Turkce karakter kullanilmaz. Prisma model/alanlari @map ve @@map ile eslenir. Mevcut veriler silinmez: ad degisiklikleri RENAME migration ile yapilir. _prisma_migrations teknik sistem tablosu korunur. Ayrintilar: docs/veritabani-adlari.md.
+Uygulama tablolari ve sutunlari Turkce, kucuk harf ve alt cizgi ile adlandirilir; uyumluluk icin Turkce karakter kullanilmaz. Prisma model ve alan adlari da Turkcedir (Kullanici, StokKarti, stokKodu); @map ve @@map mevcut SQL adlarini korur. API sozlesmesi repository katmaninda korunur. Mevcut veriler silinmez: fiziksel SQL ad degisiklikleri RENAME migration ile yapilir; yalnizca Prisma adi degisiyorsa migration uretilmez. _prisma_migrations teknik sistem tablosu korunur. Ayrintilar: docs/veritabani-adlari.md.
 
 ### 8.8 Ek fiyatlar, hesaplayıcılar ve açılır liste kuralı
 

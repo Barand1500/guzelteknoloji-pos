@@ -17,6 +17,8 @@ import { AuthService } from './modules/auth/auth.service';
 import type { GoogleOidcClient } from './modules/auth/google.client';
 import { createAppleOidcClient } from './modules/auth/apple.client';
 import { createHealthRouter } from './modules/health/health.routes';
+import { createStockRouter } from './modules/stock/stock.routes';
+import type { StockRepository } from './modules/stock/stock.repository';
 
 export interface AppDeps {
   env: Env;
@@ -27,6 +29,7 @@ export interface AppDeps {
   google: GoogleOidcClient | null;
   apple?: GoogleOidcClient | null;
   checkDatabase?: () => Promise<void>;
+  stockRepo?: StockRepository;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -65,6 +68,7 @@ export function createApp(deps: AppDeps): Express {
   }
 
   app.use(requestLogger(logger));
+  app.use('/api/stok', express.json({ limit: '512kb' }));
   app.use(express.json({ limit: '10kb' }));
   app.use(cookieParser(env.COOKIE_SECRET));
 
@@ -94,6 +98,7 @@ export function createApp(deps: AppDeps): Express {
       logger,
     }),
   );
+  if (deps.stockRepo) app.use('/api/stok', createStockRouter(env, service, deps.stockRepo));
   app.use('/api', notFoundHandler);
 
   // Tek origin dağıtımı: derlenmiş SPA aynı sunucudan sunulur.

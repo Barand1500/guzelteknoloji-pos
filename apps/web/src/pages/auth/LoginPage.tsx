@@ -1,12 +1,12 @@
 import { LifeBuoy } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { Spinner } from '../../components/ui/Spinner';
 import { brandConfig } from '../../config/brand.config';
+import { APP_HOME_PATH } from '../../config/navigation';
 import { AuthLayout } from '../../features/auth/components/AuthLayout';
 import { AuthOptions } from '../../features/auth/components/AuthOptions';
 import { EmailLoginForm } from '../../features/auth/components/EmailLoginForm';
-import { SignedInPanel } from '../../features/auth/components/SignedInPanel';
 import { useSession } from '../../features/auth/hooks/session-context';
 import { googleErrorMessage } from '../../features/auth/services/auth.messages';
 import { DevLoginButton } from '../../features/dev-login/DevLoginButton';
@@ -21,7 +21,7 @@ export const EMAIL_LOGIN_PATH = '/login/e-posta';
  */
 export function LoginPage({ view }: { view: 'options' | 'email' }) {
   const navigate = useNavigate();
-  const { session, setAuthenticated, logout } = useSession();
+  const { session, setAuthenticated } = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
   const [helpOpen, setHelpOpen] = useState(false);
   // Görünümler arası geçiş: çıkan görünüm kayıp gider, yenisi karşı yönden gelir.
@@ -59,6 +59,10 @@ export function LoginPage({ view }: { view: 'options' | 'email' }) {
     }
   }, [searchParams, setSearchParams]);
 
+  if (session.status === 'authenticated') {
+    return <Navigate to={APP_HOME_PATH} replace />;
+  }
+
   let content;
   if (session.status === 'loading') {
     content = (
@@ -67,15 +71,13 @@ export function LoginPage({ view }: { view: 'options' | 'email' }) {
         <span className="sr-only">Oturum bilgisi kontrol ediliyor…</span>
       </div>
     );
-  } else if (session.status === 'authenticated') {
-    content = <SignedInPanel user={session.user} onLogout={logout} />;
   } else if (view === 'email') {
     content = (
       <EmailLoginForm
         onBack={() => goTo(LOGIN_PATH)}
         onSuccess={(user) => {
           setAuthenticated(user);
-          navigate(LOGIN_PATH, { replace: true });
+          navigate(APP_HOME_PATH, { replace: true });
         }}
       />
     );

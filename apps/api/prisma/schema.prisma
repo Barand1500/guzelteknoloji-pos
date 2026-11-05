@@ -11,111 +11,258 @@ datasource db {
   provider = "mysql"
 }
 
-enum UserStatus {
-  ACTIVE
-  DISABLED
+enum KullaniciDurumu {
+  AKTIF      @map("ACTIVE")
+  DEVRE_DISI @map("DISABLED")
 }
 
-enum AuthProvider {
+enum GirisSaglayicisi {
   GOOGLE
   APPLE
 }
 
-enum LoginMethod {
-  EMAIL
+enum GirisYontemi {
+  EPOSTA @map("EMAIL")
   GOOGLE
   APPLE
 }
 
-model User {
-  id              String     @id @default(uuid()) @map("kimlik") @db.Char(36)
+model Kullanici {
+  kimlik                String          @id @default(uuid()) @map("kimlik") @db.Char(36)
   /// Normalize edilmiş (trim + küçük harf) e-posta. OAuth-only kullanıcılarda da doldurulur.
-  email           String?    @unique(map: "kullanicilar_eposta_tekil") @map("eposta") @db.VarChar(254)
-  emailVerifiedAt DateTime?  @map("eposta_dogrulama_zamani")
-  displayName     String?    @map("gorunen_ad") @db.VarChar(120)
-  avatarUrl       String?    @map("profil_resmi_adresi") @db.VarChar(2048)
-  status          UserStatus @default(ACTIVE) @map("durum")
-  createdAt       DateTime   @default(now()) @map("olusturma_zamani")
-  updatedAt       DateTime   @updatedAt @map("guncelleme_zamani")
+  eposta                String?         @unique(map: "kullanicilar_eposta_tekil") @map("eposta") @db.VarChar(254)
+  epostaDogrulamaZamani DateTime?       @map("eposta_dogrulama_zamani")
+  gorunenAd             String?         @map("gorunen_ad") @db.VarChar(120)
+  profilResmiAdresi     String?         @map("profil_resmi_adresi") @db.VarChar(2048)
+  durum                 KullaniciDurumu @default(AKTIF) @map("durum")
+  olusturmaZamani       DateTime        @default(now()) @map("olusturma_zamani")
+  guncellemeZamani      DateTime        @updatedAt @map("guncelleme_zamani")
 
-  lastLoginMethod LoginMethod? @map("son_giris_yontemi")
-  lastLoginAt     DateTime?    @map("son_giris_zamani")
+  sonGirisYontemi GirisYontemi? @map("son_giris_yontemi")
+  sonGirisZamani  DateTime?     @map("son_giris_zamani")
 
-  passwordCredential PasswordCredential?
-  identities         AuthIdentity[]
-  sessions           Session[]
+  sifreBilgisi    SifreBilgisi?
+  girisKimlikleri GirisKimligi[]
+  oturumlar       Oturum[]
+  stokSecenekleri StokSecenegi[]
+  stokKartlari    StokKarti[]
 
   @@map("kullanicilar")
 }
 
 /// Şifreli giriş kullanıcıdan ayrı tutulur: OTP/şifresiz akışa geçişte bu tablo kaldırılabilir.
-model PasswordCredential {
-  userId       String   @id @map("kullanici_kimligi") @db.Char(36)
+model SifreBilgisi {
+  kullaniciKimligi String   @id @map("kullanici_kimligi") @db.Char(36)
   /// Argon2id PHC dizesi (algoritma, parametreler ve tuz içinde gömülüdür).
-  passwordHash String   @map("sifre_ozeti") @db.VarChar(255)
-  createdAt    DateTime @default(now()) @map("olusturma_zamani")
-  updatedAt    DateTime @updatedAt @map("guncelleme_zamani")
+  sifreOzeti       String   @map("sifre_ozeti") @db.VarChar(255)
+  olusturmaZamani  DateTime @default(now()) @map("olusturma_zamani")
+  guncellemeZamani DateTime @updatedAt @map("guncelleme_zamani")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "sifre_bilgileri_kullanici_baglantisi")
+  kullanici Kullanici @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "sifre_bilgileri_kullanici_baglantisi")
 
   @@map("sifre_bilgileri")
 }
 
-model AuthIdentity {
-  id             String       @id @default(uuid()) @map("kimlik") @db.Char(36)
-  userId         String       @map("kullanici_kimligi") @db.Char(36)
-  provider       AuthProvider @map("saglayici")
+model GirisKimligi {
+  kimlik                    String           @id @default(uuid()) @map("kimlik") @db.Char(36)
+  kullaniciKimligi          String           @map("kullanici_kimligi") @db.Char(36)
+  saglayici                 GirisSaglayicisi @map("saglayici")
   /// Sağlayıcının değişmez kullanıcı kimliği (Google için `sub`). E-posta DEĞİL.
-  providerUserId String       @map("saglayici_kullanici_kimligi") @db.VarChar(255)
+  saglayiciKullaniciKimligi String           @map("saglayici_kullanici_kimligi") @db.VarChar(255)
   /// Bilgi amaçlı; eşleştirme için kullanılmaz.
-  email          String?      @map("eposta") @db.VarChar(254)
-  lastUsedAt     DateTime?    @map("son_kullanim_zamani")
-  createdAt      DateTime     @default(now()) @map("olusturma_zamani")
-  updatedAt      DateTime     @updatedAt @map("guncelleme_zamani")
+  eposta                    String?          @map("eposta") @db.VarChar(254)
+  sonKullanimZamani         DateTime?        @map("son_kullanim_zamani")
+  olusturmaZamani           DateTime         @default(now()) @map("olusturma_zamani")
+  guncellemeZamani          DateTime         @updatedAt @map("guncelleme_zamani")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "giris_kimlikleri_kullanici_baglantisi")
+  kullanici Kullanici @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "giris_kimlikleri_kullanici_baglantisi")
 
-  @@unique([provider, providerUserId], map: "giris_kimlikleri_saglayici_kullanici_tekil")
-  @@index([userId], map: "giris_kimlikleri_kullanici_indeks")
+  @@unique([saglayici, saglayiciKullaniciKimligi], map: "giris_kimlikleri_saglayici_kullanici_tekil")
+  @@index([kullaniciKimligi], map: "giris_kimlikleri_kullanici_indeks")
   @@map("giris_kimlikleri")
 }
 
-model Session {
-  id          String       @id @default(uuid()) @map("kimlik") @db.Char(36)
-  userId      String       @map("kullanici_kimligi") @db.Char(36)
+model Oturum {
+  kimlik                String        @id @default(uuid()) @map("kimlik") @db.Char(36)
+  kullaniciKimligi      String        @map("kullanici_kimligi") @db.Char(36)
   /// Cookie'deki opak token'ın SHA-256 özeti (hex). Ham token veritabanında tutulmaz.
-  loginMethod LoginMethod? @map("giris_yontemi")
-  tokenHash   String       @unique(map: "oturumlar_anahtar_ozeti_tekil") @map("oturum_anahtari_ozeti") @db.Char(64)
-  expiresAt   DateTime     @map("gecerlilik_bitis_zamani")
-  lastSeenAt  DateTime     @default(now()) @map("son_gorulme_zamani")
-  revokedAt   DateTime?    @map("iptal_zamani")
-  ipAddress   String?      @map("ip_adresi") @db.VarChar(45)
-  userAgent   String?      @map("istemci_bilgisi") @db.VarChar(512)
-  createdAt   DateTime     @default(now()) @map("olusturma_zamani")
+  girisYontemi          GirisYontemi? @map("giris_yontemi")
+  oturumAnahtariOzeti   String        @unique(map: "oturumlar_anahtar_ozeti_tekil") @map("oturum_anahtari_ozeti") @db.Char(64)
+  gecerlilikBitisZamani DateTime      @map("gecerlilik_bitis_zamani")
+  sonGorulmeZamani      DateTime      @default(now()) @map("son_gorulme_zamani")
+  iptalZamani           DateTime?     @map("iptal_zamani")
+  ipAdresi              String?       @map("ip_adresi") @db.VarChar(45)
+  istemciBilgisi        String?       @map("istemci_bilgisi") @db.VarChar(512)
+  olusturmaZamani       DateTime      @default(now()) @map("olusturma_zamani")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "oturumlar_kullanici_baglantisi")
+  kullanici Kullanici @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "oturumlar_kullanici_baglantisi")
 
-  @@index([userId], map: "oturumlar_kullanici_indeks")
-  @@index([expiresAt], map: "oturumlar_gecerlilik_indeks")
+  @@index([kullaniciKimligi], map: "oturumlar_kullanici_indeks")
+  @@index([gecerlilikBitisZamani], map: "oturumlar_gecerlilik_indeks")
   @@map("oturumlar")
 }
 
 /// E-postaya gönderilen tek kullanımlık giriş kodu. Kullanıcıya bağlı DEĞİLDİR: hesabı henüz
 /// olmayan e-postalar için de kod üretilir, doğrulanınca hesap oluşturulur.
-model EmailLoginCode {
-  id         String    @id @default(uuid()) @map("kimlik") @db.Char(36)
+model EpostaGirisKodu {
+  kimlik                String    @id @default(uuid()) @map("kimlik") @db.Char(36)
   /// Normalize edilmiş e-posta.
-  email      String    @map("eposta") @db.VarChar(254)
+  eposta                String    @map("eposta") @db.VarChar(254)
   /// HMAC-SHA256(gizli anahtar, "e-posta:kod") hex. 6 haneli kod DB'de düz saklanmaz.
-  codeHash   String    @map("kod_ozeti") @db.Char(64)
-  expiresAt  DateTime  @map("gecerlilik_bitis_zamani")
+  kodOzeti              String    @map("kod_ozeti") @db.Char(64)
+  gecerlilikBitisZamani DateTime  @map("gecerlilik_bitis_zamani")
   /// Yanlış deneme sayısı; sınırı aşan kod geçersiz sayılır (kaba kuvvet koruması).
-  attempts   Int       @default(0) @map("deneme_sayisi")
-  consumedAt DateTime? @map("kullanim_zamani")
-  ipAddress  String?   @map("ip_adresi") @db.VarChar(45)
-  createdAt  DateTime  @default(now()) @map("olusturma_zamani")
+  denemeSayisi          Int       @default(0) @map("deneme_sayisi")
+  kullanimZamani        DateTime? @map("kullanim_zamani")
+  ipAdresi              String?   @map("ip_adresi") @db.VarChar(45)
+  olusturmaZamani       DateTime  @default(now()) @map("olusturma_zamani")
 
-  @@index([email, createdAt], map: "eposta_kodlari_eposta_olusturma_indeks")
-  @@index([expiresAt], map: "eposta_kodlari_gecerlilik_indeks")
+  @@index([eposta, olusturmaZamani], map: "eposta_kodlari_eposta_olusturma_indeks")
+  @@index([gecerlilikBitisZamani], map: "eposta_kodlari_gecerlilik_indeks")
   @@map("eposta_giris_kodlari")
+}
+
+/// Kullanıcıya ait sabit/özel seçimler. Kullanılmış seçenekler silinmez, pasifleştirilir.
+model StokSecenegi {
+  kimlik            String             @id @default(uuid()) @map("kimlik") @db.Char(36)
+  kullaniciKimligi  String             @map("kullanici_kimligi") @db.Char(36)
+  listeTuru         String             @map("liste_turu") @db.VarChar(30)
+  secenekKodu       String             @map("secenek_kodu") @db.VarChar(100)
+  secenekAdi        String             @map("secenek_adi") @db.VarChar(120)
+  adOzeti           String             @map("ad_ozeti") @db.Char(64)
+  silinebilir       Boolean            @default(false) @map("silinebilir")
+  etkin             Boolean            @default(true) @map("etkin")
+  sira              Int                @default(0) @map("sira")
+  olusturmaZamani   DateTime           @default(now()) @map("olusturma_zamani")
+  kullanici         Kullanici          @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "stok_secenekleri_kullanici_baglantisi")
+  tipKartlari       StokKarti[]        @relation("StockType")
+  neviKartlari      StokKarti[]        @relation("StockKind")
+  markaKartlari     StokKarti[]        @relation("StockBrand")
+  departmanKartlari StokKarti[]        @relation("StockDepartment")
+  vergiKartlari     StokKarti[]        @relation("StockTax")
+  fiyatListeleri    StokFiyatListesi[]
+  birimler          StokBirimi[]
+
+  @@unique([kullaniciKimligi, listeTuru, secenekKodu], map: "stok_secenekleri_kod_tekil")
+  @@unique([kullaniciKimligi, listeTuru, adOzeti], map: "stok_secenekleri_ad_tekil")
+  @@map("stok_secenekleri")
+}
+
+model StokKarti {
+  kimlik               String             @id @default(uuid()) @map("kimlik") @db.Char(36)
+  kullaniciKimligi     String             @map("kullanici_kimligi") @db.Char(36)
+  kayitIstegiKimligi   String             @map("kayit_istegi_kimligi") @db.Char(36)
+  kayitIstegiOzeti     String             @map("kayit_istegi_ozeti") @db.Char(64)
+  stokKodu             String?            @map("stok_kodu") @db.VarChar(100)
+  stokAdi              String?            @map("stok_adi") @db.VarChar(250)
+  stokTipiKimligi      String             @map("stok_tipi_kimligi") @db.Char(36)
+  stokNeviKimligi      String             @map("stok_nevi_kimligi") @db.Char(36)
+  markaKimligi         String?            @map("marka_kimligi") @db.Char(36)
+  kdvDepartmaniKimligi String?            @map("kdv_departmani_kimligi") @db.Char(36)
+  digerVergiKimligi    String?            @map("diger_vergi_kimligi") @db.Char(36)
+  envanterTakibi       String             @map("envanter_takibi") @db.VarChar(10)
+  altLimit             Decimal?           @map("alt_limit") @db.Decimal(18, 6)
+  ustLimit             Decimal?           @map("ust_limit") @db.Decimal(18, 6)
+  seriNoZorunlu        Boolean            @default(false) @map("seri_no_zorunlu")
+  seriNoOneki          String?            @map("seri_no_oneki") @db.VarChar(100)
+  lotZorunlu           Boolean            @default(false) @map("lot_zorunlu")
+  sktTakibi            Boolean            @default(false) @map("skt_takibi")
+  lotOneki             String?            @map("lot_oneki") @db.VarChar(100)
+  sktZorunlu           Boolean            @default(false) @map("skt_zorunlu")
+  rafOmruGun           Int?               @map("raf_omru_gun")
+  riskSuresiGun        Int?               @map("risk_suresi_gun")
+  gtipKodu             String?            @map("gtip_kodu") @db.VarChar(32)
+  mensei               String?            @map("mensei") @db.VarChar(40)
+  olusturmaZamani      DateTime           @default(now()) @map("olusturma_zamani")
+  guncellemeZamani     DateTime           @updatedAt @map("guncelleme_zamani")
+  kullanici            Kullanici          @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "stok_kartlari_kullanici_baglantisi")
+  stokTipi             StokSecenegi       @relation("StockType", fields: [stokTipiKimligi], references: [kimlik], map: "stok_kartlari_tip_baglantisi")
+  stokNevi             StokSecenegi       @relation("StockKind", fields: [stokNeviKimligi], references: [kimlik], map: "stok_kartlari_nevi_baglantisi")
+  marka                StokSecenegi?      @relation("StockBrand", fields: [markaKimligi], references: [kimlik], map: "stok_kartlari_marka_baglantisi")
+  kdvDepartmani        StokSecenegi?      @relation("StockDepartment", fields: [kdvDepartmaniKimligi], references: [kimlik], map: "stok_kartlari_departman_baglantisi")
+  digerVergi           StokSecenegi?      @relation("StockTax", fields: [digerVergiKimligi], references: [kimlik], map: "stok_kartlari_vergi_baglantisi")
+  fiyatListeleri       StokFiyatListesi[]
+
+  @@unique([kullaniciKimligi, stokKodu], map: "stok_kartlari_kullanici_kod_tekil")
+  @@unique([kullaniciKimligi, kayitIstegiKimligi], map: "stok_kartlari_kayit_istegi_tekil")
+  @@map("stok_kartlari")
+}
+
+model StokFiyatListesi {
+  kimlik              String       @id @default(uuid()) @map("kimlik") @db.Char(36)
+  stokKartiKimligi    String       @map("stok_karti_kimligi") @db.Char(36)
+  fiyatListesiKimligi String       @map("fiyat_listesi_kimligi") @db.Char(36)
+  sira                Int          @map("sira")
+  stokKarti           StokKarti    @relation(fields: [stokKartiKimligi], references: [kimlik], onDelete: Cascade, map: "stok_fiyat_listeleri_kart_baglantisi")
+  secenek             StokSecenegi @relation(fields: [fiyatListesiKimligi], references: [kimlik], map: "stok_fiyat_listeleri_secenek_baglantisi")
+  birimler            StokBirimi[]
+
+  @@unique([stokKartiKimligi, fiyatListesiKimligi], map: "stok_fiyat_listeleri_kart_liste_tekil")
+  @@map("stok_fiyat_listeleri")
+}
+
+model StokBirimi {
+  kimlik                  String           @id @default(uuid()) @map("kimlik") @db.Char(36)
+  stokFiyatListesiKimligi String           @map("stok_fiyat_listesi_kimligi") @db.Char(36)
+  birimKimligi            String           @map("birim_kimligi") @db.Char(36)
+  sira                    Int              @map("sira")
+  carpan                  Decimal          @map("carpan") @db.Decimal(18, 6)
+  anaBirim                Boolean          @map("ana_birim")
+  varsayilanBirim         Boolean          @map("varsayilan_birim")
+  agirlik                 Decimal?         @map("agirlik") @db.Decimal(18, 6)
+  agirlikBirimi           String           @map("agirlik_birimi") @db.VarChar(2)
+  hacimDesi               Decimal?         @map("hacim_desi") @db.Decimal(18, 6)
+  aciklama                String?          @map("aciklama") @db.VarChar(1000)
+  fiyatListesi            StokFiyatListesi @relation(fields: [stokFiyatListesiKimligi], references: [kimlik], onDelete: Cascade, map: "stok_birimleri_liste_baglantisi")
+  secenek                 StokSecenegi     @relation(fields: [birimKimligi], references: [kimlik], map: "stok_birimleri_secenek_baglantisi")
+  fiyatlar                StokFiyati[]
+  barkodlar               StokBarkodu[]
+
+  @@index([stokFiyatListesiKimligi], map: "stok_birimleri_liste_indeks")
+  @@map("stok_birimleri")
+}
+
+model StokFiyati {
+  kimlik            String         @id @default(uuid()) @map("kimlik") @db.Char(36)
+  stokBirimiKimligi String         @map("stok_birimi_kimligi") @db.Char(36)
+  fiyatYonu         String         @map("fiyat_yonu") @db.VarChar(5)
+  girilenFiyat      Decimal?       @map("girilen_fiyat") @db.Decimal(18, 6)
+  paraBirimi        String         @map("para_birimi") @db.Char(3)
+  iskontoOrani      Decimal?       @map("iskonto_orani") @db.Decimal(18, 6)
+  kdvOrani          Decimal?       @map("kdv_orani") @db.Decimal(18, 6)
+  kdvDahilGirildi   Boolean        @map("kdv_dahil_girildi")
+  netFiyat          Decimal?       @map("net_fiyat") @db.Decimal(24, 6)
+  kdvHaricFiyat     Decimal?       @map("kdv_haric_fiyat") @db.Decimal(24, 6)
+  kdvDahilFiyat     Decimal?       @map("kdv_dahil_fiyat") @db.Decimal(24, 6)
+  stokBirimi        StokBirimi     @relation(fields: [stokBirimiKimligi], references: [kimlik], onDelete: Cascade, map: "stok_fiyatlari_birim_baglantisi")
+  ekFiyatlar        StokEkFiyati[]
+
+  @@unique([stokBirimiKimligi, fiyatYonu], map: "stok_fiyatlari_birim_yon_tekil")
+  @@map("stok_fiyatlari")
+}
+
+model StokEkFiyati {
+  kimlik            String     @id @default(uuid()) @map("kimlik") @db.Char(36)
+  stokFiyatiKimligi String     @map("stok_fiyati_kimligi") @db.Char(36)
+  sira              Int        @map("sira")
+  aciklama          String?    @map("aciklama") @db.VarChar(250)
+  tutar             Decimal?   @map("tutar") @db.Decimal(18, 6)
+  iskontoOrani      Decimal?   @map("iskonto_orani") @db.Decimal(18, 6)
+  paraBirimi        String     @map("para_birimi") @db.Char(3)
+  stokFiyati        StokFiyati @relation(fields: [stokFiyatiKimligi], references: [kimlik], onDelete: Cascade, map: "stok_ek_fiyatlari_fiyat_baglantisi")
+
+  @@index([stokFiyatiKimligi], map: "stok_ek_fiyatlari_fiyat_indeks")
+  @@map("stok_ek_fiyatlari")
+}
+
+model StokBarkodu {
+  kimlik            String     @id @default(uuid()) @map("kimlik") @db.Char(36)
+  stokBirimiKimligi String     @map("stok_birimi_kimligi") @db.Char(36)
+  barkodTuru        String     @map("barkod_turu") @db.VarChar(10)
+  barkod            String     @map("barkod") @db.VarChar(128)
+  stokBirimi        StokBirimi @relation(fields: [stokBirimiKimligi], references: [kimlik], onDelete: Cascade, map: "stok_barkodlari_birim_baglantisi")
+
+  @@unique([stokBirimiKimligi, barkod], map: "stok_barkodlari_birim_kod_tekil")
+  @@index([barkod], map: "stok_barkodlari_kod_indeks")
+  @@map("stok_barkodlari")
 }

@@ -11,14 +11,15 @@ export default defineConfig({
   fullyParallel: true,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5175',
     channel: process.env.PW_CHANNEL ?? 'msedge',
     locale: 'tr-TR',
   },
   webServer: {
-    command: 'npm run dev -- --strictPort',
-    url: 'http://localhost:5173/login',
-    reuseExistingServer: true,
+    env: { VITE_SUPPORT_FORM_URL: 'https://destek.guzelteknoloji.com/form/test' },
+    command: 'npm run dev -- --strictPort --port 5175',
+    url: 'http://localhost:5175/login',
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 });

@@ -24,6 +24,28 @@ let seq = 0;
 /** Ekranda anahtar olarak kullanılan, sunucuya gitmeyen geçici kimlik. */
 export const uid = (): string => `t${++seq}`;
 
+/** Ana birim değişirken oranlar korunur: 1 KOLİ = 12 ADET ise yeni ana KOLİ'de ADET 1/12 olur. */
+export function rebaseUnits(rows: UnitRow[], mainId: string): UnitRow[] | null {
+  const base = Number(rows.find((row) => row.id === mainId)?.multiplier.replace(',', '.'));
+  if (!Number.isFinite(base) || base <= 0) return null;
+  const next = rows.map((row) => {
+    const value = Number(row.multiplier.replace(',', '.')) / base;
+    return {
+      ...row,
+      isMain: row.id === mainId,
+      multiplier: value.toFixed(6).replace(/\.?0+$/, ''),
+    };
+  });
+  return next.every(
+    (row) =>
+      Number.isFinite(Number(row.multiplier)) &&
+      Number(row.multiplier) > 0 &&
+      Number(row.multiplier) < 1e12,
+  )
+    ? next
+    : null;
+}
+
 const emptyBlock = (): PriceBlockData => ({
   amount: '',
   currency: 'TRY',

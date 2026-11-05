@@ -3,6 +3,7 @@ import axe from 'axe-core';
 import { MemoryRouter } from 'react-router';
 import { vi } from 'vitest';
 import { App } from '../app/App';
+import { DEFAULT_STOCK_LOOKUPS } from '@gt/shared';
 
 type Handler = (init?: RequestInit) => Response | Promise<Response>;
 
@@ -26,6 +27,7 @@ export function mockFetch(routes: Record<string, Handler>) {
 }
 
 export const anonymousRoutes: Record<string, Handler> = {
+  'GET /api/stok/secenekler': () => jsonResponse(200, DEFAULT_STOCK_LOOKUPS),
   'GET /api/auth/me': () =>
     jsonResponse(401, { error: { code: 'UNAUTHENTICATED', message: 'Oturum bulunamadı.' } }),
   'GET /api/auth/providers': () => jsonResponse(200, { google: true, apple: false }),

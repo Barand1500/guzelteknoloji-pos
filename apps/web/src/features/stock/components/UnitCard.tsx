@@ -67,11 +67,19 @@ export function UnitHeaderFields({
           onChange={(unit) => onChange({ unit })}
           creator={{
             placeholder: 'Yeni birim adı…',
-            onCreate: (label) => void units.add(label).then((o) => onChange({ unit: o.value })),
+            onCreate: (label) =>
+              void units
+                .add(label)
+                .then((o) => onChange({ unit: o.value }))
+                .catch(() => {
+                  /* Hata düzenleyicide gösterilir. */
+                }),
           }}
           onRemove={(value) => {
-            units.remove(value);
-            if (row.unit === value) onChange({ unit: units.options[0]?.value ?? 'adet' });
+            void units.remove(value).then((removed) => {
+              if (removed && row.unit === value)
+                onChange({ unit: units.options[0]?.value ?? 'adet' });
+            });
           }}
         />
       </div>
@@ -80,7 +88,7 @@ export function UnitHeaderFields({
           label="Çarpan"
           numeric="decimal"
           value={row.multiplier}
-          readOnly={index === 0}
+          readOnly={row.isMain}
           onChange={(e) => onChange({ multiplier: e.target.value })}
         />
       </div>
