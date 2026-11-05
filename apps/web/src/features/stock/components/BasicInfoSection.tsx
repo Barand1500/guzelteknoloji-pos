@@ -1,8 +1,8 @@
-import { ChevronDown } from 'lucide-react';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import type { OptionList } from '../hooks/useOptionList';
 import type { StockEditor } from '../hooks/useStockEditor';
+import { INVENTORY_FIELDS } from '../stock.rules';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
 function editable(
@@ -26,30 +26,36 @@ function editable(
   };
 }
 
+const YES_NO = [
+  { value: 'hayir', label: 'Hayır' },
+  { value: 'evet', label: 'Evet' },
+];
+
+/** Izgarada tek bir alanın kapladığı yer: telefon tam, tablet yarım, geniş ekran 3/12. */
+const cell = 'col-span-2 md:col-span-3 xl:col-span-3';
+
 /**
- * Ürün bilgisi alanları (tip, kod, ad, marka, KDV departmanı…). Masaüstündeki kartta da
- * telefondaki "Ürün" sekmesinde de aynı bileşen kullanılır. Izgara: tablet 6, geniş ekran 12 sütun.
+ * Ürün bilgisi alanları. Masaüstündeki kartta da telefondaki "Ürün" sekmesinde de aynı bileşen
+ * kullanılır. Tüm alanlar hep görünür (katlama yok). Izgara: tablet 6, geniş ekran 12 sütun.
+ * "Envanter Takibi" seçimine göre yanındaki alanlar değişir (bkz. INVENTORY_FIELDS).
  */
 export function BasicInfoSection({ editor }: { editor: StockEditor }) {
-  const { draft, errors, set, lookups, lists, moreOpen, setMoreOpen } = editor;
+  const { draft, errors, set, lookups, lists } = editor;
 
-  const text = (
-    key: 'code' | 'name' | 'lowerLimit' | 'upperLimit' | 'gtip' | 'origin',
-    label: string,
-    decimal = false,
-  ) => (
+  const text = (key: 'code' | 'name' | 'gtip' | 'origin', label: string) => (
     <TextField
       label={label}
       value={draft[key]}
       error={errors[key]}
-      inputMode={decimal ? 'decimal' : undefined}
       onChange={(e) => set(key, e.target.value)}
     />
   );
 
+  const inventoryFields = INVENTORY_FIELDS[draft.inventoryTracking] ?? [];
+
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-6 xl:grid-cols-12">
-      <div className="col-span-2 md:col-span-3 xl:col-span-3">
+      <div className={cell}>
         <SelectField
           label="Stok Tipi"
           value={draft.stockType}
@@ -59,7 +65,8 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
       </div>
       <div className="col-span-2 md:col-span-3 xl:col-span-4">{text('code', 'Stok Kodu')}</div>
       <div className="col-span-2 md:col-span-6 xl:col-span-5">{text('name', 'Stok Adı')}</div>
-      <div className="col-span-2 md:col-span-3 xl:col-span-3">
+
+      <div className={cell}>
         <SelectField
           label="Marka"
           options={lookups.brands}
@@ -67,7 +74,7 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           onChange={(v) => set('brand', v)}
         />
       </div>
-      <div className="col-span-2 md:col-span-3 xl:col-span-3">
+      <div className={cell}>
         <SelectField
           label="KDV Departmanı"
           value={draft.vatDepartment}
@@ -80,7 +87,7 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           )}
         />
       </div>
-      <div className="col-span-2 md:col-span-3 xl:col-span-3">
+      <div className={cell}>
         <SelectField
           label="Stok Nevi"
           value={draft.stockKind}
@@ -88,7 +95,10 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           {...editable(lists.stockKinds, 'stok nevi', (v) => set('stockKind', v))}
         />
       </div>
-      <div className="col-span-2 md:col-span-3 xl:col-span-3">
+      <div className={cell}>{text('gtip', 'GTIP Kodu')}</div>
+
+      {/* Envanter takibi + seçime göre değişen alanlar (Yok: ek alan yok) */}
+      <div className={cell}>
         <SelectField
           label="Envanter Takibi"
           options={lookups.inventoryTracking}
@@ -96,39 +106,37 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           onChange={(v) => set('inventoryTracking', v)}
         />
       </div>
-
-      <button
-        type="button"
-        onClick={() => setMoreOpen((v) => !v)}
-        aria-expanded={moreOpen}
-        className="col-span-2 inline-flex min-h-11 items-center gap-2 self-start rounded-full px-1 text-sm font-semibold text-brand-ink md:col-span-6 xl:col-span-12"
-      >
-        Daha Fazla Alan
-        <ChevronDown
-          className={`size-4 transition-transform ${moreOpen ? 'rotate-180' : ''}`}
-          aria-hidden="true"
-        />
-      </button>
-      {moreOpen ? (
-        <>
-          <div className="col-span-1 md:col-span-3 xl:col-span-2">
-            {text('lowerLimit', 'Alt Limit', true)}
-          </div>
-          <div className="col-span-1 md:col-span-3 xl:col-span-2">
-            {text('upperLimit', 'Üst Limit', true)}
-          </div>
-          <div className="col-span-2 md:col-span-2 xl:col-span-2">{text('gtip', 'GTIP Kodu')}</div>
-          <div className="col-span-2 md:col-span-2 xl:col-span-3">{text('origin', 'Menşei')}</div>
-          <div className="col-span-2 md:col-span-2 xl:col-span-3">
+      {inventoryFields.map((field) => (
+        <div key={`${draft.inventoryTracking}-${field.key}`} className={`${cell} animate-fade-in`}>
+          {field.kind === 'yesno' ? (
             <SelectField
-              label="Diğer Vergi Ekle"
-              options={lookups.otherTaxes}
-              value={draft.otherTax}
-              onChange={(v) => set('otherTax', v)}
+              label={field.label}
+              options={YES_NO}
+              value={draft[field.key] ? 'evet' : 'hayir'}
+              onChange={(v) => set(field.key, v === 'evet')}
             />
-          </div>
-        </>
-      ) : null}
+          ) : (
+            <TextField
+              label={field.label}
+              value={draft[field.key]}
+              error={errors[field.key]}
+              // Sayı alanlarına yalnızca rakam girilir; "Önek" alanları serbest metindir.
+              numeric={field.kind === 'text' ? undefined : field.kind}
+              onChange={(e) => set(field.key, e.target.value)}
+            />
+          )}
+        </div>
+      ))}
+
+      <div className="col-span-2 md:col-span-3 xl:col-span-6">{text('origin', 'Menşei')}</div>
+      <div className="col-span-2 md:col-span-3 xl:col-span-6">
+        <SelectField
+          label="Diğer Vergi Ekle"
+          options={lookups.otherTaxes}
+          value={draft.otherTax}
+          onChange={(v) => set('otherTax', v)}
+        />
+      </div>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { CircleAlert } from 'lucide-react';
+import { sanitizeNumeric, type NumericKind } from '../../lib/numeric';
 import {
+  type ChangeEvent,
   forwardRef,
   useEffect,
   useId,
@@ -15,6 +17,8 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   hint?: string;
   /** Alanın sağına yerleşen etkileşimli öğe (ör. şifre göster düğmesi). */
   trailing?: ReactNode;
+  /** Verilirse yalnızca rakam girilebilir (decimal: virgüllü sayı, integer: tam sayı) ve uygun klavye açılır. */
+  numeric?: NumericKind | undefined;
 }
 
 /**
@@ -27,7 +31,7 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
  * Kutu aynı zamanda input'un aria-describedby hedefidir (ekran okuyucu hatayı okur).
  */
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
-  { label, error, hint, trailing, id, className = '', ...rest },
+  { label, error, hint, trailing, numeric, id, className = '', ...rest },
   ref,
 ) {
   const autoId = useId();
@@ -78,6 +82,16 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
           aria-describedby={describedBy || undefined}
           className={`field-input ${paddingRight} ${className}`}
           {...rest}
+          {...(numeric
+            ? {
+                inputMode: numeric === 'integer' ? 'numeric' : 'decimal',
+                onChange: (e: ChangeEvent<HTMLInputElement>) => {
+                  const clean = sanitizeNumeric(e.target.value, numeric);
+                  if (clean !== e.target.value) e.target.value = clean;
+                  rest.onChange?.(e);
+                },
+              }
+            : {})}
         />
         <label htmlFor={inputId} className="field-label">
           {label}

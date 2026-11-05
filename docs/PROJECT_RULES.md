@@ -177,3 +177,9 @@ Uygulama tablolari ve sutunlari Turkce, kucuk harf ve alt cizgi ile adlandirilir
 - Görünüm `useMediaQuery('(min-width: 80rem)')` ile seçilir; aynı anda yalnızca biri çizilir. Durum ve işlemler tek yerde: `useStockEditor`. Ürün alanları `BasicInfoSection`, birim parçaları `UnitCard.tsx` içindeki `Unit*Fields` bileşenleridir (masaüstü kartı ve telefon sekmeleri aynı parçaları kullanır).
 - **Açılır liste artık portal ile ekranın üstünde (fixed) çizilir** ve en az 14rem genişliktedir: kaydırmalı/kırpan kapların içinde kesilmez. Yeni kırpan kap (overflow) eklerken bu sayede sorun çıkmaz.
 - Eski adım adım sihirbaz (Stepper) kaldırıldı. Diğer 4 tasarım önerisi `docs/tasarim-onerileri/mobil-stok-karti.html` içinde durur (gerekirse dönülür).
+
+### 8.11 Envanter takibine göre alanlar ve sayı girişi
+
+- **"Daha Fazla Alan" kaldırıldı:** Ürün bilgisindeki tüm alanlar hep görünür.
+- **Envanter Takibi** seçimine göre yanındaki alanlar değişir (`INVENTORY_FIELDS`, `stock.rules.ts`; yeni tür eklemek için oraya bir satır yeterlidir): **Yok** → ek alan yok · **Normal** → Alt Limit, Üst Limit · **Seri No** → Seri No Zorunlu (Evet/Hayır), Seri No Öneki · **LOT** → LOT Zorunlu (Evet/Hayır), SKT Takibi (Evet/Hayır), LOT Öneki · **Ömür** → SKT Zorunlu (Evet/Hayır), Raf Ömrü (Gün), Risk (Gün). Evet/Hayır alanları açılır listedir (varsayılan Hayır).
+- **Sayı alanlarına yalnızca rakam girilir** (`TextField numeric="decimal" | "integer"`, `lib/numeric.ts`): limitler, fiyat/iskonto, çarpan, ağırlık, hacim ve hesaplayıcı kutuları ondalıklı (rakam + tek virgül/nokta); gün alanları tam sayı. Yeni sayı alanında `numeric` kullanın, `inputMode` elle yazmayın. "Önek" alanları serbest metindir.

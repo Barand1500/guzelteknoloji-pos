@@ -65,9 +65,53 @@ export function createEmptyDraft(firstPriceListId: string): StockCardDraft {
     inventoryTracking: 'normal',
     lowerLimit: '',
     upperLimit: '',
+    serialRequired: false,
+    serialPrefix: '',
+    lotRequired: false,
+    expiryTracking: false,
+    lotPrefix: '',
+    expiryRequired: false,
+    shelfLifeDays: '',
+    riskDays: '',
     gtip: '',
     origin: '',
     otherTax: '',
     units: { [firstPriceListId]: [createUnitRow(true)] },
   };
 }
+
+/** Envanter takibi türüne göre gösterilecek alanlar. Anahtar = envanter takibi seçeneğinin değeri. */
+export type InventoryField =
+  | {
+      kind: 'yesno';
+      key: 'serialRequired' | 'lotRequired' | 'expiryTracking' | 'expiryRequired';
+      label: string;
+    }
+  | {
+      kind: 'decimal' | 'integer' | 'text';
+      key:
+        'lowerLimit' | 'upperLimit' | 'serialPrefix' | 'lotPrefix' | 'shelfLifeDays' | 'riskDays';
+      label: string;
+    };
+
+export const INVENTORY_FIELDS: Record<string, InventoryField[]> = {
+  yok: [],
+  normal: [
+    { kind: 'decimal', key: 'lowerLimit', label: 'Alt Limit' },
+    { kind: 'decimal', key: 'upperLimit', label: 'Üst Limit' },
+  ],
+  seri: [
+    { kind: 'yesno', key: 'serialRequired', label: 'Seri No Zorunlu' },
+    { kind: 'text', key: 'serialPrefix', label: 'Seri No Öneki' },
+  ],
+  lot: [
+    { kind: 'yesno', key: 'lotRequired', label: 'LOT Zorunlu' },
+    { kind: 'yesno', key: 'expiryTracking', label: 'SKT Takibi' },
+    { kind: 'text', key: 'lotPrefix', label: 'LOT Öneki' },
+  ],
+  omur: [
+    { kind: 'yesno', key: 'expiryRequired', label: 'SKT Zorunlu' },
+    { kind: 'integer', key: 'shelfLifeDays', label: 'Raf Ömrü (Gün)' },
+    { kind: 'integer', key: 'riskDays', label: 'Risk (Gün)' },
+  ],
+};

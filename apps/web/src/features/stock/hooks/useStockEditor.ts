@@ -24,10 +24,6 @@ export function useStockEditor(lookups: StockLookups) {
   const [draft, setDraft] = useState<StockCardDraft>(() => createEmptyDraft(firstListId));
   const [activeList, setActiveList] = useState(firstListId);
   const [errors, setErrors] = useState<DraftErrors>({});
-  // Geniş ekranda gelişmiş alanlar baştan açık (yer var); dar ekranda katlı.
-  const [moreOpen, setMoreOpen] = useState(
-    () => window.matchMedia?.('(min-width: 80rem)').matches ?? false,
-  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -126,8 +122,6 @@ export function useStockEditor(lookups: StockLookups) {
     removeRow,
     addPriceList,
     removePriceList,
-    moreOpen,
-    setMoreOpen,
     saving,
     saved,
     save,

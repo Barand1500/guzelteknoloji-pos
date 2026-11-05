@@ -78,7 +78,7 @@ export function UnitHeaderFields({
       <div className="w-28 sm:w-32">
         <TextField
           label="Çarpan"
-          inputMode="decimal"
+          numeric="decimal"
           value={row.multiplier}
           readOnly={index === 0}
           onChange={(e) => onChange({ multiplier: e.target.value })}
@@ -148,7 +148,7 @@ export function UnitMeasureFields({ row, onChange }: Pick<UnitPartProps, 'row' |
       <div className="relative">
         <TextField
           label="Ağırlık"
-          inputMode="decimal"
+          numeric="decimal"
           value={row.weight}
           onChange={(e) => onChange({ weight: e.target.value })}
           className="pr-32!"
@@ -173,7 +173,7 @@ export function UnitMeasureFields({ row, onChange }: Pick<UnitPartProps, 'row' |
       <div className="relative">
         <TextField
           label="Hacim"
-          inputMode="decimal"
+          numeric="decimal"
           value={row.volume}
           onChange={(e) => onChange({ volume: e.target.value })}
           className="pr-28!"

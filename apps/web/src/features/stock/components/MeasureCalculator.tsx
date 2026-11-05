@@ -1,6 +1,7 @@
 import { Check, Copy, Ruler, Scale, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Segmented } from '../../../components/ui/Segmented';
+import { sanitizeNumeric } from '../../../lib/numeric';
 import {
   DESI_DIVISORS,
   SHAPE_FIELDS,
@@ -174,7 +175,9 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
                 inputMode="decimal"
                 placeholder="0"
                 value={dims[f.key]}
-                onChange={(e) => setDims((d) => ({ ...d, [f.key]: e.target.value }))}
+                onChange={(e) =>
+                  setDims((d) => ({ ...d, [f.key]: sanitizeNumeric(e.target.value, 'decimal') }))
+                }
                 className="w-full bg-transparent text-lg font-semibold text-ink outline-none placeholder:text-ink-muted"
               />
             </label>
@@ -188,7 +191,7 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
               inputMode="decimal"
               placeholder="0"
               value={density}
-              onChange={(e) => setDensity(e.target.value)}
+              onChange={(e) => setDensity(sanitizeNumeric(e.target.value, 'decimal'))}
               className="min-w-0 flex-1 bg-transparent text-right text-lg font-semibold text-ink outline-none placeholder:text-ink-muted"
             />
             <span className="text-xs font-semibold text-ink-muted">g/cm³</span>

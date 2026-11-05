@@ -72,8 +72,17 @@ export interface StockCardDraft {
   stockKind: string;
   inventoryTracking: string;
   // Gelişmiş (varsayılan kapalı)
-  lowerLimit: string;
-  upperLimit: string;
+  // Envanter takibine göre görünen alanlar (yalnızca seçili takip türünün alanları gösterilir)
+  lowerLimit: string; // Normal
+  upperLimit: string; // Normal
+  serialRequired: boolean; // Seri No
+  serialPrefix: string; // Seri No
+  lotRequired: boolean; // LOT
+  expiryTracking: boolean; // LOT: SKT takibi
+  lotPrefix: string; // LOT
+  expiryRequired: boolean; // Ömür: SKT zorunlu
+  shelfLifeDays: string; // Ömür: raf ömrü (gün)
+  riskDays: string; // Ömür: risk (gün)
   gtip: string;
   origin: string;
   otherTax: string;
