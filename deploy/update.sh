@@ -22,6 +22,11 @@ echo "▶ Derleme"
 npm run build
 
 echo "▶ Veritabanı migration"
+# Tablo/sutun adlari degisirken eski API sorgu yapmamalidir.
+# Migration basarisiz olursa set -e sayesinde API kapali kalir.
+if pm2 describe guzel-auth >/dev/null 2>&1; then
+  pm2 stop guzel-auth
+fi
 npm run db:deploy
 
 echo "▶ PM2 yeniden başlatılıyor"

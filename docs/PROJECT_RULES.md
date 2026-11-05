@@ -135,3 +135,7 @@ Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada 
 - **Zorunlu alanlar:** `features/stock/stock.rules.ts` → `REQUIRED_FIELDS` (şimdilik boş, ürün sahibi bildirecek).
 - **Geçici kod:** `features/dev-login` + LoginPage'deki buton + `RequireAccess`/`TopBar`'daki "GEÇİCİ" satırları; gerçek giriş gelince silinir.
 - Kod temiz, küçük bileşenli ve Türkçe yorumlu yazılır; sık revize edileceği için "neden"i açıklayan yorumlar bırakılır.
+
+### Veritabani adlandirma
+
+Uygulama tablolari ve sutunlari Turkce, kucuk harf ve alt cizgi ile adlandirilir; uyumluluk icin Turkce karakter kullanilmaz. Prisma model/alanlari @map ve @@map ile eslenir. Mevcut veriler silinmez: ad degisiklikleri RENAME migration ile yapilir. _prisma_migrations teknik sistem tablosu korunur. Ayrintilar: docs/veritabani-adlari.md.

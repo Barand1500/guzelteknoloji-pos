@@ -26,7 +26,8 @@
     "db:migrate": "npm run db:migrate --workspace @gt/api",
     "db:deploy": "npm run db:deploy --workspace @gt/api",
     "db:seed:dev": "npm run db:seed:dev --workspace @gt/api",
-    "smtp:check": "npm run smtp:check --workspace @gt/api"
+    "smtp:check": "npm run smtp:check --workspace @gt/api",
+    "db:test:renames": "npm run db:test:renames --workspace @gt/api"
   },
   "allowScripts": {
     "@prisma/engines@7.10.1": true,

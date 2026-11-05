@@ -28,87 +28,94 @@ enum LoginMethod {
 }
 
 model User {
-  id              String     @id @default(uuid()) @db.Char(36)
+  id              String     @id @default(uuid()) @map("kimlik") @db.Char(36)
   /// Normalize edilmiş (trim + küçük harf) e-posta. OAuth-only kullanıcılarda da doldurulur.
-  email           String?    @unique @db.VarChar(254)
-  emailVerifiedAt DateTime?
-  displayName     String?    @db.VarChar(120)
-  avatarUrl       String?    @db.VarChar(2048)
-  status          UserStatus @default(ACTIVE)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  email           String?    @unique(map: "kullanicilar_eposta_tekil") @map("eposta") @db.VarChar(254)
+  emailVerifiedAt DateTime?  @map("eposta_dogrulama_zamani")
+  displayName     String?    @map("gorunen_ad") @db.VarChar(120)
+  avatarUrl       String?    @map("profil_resmi_adresi") @db.VarChar(2048)
+  status          UserStatus @default(ACTIVE) @map("durum")
+  createdAt       DateTime   @default(now()) @map("olusturma_zamani")
+  updatedAt       DateTime   @updatedAt @map("guncelleme_zamani")
 
-  lastLoginMethod LoginMethod?
-  lastLoginAt DateTime?
+  lastLoginMethod LoginMethod? @map("son_giris_yontemi")
+  lastLoginAt     DateTime?    @map("son_giris_zamani")
 
   passwordCredential PasswordCredential?
   identities         AuthIdentity[]
   sessions           Session[]
+
+  @@map("kullanicilar")
 }
 
 /// Şifreli giriş kullanıcıdan ayrı tutulur: OTP/şifresiz akışa geçişte bu tablo kaldırılabilir.
 model PasswordCredential {
-  userId       String   @id @db.Char(36)
+  userId       String   @id @map("kullanici_kimligi") @db.Char(36)
   /// Argon2id PHC dizesi (algoritma, parametreler ve tuz içinde gömülüdür).
-  passwordHash String   @db.VarChar(255)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  passwordHash String   @map("sifre_ozeti") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("olusturma_zamani")
+  updatedAt    DateTime @updatedAt @map("guncelleme_zamani")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "sifre_bilgileri_kullanici_baglantisi")
+
+  @@map("sifre_bilgileri")
 }
 
 model AuthIdentity {
-  id             String       @id @default(uuid()) @db.Char(36)
-  userId         String       @db.Char(36)
-  provider       AuthProvider
+  id             String       @id @default(uuid()) @map("kimlik") @db.Char(36)
+  userId         String       @map("kullanici_kimligi") @db.Char(36)
+  provider       AuthProvider @map("saglayici")
   /// Sağlayıcının değişmez kullanıcı kimliği (Google için `sub`). E-posta DEĞİL.
-  providerUserId String       @db.VarChar(255)
+  providerUserId String       @map("saglayici_kullanici_kimligi") @db.VarChar(255)
   /// Bilgi amaçlı; eşleştirme için kullanılmaz.
-  email          String?      @db.VarChar(254)
-  lastUsedAt     DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  email          String?      @map("eposta") @db.VarChar(254)
+  lastUsedAt     DateTime?    @map("son_kullanim_zamani")
+  createdAt      DateTime     @default(now()) @map("olusturma_zamani")
+  updatedAt      DateTime     @updatedAt @map("guncelleme_zamani")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "giris_kimlikleri_kullanici_baglantisi")
 
-  @@unique([provider, providerUserId])
-  @@index([userId])
+  @@unique([provider, providerUserId], map: "giris_kimlikleri_saglayici_kullanici_tekil")
+  @@index([userId], map: "giris_kimlikleri_kullanici_indeks")
+  @@map("giris_kimlikleri")
 }
 
 model Session {
-  id         String    @id @default(uuid()) @db.Char(36)
-  userId     String    @db.Char(36)
+  id          String       @id @default(uuid()) @map("kimlik") @db.Char(36)
+  userId      String       @map("kullanici_kimligi") @db.Char(36)
   /// Cookie'deki opak token'ın SHA-256 özeti (hex). Ham token veritabanında tutulmaz.
-  loginMethod LoginMethod?
-  tokenHash  String    @unique @db.Char(64)
-  expiresAt  DateTime
-  lastSeenAt DateTime  @default(now())
-  revokedAt  DateTime?
-  ipAddress  String?   @db.VarChar(45)
-  userAgent  String?   @db.VarChar(512)
-  createdAt  DateTime  @default(now())
+  loginMethod LoginMethod? @map("giris_yontemi")
+  tokenHash   String       @unique(map: "oturumlar_anahtar_ozeti_tekil") @map("oturum_anahtari_ozeti") @db.Char(64)
+  expiresAt   DateTime     @map("gecerlilik_bitis_zamani")
+  lastSeenAt  DateTime     @default(now()) @map("son_gorulme_zamani")
+  revokedAt   DateTime?    @map("iptal_zamani")
+  ipAddress   String?      @map("ip_adresi") @db.VarChar(45)
+  userAgent   String?      @map("istemci_bilgisi") @db.VarChar(512)
+  createdAt   DateTime     @default(now()) @map("olusturma_zamani")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "oturumlar_kullanici_baglantisi")
 
-  @@index([userId])
-  @@index([expiresAt])
+  @@index([userId], map: "oturumlar_kullanici_indeks")
+  @@index([expiresAt], map: "oturumlar_gecerlilik_indeks")
+  @@map("oturumlar")
 }
 
 /// E-postaya gönderilen tek kullanımlık giriş kodu. Kullanıcıya bağlı DEĞİLDİR: hesabı henüz
 /// olmayan e-postalar için de kod üretilir, doğrulanınca hesap oluşturulur.
 model EmailLoginCode {
-  id         String    @id @default(uuid()) @db.Char(36)
+  id         String    @id @default(uuid()) @map("kimlik") @db.Char(36)
   /// Normalize edilmiş e-posta.
-  email      String    @db.VarChar(254)
+  email      String    @map("eposta") @db.VarChar(254)
   /// HMAC-SHA256(gizli anahtar, "e-posta:kod") hex. 6 haneli kod DB'de düz saklanmaz.
-  codeHash   String    @db.Char(64)
-  expiresAt  DateTime
+  codeHash   String    @map("kod_ozeti") @db.Char(64)
+  expiresAt  DateTime  @map("gecerlilik_bitis_zamani")
   /// Yanlış deneme sayısı; sınırı aşan kod geçersiz sayılır (kaba kuvvet koruması).
-  attempts   Int       @default(0)
-  consumedAt DateTime?
-  ipAddress  String?   @db.VarChar(45)
-  createdAt  DateTime  @default(now())
+  attempts   Int       @default(0) @map("deneme_sayisi")
+  consumedAt DateTime? @map("kullanim_zamani")
+  ipAddress  String?   @map("ip_adresi") @db.VarChar(45)
+  createdAt  DateTime  @default(now()) @map("olusturma_zamani")
 
-  @@index([email, createdAt])
-  @@index([expiresAt])
+  @@index([email, createdAt], map: "eposta_kodlari_eposta_olusturma_indeks")
+  @@index([expiresAt], map: "eposta_kodlari_gecerlilik_indeks")
+  @@map("eposta_giris_kodlari")
 }
