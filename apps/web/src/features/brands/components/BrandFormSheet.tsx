@@ -12,8 +12,6 @@ import { LogoPicker } from './LogoPicker';
 interface BrandFormSheetProps {
   /** Düzenlenen marka (güncel ürün sayısıyla); yoksa yeni marka eklenir. */
   brand: Brand | null;
-  /** Pencere ürünler paneli açık başlasın mı ("Ürünler" işleminden gelince). */
-  productsOpen?: boolean;
   brandNames: Record<string, string>;
   onSave: (draft: BrandDraft) => Promise<void>;
   onAssign: (brandId: string, productIds: string[]) => Promise<void>;
@@ -29,7 +27,6 @@ const NAME_REQUIRED = 'Marka adı gerekli.';
  */
 export function BrandFormSheet({
   brand,
-  productsOpen = false,
   brandNames,
   onSave,
   onAssign,
@@ -37,7 +34,7 @@ export function BrandFormSheet({
   onClose,
 }: BrandFormSheetProps) {
   // Yan panel (markanın ürünleri): yalnızca kayıtlı markalarda vardır; açılıp kapanır.
-  const [panelOpen, setPanelOpen] = useState(productsOpen && brand !== null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const productsButton = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState<BrandDraft>(() =>
     brand
@@ -80,6 +77,7 @@ export function BrandFormSheet({
               title: `${brand.name} · Ürünler`,
               subtitle: `${brand.productCount} ürün bu markada`,
               open: panelOpen,
+              side: 'right',
               onClose: () => {
                 setPanelOpen(false);
                 productsButton.current?.focus();

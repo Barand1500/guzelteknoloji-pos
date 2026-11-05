@@ -10,16 +10,16 @@ import { usePagination } from '../../../lib/usePagination';
 import { useBrands } from '../hooks/useBrands';
 import type { Brand, BrandDraft } from '../types';
 import { BrandFormSheet } from './BrandFormSheet';
+import { BrandProductsSheet } from './BrandProductsSheet';
 import { BrandRow } from './BrandRow';
 
 const fold = (s: string) => s.toLocaleLowerCase('tr');
 
 /**
- * Marka penceresi durumu: kapalı / yeni marka (brandId yok) / mevcut marka düzenleme.
- * `products`: pencere, ürünler yan paneli açık başlasın mı. Marka her zaman güncel listeden okunur
- * (ürün ekleyip çıkarınca sayısı canlı değişsin diye).
+ * Marka penceresi durumu: kapalı / yeni marka (brandId yok) / mevcut marka düzenleme. Marka her
+ * zaman güncel listeden okunur (ürün ekleyip çıkarınca sayısı canlı değişsin diye).
  */
-type FormState = { brandId: string | null; products: boolean } | null;
+type FormState = { brandId: string | null } | null;
 
 /**
  * Markalar ekranı. Telefonda satırlar sola kaydırınca işlem gösterir ve basılı tutup sürükleyerek
@@ -33,6 +33,8 @@ export function BrandsView() {
   const [query, setQuery] = useState('');
   const [swipeOpenId, setSwipeOpenId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(null);
+  // Satırdaki "Ürünler" işlemi: yalnızca ürünler penceresi (düzenleme formu açılmaz).
+  const [productsFor, setProductsFor] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Brand | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number>(undefined);
@@ -64,6 +66,7 @@ export function BrandsView() {
   const brandNames = Object.fromEntries(brands.map((b) => [b.id, b.name]));
 
   const editingBrand = form?.brandId ? (brands.find((b) => b.id === form.brandId) ?? null) : null;
+  const productsBrand = productsFor ? (brands.find((b) => b.id === productsFor) ?? null) : null;
 
   const saveBrand = async (draft: BrandDraft) => {
     const editing = editingBrand;
@@ -81,7 +84,7 @@ export function BrandsView() {
     showNotice(`${name} silindi.`);
   };
 
-  const openAdd = () => setForm({ brandId: null, products: false });
+  const openAdd = () => setForm({ brandId: null });
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -167,11 +170,11 @@ export function BrandsView() {
                 onSwipeOpenChange={(open) => setSwipeOpenId(open ? brand.id : null)}
                 onEdit={() => {
                   setSwipeOpenId(null);
-                  setForm({ brandId: brand.id, products: false });
+                  setForm({ brandId: brand.id });
                 }}
                 onAssign={() => {
                   setSwipeOpenId(null);
-                  setForm({ brandId: brand.id, products: true });
+                  setProductsFor(brand.id);
                 }}
                 onDelete={() => setDeleting(brand)}
                 onToggle={(active) => toggleActive(brand.id, active)}
@@ -222,15 +225,23 @@ export function BrandsView() {
 
       {form ? (
         <BrandFormSheet
-          // key: farklı marka/ürün paneli durumunda pencere yeniden kurulur
-          key={`${form.brandId ?? 'yeni'}-${form.products}`}
+          key={form.brandId ?? 'yeni'}
           brand={editingBrand}
-          productsOpen={form.products}
           brandNames={brandNames}
           onSave={saveBrand}
           onAssign={assign}
           onUnassign={unassign}
           onClose={() => setForm(null)}
+        />
+      ) : null}
+      {productsBrand ? (
+        <BrandProductsSheet
+          key={productsBrand.id}
+          brand={productsBrand}
+          brandNames={brandNames}
+          onAssign={assign}
+          onUnassign={unassign}
+          onClose={() => setProductsFor(null)}
         />
       ) : null}
       <ConfirmSheet

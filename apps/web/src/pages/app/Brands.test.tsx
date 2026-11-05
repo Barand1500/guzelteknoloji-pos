@@ -125,7 +125,7 @@ describe('Markalar ekranı (masaüstü)', () => {
     expect(await screen.findByRole('dialog', { name: 'Markayı Düzenle' })).toBeInTheDocument();
   });
 
-  it('marka penceresinin yanında Ürünler paneli açılıp kapanır; ürün ekleme ve çıkarma anında olur', async () => {
+  it('marka penceresinin yanında Ürünler paneli açılıp kapanır; seçip ekleme, çıkarma ve geri alma', async () => {
     const user = await openBrands();
     await user.dblClick(screen.getByRole('button', { name: 'ANYPAY markasını düzenle' }));
     const main = await screen.findByRole('dialog', { name: 'Markayı Düzenle' });
@@ -137,34 +137,46 @@ describe('Markalar ekranı (masaüstü)', () => {
 
     await user.click(toggle);
     const side = await screen.findByRole('dialog', { name: 'ANYPAY · Ürünler' });
+    // Yan panel ana pencerenin SAĞINDA (DOM'da ondan sonra) açılır
+    expect(main.compareDocumentPosition(side) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(await within(side).findByText('Bu markada henüz ürün yok.')).toBeInTheDocument();
 
-    // Ürün ekle
+    // Ürün Ekle: varsayılan süzgeç "Markasız" (4 ürün); kartlara dokunarak çoklu seçilir
     await user.click(within(side).getByRole('tab', { name: 'Ürün Ekle' }));
+    expect(within(side).getByRole('radio', { name: 'Markasız (4)' })).toBeChecked();
+    expect(within(side).queryByRole('button', { name: 'Ekle' })).not.toBeInTheDocument();
     await user.type(
       within(side).getByRole('searchbox', { name: 'Eklenecek ürünü ara' }),
       'standart',
     );
-    await user.click(
-      within(side).getByRole('button', {
-        name: 'USB Barkod Okuyucu Standart ürününü markaya ekle',
-      }),
+    const card = within(side).getByRole('checkbox', {
+      name: 'USB Barkod Okuyucu Standart ürününü seç',
+    });
+    await user.click(card);
+    expect(card).toBeChecked();
+    expect(within(side).getByText('1 ürün seçili')).toBeInTheDocument();
+    // Seçim tek başına eklemez; "Ekle" ile eklenir ve "Bu Markada" sekmesine geçilir
+    await user.click(within(side).getByRole('button', { name: 'Ekle' }));
+    expect(within(side).getByRole('tab', { name: 'Bu Markada (1)' })).toHaveAttribute(
+      'aria-selected',
+      'true',
     );
-    expect(within(side).getByRole('tab', { name: 'Bu Markada (1)' })).toBeInTheDocument();
     // Marka formundaki sayı, liste yenilenince canlı güncellenir.
     await waitFor(() =>
       expect(within(main).getByRole('button', { name: /Ürünler/ })).toHaveTextContent('1'),
     );
 
-    // Ürünü çıkar
-    await user.click(within(side).getByRole('tab', { name: 'Bu Markada (1)' }));
+    // Çıkar → "Geri Al" çubuğu → geri al
     await user.click(
       within(side).getByRole('button', {
         name: 'USB Barkod Okuyucu Standart ürününü markadan çıkar',
       }),
     );
     expect(within(side).getByText('Bu markada henüz ürün yok.')).toBeInTheDocument();
+    expect(within(side).getByText('USB Barkod Okuyucu Standart çıkarıldı')).toBeInTheDocument();
+    await user.click(within(side).getByRole('button', { name: 'Geri Al' }));
+    expect(within(side).getByRole('tab', { name: 'Bu Markada (1)' })).toBeInTheDocument();
 
     // Esc önce yan paneli kapatır, sonra pencereyi
     await user.keyboard('{Escape}');
@@ -174,17 +186,26 @@ describe('Markalar ekranı (masaüstü)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('satırdaki Ürünler düğmesi pencereyi yan paneli açık getirir; eklenen ürün listedeki sayıyı günceller', async () => {
+  it('satırdaki Ürünler düğmesi yalnızca ürünler penceresini açar (düzenleme formu gelmez); toplu ekleme sayıyı günceller', async () => {
     const user = await openBrands();
     await user.click(screen.getByRole('button', { name: 'ANYPAY markasının ürünlerini yönet' }));
     const side = await screen.findByRole('dialog', { name: 'ANYPAY · Ürünler' });
+    // Düzenleme formu açılmaz
+    expect(screen.queryByRole('dialog', { name: 'Markayı Düzenle' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Marka Adı')).not.toBeInTheDocument();
     await user.click(within(side).getByRole('tab', { name: 'Ürün Ekle' }));
-    await user.click(await within(side).findByRole('radio', { name: 'Markasız Ürünler' }));
-    // Markasız: p6, p7, p15, p16 → hepsini ekle
-    await user.click(within(side).getByRole('button', { name: /Görünenlerin Hepsini Ekle \(4\)/ }));
+    await within(side).findByRole('radio', { name: 'Markasız (4)' });
+    // Başka markadaki ürünler "taşınır" notuyla görünür
+    await user.click(within(side).getByRole('radio', { name: 'Başka Marka (12)' }));
+    expect(within(side).getAllByText("FLEXYPOS'dan taşınır").length).toBeGreaterThan(0);
+    await user.click(within(side).getByRole('radio', { name: 'Markasız (4)' }));
+    // Tümünü seç → Ekle
+    await user.click(within(side).getByRole('button', { name: 'Tümünü Seç' }));
+    expect(within(side).getByText('4 ürün seçili')).toBeInTheDocument();
+    await user.click(within(side).getByRole('button', { name: 'Ekle' }));
     expect(within(side).getByRole('tab', { name: 'Bu Markada (4)' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
-    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     const row = screen.getByRole('switch', { name: 'ANYPAY aktif' }).closest('li')!;
     expect(await within(row).findByText('4 ürün')).toBeInTheDocument();
   });

@@ -2,12 +2,14 @@ import { X } from 'lucide-react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
-/** Ana pencerenin yanında açılıp kapanan ikinci panel (masaüstünde solda; telefonda üstte alttan açılır). */
+/** Ana pencerenin yanında açılıp kapanan ikinci panel (masaüstünde yanda; telefonda alttan açılır). */
 export interface SheetAside {
   title: string;
   subtitle?: string;
   open: boolean;
   onClose: () => void;
+  /** Masaüstünde yan panelin tarafı (varsayılan: sol). Telefonda her zaman alttan açılır. */
+  side?: 'left' | 'right';
   children: ReactNode;
 }
 
@@ -32,7 +34,8 @@ const FOCUSABLE =
  * Mobilde alttan açılan sayfa (bottom sheet), md ve üzerinde ortalanmış modal.
  * Erişilebilirlik: role="dialog" + aria-modal, odak tuzağı, Escape ile kapanma,
  * kapanınca odağın açan öğeye dönmesi ve arka plan kaydırmasının kilitlenmesi.
- * `aside` verilirse ana pencerenin yanında ikinci bir panel açılır; odak tuzağı ikisini birlikte kapsar.
+ * `aside` verilirse ana pencerenin yanında (sağda ya da solda) ikinci bir panel açılır; odak tuzağı
+ * ikisini birlikte kapsar.
  */
 export function Sheet({
   open,
@@ -106,6 +109,42 @@ export function Sheet({
 
   if (!open) return null;
 
+  const asideNode = aside?.open ? (
+    <aside
+      ref={asidePanelRef}
+      role="dialog"
+      aria-label={aside.title}
+      className={[
+        'animate-sheet-in flex flex-col overflow-hidden bg-surface-raised shadow-card',
+        // Telefon: ana pencerenin üstünde, alttan açılır. Masaüstü: ana pencerenin yanında.
+        'fixed inset-x-0 bottom-0 z-[60] max-h-[min(88dvh,40rem)] rounded-t-panel',
+        'md:static md:z-auto md:max-h-[min(94dvh,56rem)] md:w-[24rem] md:shrink-0 md:rounded-panel',
+      ].join(' ')}
+    >
+      <div
+        className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-line md:hidden"
+        aria-hidden="true"
+      />
+      <div className="flex items-start gap-4 px-6 pt-4 md:pt-6">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-bold tracking-tight text-ink">{aside.title}</h2>
+          {aside.subtitle ? <p className="mt-1 text-sm text-ink-muted">{aside.subtitle}</p> : null}
+        </div>
+        <button
+          type="button"
+          onClick={aside.onClose}
+          className="-mr-2 -mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
+          aria-label={`${aside.title} panelini kapat`}
+        >
+          <X className="size-5" aria-hidden="true" />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        {aside.children}
+      </div>
+    </aside>
+  ) : null;
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
       {/* KURAL: arka plana tıklamak modalı kapatmaz (yalnızca Esc veya X). onClick eklemeyin. */}
@@ -115,43 +154,7 @@ export function Sheet({
         ref={panelRef}
         className="relative flex w-full items-end justify-center gap-4 md:max-w-[min(100%,72rem)] md:items-stretch"
       >
-        {aside?.open ? (
-          <aside
-            ref={asidePanelRef}
-            role="dialog"
-            aria-label={aside.title}
-            className={[
-              'animate-sheet-in flex flex-col overflow-hidden bg-surface-raised shadow-card',
-              // Telefon: ana pencerenin üstünde, alttan açılır. Masaüstü: ana pencerenin solunda.
-              'fixed inset-x-0 bottom-0 z-[60] max-h-[min(88dvh,40rem)] rounded-t-panel',
-              'md:static md:z-auto md:max-h-[min(94dvh,56rem)] md:w-[24rem] md:shrink-0 md:rounded-panel',
-            ].join(' ')}
-          >
-            <div
-              className="mx-auto mt-3 h-1.5 w-10 shrink-0 rounded-full bg-line md:hidden"
-              aria-hidden="true"
-            />
-            <div className="flex items-start gap-4 px-6 pt-4 md:pt-6">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-xl font-bold tracking-tight text-ink">{aside.title}</h2>
-                {aside.subtitle ? (
-                  <p className="mt-1 text-sm text-ink-muted">{aside.subtitle}</p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={aside.onClose}
-                className="-mr-2 -mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
-                aria-label={`${aside.title} panelini kapat`}
-              >
-                <X className="size-5" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-              {aside.children}
-            </div>
-          </aside>
-        ) : null}
+        {aside?.side !== 'right' ? asideNode : null}
 
         <div
           role="dialog"
@@ -201,6 +204,8 @@ export function Sheet({
             {children}
           </div>
         </div>
+
+        {aside?.side === 'right' ? asideNode : null}
       </div>
     </div>,
     document.body,

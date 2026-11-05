@@ -23,6 +23,8 @@ function toneFor(name: string): string {
 const SIZES = {
   md: 'h-11 w-16 rounded-xl text-sm',
   lg: 'h-14 w-24 rounded-2xl text-base',
+  /** Kare küçük rozet (ürün kartları). */
+  sq: 'size-11 rounded-xl text-xs',
 };
 
 /**

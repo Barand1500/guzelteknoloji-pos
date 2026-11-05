@@ -51,7 +51,7 @@ export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex h-full flex-col gap-2">
       <input
         ref={inputRef}
         type="file"
@@ -71,7 +71,8 @@ export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
         onDragLeave={() => setOver(false)}
         onDrop={onDrop}
         className={[
-          'relative flex aspect-[16/9] w-full items-center justify-center overflow-hidden rounded-3xl border-2 border-dashed transition-colors',
+          // Telefonda 16:9; masaüstünde yandaki alanların (ad, aktif, ürünler) yüksekliğine kadar uzar.
+          'relative flex aspect-[16/9] w-full items-center justify-center overflow-hidden rounded-3xl border-2 border-dashed transition-colors md:aspect-auto md:min-h-40 md:flex-1',
           over ? 'border-brand-600 bg-brand-50' : 'border-field-border bg-surface',
         ].join(' ')}
       >
