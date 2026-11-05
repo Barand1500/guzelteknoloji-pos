@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react';
 import { Outlet } from 'react-router';
 import { useTheme } from '../theme/ThemeProvider';
 import { Dock } from './Dock';
@@ -5,10 +6,23 @@ import { TopBar } from './TopBar';
 
 /**
  * Giriş sonrası tüm ekranların ortak çerçevesi: üst çubuk + sayfa içeriği + alttaki yüzen çubuk.
- * `data-theme` bu kapta durur; gece renkleri yalnızca burada ve altında geçerlidir.
+ *
+ * TEMA (önemli): `data-theme` hem bu kapta hem de `<html>` üzerinde durur. Pencereler (Sheet),
+ * açılır listeler gibi `document.body`'ye "portal" ile çizilen öğeler bu kabın DIŞINDA kalır;
+ * temayı alabilmeleri için `<html>` üzerinde de tanımlanması şarttır. Uygulamadan çıkınca
+ * (giriş ekranı) nitelik kaldırılır, giriş ekranı her zaman gündüz temasıdır.
  */
 export function AppShell() {
   const { mode } = useTheme();
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.dataset.theme = mode;
+    return () => {
+      delete root.dataset.theme;
+    };
+  }, [mode]);
+
   return (
     <div data-theme={mode} className="min-h-dvh bg-surface text-ink">
       <TopBar />

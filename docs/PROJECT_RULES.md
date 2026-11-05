@@ -98,6 +98,14 @@ Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada 
 - Production'da CSP: `script-src 'self'` ve `style-src 'self'`; yalnızca satır içi `style=` nitelikleri açıktır (`style-src-attr`). Yeni kod satır içi `<script>`/`<style>` bloğu eklememeli, harici CDN kullanmamalı.
 - Secret'lar (SMTP şifresi, DB şifresi, COOKIE_SECRET) yalnızca sunucudaki `.env` dosyasında durur; repoya girmez. `COOKIE_SECRET` rastgele üretilmelidir (elle yazılmış değer kullanılmaz).
 
+> ## ⚠ ZORUNLU KONTROL LİSTESİ (her güncellemeden sonra, atlanmaz)
+>
+> 1. **Gece VE gündüz modunda** değişen ekran, **açılan her pencere/açılır liste/panel/hesaplayıcı/bildirim** ile birlikte kontrol edilir. Gece modunda beyaz kalan hiçbir yüzey olamaz.
+> 2. **Telefon, tablet ve masaüstü** genişliklerinde bakılır (pencere ekranın dışına taşmamalı, kesilmemeli).
+> 3. Testler + tip denetimi + lint temiz olmadan iş bitmiş sayılmaz.
+>
+> **Neden:** Pencereler (`Sheet`) ve açılır listeler `document.body`'ye "portal" ile çizilir; tema yalnızca uygulama kabında tanımlıysa bunlar **beyaz kalır** (yaşanmış hata). Bu yüzden `data-theme` **`<html>` üzerinde** de tutulur (`AppShell`) ve bunu doğrulayan test vardır (`Theme.test.tsx`). Yeni bir portal/katman eklenirse aynı tema kuralı geçerlidir; **renk kodu yazılmaz, yalnızca tema token'ları** (`bg-surface-raised`, `text-ink` …) kullanılır. Gece taraması için tarayıcıda `colorScheme: dark` ile her pencereyi açıp ekran görüntüsü alın.
+
 ## 8. Uygulama aşaması: giriş sonrası ekranlar (stok kartı)
 
 **Ürünün amacı:** Patronun istediği **stok kartı girme** uygulaması. Giriş sonrası ekranlar bunun etrafında kurulur (stok kartı formu, ürün listesi, kategoriler, markalar, özellikler, toplu görsel yükleme). Bu kapsam, kural 1'deki "yalnızca giriş" sınırını **genişletir**; yeni modüller bu bölümün kurallarına uyar.
@@ -212,3 +220,7 @@ Uzayabilecek her liste sayfalıdır: `lib/usePagination` + `components/ui/Pagina
 - **Yan panel:** `Sheet` bileşeni isteğe bağlı `aside` alır. Masaüstünde ana pencerenin yanında (`side`: varsayılan sol; **marka penceresinde SAĞ**), telefonda ana pencerenin **üstünde alttan** açılır; açılıp kapanır (panelin X'i ya da penceredeki düğme), **Esc önce yan paneli, sonra pencereyi kapatır**; odak tuzağı ikisini birlikte kapsar. Yeni "ayrıntı penceresi" tasarlarken (ürün listesi, kategori vb.) aynı yapıyı kullanın.
 - **Marka → Ürünler paneli (`BrandProductsPanel`):** "Bu Markada (N)" sekmesinde ürünleri görür ve tek dokunuşla çıkarırsın; "Ürün Ekle" sekmesinde ad/kod/barkodla arar, tek tek ya da "Görünenlerin Hepsini Ekle" ile eklersin ("Markasız Ürünler" süzgeci var). Değişiklikler **anında** uygulanır (formdaki Kaydet'ten bağımsız) ve marka satırındaki ürün sayısı canlı güncellenir. Panel yalnızca kayıtlı markalarda vardır. Satırdaki "Ürünler" işlemi **yalnızca ürünler penceresini** (`BrandProductsSheet`) açar, düzenleme formu gelmez; penceredeki "Ürünler" düğmesi ise yan paneli sağda açıp kapatır. Marka penceresinde logo alanı masaüstünde yandaki alanların (ad, aktif, ürünler) yüksekliğine kadar uzar.
 - **Ürünler paneli "Ürün Ekle" akışı:** süzgeç varsayılanı **Markasız** (çiplerde adetler: Markasız / Başka Marka / Tümü); kartlara dokunarak **çoklu seçilir** (seçince hemen eklemez), altta "N ürün seçili · Temizle · Ekle" çubuğu çıkar, "Tümünü Seç" vardır; eklenince "Bu Markada" sekmesine geçilir ve yeni ürünler kısa süre vurgulanır. Başka markadaki ürünlerde "X'ten taşınır" notu görünür. "Çıkar" sonrası alt çubukta **Geri Al** çıkar (6 sn). Ürün kartları adı 2 satıra kadar tam gösterir (kesik yazı yok).
+
+### 8.17 Alt menü kayan vurgu
+
+Alt menüde seçili sayfanın arkasındaki yumuşak kutu, başka sekmeye geçince yeni yerine **kayarak** gider (`Dock`: konum doğrudan DOM'a yazılır, `transition` ile yay efekti; ilk yerleşimde animasyon yoktur, pencere boyutu değişince yeniden hesaplanır). Seçiliyken ikon/yazı turuncuya yumuşakça döner. **Alttaki nokta vurgusu YOKTUR** (kaldırıldı). "+" (yeni stok kartı) seçiliyken kutu gizlenir.

@@ -1,5 +1,5 @@
 import { Check, Copy, Ruler, Scale, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Segmented } from '../../../components/ui/Segmented';
 import { sanitizeNumeric } from '../../../lib/numeric';
 import {
@@ -51,6 +51,23 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
   const [density, setDensity] = useState('');
   const [copied, setCopied] = useState(false);
   const firstRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Masaüstünde pencere alanın sağ kenarına hizalı açılır; soldaki alanlarda ekranın solundan taşarsa
+  // sola hizalanır (ya da tersi). Konum doğrudan DOM'a yazılır, görünürken zıplama olmaz.
+  useLayoutEffect(() => {
+    const el = dialogRef.current;
+    if (!el || !window.matchMedia?.('(min-width: 48rem)').matches) return;
+    const rect = el.getBoundingClientRect();
+    const margin = 12;
+    if (rect.left < margin) {
+      el.style.left = '0';
+      el.style.right = 'auto';
+    } else if (rect.right > window.innerWidth - margin) {
+      el.style.right = '0';
+      el.style.left = 'auto';
+    }
+  }, []);
 
   useEffect(() => {
     firstRef.current?.focus();
@@ -112,6 +129,7 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
       {/* Telefonda arka plan kararır (kapanma yalnızca Esc/X/Uygula ile; modal kuralı) */}
       <div aria-hidden="true" className="fixed inset-0 z-40 animate-fade-in bg-ink/40 md:hidden" />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-label={title}
         className={[
