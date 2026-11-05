@@ -55,7 +55,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 
 /** Öğe sayfa kaydırılarak tamamen görünür olabilmeli ve en az 44x44 dokunma hedefi sunmalı. */
 async function expectReachable(page: Page, name: RegExp | string) {
-  const el = page.getByRole('button', { name });
+  const el = page.getByRole('button', { name, exact: typeof name === 'string' });
   await el.scrollIntoViewIfNeeded();
   await expect(el).toBeInViewport({ ratio: 1 });
   const box = await el.boundingBox();
@@ -87,11 +87,39 @@ for (const vp of viewports) {
       await expectReachable(page, /Yardıma Mı İhtiyacınız Var/);
     });
 
+    test('kod ekranı taşmaz ve tekrar gönder bağlantısı butona yakın kalır', async ({ page }) => {
+      await mockAnonymousApi(page);
+      await page.route('**/api/auth/email/start', (route) =>
+        route.fulfill({
+          status: 200,
+          json: { step: 'code', resendAfterSeconds: 60, expiresInSeconds: 600 },
+        }),
+      );
+      await page.goto('/login/e-posta');
+      await page.getByLabel('E-Posta', { exact: true }).fill('uzun.eposta.adresi@example.com');
+      await page.getByRole('button', { name: 'Devam Et', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Kodu girin' })).toBeVisible();
+      await expect(page.getByLabel('Doğrulama Kodu')).toBeFocused();
+      await expectNoHorizontalOverflow(page);
+      const submit = page.getByRole('button', { name: 'Devam Et', exact: true });
+      const resend = page.getByRole('button', { name: /Kodu Tekrar Gönder/ });
+      await expectReachable(page, 'Devam Et');
+      await expectReachable(page, /Kodu Tekrar Gönder/);
+      const submitBox = (await submit.boundingBox())!;
+      const resendBox = (await resend.boundingBox())!;
+      expect(resendBox.y - submitBox.y - submitBox.height).toBeGreaterThanOrEqual(0);
+      expect(resendBox.y - submitBox.y - submitBox.height).toBeLessThanOrEqual(8);
+      expect(await resend.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeLessThan(
+        await submit.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+      );
+      await shot(page, vp.name + '-kod', true);
+    });
+
     test('e-posta formu ve yardım sayfası taşmadan çalışır', async ({ page }) => {
       await mockAnonymousApi(page);
       await page.goto('/login/e-posta');
       await expect(page.getByLabel('E-Posta', { exact: true })).toBeFocused();
-      await page.getByRole('button', { name: 'Devam Et' }).click();
+      await page.getByRole('button', { name: 'Devam Et', exact: true }).click();
       await expect(page.getByLabel('E-Posta', { exact: true })).toHaveAttribute(
         'aria-invalid',
         'true',
@@ -152,7 +180,7 @@ test.describe('hata konuşma kutusu', () => {
       await page.setViewportSize({ width, height: 700 });
       await mockAnonymousApi(page);
       await page.goto('/login/e-posta');
-      await page.getByRole('button', { name: 'Devam Et' }).click();
+      await page.getByRole('button', { name: 'Devam Et', exact: true }).click();
       const icon = page.getByRole('button', { name: 'E-posta adresinizi girin.' });
       await icon.click();
       const tip = page.getByRole('tooltip').first();

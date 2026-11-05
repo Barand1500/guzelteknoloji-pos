@@ -27,7 +27,20 @@ describe('SMTP settings and delivery', () => {
       'other@example.com',
     );
     expect(() => testEnv({ SMTP_HOST: 'smtp.gmail.com' })).toThrow(/MAIL_FROM/);
-    expect(() => testEnv({ ...smtp, SMTP_PASS: '' })).toThrow(/SMTP_PASS/);
+    expect(() => testEnv({ ...smtp, SMTP_PASS: '' })).not.toThrow();
+    expect(() => testEnv({ ...smtp, SMTP_USER: '' })).not.toThrow();
+  });
+  it('allows SMTP relay without credentials and keeps TLS enabled', async () => {
+    mocks.sendMail.mockResolvedValue({});
+    await createMailer(testEnv({ ...smtp, SMTP_PASS: '' }), createLogger('silent')).sendLoginCode(
+      'recipient@example.com',
+      '123456',
+      10,
+    );
+    const options = mocks.createTransport.mock.calls[0]?.[0];
+    expect(options).not.toHaveProperty('auth');
+    expect(options).toMatchObject({ host: smtp.SMTP_HOST, requireTLS: true, secure: false });
+    expect(mocks.sendMail).toHaveBeenCalledOnce();
   });
   it('uses authenticated STARTTLS and the configured sender', async () => {
     mocks.sendMail.mockResolvedValue({});

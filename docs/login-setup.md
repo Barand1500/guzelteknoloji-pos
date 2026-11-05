@@ -15,6 +15,6 @@ Kaynaklar: https://developer.apple.com/documentation/signinwithapplerestapi ; ht
 
 ## SMTP hata kontrolü
 
-`MAIL_FROM` tercih edilir; `SMTP_FROM` da alternatif isim olarak okunur. İkisi varsa `MAIL_FROM` önceliklidir. SMTP_USER/SMTP_PASS birlikte tanımlanmalıdır. Deploy zaten PM2 restart yapar.
+`MAIL_FROM` tercih edilir; `SMTP_FROM` da alternatif isim olarak okunur. İkisi varsa `MAIL_FROM` önceliklidir. SMTP_USER ve SMTP_PASS opsiyoneldir; ikisi de doluysa SMTP kimlik bilgileri kullanılır. Deploy zaten PM2 restart yapar.
 
 Sunucuda `npm run smtp:check` mesaj göndermeden SMTP bağlantıs?n? ve kimlik doğrulamasını test eder. EAUTH: kullan?c?/uygulama şifresi, ETIMEDOUT: bağlantı/port, TLS kategorisi: sertifika/TLS kontrol edilmelidir. Bu kontrol başarılıysa ama gönderim başarısızsa `pm2 logs guzel-auth --lines 80 --nostream` i?indeki SMTP tanı alanlarına bakın. Sağlık kontrolü yalnızca API ve veritaban?n? sınar, SMTP gönderimini sınamaz.

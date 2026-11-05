@@ -86,13 +86,6 @@ const envSchema = z
         message: 'GOOGLE_CLIENT_ID ve GOOGLE_CLIENT_SECRET birlikte tanımlanmalıdır.',
       });
     }
-    if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASS)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['SMTP_PASS'],
-        message: 'SMTP_USER ve SMTP_PASS birlikte tanımlanmalıdır.',
-      });
-    }
     if (env.SMTP_HOST && !env.MAIL_FROM && !env.SMTP_FROM) {
       ctx.addIssue({
         code: 'custom',

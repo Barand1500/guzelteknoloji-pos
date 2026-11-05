@@ -331,10 +331,7 @@ function CodeStep({
 
   return (
     <>
-      <StepHeader title="Kodu girin">
-        Bu e-posta adresiyle henüz bir hesap yok. Adresinize {CODE_LENGTH} haneli bir doğrulama kodu
-        gönderdik.
-      </StepHeader>
+      <StepHeader title="Kodu girin">E-Postanıza {CODE_LENGTH} haneli kod gönderdik.</StepHeader>
       <EmailChip email={email} onChange={onChangeEmail} />
       <form
         noValidate
@@ -357,20 +354,27 @@ function CodeStep({
             },
           })}
         />
-        <Button type="submit" loading={isSubmitting} loadingLabel="Doğrulanıyor…" className="mt-1">
-          Devam Et
-        </Button>
-        <Button
-          variant="ghost"
-          flow={false}
-          onClick={resend}
-          loading={resending}
-          loadingLabel="Gönderiliyor…"
-          disabled={remaining > 0}
-          className="min-h-12 text-brand-700"
-        >
-          {remaining > 0 ? `Kodu Tekrar Gönder (${remaining} sn)` : 'Kodu Tekrar Gönder'}
-        </Button>
+        <div className="flex flex-col gap-1">
+          <Button
+            type="submit"
+            loading={isSubmitting}
+            loadingLabel="Doğrulanıyor…"
+            className="mt-1"
+          >
+            Devam Et
+          </Button>
+          <Button
+            variant="ghost"
+            flow={false}
+            onClick={resend}
+            loading={resending}
+            loadingLabel="Gönderiliyor…"
+            disabled={remaining > 0}
+            className="min-h-11! py-2! text-sm! text-brand-700"
+          >
+            {remaining > 0 ? `Kodu Tekrar Gönder (${remaining} sn)` : 'Kodu Tekrar Gönder'}
+          </Button>
+        </div>
       </form>
     </>
   );
