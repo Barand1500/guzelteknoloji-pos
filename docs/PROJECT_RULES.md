@@ -195,7 +195,17 @@ Geniş ekranda (xl) "Envanter Takibi + seçime göre alanlar + Menşei + Diğer 
 
 ### 8.14 Markalar ekranı ve yönetim listesi parçaları (Kategoriler/Fırsat/Özellikler de bunları kullanır)
 
-- **Tasarım (seçilen: "Kaydırmalı Satırlar"):** logo + ad + ürün sayısı + anahtar. Telefonda satır **sola kaydırınca** Düzenle / Tanımla / Sil çıkar; satıra dokunmak düzenler. Masaüstünde satırın içinde ⠿ tutamağı ve ikon düğmeleri, sağda özet kartı (xl) bulunur.
+- **Tasarım (seçilen: "Kaydırmalı Satırlar"):** logo + ad + ürün sayısı + anahtar. Telefonda satır **sola kaydırınca** Düzenle / Tanımla / Sil çıkar; satıra dokunmak düzenler. Masaüstünde satırın içinde ⠿ tutamağı ve ikon düğmeleri bulunur (yan özet kartı YOK, istenmedi).
 - **Sıralama = sürükle-bırak, ayrı "Sıralama" düğmesi YOKTUR:** telefonda satırı ~0,35 sn **basılı tut** → satır havaya kalkar, diğerleri kayarak yer açar, sayfa kenarında kendiliğinden kayar; masaüstünde ⠿ tutamağından; klavyede tutamağa odaklanıp ↑ ↓. Arama yapılırken sıralama kapalıdır. Sıra mağazadaki gösterim sırasıdır.
 - **Ortak parçalar (yeniden kullanın):** `components/ui/SortableList` (sürükle-bırak + klavye + duyuru), `SwipeRow` (sola kaydırma), `ToggleSwitch`, `SearchField`, `TextAreaField`, `ConfirmSheet`, `Button variant="danger"`. Veri `features/<ad>/services` üzerinden; sahte veri `src/mocks`.
 - **Marka kuralları:** gerekli tek alan marka adı; logo dokun/sürükle-bırak ile yüklenir (görsel, en çok 2 MB, 800×230 oranı önerilir; logo zemini her zaman açık renk); açıklama ve SEO "Gelişmiş" altında. Ürünü olan marka silinirken kaç üründe kullanıldığı söylenir ve onay istenir (ürünlerin markası boş kalır). "Ürünlere Tanımla": ad/kod/barkodla ara, çoklu seç, "Ata". Pazaryeri menüleri YOKTUR (istenmedi). Pasif marka stok kartındaki marka listesinde görünmez (aynı servis).
+
+### 8.15 Liste ekranlarında sayfalama (genel kural)
+
+Uzayabilecek her liste sayfalıdır: `lib/usePagination` + `components/ui/PaginationBar`. **Varsayılan sayfa başına 10**; kullanıcı "Sayfada Kaç …" kutusuna adedi **kendisi yazar** (yalnızca rakam, en çok 200; adet/arama değişince 1. sayfaya dönülür). Çubuk: gösterilen aralık ("1–10 / 42 marka"), geniş ekranda sayfa numaraları (…’li), telefonda "2 / 5" + Geri/İleri. Sayfa tek ise numaralar gizlenir. Sürükleyerek sıralamada sürükleme **geçerli sayfa içindedir** ve sıra tüm listeye yansıtılır (sayfalar arası taşımak için adedi artırın). Arama sonuçları da sayfalanır.
+
+### 8.16 Yan panelli pencere (Sheet `aside`) ve çift tıkla düzenleme
+
+- **Masaüstünde liste satırında "düzenle" (kalem) düğmesi YOKTUR:** satıra **çift tıklanır**; klavye ve ekran okuyucu için satır `role="button"` + Enter'dır (`detail === 0` tıklaması da açar). Telefonda satıra tek dokunuş düzenler; sola kaydırınca Düzenle/Ürünler/Sil çıkar.
+- **Yan panel:** `Sheet` bileşeni isteğe bağlı `aside` alır. Masaüstünde ana pencerenin **solunda**, telefonda ana pencerenin **üstünde alttan** açılır; açılıp kapanır (panelin X'i ya da penceredeki düğme), **Esc önce yan paneli, sonra pencereyi kapatır**; odak tuzağı ikisini birlikte kapsar. Yeni "ayrıntı penceresi" tasarlarken (ürün listesi, kategori vb.) aynı yapıyı kullanın.
+- **Marka → Ürünler paneli (`BrandProductsPanel`):** "Bu Markada (N)" sekmesinde ürünleri görür ve tek dokunuşla çıkarırsın; "Ürün Ekle" sekmesinde ad/kod/barkodla arar, tek tek ya da "Görünenlerin Hepsini Ekle" ile eklersin ("Markasız Ürünler" süzgeci var). Değişiklikler **anında** uygulanır (formdaki Kaydet'ten bağımsız) ve marka satırındaki ürün sayısı canlı güncellenir. Panel yalnızca kayıtlı markalarda vardır. Eski ayrı "Ürünlere Tanımla" penceresi kaldırıldı; satırdaki "Ürünler" işlemi markanın penceresini yan paneli açık getirir.

@@ -1,17 +1,23 @@
-import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { Boxes, ChevronDown, ChevronRight } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { Sheet } from '../../../components/ui/Sheet';
 import { Switch } from '../../../components/ui/Switch';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
 import { TextField } from '../../../components/ui/TextField';
 import { emptyBrandDraft, type Brand, type BrandDraft } from '../types';
+import { BrandProductsPanel } from './BrandProductsPanel';
 import { LogoPicker } from './LogoPicker';
 
 interface BrandFormSheetProps {
-  /** Düzenlenen marka; yoksa yeni marka eklenir. */
+  /** Düzenlenen marka (güncel ürün sayısıyla); yoksa yeni marka eklenir. */
   brand: Brand | null;
+  /** Pencere ürünler paneli açık başlasın mı ("Ürünler" işleminden gelince). */
+  productsOpen?: boolean;
+  brandNames: Record<string, string>;
   onSave: (draft: BrandDraft) => Promise<void>;
+  onAssign: (brandId: string, productIds: string[]) => Promise<void>;
+  onUnassign: (brandId: string, productIds: string[]) => Promise<void>;
   onClose: () => void;
 }
 
@@ -21,7 +27,18 @@ const NAME_REQUIRED = 'Marka adı gerekli.';
  * Marka ekleme/düzenleme paneli (telefonda alttan açılır). Gerekli olan tek alan marka adıdır;
  * açıklama ve SEO "Gelişmiş" altında katlıdır. Her açılışta yeniden kurulur (key ile).
  */
-export function BrandFormSheet({ brand, onSave, onClose }: BrandFormSheetProps) {
+export function BrandFormSheet({
+  brand,
+  productsOpen = false,
+  brandNames,
+  onSave,
+  onAssign,
+  onUnassign,
+  onClose,
+}: BrandFormSheetProps) {
+  // Yan panel (markanın ürünleri): yalnızca kayıtlı markalarda vardır; açılıp kapanır.
+  const [panelOpen, setPanelOpen] = useState(productsOpen && brand !== null);
+  const productsButton = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState<BrandDraft>(() =>
     brand
       ? {
@@ -52,7 +69,33 @@ export function BrandFormSheet({ brand, onSave, onClose }: BrandFormSheetProps) 
   };
 
   return (
-    <Sheet open onClose={onClose} title={brand ? 'Markayı Düzenle' : 'Marka Ekle'} size="lg">
+    <Sheet
+      open
+      onClose={onClose}
+      title={brand ? 'Markayı Düzenle' : 'Marka Ekle'}
+      size="lg"
+      aside={
+        brand
+          ? {
+              title: `${brand.name} · Ürünler`,
+              subtitle: `${brand.productCount} ürün bu markada`,
+              open: panelOpen,
+              onClose: () => {
+                setPanelOpen(false);
+                productsButton.current?.focus();
+              },
+              children: (
+                <BrandProductsPanel
+                  brand={brand}
+                  brandNames={brandNames}
+                  onAssign={onAssign}
+                  onUnassign={onUnassign}
+                />
+              ),
+            }
+          : undefined
+      }
+    >
       <div className="flex flex-col gap-5">
         <div className="grid gap-5 md:grid-cols-[15rem_minmax(0,1fr)]">
           <LogoPicker
@@ -71,6 +114,32 @@ export function BrandFormSheet({ brand, onSave, onClose }: BrandFormSheetProps) 
               }}
             />
             <Switch label="Aktif" checked={draft.active} onChange={(v) => set('active', v)} />
+            {brand ? (
+              <button
+                ref={productsButton}
+                type="button"
+                onClick={() => setPanelOpen((v) => !v)}
+                aria-expanded={panelOpen}
+                className={[
+                  'flex min-h-14 items-center gap-3 rounded-control border px-4 text-left transition-colors',
+                  panelOpen
+                    ? 'border-brand-600 bg-brand-50 text-brand-ink'
+                    : 'border-field-border hover:border-brand-500',
+                ].join(' ')}
+              >
+                <Boxes className="size-5 shrink-0" aria-hidden="true" />
+                <span className="flex-1 font-semibold">
+                  Ürünler
+                  <span className="ml-2 rounded-full bg-surface-muted px-2.5 py-0.5 text-sm text-ink-muted">
+                    {brand.productCount}
+                  </span>
+                </span>
+                <ChevronRight
+                  className={`size-5 shrink-0 transition-transform ${panelOpen ? 'rotate-180' : ''}`}
+                  aria-hidden="true"
+                />
+              </button>
+            ) : null}
           </div>
         </div>
 

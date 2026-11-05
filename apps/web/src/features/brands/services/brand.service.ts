@@ -25,7 +25,7 @@ export const brandService = {
 
   /** Mağazadaki gösterim sırasıyla markalar. */
   async list(): Promise<Brand[]> {
-    await wait(150);
+    await wait(60);
     return rows.map(withCount);
   },
 
@@ -64,6 +64,15 @@ export const brandService = {
   async listProducts(): Promise<ProductRef[]> {
     await wait(100);
     return products.map((p) => ({ ...p }));
+  },
+
+  /** Ürünleri bu markadan çıkarır (ürünün markası boş kalır). */
+  async unassignProducts(brandId: string, productIds: string[]): Promise<void> {
+    await wait(0);
+    const picked = new Set(productIds);
+    products = products.map((p) =>
+      picked.has(p.id) && p.brandId === brandId ? { ...p, brandId: null } : p,
+    );
   },
 
   /** Seçili ürünleri markaya atar (başka markadaysa taşınır). */

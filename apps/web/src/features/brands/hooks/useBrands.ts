@@ -57,5 +57,11 @@ export function useBrands() {
     await refresh();
   };
 
-  return { brands, loading, toggleActive, reorder, save, remove, assign };
+  /** Ürünleri markadan çıkarır; ürün sayıları değiştiği için liste yenilenir. */
+  const unassign = async (brandId: string, productIds: string[]) => {
+    await brandService.unassignProducts(brandId, productIds);
+    await refresh();
+  };
+
+  return { brands, loading, toggleActive, reorder, save, remove, assign, unassign };
 }

@@ -1,4 +1,4 @@
-import { GripVertical, Link2, Pencil, Trash2 } from 'lucide-react';
+import { Boxes, GripVertical, Pencil, Trash2 } from 'lucide-react';
 import { SwipeRow } from '../../../components/ui/SwipeRow';
 import type { SortableRowContext } from '../../../components/ui/SortableList';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
@@ -57,8 +57,8 @@ function PhoneRow({
               onClick={onAssign}
               className={`${actionClass} bg-ink-muted text-surface`}
             >
-              <Link2 className="size-5" aria-hidden="true" />
-              Tanımla
+              <Boxes className="size-5" aria-hidden="true" />
+              Ürünler
             </button>
             <button
               type="button"
@@ -125,7 +125,25 @@ function WideRow({
       >
         <GripVertical className="size-5" aria-hidden="true" />
       </button>
-      <div className={`flex min-w-0 flex-1 items-center gap-4 ${brand.active ? '' : 'opacity-50'}`}>
+      {/* Masaüstünde düzenlemek için markaya ÇİFT TIKLANIR (kalem düğmesi yok). Klavye/ekran okuyucu: Enter. */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={`${brand.name} markasını düzenle`}
+        title="Düzenlemek için çift tıklayın"
+        onDoubleClick={onEdit}
+        onClick={(e) => {
+          // detail=0: klavye ya da ekran okuyucu etkinleştirmesi (fareyle çift tıklama ayrı işlenir).
+          if (e.detail === 0) onEdit();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onEdit();
+          }
+        }}
+        className={`flex min-w-0 flex-1 cursor-pointer items-center gap-4 rounded-2xl select-none ${brand.active ? '' : 'opacity-50'}`}
+      >
         <BrandLogo brand={brand} size="lg" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-lg font-bold">{brand.name}</p>
@@ -141,21 +159,12 @@ function WideRow({
       <div className="flex shrink-0 items-center">
         <button
           type="button"
-          onClick={onEdit}
-          aria-label={`${brand.name} markasını düzenle`}
-          title="Düzenle"
-          className={iconButton}
-        >
-          <Pencil className="size-5" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
           onClick={onAssign}
-          aria-label={`${brand.name} markasını ürünlere tanımla`}
-          title="Ürünlere Tanımla"
+          aria-label={`${brand.name} markasının ürünlerini yönet`}
+          title="Ürünler"
           className={iconButton}
         >
-          <Link2 className="size-5" aria-hidden="true" />
+          <Boxes className="size-5" aria-hidden="true" />
         </button>
         <button
           type="button"
