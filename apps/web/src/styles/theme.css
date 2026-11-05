@@ -1,0 +1,33 @@
+/*
+ * GECE TEMASI — TEK RENK KAYNAĞI
+ * Renklerin gündüz değerleri `index.css` içindeki @theme bloğundadır. Gece değerleri YALNIZCA
+ * burada, aynı token adlarıyla geçersiz kılınır. Bileşenlerde renk kodu yazılmaz; bir rengi
+ * değiştirmek için sadece bu iki yerden birine bakmak yeterlidir.
+ *
+ * Denge (60-30-10):  %60 zemin (surface)  ·  %30 kart/yüzey (surface-raised, surface-muted)  ·  %10 vurgu (brand).
+ * Tema, uygulama kabuğundaki `data-theme="dark"` niteliğiyle açılır (giriş ekranı gündüz kalır).
+ */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-surface: #131315;
+  --color-surface-raised: #1c1c1f;
+  --color-surface-muted: #26262a;
+  --color-line: #303036;
+  --color-line-strong: #6b6b73;
+  --color-field-border: #3a3a42;
+
+  --color-ink: #f3f3f5;
+  --color-ink-muted: #a4a4ad;
+
+  --color-brand-50: #2a1c14;
+  --color-brand-100: #3a2418;
+  --color-brand-ink: #ff9d66;
+
+  --color-danger: #ff7b6e;
+  --color-danger-soft: #2d1816;
+  --color-success: #4cc38a;
+
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 16px -4px rgb(0 0 0 / 0.5);
+  --shadow-card: 0 24px 64px -24px rgb(0 0 0 / 0.7);
+}

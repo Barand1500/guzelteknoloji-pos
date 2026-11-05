@@ -1,5 +1,6 @@
 @import '@fontsource-variable/manrope';
 @import 'tailwindcss';
+@import './theme.css';
 
 /*
  * Düzen kırılımları (birbirini dışlayacak şekilde yükseklik koşullu):
@@ -37,6 +38,8 @@
   --color-brand-700: #b8460f; /* beyaz metin 5.36:1, açık zeminde metin 5.12:1 */
   --color-brand-800: #9a3a0e;
   --color-brand-900: #6e2a0b;
+  /* Açık/koyu zeminde METİN olarak kullanılan vurgu rengi (gece temasında açılır, bkz. theme.css). */
+  --color-brand-ink: #b8460f;
 
   --color-accent: #ffb44d;
   --color-accent-soft: #ffe2b8;
@@ -251,6 +254,18 @@
   }
   .field-input[aria-invalid='true'] ~ .field-label {
     color: var(--color-danger);
+  }
+
+  /* Değer her zaman dolu olan alanlarda (select) etiket baştan yukarıda durur. */
+  .field-label[data-floated='true'] {
+    top: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+  .field-select {
+    appearance: none;
+    padding-right: 2.75rem;
+    cursor: pointer;
   }
 
   /* Modal / bottom sheet: arka plana tıklayınca KAPANMAZ; yalnızca Esc veya X ile kapanır. */
