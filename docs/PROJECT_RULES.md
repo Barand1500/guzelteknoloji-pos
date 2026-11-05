@@ -1,0 +1,99 @@
+# Proje kuralları ve bağlam (insanlar ve yapay zeka asistanları için)
+
+Bu belge, projeye ilk kez bakan bir geliştiricinin ya da yapay zekanın **önce** okuması gereken tek kaynaktır. Kod değiştirmeden önce okuyun; yeni bir kural geldiğinde bu belgeyi güncelleyin.
+
+## 1. Projenin amacı ve kapsamı
+
+Marka: **Güzel Teknoloji** (geçici; `apps/web/src/config/brand.config.ts` içinden değişir). Hedef, mobil öncelikli, Türkçe, modern, erişilebilir bir **giriş ekranı** ve bunu güvenle çalıştıran **kimlik doğrulama altyapısıdır**.
+
+Referans fikir: üstte canlı marka alanı, altta sade giriş alanı, büyük yuvarlatılmış butonlar (Google ile devam et, E-Posta ile devam et, Yardıma mı ihtiyacınız var?). Başka bir sitenin adı, logosu, sloganı, ikonları ya da illüstrasyonları **kullanılmaz**; tasarım kopyalanmaz.
+
+### Kapsam sınırı (ÇOK ÖNEMLİ)
+
+Şu an yalnızca **giriş** vardır. Şunlar **yapılmaz**: kayıt olma, şifre sıfırlama, dashboard, profil, ayarlar, admin paneli, ürün/iş modülleri, gereksiz sahte sayfalar. Kayıt ekranı olmadığı için kullanıcılar yalnızca geliştirme seed komutuyla oluşur. Çalışmayan sahte link konmaz; özellik yoksa kullanıcıya metinle de anlatılmaz (bkz. kural 3.7). Facebook ve başka sosyal girişler **kesinlikle** eklenmez. Sosyal girişler yalnızca **Google** ve **Apple**'dır (Apple'ın arayüzü hazırdır, gerçek girişi henüz yapılandırılmamıştır; bkz. kural 3.9).
+
+## 2. Teknik yığın ve komutlar
+
+- npm workspaces monorepo: `apps/web` (React 19, TS, Vite, Tailwind 4, React Hook Form + Zod, Lucide), `apps/api` (Node 22+, Express 5, TS, Prisma 7 + **MySQL/MariaDB**), `packages/shared` (Zod şemaları, tipler).
+- Veritabanı MySQL'dir (sunucuda CloudPanel + phpMyAdmin). PostgreSQL kullanılmaz.
+- Strict TypeScript, `any` yasak, ESLint + Prettier. Karmaşık/kritik kodlara **nedenini anlatan Türkçe** yorum yazılır.
+- Kullanıcıya görünen **tüm metinler Türkçe**; İngilizce placeholder/metin bırakılmaz.
+- Komutlar: `npm run dev | build | test | test:responsive | lint | typecheck | format | db:deploy | db:seed:dev`. Ayrıntı: `README.md`.
+- Bir değişiklik bitmeden `npm run lint`, `npm run typecheck`, `npm test` ve (görsel değişiklikte) `npm run test:responsive` geçmelidir.
+
+## 3. Tasarım ve kullanıcı deneyimi kuralları
+
+1. **Renk dengesi ~60/30/10:** %60 açık/nötr zemin, %30 marka turuncusu, %10 amber vurgu. Tokenlar `apps/web/src/styles/index.css` içindeki `@theme` bloğundadır; renkleri bileşenlerde sabit yazmayın. Beyaz metin taşıyan turuncu yüzeylerde AA kontrast için `brand-600` ve üstü kullanılır.
+2. **Ekran düzeni:** Mobilde üst tanıtım ~1/3, alt giriş ~2/3 (esner). **Masaüstünde sol marka alanı 3, sağ giriş alanı 1 oranındadır** (`grid-cols-[minmax(0,3fr)_minmax(24rem,1fr)]`; sağ alan okunabilirlik için en az 24rem). Tablette ara düzen, kısa yatay ekranda sıkı iki kolon vardır.
+3. **Hareket (az ve amaçlı):** Sol marka alanındaki nokta deseni **durağandır**; yalnızca fare (veya parmak) üzerinden geçerken yakındaki noktalar büyür, amber olur ve hafifçe uzaklaşır (`DotGrid.tsx`, canvas). İllüstrasyon ve diğer görseller **hareket etmez** (süzülme, dönme vb. istenmedi). Görünümler arası geçişte çıkan görünüm **aşağı kayarak** gider, yenisi **yukarıdan** gelir (geri dönüşte tersi). Tüm hareketler `prefers-reduced-motion` altında kapanır.
+   3a. **Görsel:** Marka alanında **tek** illüstrasyon vardır: ChatGPT ile üretilen, şeffaf arka planlı çizgi tabanlı karakter (`src/assets/hero-worker.png`, 900px; orijinal 1254px dosya `docs/hero-worker.png`). Kartsız, doğrudan zemin üzerinde durur; ince beyaz kenar (çıkartma efekti) ve gölge ile öne çıkar (`HeroIllustration.tsx`). Kredi kartı benzeri görseller istenmedi. Değiştirmek için aynı adlı dosyayı değiştirmek yeterli.
+   3b. **Yazım kuralı (büyük/küçük harf):** Butonlarda ve bağlantı metinlerinde her kelimenin ilk harfi büyük yazılır (Title Case), Türkçe karakter kurallarıyla: **"Google İle Devam Et"**, "Apple İle Devam Et", "E-Posta İle Devam Et", "Devam Et", "Çıkış Yap", "Diğer Seçenekler", "Yardıma Mı İhtiyacınız Var?", "Kodu Tekrar Gönder". Bu kural düğme etiketlerine, yükleniyor metinlerine ("Giriş Yapılıyor…") ve düğme niteliğindeki bağlantılara uygulanır. Başlıklar ve açıklama cümleleri normal cümle düzenindedir ("Hesabınıza giriş yapın!" başlığının sonunda ünlem vardır). "E-Posta" daima bu yazımla (P büyük) yazılır.
+
+3c. **Buton animasyonu ("flow"):** `Button` bileşeninin `primary` ve `outline` varyantlarında, **yalnızca fare olan cihazlarda** (Tailwind `hover:` varyantı dokunmatikte çalışmaz) hover ile sağdan kayarak gelen bir **ok** belirir ve yazı hafifçe sola kayar. **Hover'da koyu/siyah dolgu veya renk değişimi yoktur** (istenmedi). Mobilde animasyon yoktur. Devre dışı/yükleniyor durumunda çalışmaz; kapatmak için `flow={false}`.
+
+3d0. **Yardım bağlantısı:** "Yardıma Mı İhtiyacınız Var?" bağlantısının üstünde ayırıcı çizgi **yoktur**.
+
+3d. **Giriş akışı (E-Posta İle Devam Et):** Önce yalnızca e-posta sorulur ("Devam Et"). Sunucu hesaba bakar: şifresi olan **kayıtlı hesap** → şifre adımı; **kayıtlı olmayan** (veya şifresi olmayan) e-posta → e-postaya 6 haneli kod gönderilir, kod adımı açılır; kod doğrulanınca hesap oluşturulur ve oturum açılır. Kayıt ekranı yoktur; hesap yalnızca bu kodla (veya Google ile) oluşur. Ayrıntı: `docs/auth-policy.md`.
+
+3e. **Apple ile giriş:** Buton Google'ın altındadır ve görünür; ancak Apple Developer hesabı/anahtarları verilmediği için backend henüz yapılandırılmamıştır. Tıklanınca sahte giriş yapılmaz, "Apple ile giriş şu anda kullanılamıyor" mesajı gösterilir (`GET /api/auth/apple` → `/login?hata=apple_yapilandirilmamis`).
+
+4. **Erişilebilirlik:** Dokunma hedefi ≥44px, görünür odak halkası, WCAG AA kontrast, klavye ile tam kullanım, ekran okuyucu etiketleri. Yatay taşma yok; 320px–1920px, yatay telefon, %200 zoom ve açık klavye desteklenir.
+5. **Mobil tarayıcı:** `100dvh`, `env(safe-area-inset-*)`; içerik uzarsa sayfa doğal kayar, sabit footer içeriği kapatmaz.
+6. **Yazım:** Arayüzde **"E-Posta"** yazılır (P büyük): "E-Posta ile devam et", "E-Posta ile giriş", alan etiketi "E-Posta".
+7. **Gereksiz bilgilendirme yok:** E-Posta formunun altında "Kayıt olma ve şifre sıfırlama henüz aktif değil" gibi metin **gösterilmez**.
+8. **Yardım penceresi:** "Yardıma Mı İhtiyacınız Var?" tıklanınca açılan pencere (bottom sheet / modal, `Sheet` bileşeni, `size="lg"`) **destek formunu iframe ile doğrudan içinde gösterir**; WhatsApp/e-posta/telefon kartları **kaldırıldı** (istenmedi). Form adresi `VITE_SUPPORT_FORM_URL` ile verilir (https zorunlu; boşsa "Destek formu henüz eklenmedi" boş durumu). Aynı değişkenden API, CSP `frame-src` kuralını türetir (yalnızca o origin çerçevelenebilir). Pencerede: yüklenirken form şeklinde iskelet (`animate-pulse`), form yüklenince yumuşak belirme, "Formu Yeni Sekmede Aç" bağlantısı (`rel="noopener noreferrer"`), 15 sn'de yüklenmezse bilgi uyarısı. Modal kuralları (yalnızca Esc/X ile kapanma) geçerlidir. iframe `sandbox` ile kısıtlıdır (scripts, forms, same-origin, popups, modals; üst sayfaya yönlendirme yok).
+
+Gönderim başarısı animasyonu: form kendi sayfasından üst pencereye `postMessage` ile `submitted | success | sent | completed` (düz metin ya da `{type|event|status|action}`) gönderirse, **yalnızca form origin'inden ve bu iframe'den** geldiğinde animasyonlu "Talebiniz alındı!" ekranı çıkar (`SupportForm.tsx`). Form mesaj göndermiyorsa form kendi teşekkür ekranını gösterir.
+
+### İkon paketleri
+
+- `lucide-react`: genel arayüz ikonları (ok, kapat, göz vb.).
+- `@phosphor-icons/react`: düz/duotone dekoratif ikonlar (`weight="fill" | "duotone"`).
+- `react-icons`: marka logoları (`react-icons/fa6` → Apple, WhatsApp vb.; `react-icons/si` → diğer markalar). Marka ikonlarını markanın kendi rengiyle ve değiştirmeden kullanın.
+- Yeni ikon gerekirse önce bu paketlere bakın; yeni paket eklemeyin. Yalnızca kullanılan ikonlar içe aktarılır (tree-shaking).
+
+## 4. ORTAK TASARIM SİSTEMİ (sabit kural)
+
+Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada input/modal/buton stilini yeniden icat etmeyin; ortak olanı kullanın, görünümü değiştirmek gerekirse **tek yerden** değiştirin.
+
+| Öğe                  | Bileşen                       | Stilin tek kaynağı                                            |
+| -------------------- | ----------------------------- | ------------------------------------------------------------- |
+| Metin alanı          | `components/ui/TextField.tsx` | `styles/index.css` → `.field`, `.field-input`, `.field-label` |
+| Modal / bottom sheet | `components/ui/Sheet.tsx`     | `styles/index.css` → `.modal-backdrop` + Sheet sınıfları      |
+| Buton                | `components/ui/Button.tsx`    | Button içindeki `variants`                                    |
+| Uyarı                | `components/ui/Alert.tsx`     | Alert                                                         |
+
+### 4.1 Input kuralı (yüzen etiketli / outlined)
+
+- Etiket alan boşken **içeride** gri durur; odaklanınca ya da dolunca **yukarı kayıp kenarlığın üstüne** oturur, küçülür ve marka rengini alır (ör. "E-Posta" metni kutu çizgisini keser). Düz, etiketi dışarıda duran ya da placeholder'a yaslanan stil **istenmez**.
+- Köşeler yuvarlak (`1rem`), kenarlık açık mavimsi gri, odakta marka rengi + yumuşak halka. Hata durumunda **metin gösterilmez**: kenarlık ve etiket kırmızı olur, alanın sonunda kırmızı bir ünlem (`CircleAlert`) belirir (şifre alanında göz düğmesinin soluna). Ünlem bir düğmedir: üzerine gelince (masaüstü), klavye ile odaklanınca ya da dokununca (mobil) hatanın nedenini yazan kırmızı bir konuşma kutusu açılır; Esc veya dışarı dokunma kapatır. Kutu `aria-describedby` hedefidir (`TextField.tsx`). Sunucu kaynaklı genel hatalar (yanlış şifre, ağ hatası) formun üstündeki `Alert` ile gösterilir.
+- Teknik: `placeholder=" "` zorunludur (CSS `:placeholder-shown` ile doluluğu anlar); etiket DOM'da input'tan **sonra** gelir. `TextField` bunu zaten yapar, doğrudan `<input>` kullanmayın.
+
+### 4.2 Modal kuralı
+
+- Modal/bottom sheet **asla** sağa-sola/dışarı (arka plana) tıklanınca kapanmaz.
+- **Yalnızca** `Esc` tuşu veya **X (Kapat)** düğmesi ile kapanır.
+- Açılışta odak içeri alınır, Tab odağı modal içinde döner, kapanınca odak açan öğeye döner, arka plan kaydırması kilitlenir (`Sheet.tsx` bunları yapar).
+- Test: `SupportSheet.test.tsx` → "arka plana tıklamak modalı KAPATMAZ". Yeni modallar `Sheet` üzerine kurulur ve aynı testi sağlar.
+
+## 5. Güvenlik özeti (ayrıntı: `docs/auth-policy.md`)
+
+- Şifreler Argon2id; token/şifre/secret tarayıcı depolamasında tutulmaz. Oturum: HttpOnly + SameSite=Lax cookie (production'da Secure + `__Host-`), DB'de yalnızca SHA-256 özeti, girişte rotation, çıkışta revocation.
+- CSRF: SameSite + durum değiştiren isteklerde Origin kontrolü. Hız sınırlama, gizli bilgi sızdırmayan loglama, hesap varlığını sızdırmayan hata mesajları.
+- Google: sunucu tarafı authorization-code + PKCE + state + nonce; ID token doğrulaması `openid-client` ile. **Yalnızca e-posta eşleşiyor diye hesap otomatik birleştirilmez.**
+- Gerçek şifre/secret repoya konmaz; `.env` ignore edilir, örnekler `.env.example`'dadır. Seed komutu production'da çalışmaz.
+- Zod ile env doğrulaması: zorunlu değişken eksikse API açık hatayla başlamaz. Google değişkenleri opsiyoneldir.
+
+## 6. Önemli kararlar
+
+- Tek origin dağıtımı varsayılır (API aynı sunucudan SPA'yı sunar); ayrı domain için `CORS_ORIGINS`, `COOKIE_DOMAIN`, `VITE_API_BASE_URL` vardır.
+- E-Posta girişi `authApi` + `EmailLoginForm` içinde izole; ileride OTP/şifresiz akışa geçmek yalnızca bunları ve auth servisini etkiler.
+- Rol/yetki (RBAC) henüz yok; modeller buna genişletilebilir tutuldu.
+- Geliştirme: `npm run dev` hem API'yi (3000) hem Vite'ı (5173) başlatır. API çalışmıyorsa tarayıcıda `502 Bad Gateway` görülür; önce `.env` oluşturulmuş olmalıdır.
+
+## 7. Dağıtım
+
+- Sunucu: CloudPanel Node.js sitesi (`pos.guzelteknoloji.com`), PM2 ile tek süreç, MySQL `127.0.0.1:3306`. DNS Metunic'tedir (`pos` için A kaydı → 46.197.176.51). Adımlar: `docs/DEPLOY.md`.
+- Kod sunucuya **Git ile** taşınır (özel depo + deploy key); **zip paketi kullanılmaz** (kullanıcı istemedi). Güncelleme: `bash deploy/update.sh`. `.gitignore` gizli dosyaları, `node_modules`, `dist`, sertifikaları ve arşivleri dışarıda tutar; yeni gizli dosya türü eklenirse oraya da ekleyin.
+- Production'da CSP: `script-src 'self'` ve `style-src 'self'`; yalnızca satır içi `style=` nitelikleri açıktır (`style-src-attr`). Yeni kod satır içi `<script>`/`<style>` bloğu eklememeli, harici CDN kullanmamalı.
+- Secret'lar (SMTP şifresi, DB şifresi, COOKIE_SECRET) yalnızca sunucudaki `.env` dosyasında durur; repoya girmez. `COOKIE_SECRET` rastgele üretilmelidir (elle yazılmış değer kullanılmaz).

@@ -1,0 +1,103 @@
+// MySQL 8+ / MariaDB 10.6+ için şema.
+// Kimlikler UUID (CHAR(36)); tüm zaman damgaları UTC olarak saklanır.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AuthProvider {
+  GOOGLE
+}
+
+model User {
+  id              String     @id @default(uuid()) @db.Char(36)
+  /// Normalize edilmiş (trim + küçük harf) e-posta. OAuth-only kullanıcılarda da doldurulur.
+  email           String?    @unique @db.VarChar(254)
+  emailVerifiedAt DateTime?
+  displayName     String?    @db.VarChar(120)
+  avatarUrl       String?    @db.VarChar(2048)
+  status          UserStatus @default(ACTIVE)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  passwordCredential PasswordCredential?
+  identities         AuthIdentity[]
+  sessions           Session[]
+}
+
+/// Şifreli giriş kullanıcıdan ayrı tutulur: OTP/şifresiz akışa geçişte bu tablo kaldırılabilir.
+model PasswordCredential {
+  userId       String   @id @db.Char(36)
+  /// Argon2id PHC dizesi (algoritma, parametreler ve tuz içinde gömülüdür).
+  passwordHash String   @db.VarChar(255)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuthIdentity {
+  id             String       @id @default(uuid()) @db.Char(36)
+  userId         String       @db.Char(36)
+  provider       AuthProvider
+  /// Sağlayıcının değişmez kullanıcı kimliği (Google için `sub`). E-posta DEĞİL.
+  providerUserId String       @db.VarChar(255)
+  /// Bilgi amaçlı; eşleştirme için kullanılmaz.
+  email          String?      @db.VarChar(254)
+  lastUsedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+}
+
+model Session {
+  id         String    @id @default(uuid()) @db.Char(36)
+  userId     String    @db.Char(36)
+  /// Cookie'deki opak token'ın SHA-256 özeti (hex). Ham token veritabanında tutulmaz.
+  tokenHash  String    @unique @db.Char(64)
+  expiresAt  DateTime
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+  ipAddress  String?   @db.VarChar(45)
+  userAgent  String?   @db.VarChar(512)
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// E-postaya gönderilen tek kullanımlık giriş kodu. Kullanıcıya bağlı DEĞİLDİR: hesabı henüz
+/// olmayan e-postalar için de kod üretilir, doğrulanınca hesap oluşturulur.
+model EmailLoginCode {
+  id         String    @id @default(uuid()) @db.Char(36)
+  /// Normalize edilmiş e-posta.
+  email      String    @db.VarChar(254)
+  /// HMAC-SHA256(gizli anahtar, "e-posta:kod") hex. 6 haneli kod DB'de düz saklanmaz.
+  codeHash   String    @db.Char(64)
+  expiresAt  DateTime
+  /// Yanlış deneme sayısı; sınırı aşan kod geçersiz sayılır (kaba kuvvet koruması).
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  ipAddress  String?   @db.VarChar(45)
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
+}

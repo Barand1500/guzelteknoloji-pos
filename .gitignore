@@ -1,0 +1,48 @@
+# ── Bağımlılıklar ─────────────────────────────────────────
+node_modules/
+
+# ── Derleme çıktıları ─────────────────────────────────────
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# Prisma'nın ürettiği istemci (npm install / db:generate ile yeniden üretilir)
+apps/api/src/generated/
+
+# ── Gizli bilgiler (ASLA repoya girmez) ───────────────────
+.env
+.env.*
+!.env.example
+!deploy/.env.production.example
+*.pem
+*.key
+*.p8
+*.crt
+certs/
+
+# ── Test çıktıları ────────────────────────────────────────
+apps/web/e2e/.results/
+apps/web/e2e/.screenshots/
+playwright-report/
+test-results/
+
+# ── Loglar ve süreç yöneticisi ────────────────────────────
+*.log
+npm-debug.log*
+.pm2/
+
+# ── Paketler / arşivler (kod Git ile taşınır, zip ile değil) ─
+*.zip
+*.rar
+*.7z
+release/
+
+# ── Editör, işletim sistemi, yerel araçlar ────────────────
+.vscode/
+.idea/
+.claude/
+.DS_Store
+Thumbs.db
+desktop.ini

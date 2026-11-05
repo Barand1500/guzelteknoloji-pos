@@ -1,0 +1,263 @@
+@import '@fontsource-variable/manrope';
+@import 'tailwindcss';
+
+/*
+ * Düzen kırılımları (birbirini dışlayacak şekilde yükseklik koşullu):
+ *  - varsayılan: mobil dikey (üst tanıtım ~1/3, alt giriş paneli)
+ *  - tablet:  ≥768px genişlik ve yeterli yükseklik → üstte geniş tanıtım, yüzen giriş kartı
+ *  - desktop: ≥1024px genişlik ve yeterli yükseklik → iki kolon
+ *  - short-landscape: yan çevrilmiş telefon / %200 zoom gibi kısa ekranlar → sıkı iki kolon
+ */
+@custom-variant tablet (@media (min-width: 48rem) and (min-height: 521px));
+@custom-variant desktop (@media (min-width: 64rem) and (min-height: 521px));
+@custom-variant short-landscape (@media (orientation: landscape) and (max-height: 520px));
+
+/*
+ * Tasarım tokenları. Renk dengesi (~60/30/10):
+ *   %60 nötr zemin (surface), %30 marka turuncusu (brand), %10 vurgu amber (accent).
+ * brand-500 dekoratif/zemin içindir; beyaz metin taşıyan yüzeylerde AA için brand-600+ kullanılır.
+ */
+@theme {
+  --font-sans: 'Manrope Variable', 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+
+  --color-surface: #fafaf7;
+  --color-surface-raised: #ffffff;
+  --color-surface-muted: #f2f1ec;
+  --color-line: #e4e2da;
+  --color-line-strong: #8b929a;
+  --color-field-border: #c5cde0;
+
+  --color-ink: #17212b;
+  --color-ink-muted: #4a5562;
+
+  --color-brand-50: #fff3e6;
+  --color-brand-100: #ffe1c7;
+  --color-brand-500: #e85d18;
+  --color-brand-600: #c2410c; /* beyaz metin 5.18:1 */
+  --color-brand-700: #b8460f; /* beyaz metin 5.36:1, açık zeminde metin 5.12:1 */
+  --color-brand-800: #9a3a0e;
+  --color-brand-900: #6e2a0b;
+
+  --color-accent: #ffb44d;
+  --color-accent-soft: #ffe2b8;
+
+  --color-danger: #b42318;
+  --color-danger-soft: #fef1f0;
+  --color-success: #1a7f4b;
+
+  --radius-control: 0.875rem;
+  --radius-panel: 1.75rem;
+
+  --shadow-soft: 0 1px 2px rgb(23 33 43 / 0.06), 0 4px 16px -4px rgb(23 33 43 / 0.08);
+  --shadow-panel: 0 -8px 32px -12px rgb(23 33 43 / 0.18);
+  --shadow-card: 0 24px 64px -24px rgb(23 33 43 / 0.28);
+
+  --animate-sheet-in: sheet-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-fade-in: fade-in 200ms ease-out;
+  --animate-rise-in: rise-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-draw: draw 600ms ease-out 200ms both;
+  --animate-pop: pop 480ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-in-from-top: in-from-top 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-in-from-bottom: in-from-bottom 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-out-down: out-down 200ms ease-in both;
+  --animate-out-up: out-up 200ms ease-in both;
+
+  @keyframes draw {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  @keyframes pop {
+    from {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  @keyframes in-from-top {
+    from {
+      transform: translateY(-28px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes in-from-bottom {
+    from {
+      transform: translateY(28px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes out-down {
+    to {
+      transform: translateY(36px);
+      opacity: 0;
+    }
+  }
+  @keyframes out-up {
+    to {
+      transform: translateY(-36px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes sheet-in {
+    from {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes rise-in {
+    from {
+      transform: translateY(8px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-surface text-ink font-sans antialiased;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* Ekran klavyesi açıldığında odaklanan alan klavyenin altında kalmasın. */
+  input,
+  button,
+  a {
+    scroll-margin-block: 6rem;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-brand-600);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/*
+ * ORTAK BİLEŞEN STİLLERİ (docs/PROJECT_RULES.md > "Ortak tasarım sistemi")
+ * Input ve modal görünümü YALNIZCA buradan değişir; bileşenlerde yeniden tanımlanmaz.
+ */
+@layer components {
+  /* Yüzen etiketli (outlined) alan: etiket boşken içeride, odak/dolu iken kenarlığın üstünde durur. */
+  .field {
+    position: relative;
+  }
+  .field-input {
+    display: block;
+    width: 100%;
+    min-height: 3.5rem;
+    border-radius: 1rem;
+    border: 1.5px solid var(--color-field-border);
+    background: var(--color-surface-raised);
+    padding: 0.25rem 1rem 0;
+    font-size: 1rem;
+    color: var(--color-ink);
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+  .field-input:hover {
+    border-color: var(--color-brand-500);
+  }
+  .field-input:focus,
+  .field-input:focus-visible {
+    outline: none;
+    border-color: var(--color-brand-600);
+    box-shadow: 0 0 0 4px rgb(194 65 12 / 0.12);
+  }
+  .field-input[aria-invalid='true'] {
+    border-color: var(--color-danger);
+  }
+  .field-input[aria-invalid='true']:focus {
+    box-shadow: 0 0 0 4px rgb(180 35 24 / 0.12);
+  }
+  .field-label {
+    position: absolute;
+    left: 0.75rem;
+    top: 1.75rem;
+    transform: translateY(-50%);
+    padding: 0 0.3rem;
+    max-width: calc(100% - 1.5rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1rem;
+    color: var(--color-ink-muted);
+    pointer-events: none;
+    border-radius: 0.25rem;
+    /* Üst yarı şeffaf, alt yarı beyaz: etiket kenarlığı "keser" ama zemin rengi bozulmaz. */
+    background: linear-gradient(to bottom, transparent 50%, var(--color-surface-raised) 50%);
+    transition:
+      top 150ms ease,
+      font-size 150ms ease,
+      color 150ms ease;
+  }
+  .field-input:focus ~ .field-label,
+  .field-input:not(:placeholder-shown) ~ .field-label,
+  .field-input:-webkit-autofill ~ .field-label {
+    top: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+  .field-input:focus ~ .field-label {
+    color: var(--color-brand-700);
+  }
+  .field-input[aria-invalid='true'] ~ .field-label {
+    color: var(--color-danger);
+  }
+
+  /* Modal / bottom sheet: arka plana tıklayınca KAPANMAZ; yalnızca Esc veya X ile kapanır. */
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgb(23 33 43 / 0.55);
+    backdrop-filter: blur(2px);
+  }
+}

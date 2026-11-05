@@ -1,0 +1,47 @@
+{
+  "name": "guzel-teknoloji-auth",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c yellow,cyan \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run dev --workspace @gt/api",
+    "dev:web": "npm run dev --workspace @gt/web",
+    "build": "npm run build --workspace @gt/web && npm run build --workspace @gt/api",
+    "start": "npm run start --workspace @gt/api",
+    "test": "npm run test --workspaces --if-present",
+    "test:responsive": "npm run test:responsive --workspace @gt/web",
+    "lint": "eslint .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "npm run db:generate --workspace @gt/api",
+    "db:migrate": "npm run db:migrate --workspace @gt/api",
+    "db:deploy": "npm run db:deploy --workspace @gt/api",
+    "db:seed:dev": "npm run db:seed:dev --workspace @gt/api"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.1": true,
+    "esbuild@0.28.2": true,
+    "prisma@7.10.1": true
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "concurrently": "^10.0.6",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1"
+  }
+}

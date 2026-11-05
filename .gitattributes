@@ -1,0 +1,2 @@
+# Linux sunucuda çalışacak betikler her zaman LF satır sonuyla kalsın
+*.sh text eol=lf
