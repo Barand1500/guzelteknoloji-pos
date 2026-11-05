@@ -2,7 +2,7 @@ import { ArrowRight } from 'lucide-react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { Spinner } from './Spinner';
 
-type Variant = 'primary' | 'outline' | 'ghost';
+type Variant = 'primary' | 'outline' | 'ghost' | 'danger';
 
 interface VariantStyle {
   /** Durağan görünüm. */
@@ -19,6 +19,10 @@ const variants: Record<Variant, VariantStyle> = {
   outline: {
     base: 'bg-surface-raised text-ink border border-line-strong/70 shadow-soft',
     plainHover: 'hover:bg-surface-muted hover:border-line-strong active:bg-line/60',
+  },
+  danger: {
+    base: 'bg-danger text-surface shadow-soft',
+    plainHover: 'hover:opacity-90 active:opacity-80',
   },
   ghost: {
     base: 'text-ink',
