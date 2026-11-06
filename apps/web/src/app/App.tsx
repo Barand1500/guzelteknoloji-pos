@@ -4,6 +4,8 @@ import { AppShell } from '../features/app-shell/AppShell';
 import { RequireAccess } from '../features/app-shell/RequireAccess';
 import { SessionProvider } from '../features/auth/hooks/session-context';
 import { ThemeProvider } from '../features/theme/ThemeProvider';
+import { DealsPage } from '../pages/app/DealsPage';
+import { ProductsPage } from '../pages/app/ProductsPage';
 import { CategoriesPage } from '../pages/app/CategoriesPage';
 import { BrandsPage } from '../pages/app/BrandsPage';
 import { ComingSoonPage } from '../pages/app/ComingSoonPage';
@@ -30,7 +32,8 @@ export function App() {
             <Route index element={<Navigate to={APP_HOME_PATH} replace />} />
             <Route path="stok-karti/yeni" element={<StockCardCreatePage />} />
             {/* Sıradaki adımlarda tek tek tasarlanacak sayfalar */}
-            <Route path="urunler" element={<ComingSoonPage />} />
+            <Route path="urunler" element={<ProductsPage />} />
+            <Route path="urunler/firsatlar" element={<DealsPage />} />
             <Route path="kategoriler" element={<CategoriesPage />} />
             <Route path="markalar" element={<BrandsPage />} />
             <Route path="ozellikler" element={<ComingSoonPage />} />

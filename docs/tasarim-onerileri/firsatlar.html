@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fırsat Yönetimi — 5 Tasarım Dili</title>
+<!--
+  GEÇİCİ ÖNERİ SAYFASI: Seçim yapılınca silinebilir (docs/tasarim-onerileri).
+  Sadece görsel taslaktır; hiçbir şey çalışmaz. Renkler projenin tema renkleridir.
+  Rozet ikonları gerçek değil, renkli şekillerle taklit edilmiştir.
+-->
+<style>
+  :root {
+    --bg: #fafaf7; --raised: #fff; --muted: #f2f1ec; --line: #e4e2da; --field: #c5cde0;
+    --ink: #17212b; --soft: #4a5562; --brand: #b8460f; --brand-50: #fff3e6; --accent: #ffb44d;
+    --ok: #1a7f4b; --danger: #b42318;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: "Segoe UI", system-ui, sans-serif; background: #e9e7e0; color: var(--ink); padding: 32px 16px 64px; }
+  h1 { font-size: 26px; text-align: center; letter-spacing: -.02em; }
+  h3.sec { font-size: 18px; margin: 28px 24px 4px; }
+  .lead { text-align: center; color: var(--soft); margin: 8px auto 30px; max-width: 740px; line-height: 1.5; }
+  .row { display: flex; gap: 40px; overflow-x: auto; padding: 8px 24px 24px; }
+  .concept { flex: 0 0 auto; width: 330px; }
+  .concept h2 { font-size: 18px; margin-bottom: 2px; }
+  .concept .tag { font-size: 12px; font-weight: 700; color: var(--brand); letter-spacing: .06em; text-transform: uppercase; }
+  .concept p.d { font-size: 13.5px; color: var(--soft); margin: 6px 0 14px; line-height: 1.45; min-height: 78px; }
+  .concept ul { margin: 14px 0 0 18px; font-size: 13px; color: var(--soft); line-height: 1.5; }
+  .concept ul b { color: var(--ink); }
+
+  .phone { width: 330px; height: 660px; border: 9px solid #17212b; border-radius: 42px; overflow: hidden; background: var(--bg); position: relative; display: flex; flex-direction: column; box-shadow: 0 24px 48px -20px rgba(0,0,0,.45); }
+  .status { height: 26px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-size: 11px; font-weight: 700; }
+  .bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 4px 16px 8px; }
+  .back { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; }
+  .back i { font-style: normal; width: 30px; height: 30px; border-radius: 50%; background: var(--muted); display: grid; place-items: center; }
+  .logo { width: 30px; height: 30px; border-radius: 10px; background: var(--brand); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; }
+  .bar b { font-size: 17px; letter-spacing: -.01em; flex: 1; }
+  .crumb { font-size: 11.5px; color: var(--soft); padding: 0 16px 6px; font-weight: 600; }
+  .scroll { flex: 1; overflow: hidden; padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 10px; position: relative; }
+  .nav { flex: none; height: 62px; background: var(--raised); border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; display: flex; justify-content: space-around; align-items: center; font-size: 9.5px; font-weight: 700; color: var(--soft); }
+  .nav span { display: grid; gap: 2px; justify-items: center; }
+  .nav i { font-style: normal; font-size: 17px; }
+  .nav .on { color: var(--brand); }
+  .nav .plus { width: 46px; height: 46px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 26px; display: grid; place-items: center; margin-top: -22px; border: 4px solid var(--raised); }
+  .fab { position: absolute; right: 16px; bottom: 76px; width: 54px; height: 54px; border-radius: 50%; background: var(--brand); color: #fff; display: grid; place-items: center; font-size: 28px; box-shadow: 0 10px 20px -6px rgba(184,70,15,.6); }
+
+  .search { display: flex; align-items: center; gap: 8px; background: var(--raised); border: 1.5px solid var(--field); border-radius: 999px; padding: 10px 14px; font-size: 13.5px; color: var(--soft); }
+  .chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; background: var(--muted); color: var(--soft); white-space: nowrap; }
+  .chip.on { background: var(--brand); color: #fff; } .chip.soft { background: var(--brand-50); color: var(--brand); }
+  .sw { width: 38px; height: 22px; border-radius: 999px; background: var(--brand); position: relative; flex: none; }
+  .sw:after { content: ""; position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+  .sw.off { background: #cfd3da; } .sw.off:after { right: auto; left: 2px; }
+  .btn { background: var(--brand); color: #fff; border-radius: 14px; font-weight: 700; font-size: 14px; text-align: center; padding: 12px; }
+  .btn.ghost { background: var(--muted); color: var(--soft); }
+  .muted { color: var(--soft); font-size: 12px; }
+  .f { position: relative; border: 1.5px solid var(--field); border-radius: 13px; padding: 17px 12px 7px; font-size: 14px; font-weight: 600; background: #fff; min-height: 46px; }
+  .f small { position: absolute; top: -8px; left: 9px; background: #fff; padding: 0 4px; font-size: 10.5px; font-weight: 700; color: var(--soft); }
+  .f.on { border-color: var(--brand); } .f.on small { color: var(--brand); }
+  .badge { font-size: 10.5px; font-weight: 800; background: var(--brand-50); color: var(--brand); border-radius: 999px; padding: 3px 8px; white-space: nowrap; }
+
+  /* sahte rozetler (şekillerle) */
+  .bd { display: grid; place-items: center; color: #fff; font-weight: 900; line-height: 1; text-align: center; flex: none; }
+  .bd.yeni { background: #3f86c8; clip-path: polygon(50% 0, 61% 14%, 79% 9%, 82% 27%, 100% 33%, 90% 50%, 100% 67%, 82% 73%, 79% 91%, 61% 86%, 50% 100%, 39% 86%, 21% 91%, 18% 73%, 0 67%, 10% 50%, 0 33%, 18% 27%, 21% 9%, 39% 14%); font-size: 10px; }
+  .bd.cok { background: #f08a14; border-radius: 50%; font-size: 8px; border: 2px solid #fff3; }
+  .bd.ind { background: #e5251d; border-radius: 6px 6px 6px 14px; font-size: 11px; transform: rotate(-8deg); }
+  .bd.ozel { background: #c21f2e; border-radius: 50% 50% 8px 8px; font-size: 14px; }
+  .bd.s40 { width: 40px; height: 40px; } .bd.s30 { width: 28px; height: 28px; font-size: 8px; } .bd.s54 { width: 54px; height: 54px; }
+  .bd.s64 { width: 64px; height: 64px; font-size: 13px; }
+
+  /* 1 — rozet kartları */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { background: var(--raised); border: 1px solid var(--line); border-radius: 20px; padding: 12px 10px 10px; display: grid; gap: 8px; justify-items: center; position: relative; text-align: center; }
+  .card .plate { width: 100%; height: 82px; border-radius: 14px; background: var(--muted); display: grid; place-items: center; }
+  .card b { font-size: 12.5px; } .card .s { font-size: 10.5px; color: var(--soft); }
+  .card.off { opacity: .5; filter: grayscale(1); }
+  .card .dots { position: absolute; top: 8px; right: 10px; color: var(--soft); font-weight: 900; }
+  .card.add { border: 2px dashed var(--field); background: transparent; align-content: center; color: var(--soft); font-weight: 700; font-size: 12.5px; }
+
+  /* 2 — liste */
+  .li { background: var(--raised); border: 1px solid var(--line); border-radius: 18px; padding: 8px 12px 8px 8px; display: flex; align-items: center; gap: 12px; }
+  .li .th { width: 52px; height: 48px; border-radius: 13px; background: var(--muted); display: grid; place-items: center; flex: none; }
+  .li b { display: block; font-size: 14px; } .li .s { font-size: 11.5px; color: var(--soft); }
+  .li .grow { flex: 1; min-width: 0; }
+  .li.off { opacity: .5; }
+  .li.lift { transform: scale(1.03); box-shadow: 0 16px 28px -10px rgba(0,0,0,.4); border-color: var(--brand); }
+  .swp { position: relative; border-radius: 18px; overflow: hidden; }
+  .swp .acts { position: absolute; right: 0; top: 0; bottom: 0; display: flex; }
+  .swp .acts i { font-style: normal; width: 62px; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; }
+  .swp .li { transform: translateX(-186px); }
+
+  /* 3 — ürün önizlemeli satırlar */
+  .pv { background: var(--raised); border: 1px solid var(--line); border-radius: 20px; padding: 10px; display: flex; gap: 12px; align-items: center; }
+  .prod { width: 78px; height: 78px; border-radius: 14px; background: linear-gradient(135deg, #e8e4d8, #f7f5ee); position: relative; flex: none; display: grid; place-items: center; font-size: 30px; overflow: hidden; }
+  .prod .corner { position: absolute; }
+  .prod .tl { top: 3px; left: 3px; } .prod .tc { top: 3px; left: 50%; transform: translateX(-50%); } .prod .tr { top: 3px; right: 3px; }
+  .prod .bl { bottom: 3px; left: 3px; } .prod .bc { bottom: 3px; left: 50%; transform: translateX(-50%); } .prod .br { bottom: 3px; right: 3px; }
+  .pv .grow { flex: 1; min-width: 0; } .pv b { font-size: 14px; display: block; } .pv .s { font-size: 11.5px; color: var(--soft); }
+  .pv .meta { display: flex; gap: 5px; margin-top: 6px; }
+
+  /* 5 — gruplu */
+  .group h4 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--soft); margin: 4px 4px 6px; display: flex; justify-content: space-between; }
+  .tagrow { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tg { display: inline-flex; align-items: center; gap: 8px; background: var(--raised); border: 1.5px solid var(--line); border-radius: 999px; padding: 5px 12px 5px 6px; font-size: 12.5px; font-weight: 700; }
+  .tg.off { opacity: .55; border-style: dashed; }
+  .tg .bd { width: 26px; height: 26px; font-size: 7px; }
+
+  /* ortak form */
+  .scrim { position: absolute; inset: 0; background: rgba(23,33,43,.45); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--raised); border-radius: 26px 26px 0 0; padding: 10px 16px 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 -12px 30px rgba(0,0,0,.25); }
+  .sheet .grab { width: 40px; height: 4px; border-radius: 9px; background: var(--field); align-self: center; }
+  .sheet h4 { font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .sheet h4 i { font-style: normal; width: 28px; height: 28px; border-radius: 50%; background: var(--muted); display: grid; place-items: center; font-size: 13px; }
+  .tog { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; font-weight: 700; }
+  .fold { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; color: var(--soft); }
+  .icons { display: flex; gap: 8px; align-items: center; }
+  .icons .opt { width: 48px; height: 48px; border-radius: 14px; background: var(--muted); display: grid; place-items: center; border: 2px solid transparent; }
+  .icons .opt.on { border-color: var(--brand); background: var(--brand-50); }
+  .icons .opt.up { border: 2px dashed var(--field); background: transparent; font-size: 18px; color: var(--soft); }
+  .place { display: grid; grid-template-columns: 148px 1fr; gap: 12px; align-items: center; }
+  .stage { width: 148px; height: 148px; border-radius: 18px; background: linear-gradient(135deg, #e8e4d8, #f7f5ee); position: relative; display: grid; place-items: center; font-size: 56px; }
+  .zone { position: absolute; width: 42px; height: 42px; border-radius: 12px; border: 2px dashed var(--field); display: grid; place-items: center; }
+  .zone.on { border: 2px solid var(--brand); background: rgba(255,255,255,.85); }
+  .zone.tl { top: 6px; left: 6px; } .zone.tc { top: 6px; left: 53px; } .zone.tr { top: 6px; right: 6px; }
+  .zone.bl { bottom: 6px; left: 6px; } .zone.bc { bottom: 6px; left: 53px; } .zone.br { bottom: 6px; right: 6px; }
+  .sizes { display: grid; gap: 6px; } .sizes .chip { justify-content: center; }
+</style>
+</head>
+<body>
+<h1>Fırsat Yönetimi — 5 Tasarım Dili</h1>
+<p class="lead">
+  Fırsat = ürüne yapıştırılan rozet ("Yeni", "Çok Satan", "%10 İndirim"). Hepsinde ortak: arama, aktif/pasif anahtarı,
+  uzun basıp sürükleyerek sıralama, sola kaydırınca Düzenle / Ürünler / Sil, "Ürünlere Tanımla" paneli (Kategoriler'deki gibi) ve
+  aşağıdaki <b>konum seçici</b>. Ekrana alt menüden değil, <b>Ürünler</b> sayfasındaki "Fırsatlar" kısayolundan girilir.
+  Fark, listenin <b>nasıl göründüğünde</b>.
+</p>
+
+<h3 class="sec">1 – 5 · Liste görünümleri</h3>
+<div class="row">
+
+  <!-- 1 ROZET KARTLARI -->
+  <div class="concept">
+    <span class="tag">Öneri 1</span><h2>Rozet Kartları</h2>
+    <p class="d">Her fırsat büyük bir kart: rozet ortada görünür, altında adı. Rozetler görsel olduğu için tanımak çok kolay.</p>
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>●●● 🔋</span></div>
+      <div class="bar"><div class="back"><i>‹</i> Fırsatlar</div></div>
+      <div class="crumb">Ürünler › Fırsatlar</div>
+      <div class="scroll">
+        <div class="search">🔍 Fırsat ara…</div>
+        <div class="cards">
+          <div class="card"><span class="dots">⋮</span><div class="plate"><div class="bd yeni s54">YENİ</div></div><b>Yeni Ürünler</b><span class="s">24 ürün</span></div>
+          <div class="card"><span class="dots">⋮</span><div class="plate"><div class="bd cok s54">ÇOK SATAN</div></div><b>Çok Satanlar</b><span class="s">12 ürün</span></div>
+          <div class="card"><span class="dots">⋮</span><div class="plate"><div class="bd ind s54">%10</div></div><b>%10 İndirim</b><span class="s">8 ürün</span></div>
+          <div class="card off"><span class="dots">⋮</span><div class="plate"><div class="bd ozel s54">★</div></div><b>Açılışa Özel</b><span class="s">Pasif</span></div>
+          <div class="card add">＋<br>Fırsat Ekle</div>
+        </div>
+      </div>
+      <div class="fab">＋</div>
+      <div class="nav"><span class="on"><i>📦</i>Ürünler</span><span><i>🗂️</i>Kategori</span><span class="plus">+</span><span><i>🏷️</i>Marka</span><span><i>⚙️</i>Özellik</span></div>
+    </div>
+    <ul><li><b>Artı:</b> En görsel; rozetin nasıl göründüğünü listede görürsün.</li><li><b>Eksi:</b> Çok fırsatı olan işletmede liste uzar (sayfalama var).</li></ul>
+  </div>
+
+  <!-- 2 LİSTE -->
+  <div class="concept">
+    <span class="tag">Öneri 2</span><h2>Sade Liste</h2>
+    <p class="d">Markalar ve Kategoriler'deki satır düzeni: soldaki küçük rozet, ad, kullanıldığı ürün sayısı, aç/kapa anahtarı.</p>
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>●●● 🔋</span></div>
+      <div class="bar"><div class="back"><i>‹</i> Fırsatlar</div></div>
+      <div class="crumb">Ürünler › Fırsatlar</div>
+      <div class="scroll">
+        <div class="search">🔍 Fırsat ara…</div>
+        <div class="muted" style="padding:0 6px">Basılı tutup sürükleyerek sırala · sola kaydırınca işlemler.</div>
+        <div class="swp"><div class="acts"><i style="background:var(--brand)">Düzenle</i><i style="background:#6b7a90">Ürünler</i><i style="background:var(--danger)">Sil</i></div><div class="li"><div class="th"><div class="bd yeni s40">YENİ</div></div><div class="grow"><b>Yeni Ürünler</b><span class="s">24 ürün</span></div><div class="sw"></div></div></div>
+        <div class="li lift"><div class="th"><div class="bd cok s40">ÇOK</div></div><div class="grow"><b>Çok Satanlar</b><span class="s">12 ürün</span></div><div class="sw"></div></div>
+        <div class="li"><div class="th"><div class="bd ind s40">%10</div></div><div class="grow"><b>%10 İndirim</b><span class="s">8 ürün</span></div><div class="sw"></div></div>
+        <div class="li"><div class="th"><div class="bd ind s40">%20</div></div><div class="grow"><b>%20 İndirim</b><span class="s">3 ürün</span></div><div class="sw"></div></div>
+        <div class="li off"><div class="th"><div class="bd ozel s40">★</div></div><div class="grow"><b>Açılışa Özel</b><span class="s">Pasif · 0 ürün</span></div><div class="sw off"></div></div>
+      </div>
+      <div class="fab">＋</div>
+      <div class="nav"><span class="on"><i>📦</i>Ürünler</span><span><i>🗂️</i>Kategori</span><span class="plus">+</span><span><i>🏷️</i>Marka</span><span><i>⚙️</i>Özellik</span></div>
+    </div>
+    <ul><li><b>Artı:</b> Uygulamanın geri kalanıyla birebir aynı his; öğrenmek gerekmez.</li><li><b>Eksi:</b> Rozet küçük kalır, konumu listede görünmez.</li></ul>
+  </div>
+
+  <!-- 3 ÖNİZLEMELİ -->
+  <div class="concept">
+    <span class="tag">Öneri 3</span><h2>Ürün Önizlemeli</h2>
+    <p class="d">Her satırda rozetin <b>gerçek yerinde ve boyutunda</b> bir ürün resmi: konum ve boyut ayarını listeden hemen görürsün.</p>
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>●●● 🔋</span></div>
+      <div class="bar"><div class="back"><i>‹</i> Fırsatlar</div></div>
+      <div class="crumb">Ürünler › Fırsatlar</div>
+      <div class="scroll">
+        <div class="search">🔍 Fırsat ara…</div>
+        <div class="pv"><div class="prod">📟<div class="corner tl"><div class="bd yeni s30">YENİ</div></div></div><div class="grow"><b>Yeni Ürünler</b><span class="s">Sol üst · Orta boy</span><div class="meta"><span class="badge">24 ürün</span></div></div><div class="sw"></div></div>
+        <div class="pv"><div class="prod">⚖️<div class="corner tr"><div class="bd cok s30">ÇOK</div></div></div><div class="grow"><b>Çok Satanlar</b><span class="s">Sağ üst · Orta boy</span><div class="meta"><span class="badge">12 ürün</span></div></div><div class="sw"></div></div>
+        <div class="pv"><div class="prod">🖥️<div class="corner bl"><div class="bd ind s30">%10</div></div></div><div class="grow"><b>%10 İndirim</b><span class="s">Sol alt · Küçük</span><div class="meta"><span class="badge">8 ürün</span></div></div><div class="sw"></div></div>
+        <div class="pv" style="opacity:.55"><div class="prod">🧾<span class="muted" style="position:absolute;bottom:4px;font-size:9px">Resimde yok</span></div><div class="grow"><b>Açılışa Özel</b><span class="s">Yalnızca etiket · Pasif</span></div><div class="sw off"></div></div>
+      </div>
+      <div class="fab">＋</div>
+      <div class="nav"><span class="on"><i>📦</i>Ürünler</span><span><i>🗂️</i>Kategori</span><span class="plus">+</span><span><i>🏷️</i>Marka</span><span><i>⚙️</i>Özellik</span></div>
+    </div>
+    <ul><li><b>Artı:</b> Ne yaptığını anında görürsün; yanlış konum/boyut hatası kalmaz.</li><li><b>Eksi:</b> Satırlar biraz daha yüksek.</li></ul>
+  </div>
+
+  <!-- 4 RAF -->
+  <div class="concept">
+    <span class="tag">Öneri 4</span><h2>Rozet Rafı</h2>
+    <p class="d">Rozetler, yan yana dizilmiş büyük bir raf. Dokununca ayarı açılır; altında seçilen fırsatın özeti.</p>
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>●●● 🔋</span></div>
+      <div class="bar"><div class="back"><i>‹</i> Fırsatlar</div></div>
+      <div class="crumb">Ürünler › Fırsatlar</div>
+      <div class="scroll">
+        <div class="search">🔍 Fırsat ara…</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <div style="background:var(--brand-50);border:2px solid var(--brand);border-radius:16px;height:68px;display:grid;place-items:center"><div class="bd yeni s40">YENİ</div></div>
+          <div style="background:var(--raised);border:1px solid var(--line);border-radius:16px;height:68px;display:grid;place-items:center"><div class="bd cok s40">ÇOK</div></div>
+          <div style="background:var(--raised);border:1px solid var(--line);border-radius:16px;height:68px;display:grid;place-items:center"><div class="bd ind s40">%10</div></div>
+          <div style="background:var(--raised);border:1px solid var(--line);border-radius:16px;height:68px;display:grid;place-items:center"><div class="bd ind s40">%20</div></div>
+          <div style="background:var(--raised);border:1px solid var(--line);border-radius:16px;height:68px;display:grid;place-items:center;opacity:.45"><div class="bd ozel s40">★</div></div>
+          <div style="border:2px dashed var(--field);border-radius:16px;height:68px;display:grid;place-items:center;color:var(--soft);font-size:22px">＋</div>
+        </div>
+        <div style="background:var(--raised);border:1px solid var(--line);border-radius:22px;padding:14px;display:grid;gap:10px">
+          <div style="display:flex;align-items:center;gap:12px"><div class="bd yeni s54">YENİ</div><div><b style="font-size:16px">Yeni Ürünler</b><div class="muted">24 üründe kullanılıyor</div></div></div>
+          <div class="tog">Aktif <div class="sw"></div></div>
+          <div class="muted">Ürün resminde: <b style="color:var(--ink)">Sol üst · Orta boy</b></div>
+          <div style="display:flex;gap:8px"><div class="btn ghost" style="flex:1;padding:10px">Ürünler</div><div class="btn ghost" style="flex:1;padding:10px">Düzenle</div><div class="btn ghost" style="flex:0 0 48px;padding:10px;color:var(--danger)">🗑️</div></div>
+        </div>
+      </div>
+      <div class="nav"><span class="on"><i>📦</i>Ürünler</span><span><i>🗂️</i>Kategori</span><span class="plus">+</span><span><i>🏷️</i>Marka</span><span><i>⚙️</i>Özellik</span></div>
+    </div>
+    <ul><li><b>Artı:</b> Az fırsatı olan işletmede çok şık; hepsi tek bakışta.</li><li><b>Eksi:</b> 20+ fırsatta raf kalabalıklaşır, sıralama daha zor.</li></ul>
+  </div>
+
+  <!-- 5 GRUPLU -->
+  <div class="concept">
+    <span class="tag">Öneri 5</span><h2>Aktif / Pasif Gruplu</h2>
+    <p class="d">Liste iki bölüme ayrılır: şu an kullanılanlar ve kapalı olanlar. Dokununca bir yerden diğerine geçer.</p>
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>●●● 🔋</span></div>
+      <div class="bar"><div class="back"><i>‹</i> Fırsatlar</div></div>
+      <div class="crumb">Ürünler › Fırsatlar</div>
+      <div class="scroll">
+        <div class="search">🔍 Fırsat ara…</div>
+        <div class="group"><h4>Aktif <span>5</span></h4>
+          <div class="tagrow">
+            <span class="tg"><div class="bd yeni">YENİ</div>Yeni Ürünler</span>
+            <span class="tg"><div class="bd cok">ÇOK</div>Çok Satanlar</span>
+            <span class="tg"><div class="bd ind">%10</div>%10 İndirim</span>
+            <span class="tg"><div class="bd ind">%20</div>%20 İndirim</span>
+            <span class="tg"><div class="bd ind">%30</div>%30 İndirim</span>
+          </div>
+        </div>
+        <div class="group"><h4>Pasif <span>2</span></h4>
+          <div class="tagrow">
+            <span class="tg off"><div class="bd ozel">★</div>Açılışa Özel</span>
+            <span class="tg off"><div class="bd ind">%50</div>%50 İndirim</span>
+          </div>
+        </div>
+        <div style="background:var(--raised);border:1px solid var(--line);border-radius:18px;padding:12px;display:grid;gap:8px;margin-top:4px">
+          <div style="display:flex;gap:10px;align-items:center"><div class="bd yeni s40">YENİ</div><b>Yeni Ürünler</b><span class="badge" style="margin-left:auto">24 ürün</span></div>
+          <div style="display:flex;gap:8px"><div class="btn" style="flex:1;padding:9px;font-size:13px">Düzenle</div><div class="btn ghost" style="flex:1;padding:9px;font-size:13px">Pasife Al</div><div class="btn ghost" style="flex:1;padding:9px;font-size:13px">Ürünler</div></div>
+        </div>
+      </div>
+      <div class="fab">＋</div>
+      <div class="nav"><span class="on"><i>📦</i>Ürünler</span><span><i>🗂️</i>Kategori</span><span class="plus">+</span><span><i>🏷️</i>Marka</span><span><i>⚙️</i>Özellik</span></div>
+    </div>
+    <ul><li><b>Artı:</b> "Hangileri açık?" sorusunun cevabı hep ortada.</li><li><b>Eksi:</b> Sıralama yalnızca grup içinde; yeniden sıralama biraz farklı.</li></ul>
+  </div>
+</div>
+
+<h3 class="sec">Ortak pencere (hangi öneriyi seçersen seç aynı)</h3>
+<div class="row">
+  <div class="concept">
+    <span class="tag">Ortak</span><h2>Ekle / Düzenle + Konum Seçici</h2>
+    <p class="d">Konum, açılır liste yerine <b>ürün resmi üzerinde tek dokunuşla</b> seçilir. Boyut üç düğme. Rozet yerinde canlı görünür.</p>
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>●●● 🔋</span></div>
+      <div class="bar"><div class="back"><i>‹</i> Fırsatlar</div></div>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <h4>Fırsat Ekle <i>✕</i></h4>
+        <div class="f on"><small>Adı *</small>Yeni Ürünler</div>
+        <div class="muted" style="font-weight:700;color:var(--ink)">İkon</div>
+        <div class="icons"><div class="opt on"><div class="bd yeni s30">YENİ</div></div><div class="opt"><div class="bd cok s30">ÇOK</div></div><div class="opt"><div class="bd ind s30">%</div></div><div class="opt up">＋</div></div>
+        <div class="tog">Ürün resminde göster <div class="sw"></div></div>
+        <div class="place">
+          <div class="stage">📟
+            <div class="zone tl on"><div class="bd yeni s30">YENİ</div></div>
+            <div class="zone tc"></div><div class="zone tr"></div><div class="zone bl"></div><div class="zone bc"></div><div class="zone br"></div>
+          </div>
+          <div class="sizes"><div class="muted" style="font-weight:700;color:var(--ink)">Boyut</div><span class="chip">Küçük</span><span class="chip on">Orta</span><span class="chip">Büyük</span></div>
+        </div>
+        <div class="tog">Aktif <div class="sw"></div></div>
+        <div class="fold">SEO Ayarları <span>⌄</span></div>
+        <div style="display:flex;gap:8px"><div class="btn ghost" style="flex:1">Vazgeç</div><div class="btn" style="flex:2">Kaydet</div></div>
+      </div>
+    </div>
+    <ul><li><b>Konum:</b> Resimdeki 6 noktadan birine dokun (Üst Sol/Orta/Sağ, Alt Sol/Orta/Sağ); seçilen yerde rozet görünür.</li><li><b>Boyut:</b> Küçük / Orta / Büyük (piksel yazmak gerekmez).</li><li>"Ürün resminde göster" kapalıysa konum ve boyut hiç görünmez.</li></ul>
+  </div>
+
+  <div class="concept">
+    <span class="tag">Ortak</span><h2>Ürünlere Tanımla</h2>
+    <p class="d">Kategoriler'dekiyle aynı: "Bu Fırsatta" ve "Ürün Ekle" sekmeleri, çoklu seçim, "Geri Al".</p>
+    <div class="phone">
+      <div class="status"><span>09:41</span><span>●●● 🔋</span></div>
+      <div class="bar"><div class="back"><i>‹</i> Fırsatlar</div></div>
+      <div class="scrim"></div>
+      <div class="sheet" style="top:70px">
+        <div class="grab"></div>
+        <h4>Yeni Ürünler · Ürünler <i>✕</i></h4>
+        <div style="display:flex;background:var(--muted);border-radius:999px;padding:4px;font-size:12.5px;font-weight:700;text-align:center"><span style="flex:1;padding:8px;border-radius:999px;background:#fff;color:var(--brand)">Bu Fırsatta (24)</span><span style="flex:1;padding:8px;color:var(--soft)">Ürün Ekle</span></div>
+        <div class="search">🔍 Ad, stok kodu veya barkod</div>
+        <div class="li"><div class="th" style="width:40px;height:40px">📟</div><div class="grow"><b style="font-size:13px">FLEXYPOS FP-503 Dokunmatik POS</b><span class="s">FP-503 · 8690000000011</span></div><span class="chip">−</span></div>
+        <div class="li"><div class="th" style="width:40px;height:40px">🖥️</div><div class="grow"><b style="font-size:13px">FLEXYPOS FP-505 Dokunmatik POS</b><span class="s">FP-505 · 8690000000012</span></div><span class="chip">−</span></div>
+        <div class="li"><div class="th" style="width:40px;height:40px">📱</div><div class="grow"><b style="font-size:13px">IDATA K1 El Terminali</b><span class="s">K1 · 8690000000019</span></div><span class="chip">−</span></div>
+      </div>
+    </div>
+    <ul><li>Satırdaki "Ürünler", düzenleme penceresindeki yan panel olarak da açılır (masaüstü).</li><li>Fırsat ürüne verilince ürün listesinde ve ürün düzenlemede rozet olarak görünür.</li></ul>
+  </div>
+</div>
+</body>
+</html>

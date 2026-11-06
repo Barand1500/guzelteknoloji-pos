@@ -173,7 +173,7 @@ export function CategoryProductsPanel({
             className={[
               'min-h-10 flex-1 rounded-full px-3 text-sm font-bold whitespace-nowrap transition-all duration-200',
               tab === t.id
-                ? 'bg-surface-raised text-category-ink shadow-soft'
+                ? 'bg-surface-raised text-brand-ink shadow-soft'
                 : 'text-ink-muted hover:text-ink',
             ].join(' ')}
           >
@@ -205,8 +205,8 @@ export function CategoryProductsPanel({
                   className={[
                     'min-h-9 rounded-full border px-3.5 text-[0.8125rem] font-bold transition-colors',
                     filter === f.id
-                      ? 'border-category-600 bg-category-700 text-white'
-                      : 'border-field-border text-ink-muted hover:border-category-500',
+                      ? 'border-brand-600 bg-brand-700 text-white'
+                      : 'border-field-border text-ink-muted hover:border-brand-500',
                   ].join(' ')}
                 >
                   {f.label}
@@ -277,7 +277,7 @@ export function CategoryProductsPanel({
                 <button
                   type="button"
                   onClick={toggleAll}
-                  className="min-h-10 font-bold text-category-ink"
+                  className="min-h-10 font-bold text-brand-ink"
                 >
                   {allPicked ? 'Seçimi Kaldır' : 'Tümünü Seç'}
                 </button>
@@ -302,7 +302,7 @@ export function CategoryProductsPanel({
                             className={[
                               'flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200',
                               on
-                                ? 'scale-110 border-category-600 bg-category-600 text-white'
+                                ? 'scale-110 border-brand-600 bg-brand-600 text-white'
                                 : 'border-field-border',
                             ].join(' ')}
                           >
@@ -391,7 +391,7 @@ function ProductCard({
           {product.code} · {product.barcode}
         </span>
         {note ? (
-          <span className="mt-1 inline-block rounded-full bg-category-50 px-2 py-0.5 text-[0.6875rem] font-bold text-category-ink">
+          <span className="mt-1 inline-block rounded-full bg-brand-50 px-2 py-0.5 text-[0.6875rem] font-bold text-brand-ink">
             {note}
           </span>
         ) : null}
@@ -400,8 +400,8 @@ function ProductCard({
   );
   const frame = [
     'flex w-full items-center gap-3 rounded-2xl border p-2.5 transition-all duration-200',
-    selected ? 'border-category-600 bg-category-50' : 'border-line bg-surface',
-    highlight ? 'animate-pop ring-2 ring-category-600' : '',
+    selected ? 'border-brand-600 bg-brand-50' : 'border-line bg-surface',
+    highlight ? 'animate-pop ring-2 ring-brand-600' : '',
   ].join(' ');
 
   return onSelect ? (
@@ -411,7 +411,7 @@ function ProductCard({
       aria-checked={selected}
       aria-label={`${product.name} ürününü seç`}
       onClick={onSelect}
-      className={`${frame} hover:border-category-500/70`}
+      className={`${frame} hover:border-brand-500/70`}
     >
       {body}
       {end}
