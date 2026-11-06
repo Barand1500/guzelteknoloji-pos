@@ -92,21 +92,41 @@ export const productService = {
     items = items.filter((p) => !ids.includes(p.id));
   },
 
-  /** Ürünü kopyalar: kod ve ad "kopya" ile ayrışır, satışa kapalı başlar. */
-  async duplicate(id: string): Promise<ProductItem> {
+  async get(id: string): Promise<ProductItem | null> {
     await wait(0);
-    const source = items.find((p) => p.id === id);
-    if (!source) throw new Error('Ürün bulunamadı.');
-    const copy: ProductItem = {
-      ...source,
-      id: `kopya-${++seq}`,
-      code: `${source.code}-KOPYA${seq}`,
-      name: `${source.name} (Kopya)`,
-      salesOpen: false,
-      dealIds: [...source.dealIds],
-    };
-    items = [...items, copy];
-    return copy;
+    const found = items.find((p) => p.id === id);
+    return found ? { ...found, dealIds: [...found.dealIds] } : null;
+  },
+
+  /** Stok kartı formundan gelen alanları ürüne yansıtır (id yoksa yeni ürün ekler). */
+  async applyCard(id: string | null, patch: Partial<ProductItem>): Promise<string> {
+    await wait(0);
+    if (id !== null && items.some((p) => p.id === id)) {
+      items = items.map((p) => (p.id === id ? { ...p, ...patch } : p));
+      return id;
+    }
+    const created = {
+      id: `yeni-${++seq}`,
+      stockType: 'Basit Ürün',
+      categoryId: null,
+      categoryName: 'Kategorisiz',
+      imageUrl: null,
+      stock: 0,
+      salesOpen: true,
+      dealIds: [],
+      cost: 0,
+      vatRate: 20,
+      currency: '$',
+      prices: [0, 0, 0],
+      brandId: null,
+      brandName: '',
+      stockTracking: false,
+      code: '',
+      name: '',
+      ...patch,
+    } as ProductItem;
+    items = [...items, created];
+    return created.id;
   },
 
   /** Dosyayı denetler; kayıt YAPMAZ. */

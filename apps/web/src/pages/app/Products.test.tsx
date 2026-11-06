@@ -122,19 +122,13 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     expect((await productService.list()).some((p) => p.id === 'p1')).toBe(false);
   });
 
-  it('⋮ menüsünden kopya oluşturulur (satışa kapalı); pazaryerleri doğrudan görünür', async () => {
+  it('⋮ menüsünde Düzenle, Kopya Oluştur ve pazaryerleri doğrudan görünür (etiketsiz)', async () => {
     const user = await openProducts();
     await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
     const menu = await screen.findByRole('dialog', { name: NAME_1 });
-    for (const m of ['Hepsiburada', 'Trendyol', 'N11'])
+    for (const m of ['Düzenle', 'Kopya Oluştur', 'Hepsiburada', 'Trendyol', 'N11'])
       expect(within(menu).getByRole('button', { name: m })).toBeInTheDocument();
     expect(within(menu).queryByText(/yakında/i)).not.toBeInTheDocument();
-    await user.click(within(menu).getByRole('button', { name: 'Kopya Oluştur' }));
-    expect(
-      await screen.findByText(`${NAME_1} (Kopya) oluşturuldu (satışa kapalı).`),
-    ).toBeInTheDocument();
-    const copy = (await productService.list()).find((p) => p.name.endsWith('(Kopya)'));
-    expect(copy?.salesOpen).toBe(false);
   });
 
   it('pazaryeri seçilince henüz bağlı olmadığı dürüstçe söylenir', async () => {

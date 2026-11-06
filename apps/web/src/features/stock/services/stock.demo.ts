@@ -1,6 +1,8 @@
 ﻿import type { SelectOption } from '../../../components/ui/SelectField';
 import { stockLookupsMock } from '../../../mocks/stock.mock';
 import { demoBrandService } from '../../brands/services/brand.demo';
+import { draftFromProduct, patchFromDraft } from '../../products/product.draft';
+import { productService } from '../../products/services/product.service';
 import type { OptionListKey, StockCardDraft, StockLookups } from '../types';
 import type { StockService } from './stock.service';
 
@@ -28,7 +30,21 @@ export const demoStockService: StockService = {
 
   async save(draft: StockCardDraft): Promise<{ id: string }> {
     await fakeDelay();
+    // Deneme kartı ürün listesine de düşer (yalnızca bellekte).
+    const id = await productService.applyCard(null, patchFromDraft(draft, await demoStockService.getLookups()));
+    return { id };
+  },
 
-    return { id: `mock-${draft.code || 'yeni'}` };
+  async get(id: string): Promise<StockCardDraft> {
+    await fakeDelay();
+    const product = await productService.get(id);
+    if (!product) throw new Error('Ürün bulunamadı.');
+    return draftFromProduct(product);
+  },
+
+  async update(id: string, draft: StockCardDraft): Promise<{ id: string }> {
+    await fakeDelay();
+    await productService.applyCard(id, patchFromDraft(draft, await demoStockService.getLookups()));
+    return { id };
   },
 };

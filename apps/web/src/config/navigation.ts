@@ -2,7 +2,12 @@ import { FolderTree, Package, SlidersHorizontal, Tags, type LucideIcon } from 'l
 
 /** Uygulama yolları tek yerden yönetilir; sayfa eklerken yalnızca burası ve App.tsx değişir. */
 export const APP_BASE = '/uygulama';
-export const STOCK_CREATE_PATH = `${APP_BASE}/stok-karti/yeni`;
+export const STOCK_BASE = `${APP_BASE}/stok-karti`;
+export const STOCK_CREATE_PATH = `${STOCK_BASE}/yeni`;
+/** Aynı stok kartı ekranı: ürün dolu gelir (düzenleme). */
+export const stockEditPath = (id: string) => `${STOCK_BASE}/${encodeURIComponent(id)}`;
+/** Aynı ekran: ürün dolu ama YENİ kayıt olarak açılır (kopya). */
+export const stockCopyPath = (id: string) => `${STOCK_CREATE_PATH}?kopya=${encodeURIComponent(id)}`;
 export const PRODUCTS_PATH = `${APP_BASE}/urunler`;
 /** Alt sayfa: Ürünler sekmesinin altında olduğu için alt menüde Ürünler seçili kalır. */
 export const DEALS_PATH = `${PRODUCTS_PATH}/firsatlar`;
@@ -31,6 +36,13 @@ export const navRight: readonly NavItem[] = [
     icon: SlidersHorizontal,
   },
 ];
+
+/** Üst çubuk başlığı: bilinen sayfalar sabit, stok kartı düzenleme yolu ayrıca tanınır. */
+export function pageTitle(pathname: string): string | undefined {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+  if (pathname.startsWith(`${STOCK_BASE}/`)) return 'Stok Kartını Düzenle';
+  return undefined;
+}
 
 /** Üst çubukta gösterilen sayfa başlıkları. */
 export const PAGE_TITLES: Record<string, string> = {

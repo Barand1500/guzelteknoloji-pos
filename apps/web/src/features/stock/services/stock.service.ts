@@ -7,6 +7,10 @@ export interface StockService {
   addOption(list: OptionListKey, label: string): Promise<SelectOption>;
   removeOption(list: OptionListKey, value: string): Promise<void>;
   save(draft: StockCardDraft, requestId: string): Promise<{ id: string }>;
+  /** Düzenleme: kayıtlı kartı forma dolu getirir. */
+  get(id: string): Promise<StockCardDraft>;
+  /** Düzenleme: kayıtlı kartı günceller (sunucuda POST /kartlar/:id/guncelle gerekir). */
+  update(id: string, draft: StockCardDraft, requestId: string): Promise<{ id: string }>;
 }
 
 export const stockService: StockService = {
@@ -17,6 +21,12 @@ export const stockService: StockService = {
     apiRequest('/api/stok/secenekler/kaldir', { method: 'POST', body: { list, value } }),
   save: (draft, requestId) =>
     apiRequest('/api/stok/kartlar', { method: 'POST', body: { draft, requestId } }),
+  get: (id) => apiRequest(`/api/stok/kartlar/${encodeURIComponent(id)}`),
+  update: (id, draft, requestId) =>
+    apiRequest(`/api/stok/kartlar/${encodeURIComponent(id)}/guncelle`, {
+      method: 'POST',
+      body: { draft, requestId },
+    }),
 };
 
 export function stockErrorMessage(error: unknown): string {

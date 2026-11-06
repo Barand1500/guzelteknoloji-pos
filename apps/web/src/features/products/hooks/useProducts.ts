@@ -42,11 +42,5 @@ export function useProducts() {
     await refresh();
   };
 
-  const duplicate = async (id: string) => {
-    const copy = await productService.duplicate(id);
-    await refresh();
-    return copy;
-  };
-
-  return { products, loading, refresh, setStockTracking, setSales, remove, duplicate };
+  return { products, loading, refresh, setStockTracking, setSales, remove };
 }

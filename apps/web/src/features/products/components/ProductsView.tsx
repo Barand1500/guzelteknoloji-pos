@@ -7,7 +7,12 @@ import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
 import { Segmented } from '../../../components/ui/Segmented';
 import { Sheet } from '../../../components/ui/Sheet';
-import { DEALS_PATH, PRODUCTS_PATH, STOCK_CREATE_PATH } from '../../../config/navigation';
+import {
+  DEALS_PATH,
+  STOCK_CREATE_PATH,
+  stockCopyPath,
+  stockEditPath,
+} from '../../../config/navigation';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { usePagination } from '../../../lib/usePagination';
 import { useProducts } from '../hooks/useProducts';
@@ -41,7 +46,7 @@ const PRICE_OPTIONS = [
  * (üç fiyat yan yana). "Ekle" mevcut stok kartı oluşturma ekranını açar.
  */
 export function ProductsView() {
-  const { products, loading, refresh, setStockTracking, setSales, remove, duplicate } =
+  const { products, loading, refresh, setStockTracking, setSales, remove } =
     useProducts();
   const desktop = useMediaQuery('(min-width: 64rem)');
   const navigate = useNavigate();
@@ -89,11 +94,9 @@ export function ProductsView() {
   const selectedIds = [...selected].filter((id) => products.some((p) => p.id === id));
   const anySelected = selectedIds.length > 0;
 
-  const edit = (p: ProductItem) => navigate(`${PRODUCTS_PATH}/${p.id}`);
-  const copy = async (p: ProductItem) => {
-    const made = await duplicate(p.id);
-    showNotice(`${made.name} oluşturuldu (satışa kapalı).`);
-  };
+  // Düzenle ve Kopya, stok kartı ekranını açar (dolu gelir); ayrı bir ürün düzenle ekranı yoktur.
+  const edit = (p: ProductItem) => navigate(stockEditPath(p.id));
+  const copy = (p: ProductItem) => navigate(stockCopyPath(p.id));
   const toggleSelect = (id: string) =>
     setSelected((s) => {
       const next = new Set(s);
@@ -190,7 +193,7 @@ export function ProductsView() {
                 selecting ? toggleSelect(p.id) : setExpandedId(expandedId === p.id ? null : p.id)
               }
               onEdit={() => edit(p)}
-              onDuplicate={() => void copy(p)}
+              onDuplicate={() => copy(p)}
               onMore={() => setMenuFor(p.id)}
               onZoom={() => setZoomFor(p.id)}
               onStockTracking={(on) => setStockTracking([p.id], on)}
@@ -404,7 +407,7 @@ export function ProductsView() {
         <ProductMenuSheet
           name={menuProduct.name}
           onEdit={() => edit(menuProduct)}
-          onDuplicate={() => void copy(menuProduct)}
+          onDuplicate={() => copy(menuProduct)}
           onMarketplace={(m) => showNotice(`${m} bağlantısı henüz kurulmadı; ürün gönderilmedi.`)}
           onDelete={() => setDeleting({ ids: [menuProduct.id], label: menuProduct.name })}
           onClose={() => setMenuFor(null)}

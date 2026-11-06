@@ -1,7 +1,7 @@
 import { LogOut, Moon, Sun } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 import { brandConfig } from '../../config/brand.config';
-import { PAGE_TITLES } from '../../config/navigation';
+import { pageTitle } from '../../config/navigation';
 import { LOGIN_PATH } from '../../pages/auth/LoginPage';
 import { useSession } from '../auth/hooks/session-context';
 import { revokeDevAccess } from '../dev-login/devAccess';
@@ -32,7 +32,7 @@ export function TopBar() {
         {brandConfig.monogram}
       </span>
       <h1 className="min-w-0 flex-1 truncate text-xl font-extrabold tracking-tight text-ink">
-        {PAGE_TITLES[pathname] ?? brandConfig.name}
+        {pageTitle(pathname) ?? brandConfig.name}
       </h1>
       <button
         type="button"

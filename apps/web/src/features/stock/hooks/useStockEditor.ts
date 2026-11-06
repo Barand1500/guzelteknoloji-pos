@@ -15,7 +15,18 @@ import { useOptionList } from './useOptionList';
  * Stok kartı düzenleyicisinin TÜM durumu ve işlemleri tek yerde. Masaüstü ve telefon düzenleri
  * yalnızca görünümdür; ikisi de aynı `editor` nesnesini kullanır (veri mantığı tekrarlanmaz).
  */
-export function useStockEditor(lookups: StockLookups, service: StockService) {
+export interface StockEditorOptions {
+  /** Dolu başlangıç kartı (düzenleme ya da kopya); yoksa boş kart. */
+  initialDraft?: StockCardDraft;
+  /** Verilirse kayıt, yeni kart eklemek yerine bu kartı günceller. */
+  cardId?: string;
+}
+
+export function useStockEditor(
+  lookups: StockLookups,
+  service: StockService,
+  options: StockEditorOptions = {},
+) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const onError = useCallback((error: unknown) => setSaveError(stockErrorMessage(error)), []);
   const stockTypes = useOptionList('stockTypes', lookups.stockTypes, service, onError);
@@ -27,7 +38,13 @@ export function useStockEditor(lookups: StockLookups, service: StockService) {
   const saveLock = useRef(false);
 
   const firstListId = priceLists.options[0]?.value ?? 'fiyat';
-  const [draft, setDraft] = useState<StockCardDraft>(() => createEmptyDraft(firstListId));
+  const [draft, setDraft] = useState<StockCardDraft>(() => {
+    const start = options.initialDraft ?? createEmptyDraft(firstListId);
+    // Aktif fiyat listesinin birim satırı yoksa (eski kart) boş bir ana birim eklenir.
+    return start.units[firstListId]
+      ? start
+      : { ...start, units: { ...start.units, [firstListId]: [createUnitRow(true)] } };
+  });
   const [activeList, selectList] = useState(firstListId);
   const setActiveList = (id: string) => {
     setDraft((d) =>
@@ -155,7 +172,8 @@ export function useStockEditor(lookups: StockLookups, service: StockService) {
     try {
       const body = JSON.stringify(parsed.data);
       if (request.current?.body !== body) request.current = { body, id: crypto.randomUUID() };
-      await service.save(parsed.data, request.current.id);
+      if (options.cardId) await service.update(options.cardId, parsed.data, request.current.id);
+      else await service.save(parsed.data, request.current.id);
       setSaved(true);
     } catch (error) {
       onError(error);
