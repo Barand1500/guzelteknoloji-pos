@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { readFile, readdir } from 'node:fs/promises';
 import mariadb from 'mariadb';
 import request from 'supertest';
+import sharp from 'sharp';
+import { PrismaBrandRepository } from '../src/modules/brands/brand.repository';
 import { createApp } from '../src/app';
 import { parseEnv } from '../src/config/env';
 import { hashToken } from '../src/lib/crypto';
@@ -30,6 +32,9 @@ const connection = await mariadb.createConnection({
   password: decodeURIComponent(url.password),
 });
 let created = false;
+const legacyUserId = randomUUID();
+const legacyBrandId = randomUUID();
+const legacyCardId = randomUUID();
 try {
   await connection.query(
     'CREATE DATABASE ' + database + ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
@@ -40,6 +45,36 @@ try {
   for (const folder of (await readdir(migrations, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .sort((a, b) => a.name.localeCompare(b.name))) {
+    if (folder.name === '20261105190000_markalar') {
+      await connection.query(
+        'INSERT INTO kullanicilar (kimlik, eposta, guncelleme_zamani) VALUES (?, ?, NOW(3))',
+        [legacyUserId, 'legacy@example.com'],
+      );
+      const typeId = randomUUID();
+      const kindId = randomUUID();
+      for (const [id, key] of [
+        [legacyBrandId, 'brands'],
+        [typeId, 'stockTypes'],
+        [kindId, 'stockKinds'],
+      ])
+        await connection.query(
+          'INSERT INTO stok_secenekleri (kimlik, kullanici_kimligi, liste_turu, secenek_kodu, secenek_adi, ad_ozeti) VALUES (?, ?, ?, ?, ?, ?)',
+          [id, legacyUserId, key, 'eski', 'Eski Marka', 'a'.repeat(64)],
+        );
+      await connection.query(
+        'INSERT INTO stok_kartlari (kimlik, kullanici_kimligi, kayit_istegi_kimligi, kayit_istegi_ozeti, stok_tipi_kimligi, stok_nevi_kimligi, marka_kimligi, envanter_takibi, guncelleme_zamani) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(3))',
+        [
+          legacyCardId,
+          legacyUserId,
+          randomUUID(),
+          'b'.repeat(64),
+          typeId,
+          kindId,
+          legacyBrandId,
+          'normal',
+        ],
+      );
+    }
     const sql = await readFile(new URL(folder.name + '/migration.sql', migrations), 'utf8');
     for (const statement of sql.split(';').filter((part) => part.trim()))
       await connection.query(statement);
@@ -47,6 +82,16 @@ try {
   url.pathname = '/' + database;
   const prisma = createPrismaClient(url.href);
   try {
+    const legacyBrand = (await new PrismaBrandRepository(prisma).list(legacyUserId))[0]!;
+    assert.equal(legacyBrand.id, 'eski');
+    assert.equal(legacyBrand.name, 'Eski Marka');
+    assert.equal(legacyBrand.productCount, 1);
+    assert.equal(
+      (await prisma.stokKarti.findUniqueOrThrow({ where: { kimlik: legacyCardId } })).markaKimligi,
+      legacyBrandId,
+    );
+    assert(await prisma.marka.findUnique({ where: { kimlik: legacyBrandId } }));
+    await prisma.kullanici.delete({ where: { kimlik: legacyUserId } });
     const env = parseEnv({
       NODE_ENV: 'test',
       APP_URL: 'http://localhost:5175',
@@ -63,6 +108,7 @@ try {
       mailer: { sendLoginCode: async () => {} },
       google: null,
       stockRepo: new PrismaStockRepository(prisma),
+      brandRepo: new PrismaBrandRepository(prisma),
     });
     const users = await Promise.all(
       ['one', 'two'].map((name) =>
@@ -86,6 +132,81 @@ try {
         .set('Cookie', cookie(index))
         .set('Origin', env.APP_URL)
         .send(body);
+    const brandGet = (path = '', index = 0) =>
+      request(app)
+        .get('/api/markalar' + path)
+        .set('Cookie', cookie(index));
+    const brandPost = (path: string, body: object = {}, index = 0) =>
+      request(app)
+        .post('/api/markalar' + path)
+        .set('Cookie', cookie(index))
+        .set('Origin', env.APP_URL)
+        .send(body);
+    assert.equal((await request(app).get('/api/markalar')).status, 401);
+    assert.equal(
+      (await request(app).post('/api/markalar').set('Cookie', cookie()).send({})).status,
+      403,
+    );
+    assert.deepEqual((await brandGet()).body, []);
+    const logo = await sharp({
+      create: { width: 2, height: 2, channels: 4, background: '#ff6600' },
+    })
+      .png()
+      .toBuffer();
+    const brandDraft = {
+      name: 'İnci',
+      description: 'Türkçe açıklama',
+      logoUrl: 'data:image/png;base64,' + logo.toString('base64'),
+      active: true,
+      seoTitle: 'İnci ürünleri',
+      seoDescription: 'Kaliteli ürünler',
+    };
+    const firstBrand = await brandPost('', brandDraft);
+    assert.equal(firstBrand.status, 201, JSON.stringify(firstBrand.body));
+    const brandId = firstBrand.body.id as string;
+    const logoPath = new URL(firstBrand.body.logoUrl as string, env.APP_URL).pathname;
+    const logoResponse = await brandGet(logoPath.replace('/api/markalar', ''));
+    assert.equal(logoResponse.status, 200);
+    assert.equal(logoResponse.headers['content-type'], 'image/webp');
+    assert.equal((await sharp(logoResponse.body as Buffer).metadata()).format, 'webp');
+    assert.equal((await brandGet(logoPath.replace('/api/markalar', ''), 1)).status, 404);
+    assert.equal((await brandPost('', { ...brandDraft, name: 'inci' })).status, 409);
+    assert.equal((await brandPost('', { ...brandDraft, logoUrl: 'blob:temporary' })).status, 400);
+    assert.equal((await brandPost('', { ...brandDraft, name: '' })).status, 400);
+    assert.equal((await brandPost('', { ...brandDraft, name: 'A'.repeat(121) })).status, 400);
+    assert.equal(
+      (
+        await brandPost('', {
+          ...brandDraft,
+          logoUrl: 'data:image/png;base64,' + Buffer.from('not an image').toString('base64'),
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (await brandPost('/' + brandId, { ...brandDraft, logoUrl: firstBrand.body.logoUrl }, 1))
+        .status,
+      404,
+    );
+    assert.equal(
+      (
+        await brandPost('/' + brandId, {
+          ...brandDraft,
+          logoUrl: firstBrand.body.logoUrl,
+          description: 'Güncellendi',
+        })
+      ).status,
+      200,
+    );
+    assert.equal((await brandGet()).body[0].description, 'Güncellendi');
+    const secondBrand = await brandPost('', { ...brandDraft, name: 'Diğer', logoUrl: null });
+    assert.equal(secondBrand.status, 201);
+    const secondBrandId = secondBrand.body.id as string;
+    assert.equal((await brandPost('/sirala', { ids: [secondBrandId, brandId] })).status, 204);
+    assert.equal((await brandGet()).body[0].id, secondBrandId);
+    assert.equal((await brandPost('/sirala', { ids: [brandId, brandId] })).status, 409);
+    assert.equal((await brandPost('/sirala', { ids: [brandId] })).status, 409);
+    assert.equal((await brandPost('/' + brandId + '/aktiflik', { active: false }, 1)).status, 404);
     assert.equal((await request(app).get('/api/stok/secenekler')).status, 401);
     assert.equal(
       (await request(app).post('/api/stok/kartlar').set('Cookie', cookie()).send({})).status,
@@ -117,6 +238,108 @@ try {
     const response = await post('/kartlar', payload);
     assert.equal(response.status, 201, JSON.stringify(response.body));
     const id = response.body.id as string;
+    assert.equal(
+      (await brandPost('/' + brandId + '/urunler/ata', { productIds: [id] })).status,
+      204,
+    );
+    assert.equal(
+      (await brandGet()).body.find((b: { id: string }) => b.id === brandId).productCount,
+      1,
+    );
+    assert.equal(
+      (await brandGet('/urunler')).body.find((p: { id: string }) => p.id === id).brandId,
+      brandId,
+    );
+    await connection.query(
+      "CREATE TRIGGER reject_brand_delete BEFORE DELETE ON stok_secenekleri FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='forced-brand-delete-failure'",
+    );
+    try {
+      assert.equal((await brandPost('/' + brandId + '/sil')).status, 500);
+      assert.equal(
+        (await brandGet('/urunler')).body.find((p: { id: string }) => p.id === id).brandId,
+        brandId,
+      );
+      assert((await brandGet()).body.some((b: { id: string }) => b.id === brandId));
+    } finally {
+      await connection.query('DROP TRIGGER reject_brand_delete');
+    }
+    assert.equal(
+      (await brandPost('/' + secondBrandId + '/urunler/ata', { productIds: [id, randomUUID()] }))
+        .status,
+      404,
+    );
+    assert.equal(
+      (await brandGet('/urunler')).body.find((p: { id: string }) => p.id === id).brandId,
+      brandId,
+    );
+    assert.equal(
+      (await brandPost('/' + brandId + '/urunler/cikar', { productIds: [id] })).status,
+      204,
+    );
+    assert.equal(
+      (await brandGet('/urunler')).body.find((p: { id: string }) => p.id === id).brandId,
+      null,
+    );
+    assert.equal(
+      (await brandPost('/' + brandId + '/urunler/ata', { productIds: [id] })).status,
+      204,
+    );
+    assert.equal(
+      (await brandPost('/' + secondBrandId + '/urunler/cikar', { productIds: [id] })).status,
+      204,
+    );
+    assert.equal(
+      (await brandGet('/urunler')).body.find((p: { id: string }) => p.id === id).brandId,
+      brandId,
+    );
+    assert.equal(
+      (await brandPost('/' + secondBrandId + '/urunler/ata', { productIds: [id] })).status,
+      204,
+    );
+    assert.equal(
+      (await brandPost('/' + secondBrandId + '/urunler/ata', { productIds: [id] }, 1)).status,
+      404,
+    );
+    assert.equal((await brandPost('/' + brandId + '/aktiflik', { active: false })).status, 204);
+    const inactiveLookups = await request(app).get('/api/stok/secenekler').set('Cookie', cookie());
+    assert(!inactiveLookups.body.brands.some((b: { value: string }) => b.value === brandId));
+    const inactiveDraft = structuredClone(draft);
+    inactiveDraft.brand = brandId;
+    assert.equal(
+      (await post('/kartlar', { requestId: randomUUID(), draft: inactiveDraft })).status,
+      400,
+    );
+    assert.equal((await brandPost('/' + brandId + '/aktiflik', { active: true })).status, 204);
+    const lookupsWithBrands = await request(app)
+      .get('/api/stok/secenekler')
+      .set('Cookie', cookie());
+    assert.deepEqual(
+      lookupsWithBrands.body.brands.map((b: { value: string }) => b.value),
+      [secondBrandId, brandId],
+    );
+    const withBrand = structuredClone(draft);
+    withBrand.brand = brandId;
+    withBrand.code = 'BRANDED';
+    for (const rows of Object.values(withBrand.units)) for (const row of rows) row.barcodes = [];
+    const brandedCard = await post('/kartlar', { requestId: randomUUID(), draft: withBrand });
+    assert.equal(brandedCard.status, 201);
+    assert.equal(
+      (await brandGet()).body.find((b: { id: string }) => b.id === brandId).productCount,
+      1,
+    );
+    assert.equal((await brandPost('/' + brandId + '/sil')).status, 204);
+    assert.equal(
+      (await brandGet('/urunler')).body.find((p: { id: string }) => p.id === brandedCard.body.id)
+        .brandId,
+      null,
+    );
+    assert.equal((await brandGet(logoPath.replace('/api/markalar', ''))).status, 404);
+    assert.equal((await brandPost('/' + secondBrandId + '/sil', {}, 1)).status, 404);
+    assert.equal((await brandPost('/' + secondBrandId + '/sil')).status, 204);
+    assert.equal(
+      (await brandGet('/urunler')).body.find((p: { id: string }) => p.id === id).brandId,
+      null,
+    );
     assert.equal((await post('/kartlar', payload)).body.id, id);
     const concurrentDraft = structuredClone(draft);
     concurrentDraft.code = 'CONCURRENT';
@@ -279,6 +502,7 @@ try {
               ),
               'test',
               'stock.persistence.spec.ts',
+              'brands.persistence.spec.ts',
               '--workers=2',
             ],
             {

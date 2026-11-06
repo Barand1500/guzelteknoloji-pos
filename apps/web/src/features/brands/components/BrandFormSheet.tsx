@@ -1,6 +1,8 @@
 import { Boxes, ChevronDown, ChevronRight } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
+import { stockErrorMessage } from '../../stock/services/stock.service';
 import { Sheet } from '../../../components/ui/Sheet';
 import { Switch } from '../../../components/ui/Switch';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
@@ -51,18 +53,26 @@ export function BrandFormSheet({
   const [nameError, setNameError] = useState<string | undefined>();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const set = <K extends keyof BrandDraft>(key: K, value: BrandDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
   const submit = async () => {
+    if (saving) return;
     if (draft.name.trim() === '') {
       setNameError(NAME_REQUIRED);
       return;
     }
     setSaving(true);
-    await onSave({ ...draft, name: draft.name.trim() });
-    setSaving(false);
+    setSaveError(null);
+    try {
+      await onSave({ ...draft, name: draft.name.trim() });
+    } catch (error) {
+      setSaveError(stockErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -95,6 +105,7 @@ export function BrandFormSheet({
       }
     >
       <div className="flex flex-col gap-5">
+        {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <div className="grid gap-5 md:grid-cols-[15rem_minmax(0,1fr)]">
           <LogoPicker
             value={draft.logoUrl}
@@ -104,6 +115,7 @@ export function BrandFormSheet({
           <div className="flex flex-col gap-4">
             <TextField
               label="Marka Adı"
+              maxLength={120}
               value={draft.name}
               error={nameError}
               onChange={(e) => {
@@ -157,16 +169,19 @@ export function BrandFormSheet({
           <div className="flex animate-fade-in flex-col gap-4">
             <TextAreaField
               label="Açıklama"
+              maxLength={10000}
               value={draft.description}
               onChange={(e) => set('description', e.target.value)}
             />
             <TextField
               label="SEO Başlığı"
+              maxLength={250}
               value={draft.seoTitle}
               onChange={(e) => set('seoTitle', e.target.value)}
             />
             <TextAreaField
               label="SEO Açıklaması"
+              maxLength={1000}
               value={draft.seoDescription}
               onChange={(e) => set('seoDescription', e.target.value)}
             />

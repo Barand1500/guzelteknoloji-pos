@@ -35,7 +35,7 @@ export function stockFixture(): StockCardDraft {
     stockType: 'basit',
     code: 'STK-001',
     name: 'Deneme Ürünü',
-    brand: 'asys',
+    brand: '',
     vatDepartment: 'genel',
     stockKind: 'resmi',
     inventoryTracking: 'normal',

@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { brandService } from '../../features/brands/services/brand.service';
+import { demoBrandService as brandService } from '../../features/brands/services/brand.demo';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
 
 const names = () =>
@@ -158,9 +158,11 @@ describe('Markalar ekranı (masaüstü)', () => {
     expect(within(side).getByText('1 ürün seçili')).toBeInTheDocument();
     // Seçim tek başına eklemez; "Ekle" ile eklenir ve "Bu Markada" sekmesine geçilir
     await user.click(within(side).getByRole('button', { name: 'Ekle' }));
-    expect(within(side).getByRole('tab', { name: 'Bu Markada (1)' })).toHaveAttribute(
-      'aria-selected',
-      'true',
+    await waitFor(() =>
+      expect(within(side).getByRole('tab', { name: 'Bu Markada (1)' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
     );
     // Marka formundaki sayı, liste yenilenince canlı güncellenir.
     await waitFor(() =>
@@ -174,7 +176,9 @@ describe('Markalar ekranı (masaüstü)', () => {
       }),
     );
     expect(within(side).getByText('Bu markada henüz ürün yok.')).toBeInTheDocument();
-    expect(within(side).getByText('USB Barkod Okuyucu Standart çıkarıldı')).toBeInTheDocument();
+    expect(
+      await within(side).findByText('USB Barkod Okuyucu Standart çıkarıldı'),
+    ).toBeInTheDocument();
     await user.click(within(side).getByRole('button', { name: 'Geri Al' }));
     expect(within(side).getByRole('tab', { name: 'Bu Markada (1)' })).toBeInTheDocument();
 

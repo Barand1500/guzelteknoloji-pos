@@ -1,67 +1,107 @@
-import { useCallback, useEffect, useState } from 'react';
-import { brandService } from '../services/brand.service';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { stockErrorMessage } from '../../stock/services/stock.service';
+import { useBrandService } from './useBrandService';
 import type { Brand, BrandDraft } from '../types';
 
-/**
- * Marka listesinin durumu. İşlemler "iyimser" çalışır: ekran anında güncellenir, servis
- * arkadan kaydeder. Gerçek API gelince yalnızca brand.service.ts değişir.
- */
+/** Sunucu onaylamadan başarılı gösterilmez; hata halinde ekrandaki bilgiler korunur. */
 export function useBrands() {
+  const service = useBrandService();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  const refresh = useCallback(async () => setBrands(await service.list()), [service]);
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await refresh();
+    } catch (e) {
+      setError(stockErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [refresh]);
   useEffect(() => {
     let active = true;
-    void brandService.list().then((list) => {
-      if (!active) return;
-      setBrands(list);
-      setLoading(false);
-    });
+    void service
+      .list()
+      .then((list) => {
+        if (active) {
+          setBrands(list);
+          setError(null);
+        }
+      })
+      .catch((e) => {
+        if (active) setError(stockErrorMessage(e));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
     return () => {
       active = false;
     };
-  }, []);
-
-  const refresh = useCallback(async () => setBrands(await brandService.list()), []);
-
-  const toggleActive = (id: string, active: boolean) => {
-    setBrands((list) => list.map((b) => (b.id === id ? { ...b, active } : b)));
-    void brandService.setActive(id, active);
-  };
-
-  const reorder = (next: Brand[]) => {
-    setBrands(next);
-    void brandService.reorder(next.map((b) => b.id));
-  };
-
-  /** Kimlik verilirse günceller, verilmezse yeni marka ekler (listenin sonuna). */
-  const save = async (draft: BrandDraft, id?: string): Promise<Brand> => {
-    if (id) {
-      const updated = await brandService.update(id, draft);
-      setBrands((list) => list.map((b) => (b.id === id ? updated : b)));
-      return updated;
+  }, [service]);
+  const run = async <T>(operation: () => Promise<T>): Promise<T> => {
+    if (pending.current) throw new Error('İşlem devam ediyor.');
+    pending.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      return await operation();
+    } catch (e) {
+      setError(stockErrorMessage(e));
+      throw e;
+    } finally {
+      pending.current = false;
+      setBusy(false);
     }
-    const created = await brandService.create(draft);
-    setBrands((list) => [...list, created]);
-    return created;
   };
-
-  const remove = async (id: string) => {
-    await brandService.remove(id);
-    setBrands((list) => list.filter((b) => b.id !== id));
+  const toggleActive = (id: string, active: boolean) => {
+    void run(async () => {
+      await service.setActive(id, active);
+      setBrands((list) => list.map((b) => (b.id === id ? { ...b, active } : b)));
+    }).catch(() => {});
   };
-
-  /** Ürünleri markaya atar; ürün sayıları değiştiği için liste yenilenir. */
-  const assign = async (brandId: string, productIds: string[]) => {
-    await brandService.assignProducts(brandId, productIds);
-    await refresh();
+  const reorder = (next: Brand[]) => {
+    void run(async () => {
+      await service.reorder(next.map((b) => b.id));
+      setBrands(next);
+    }).catch(() => {});
   };
-
-  /** Ürünleri markadan çıkarır; ürün sayıları değiştiği için liste yenilenir. */
-  const unassign = async (brandId: string, productIds: string[]) => {
-    await brandService.unassignProducts(brandId, productIds);
-    await refresh();
+  const save = (draft: BrandDraft, id?: string): Promise<Brand> =>
+    run(async () => {
+      const saved = id ? await service.update(id, draft) : await service.create(draft);
+      setBrands((list) => (id ? list.map((b) => (b.id === id ? saved : b)) : [...list, saved]));
+      return saved;
+    });
+  const remove = (id: string) =>
+    run(async () => {
+      await service.remove(id);
+      setBrands((list) => list.filter((b) => b.id !== id));
+    });
+  const assign = (id: string, ids: string[]) =>
+    run(async () => {
+      await service.assignProducts(id, ids);
+      await refresh().catch((e) => setError(stockErrorMessage(e)));
+    });
+  const unassign = (id: string, ids: string[]) =>
+    run(async () => {
+      await service.unassignProducts(id, ids);
+      await refresh().catch((e) => setError(stockErrorMessage(e)));
+    });
+  return {
+    brands,
+    loading,
+    error,
+    busy,
+    reload,
+    toggleActive,
+    reorder,
+    save,
+    remove,
+    assign,
+    unassign,
   };
-
-  return { brands, loading, toggleActive, reorder, save, remove, assign, unassign };
 }

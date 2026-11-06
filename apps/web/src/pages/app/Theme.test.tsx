@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { brandService } from '../../features/brands/services/brand.service';
+import { demoBrandService as brandService } from '../../features/brands/services/brand.demo';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
 
 beforeEach(() => {
