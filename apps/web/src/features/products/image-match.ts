@@ -47,10 +47,16 @@ export function matchImages(
   products: ProductItem[],
   manual: ReadonlyMap<string, string> = new Map(),
 ): MatchResult {
-  const byKey = new Map<string, ProductItem>();
+  const byKey = new Map<string, ProductItem | null>();
+  const addKey = (raw: string, product: ProductItem) => {
+    const key = fold(raw);
+    if (!key) return;
+    if (!byKey.has(key)) byKey.set(key, product);
+    else if (byKey.get(key)?.id !== product.id) byKey.set(key, null);
+  };
   for (const p of products) {
-    byKey.set(fold(p.code), p);
-    if (p.barcode) byKey.set(fold(p.barcode), p);
+    addKey(p.code, p);
+    for (const barcode of p.barcodes ?? (p.barcode ? [p.barcode] : [])) addKey(barcode, p);
   }
   const byId = new Map(products.map((p) => [p.id, p]));
 
@@ -67,8 +73,9 @@ export function matchImages(
     }
     const { key, order } = parseImageName(image.name);
     // Önce tam ad, sonra sıra eki atılmış ad denenir (kodun kendisi "_2" ile bitebilir).
-    const whole = byKey.get(fold(image.name.replace(/\.[^.\\/]+$/, '')));
-    const product = whole ?? byKey.get(fold(key));
+    const wholeKey = fold(image.name.replace(/\.[^.\\/]+$/, ''));
+    const whole = byKey.get(wholeKey);
+    const product = byKey.has(wholeKey) ? whole : byKey.get(fold(key));
     if (!product) {
       unmatched.push(image);
       continue;

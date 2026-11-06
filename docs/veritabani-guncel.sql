@@ -145,6 +145,18 @@ CREATE TABLE `stok_kartlari` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `stok_gorselleri` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stok_karti_id` INTEGER NOT NULL,
+    `dosya_adi` VARCHAR(255) NOT NULL,
+    `sira` INTEGER NOT NULL DEFAULT 0,
+
+    UNIQUE INDEX `stok_gorselleri_dosya_adi_key`(`dosya_adi`),
+    INDEX `stok_gorselleri_stok_karti_id_sira_idx`(`stok_karti_id`, `sira`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `kategoriler` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `kullanici_id` INTEGER NOT NULL,
@@ -338,6 +350,9 @@ ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_departman_baglantisi` 
 
 -- AddForeignKey
 ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_vergi_baglantisi` FOREIGN KEY (`diger_vergi_id`) REFERENCES `stok_secenekleri`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stok_gorselleri` ADD CONSTRAINT `stok_gorselleri_stok_karti_id_fkey` FOREIGN KEY (`stok_karti_id`) REFERENCES `stok_kartlari`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `kategoriler` ADD CONSTRAINT `kategoriler_kullanici_id_fkey` FOREIGN KEY (`kullanici_id`) REFERENCES `kullanicilar`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

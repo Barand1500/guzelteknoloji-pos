@@ -10,6 +10,7 @@ import { Prisma } from '../../generated/prisma/client';
 import type { StokFiyati } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
+import { stockImageUrl } from './stock-images';
 import type {
   StockSaveInput,
   ProductListItem,
@@ -672,14 +673,14 @@ export class PrismaStockRepository implements StockRepository {
           take: query.boyut,
           include: {
             firsatlar: true,
+            gorseller: { orderBy: [{ sira: 'asc' }, { id: 'asc' }] },
             marka: true,
             stokTipi: true,
             kategoriler: { orderBy: { kategoriId: 'asc' }, include: { kategori: true } },
             birimler: {
-              where: { anaBirim: true },
-              take: 1,
               orderBy: { sira: 'asc' },
               include: {
+                barkodlar: true,
                 fiyatlar: { include: { fiyatListesi: true } },
               },
             },
@@ -687,7 +688,7 @@ export class PrismaStockRepository implements StockRepository {
         });
         const symbols: Record<string, string> = { TRY: '₺', USD: '$', EUR: '€' };
         const items: ProductListItem[] = rows.map((card) => {
-          const prices = card.birimler[0]?.fiyatlar ?? [];
+          const prices = card.birimler.find((unit) => unit.anaBirim)?.fiyatlar ?? [];
           const saleFor = (key: string) =>
             prices.find((p) => p.fiyatYonu === 'satis' && p.fiyatListesi.secenekKodu === key);
           const sales = [saleFor('fiyat'), saleFor('perakende'), saleFor('toptan')];
@@ -709,7 +710,10 @@ export class PrismaStockRepository implements StockRepository {
             categoryName: categories.map((c) => c.ad).join(', ') || 'Kategorisiz',
             categoryIds: categories.map((c) => String(c.id)),
             categoryNames: categories.map((c) => c.ad),
-            imageUrl: null,
+            imageUrl: card.gorseller[0] ? stockImageUrl(card.gorseller[0]) : null,
+            imageUrls: card.gorseller.map(stockImageUrl),
+            barcode: card.birimler.flatMap((unit) => unit.barkodlar.map((b) => b.barkod))[0] ?? '',
+            barcodes: card.birimler.flatMap((unit) => unit.barkodlar.map((b) => b.barkod)),
             currency: symbols[first?.paraBirimi ?? 'TRY'] ?? first?.paraBirimi ?? '₺',
             vatRate: Number(first?.kdvOrani ?? 0),
             prices: [excludingVat(sales[0]), excludingVat(sales[1]), excludingVat(sales[2])],

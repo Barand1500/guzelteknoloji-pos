@@ -969,7 +969,7 @@ try {
 } finally {
   if (created) await connection.query('DROP DATABASE ' + database);
   await connection.end();
-  for (const folder of ['markalar', 'kategoriler', 'firsatlar', 'ozellikler']) {
+  for (const folder of ['markalar', 'kategoriler', 'firsatlar', 'ozellikler', 'urunler']) {
     const logoDir = path.join(testUploads, folder);
     for (const file of await readdir(logoDir).catch(() => []))
       await unlink(path.join(logoDir, file));

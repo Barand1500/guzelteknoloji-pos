@@ -11,6 +11,7 @@ import type { StockRepository } from './stock.repository';
 import { stockBulkSchema, stockListQuery, stockSaveSchema, recordKey } from './stock.api';
 import type { PrismaClient } from '../../lib/prisma';
 import { importSchema, StockImport } from './stock-import';
+import { createStockImages } from './stock-images';
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
@@ -35,6 +36,8 @@ export function createStockRouter(
     res.set('Cache-Control', 'no-store');
     next();
   });
+  const images = db ? createStockImages(env, db) : null;
+  if (images) router.use(images.router);
   router.use(createRateLimiter({ enabled: env.rateLimitEnabled, windowMs: 60000, limit: 120 }));
   if (db) {
     const importer = new StockImport(db, repo);
@@ -69,7 +72,20 @@ export function createStockRouter(
     res.json(await repo.list(res.locals.stockUserId as string, parse(stockListQuery, req.query)));
   });
   router.post('/kartlar/toplu', async (req, res) => {
-    res.json(await repo.bulk(res.locals.stockUserId as string, parse(stockBulkSchema, req.body)));
+    const input = parse(stockBulkSchema, req.body);
+    const files =
+      db && input.islem === 'sil'
+        ? await db.stokGorseli.findMany({
+            where: {
+              stokKartiId: { in: input.ids },
+              stokKarti: { kullaniciKimligi: Number(res.locals.stockUserId) },
+            },
+            select: { dosyaAdi: true },
+          })
+        : [];
+    const result = await repo.bulk(res.locals.stockUserId as string, input);
+    if (images) await Promise.allSettled(files.map((file) => images.storage.remove(file.dosyaAdi)));
+    res.json(result);
   });
   router.get('/kartlar/:id/form', async (req, res) => {
     const id = parse(

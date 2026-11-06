@@ -1,5 +1,5 @@
 import { apiRequest } from '../../../lib/http';
-import { useDataService } from '../../../lib/catalog-data';
+import { imageAddress, useDataService } from '../../../lib/catalog-data';
 import { demoProductService } from './product.demo';
 import type { ProductItem, ImportPreview } from '../types';
 interface Page {
@@ -8,22 +8,66 @@ interface Page {
   page: number;
   pageSize: number;
 }
+const tickets = new Map<string, { ticket: string; expires: number }>();
+const dto = (p: ProductItem): ProductItem => ({
+  ...p,
+  imageUrl: imageAddress(p.imageUrl),
+  imageUrls: (p.imageUrls ?? []).map((url) => imageAddress(url)!),
+});
+async function imageData(url: string): Promise<string> {
+  if (url.startsWith('data:image/')) return url;
+  if (!url.startsWith('blob:')) throw new Error('Görseli bilgisayarınızdan yeniden seçin.');
+  const blob = await (await fetch(url)).blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(new Error('Görsel okunamadı. Yeniden seçin.'));
+    reader.readAsDataURL(blob);
+  });
+}
 /** Ekranın yerel süzgeç ve sayfalaması için tüm kayıtlar sayfalı API'den yüklenir. */
 export const productService = {
-  /** Sunucuda ürün görseli tablosu ve yükleme ucu henüz yok: Toplu Görsel gerçek hesapta kapalıdır. */
-  supportsImages: false,
+  isDemo: false,
+  supportsImages: true,
   applyImages: async (
-    _entries: { productId: string; urls: string[] }[],
-    _replace: boolean,
+    entries: { productId: string; urls: string[] }[],
+    replace: boolean,
   ): Promise<number> => {
-    throw new Error('Ürün görseli sunucuda henüz desteklenmiyor.');
+    for (const [url, saved] of tickets) if (saved.expires < Date.now()) tickets.delete(url);
+    const prepared: { productId: string; tickets: string[] }[] = [];
+    // 300 adet 5 MB görseli tek gövdede tutmak yerine dosyalar sırayla hazırlanır.
+    for (const entry of entries) {
+      const batch: string[] = [];
+      for (const url of entry.urls) {
+        let saved = tickets.get(url);
+        if (!saved) {
+          const result = await apiRequest<{ ticket: string }>('/api/stok/gorseller/yukle', {
+            method: 'POST',
+            body: { dataUrl: await imageData(url) },
+            timeoutMs: 120000,
+          });
+          saved = { ticket: result.ticket, expires: Date.now() + 39600000 };
+          tickets.set(url, saved);
+        }
+        batch.push(saved.ticket);
+      }
+      prepared.push({ productId: entry.productId, tickets: batch });
+    }
+    const result = await apiRequest<{ images: number }>('/api/stok/gorseller/kaydet', {
+      method: 'POST',
+      body: { entries: prepared, replace },
+      timeoutMs: 120000,
+    });
+    // Hata halinde biletler korunur: tekrar denemede kaydı tamamlanan görseller çoğalmaz.
+    for (const entry of entries) for (const url of entry.urls) tickets.delete(url);
+    return result.images;
   },
   list: async (): Promise<ProductItem[]> => {
     const rows: ProductItem[] = [];
     let page = 1;
     for (;;) {
       const result = await apiRequest<Page>('/api/stok/kartlar?boyut=200&sayfa=' + page);
-      rows.push(...result.items);
+      rows.push(...result.items.map(dto));
       if (rows.length >= result.total || result.items.length === 0) break;
       page++;
     }
@@ -33,7 +77,7 @@ export const productService = {
     const result = await apiRequest<Page>(
       '/api/stok/kartlar?kimlik=' + encodeURIComponent(id) + '&boyut=1',
     );
-    return result.items[0] ?? null;
+    return result.items[0] ? dto(result.items[0]) : null;
   },
   setStockTracking: (ids: string[], on: boolean) =>
     apiRequest<void>('/api/stok/kartlar/toplu', {

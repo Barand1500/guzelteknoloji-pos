@@ -1,5 +1,6 @@
 import { CheckCircle2, ChevronLeft, ImagePlus, X } from 'lucide-react';
-import { useMemo, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { dataError } from '../../../lib/catalog-data';
 import { Link } from 'react-router';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
@@ -36,11 +37,20 @@ function toUrl(file: File): Promise<string> {
  * Toplu Görsel Yükleme: birçok görsel tek seferde seçilir; dosya adı ürünün stok kodu ya da barkodu
  * ise ürüne kendiliğinden eşlenir (`KOD.jpg`, aynı ürünün diğer resimleri `KOD_2.jpg`, `KOD_3.jpg`).
  * Eşleşmeyenlere ürün elle seçilir. Onaylamadan önce hangi ürüne hangi resimlerin gideceği görülür.
- * İlk resim vitrin resmidir. Sunucuda ürün görseli tablosu henüz yok: şimdilik deneme verisidir.
+ * İlk resim vitrin resmidir. Gerçek oturumda özgün dosyalar sunucuya ve ürün kayıtlarına yazılır.
  */
 export function BulkImagesView() {
   const service = useProductService();
-  const { products, loading } = useProducts();
+  const { products, loading, error, refresh } = useProducts();
+  const createdUrls = useRef(new Set<string>());
+  const saveLock = useRef(false);
+  const pickLock = useRef(false);
+  useEffect(() => {
+    const urls = createdUrls.current;
+    return () => {
+      for (const url of urls) URL.revokeObjectURL?.(url);
+    };
+  }, []);
   const [step, setStep] = useState<1 | 2>(1);
   const [images, setImages] = useState<PickedImage[]>([]);
   const [rejected, setRejected] = useState<RejectedFile[]>([]);
@@ -56,6 +66,8 @@ export function BulkImagesView() {
   const matchedCount = match.groups.reduce((n, g) => n + g.images.length, 0);
 
   const addFiles = async (files: File[]) => {
+    if (pickLock.current) return;
+    pickLock.current = true;
     const refused: RejectedFile[] = [];
     const accepted: PickedImage[] = [];
     const taken = new Set(images.map((i) => i.name.toLocaleLowerCase('tr')));
@@ -71,10 +83,17 @@ export function BulkImagesView() {
         continue;
       }
       taken.add(file.name.toLocaleLowerCase('tr'));
-      accepted.push({ id: `g${++seq}`, name: file.name, url: await toUrl(file) });
+      try {
+        const url = await toUrl(file);
+        if (url.startsWith('blob:')) createdUrls.current.add(url);
+        accepted.push({ id: `g${++seq}`, name: file.name, url });
+      } catch {
+        refused.push({ name: file.name, reason: 'Dosya okunamadı. Yeniden seçin.' });
+      }
     }
     setImages((current) => [...current, ...accepted]);
     setRejected(refused);
+    pickLock.current = false;
   };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
@@ -84,6 +103,9 @@ export function BulkImagesView() {
   };
 
   const removeImage = (id: string) => {
+    if (saveLock.current) return;
+    const image = images.find((i) => i.id === id);
+    if (image && createdUrls.current.delete(image.url)) URL.revokeObjectURL?.(image.url);
     setImages((current) => current.filter((i) => i.id !== id));
     setManual((current) => {
       const next = new Map(current);
@@ -92,18 +114,24 @@ export function BulkImagesView() {
     });
   };
 
-  const assign = (imageId: string, productId: string) =>
-    setManual((current) => new Map(current).set(imageId, productId));
+  const assign = (imageId: string, productId: string) => {
+    if (!saveLock.current) setManual((current) => new Map(current).set(imageId, productId));
+  };
 
   const reset = () => {
+    for (const url of createdUrls.current) URL.revokeObjectURL?.(url);
+    createdUrls.current.clear();
     setImages([]);
     setRejected([]);
     setManual(new Map());
     setDone(null);
     setStep(1);
+    setSaveError(null);
   };
 
   const save = async () => {
+    if (saveLock.current) return;
+    saveLock.current = true;
     setSaving(true);
     setSaveError(null);
     const entries = match.groups.map((g) => ({
@@ -114,9 +142,10 @@ export function BulkImagesView() {
       const count = await service.applyImages(entries, replace);
       setDone({ products: entries.length, images: count });
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Görseller yüklenemedi. Tekrar deneyin.');
+      setSaveError(dataError(e));
     } finally {
       setSaving(false);
+      saveLock.current = false;
     }
   };
 
@@ -127,6 +156,14 @@ export function BulkImagesView() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      {error ? (
+        <Alert tone="error">
+          {error}{' '}
+          <button type="button" onClick={() => void refresh()} className="ml-2 underline">
+            Tekrar Dene
+          </button>
+        </Alert>
+      ) : null}
       <nav aria-label="Sayfa yolu" className="flex items-center gap-2">
         <Link
           to={PRODUCTS_PATH}
@@ -151,9 +188,11 @@ export function BulkImagesView() {
           <p className="text-ink-muted">
             {done.products} ürüne {done.images} görsel eklendi.
           </p>
-          <p className="text-sm text-ink-muted">
-            Deneme verisi: görseller veritabanına kaydedilmedi (sunucuda ürün görseli henüz yok).
-          </p>
+          {service.isDemo ? (
+            <p className="text-sm text-ink-muted">
+              Deneme verisi: görseller veritabanına kaydedilmedi.
+            </p>
+          ) : null}
           <div className="flex w-full flex-col gap-3 sm:flex-row-reverse">
             <Link
               to={PRODUCTS_PATH}
@@ -249,7 +288,7 @@ export function BulkImagesView() {
               <div className="flex flex-col gap-3 sm:flex-row-reverse">
                 <Button
                   flow={false}
-                  disabled={images.length === 0 || loading}
+                  disabled={images.length === 0 || loading || !!error}
                   onClick={() => setStep(2)}
                 >
                   Eşleştir
@@ -299,6 +338,18 @@ export function BulkImagesView() {
                         aria-label={`${product.name} görselleri`}
                         className="flex flex-wrap gap-2"
                       >
+                        {!replace && product.imageUrls[0] ? (
+                          <li className="relative">
+                            <img
+                              src={product.imageUrls[0]}
+                              alt="Mevcut vitrin görseli"
+                              className="size-16 rounded-2xl border border-line bg-surface-muted object-cover"
+                            />
+                            <span className="absolute bottom-1 left-1 rounded-md bg-accent px-1.5 text-[0.625rem] font-extrabold text-ink">
+                              Vitrin
+                            </span>
+                          </li>
+                        ) : null}
                         {group.map((image, index) => (
                           <li key={image.id} className="relative">
                             <img
@@ -306,7 +357,7 @@ export function BulkImagesView() {
                               alt={image.name}
                               className="size-16 rounded-2xl border border-line bg-surface-muted object-cover"
                             />
-                            {index === 0 ? (
+                            {index === 0 && (replace || product.imageUrls.length === 0) ? (
                               <span className="absolute bottom-1 left-1 rounded-md bg-accent px-1.5 text-[0.625rem] font-extrabold text-ink">
                                 Vitrin
                               </span>
@@ -370,7 +421,13 @@ export function BulkImagesView() {
                 </section>
               ) : null}
 
-              <Switch label="Mevcut görselleri değiştir" checked={replace} onChange={setReplace} />
+              <fieldset disabled={saving} className="contents">
+                <Switch
+                  label="Mevcut görselleri değiştir"
+                  checked={replace}
+                  onChange={setReplace}
+                />
+              </fieldset>
               <p className="-mt-2 px-2 text-sm text-ink-muted">
                 Kapalıyken yeni görseller ürünün mevcut görsellerinin sonuna eklenir.
               </p>
@@ -387,7 +444,7 @@ export function BulkImagesView() {
                 >
                   {matchedCount} Görseli Yükle
                 </Button>
-                <Button variant="outline" flow={false} onClick={() => setStep(1)}>
+                <Button variant="outline" flow={false} disabled={saving} onClick={() => setStep(1)}>
                   Geri
                 </Button>
               </div>

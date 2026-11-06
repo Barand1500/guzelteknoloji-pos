@@ -78,6 +78,7 @@ export function createApp(deps: AppDeps): Express {
   }
 
   app.use(requestLogger(logger));
+  app.use('/api/stok/gorseller/yukle', express.json({ limit: '7mb' }));
   app.use('/api/stok', express.json({ limit: '512kb' }));
   app.use('/api/markalar', express.json({ limit: '3mb' }));
   app.use(['/api/kategoriler', '/api/katalog/kategoriler'], express.json({ limit: '3mb' }));

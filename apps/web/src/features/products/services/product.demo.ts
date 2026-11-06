@@ -69,6 +69,7 @@ function check(raw: RawImportRow): { row: ImportRow; product?: Partial<ProductIt
 }
 
 export const demoProductService = {
+  isDemo: true,
   /** Toplu Görsel: deneme verisinde görseller bellekte tutulur. */
   supportsImages: true,
 

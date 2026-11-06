@@ -16,10 +16,11 @@ export interface ProductItem {
   categoryName?: string;
   /** Vitrin resmi (ilk görsel). */
   imageUrl: string | null;
-  /** Tüm görseller, sıralı; ilki vitrin resmidir (sunucu ürün görseli tablosu gelene kadar yalnızca deneme verisi). */
+  /** Tüm görseller, sıralı; ilki vitrin resmidir. */
   imageUrls: string[];
   /** Barkod (Toplu Görsel dosya adıyla eşleştirmek için); sunucu listesi henüz vermiyorsa yoktur. */
   barcode?: string;
+  barcodes?: string[];
   /** Para birimi simgesi (ör. "$", "₺"). */
   currency: string;
   /** KDV yüzdesi (ör. 20). */

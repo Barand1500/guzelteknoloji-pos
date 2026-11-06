@@ -1,6 +1,6 @@
 # Stok ve kategori API sözleşmesi
 
-2026-11-06 güncellemesi: Ürünler, Kategoriler, Fırsatlar ve Özellikler ekranları gerçek oturumda API/MySQL kullanır. Deneme kullanıcısı ayrı `.demo.ts` servislerinde kalır. Shared paket değiştirilmedi; mevcut stok taslağı adaptörü korunur. Ürün görseli, ürün açıklaması ve ürün SEO kayıtları ayrı kapsamdır. E-posta kodları bilinçli olarak MySQL'dedir. Fırsat ve özellik uçları: [katalog-api.md](katalog-api.md).
+2026-11-06 güncellemesi: Ürünler, Kategoriler, Fırsatlar ve Özellikler ekranları gerçek oturumda API/MySQL kullanır. Deneme kullanıcısı ayrı `.demo.ts` servislerinde kalır. Shared paket değiştirilmedi; mevcut stok taslağı adaptörü korunur. Toplu ürün görselleri de kalıcı API'ye bağlıdır. Ürün açıklaması ve ürün SEO kayıtları ayrı kapsamdır. E-posta kodları bilinçli olarak MySQL'dedir. Fırsat ve özellik uçları: [katalog-api.md](katalog-api.md).
 
 ## Veritabanı
 
@@ -46,7 +46,17 @@ Satırda `ProductItem` alanları bulunur: `id`, `code`, `name`, `stockType`, `br
 
 `prices[0..2]`: ana birimin `fiyat`, `perakende`, `toptan` listelerindeki KDV hariç, indirim uygulanmış satış fiyatları. `cost`: `fiyat` listesinin KDV hariç alış fiyatı. Hesap veritabanındaki ondalıklarla yapılır. Eksik tutar 0 gösterilir; başka listeden fiyat kopyalanmaz. Ana birim yoksa fiyatlar 0'dır. Eski `currency` simge, `vatRate` ilk satış fiyatının oranıdır. Fiyat listelerinde farklı KDV/para birimleri kullanılabildiği için `priceVatRates` ve ISO kodlu `priceCurrencies` dizileri ayrıca döner; ön yüz farklı oranları gösterirken bunları kullanmalıdır.
 
-`dealIds`, `stok_firsatlari` ilişkilerinden döner. Ürün görseli kapsamı ertelendiğinden `imageUrl: null` döner; örnek ürün görseli üretilmez. Ön yüz her fiyatın kendi `priceVatRates` / `priceCurrencies` bilgisini kullanır. Alış fiyatı için `costVatRate`, `costCurrency` döner; farklı para birimlerindeki alış/satış arasında kâr yüzdesi hesaplanmaz.
+`dealIds`, `stok_firsatlari` ilişkilerinden döner. `imageUrls`, `stok_gorselleri` tablosunun `(sira,id)` sırasındaki gerçek görsel adresleridir; `imageUrl` ilk görseldir, görsel yoksa null döner. `barcodes` bütün birimlerin barkodlarını, `barcode` ilkini içerir; Toplu Görsel eşleştirmesi hepsine bakar. Ön yüz her fiyatın kendi `priceVatRates` / `priceCurrencies` bilgisini kullanır. Alış fiyatı için `costVatRate`, `costCurrency` döner; farklı para birimlerindeki alış/satış arasında kâr yüzdesi hesaplanmaz.
+
+## Toplu ürün görselleri
+
+Migration: `20261106230000_stok_gorselleri`. Tek yeni tablo `stok_gorselleri`: sayısal `id`, `stok_karti_id`, `dosya_adi`, `sira`. Dosya adı benzersizdir. Kullanıcı sahipliği stok kartından gelir; ayrı kullanıcı veya kopya ürün bilgisi tutulmaz. İlk sıra vitrin görselidir. Stok kartı düzenlenirken görseller korunur; ürün silinirse bağlantıları ve dosyaları kaldırılır.
+
+- `POST /api/stok/gorseller/yukle`: `{dataUrl}`. PNG/JPEG/WebP; dosya başına 5 MB. İçerik doğrulanır, özgün baytlar `UPLOADS_DIR/urunler` içine yazılır; yeniden boyutlandırma, sıkıştırma veya WebP dönüşümü yoktur. Yanıt `{ticket}`; kullanıcıya bağlı imzalı bilet 12 saat geçerlidir. Bu aşama ürünün mevcut görsellerini değiştirmez.
+- `POST /api/stok/gorseller/kaydet`: `{replace, entries: [{productId, tickets}]}`. Bir seferde toplam en fazla 300 görsel. Bütün ürünler oturum sahibine ait olmalıdır. `replace=false` mevcut sıranın sonuna ekler; true yalnızca seçili ürünlerin eski görsellerini değiştirir. Bütün bağlantılar tek transaction içinde kaydedilir; hata halinde eski bağlantılar korunur. Aynı biletlerle tekrar gönderim görselleri çoğaltmaz. Eski dosyalar başarılı değişimden sonra kaldırılır.
+- `GET /api/stok/gorseller/:id`: yalnızca oturum sahibinin görselinin özgün içeriği.
+
+Ön yüz dosyaları yükleme onayından sonra tek tek Base64 ile aktarır; 300 büyük dosyayı tek JSON gövdesinde biriktirmez. Kayıt onayı gelmeden başarı gösterilmez. Yarım kalan yüklemeler için ek tablo açılmaz; hiçbir ürüne bağlı olmayan, bir günden eski dosyalar saatlik ilk yüklemede temizlenir. MySQL ve uploads birlikte yedeklenmelidir. Reverse proxy istek boyutu Base64 dahil en az 7 MB olmalıdır (ör. Nginx `client_max_body_size 8m`).
 
 Ön yüz mevcut çoklu süzgeçleri ve sayfalama düzenini korumak için sayfalı API'den tüm kayıtları 200'lük parçalarla yükler. Sahte ürün listesine geri dönmez. `kimlik` sorgusu tek ürün satırını seçer. Gerçek hesapta düzenleme ve kopyalama aynı stok kartı API'sini kullanır; metin ID'li deneme ürünü istisnası kaldırıldı.
 

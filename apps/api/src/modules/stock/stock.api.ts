@@ -50,6 +50,9 @@ export interface ProductListItem {
   categoryIds: string[];
   categoryNames: string[];
   imageUrl: string | null;
+  imageUrls: string[];
+  barcode: string;
+  barcodes: string[];
   currency: string;
   vatRate: number;
   prices: [number, number, number];

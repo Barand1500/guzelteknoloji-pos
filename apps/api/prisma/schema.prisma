@@ -203,10 +203,23 @@ model StokKarti {
   birimler             StokBirimi[]
   kategoriler          StokKartiKategori[]
   firsatlar            StokFirsati[]
+  gorseller            StokGorseli[]
 
   @@unique([kullaniciKimligi, stokKodu], map: "stok_kartlari_kullanici_kod_tekil")
   @@unique([kullaniciKimligi, kayitIstegiKimligi], map: "stok_kartlari_kayit_istegi_tekil")
   @@map("stok_kartlari")
+}
+
+/// Dosya uploads/urunler içinde özgün biçimde tutulur; ilk sıra vitrin görselidir.
+model StokGorseli {
+  id          Int       @id @default(autoincrement())
+  stokKartiId Int       @map("stok_karti_id")
+  dosyaAdi    String    @unique @map("dosya_adi") @db.VarChar(255)
+  sira        Int       @default(0)
+  stokKarti   StokKarti @relation(fields: [stokKartiId], references: [kimlik], onDelete: Cascade)
+
+  @@index([stokKartiId, sira])
+  @@map("stok_gorselleri")
 }
 
 model Kategori {
