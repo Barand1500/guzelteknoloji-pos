@@ -8,22 +8,67 @@ import {
   type StockLookups,
 } from '@gt/shared';
 import { Prisma } from '../../generated/prisma/client';
-import type { Marka, StokFiyati, StokSecenegi } from '../../generated/prisma/client';
+import type { StokFiyati } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
+import type { ProductListItem, ProductListPage, StockBulkInput, StockListQuery } from './stock.api';
 
 export interface StockRepository {
   getLookups(userId: string): Promise<StockLookups>;
   addOption(userId: string, list: OptionListKey, label: string): Promise<SelectOption>;
   removeOption(userId: string, list: OptionListKey, value: string): Promise<void>;
   create(userId: string, input: CreateStockInput): Promise<{ id: string }>;
+  update(userId: string, id: string, input: CreateStockInput): Promise<{ id: string }>;
   get(userId: string, id: string): Promise<unknown>;
+  getDraft(userId: string, id: string): Promise<unknown>;
+  list(userId: string, query: StockListQuery): Promise<ProductListPage>;
+  bulk(userId: string, input: StockBulkInput): Promise<{ affected: number }>;
 }
 
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 const labelHash = (label: string) => hash(label.normalize('NFC').trim().toLocaleLowerCase('tr-TR'));
 const nullable = (value: string) => (value === '' ? null : value);
 const decimal = (value: string) => (value === '' ? null : new Prisma.Decimal(value));
+
+/** Shared paket değişene kadar eski fiyat-listesi sözleşmesini ortak birimlere çevirir. */
+function commonUnits(draft: CreateStockInput['draft']) {
+  const lists = Object.entries(draft.units);
+  const first = lists[0]?.[1];
+  if (!first?.length) throw new HttpError(400, 'VALIDATION_ERROR', 'En az bir birim ekleyin.');
+  const signature = (row: (typeof first)[number]) =>
+    JSON.stringify({
+      unit: row.unit,
+      multiplier: new Prisma.Decimal(row.multiplier).toString(),
+      isMain: row.isMain,
+      isDefault: row.isDefault,
+      weight: row.weight === '' ? null : new Prisma.Decimal(row.weight).toString(),
+      weightUnit: row.weightUnit,
+      volume: row.volume === '' ? null : new Prisma.Decimal(row.volume).toString(),
+      note: row.note,
+      barcodes: row.barcodes
+        .map((b) => [b.type, b.code])
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+    });
+  for (const [, rows] of lists) {
+    if (
+      rows.length !== first.length ||
+      rows.some((row, i) => signature(row) !== signature(first[i]!))
+    )
+      throw new HttpError(
+        400,
+        'VALIDATION_ERROR',
+        'Birim ve barkodlar tüm fiyat listelerinde ortak olmalı. Birim bilgilerini eşitleyin.',
+      );
+  }
+  const barcodes = first.flatMap((row) => row.barcodes.map((b) => b.code));
+  if (new Set(barcodes).size !== barcodes.length)
+    throw new HttpError(
+      400,
+      'VALIDATION_ERROR',
+      'Aynı barkod bir kartta birden fazla kez kullanılamaz.',
+    );
+  return { lists, rows: first, barcodes };
+}
 
 async function retryWrite<T>(operation: () => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt++) {
@@ -71,37 +116,6 @@ function priceData(side: 'alis' | 'satis', block: PriceBlockData) {
         paraBirimi: extra.currency,
       })),
     },
-  };
-}
-
-// Prisma adlari Turkce; mevcut API sozlesmesi bu sinirda korunur.
-function optionDto(row: StokSecenegi) {
-  return {
-    id: String(row.kimlik),
-    userId: String(row.kullaniciKimligi),
-    listKey: row.listeTuru,
-    value: row.secenekKodu,
-    label: row.secenekAdi,
-    labelHash: row.adHash,
-    removable: row.silinebilir,
-    active: row.etkin,
-    position: row.sira,
-    createdAt: row.olusturmaZamani,
-  };
-}
-
-function brandOptionDto(row: Marka) {
-  return {
-    id: String(row.kimlik),
-    userId: String(row.kullaniciKimligi),
-    listKey: 'brands',
-    value: String(row.kimlik),
-    label: row.markaAdi,
-    labelHash: row.adHash,
-    removable: true,
-    active: row.etkin,
-    position: row.sira,
-    createdAt: row.olusturmaZamani,
   };
 }
 
@@ -169,9 +183,7 @@ export class PrismaStockRepository implements StockRepository {
   async addOption(userId: string, listKey: OptionListKey, label: string) {
     await this.ensureDefaults(userId);
     const row = await this.db.$transaction(async (tx) => {
-      await tx.$queryRaw(
-        Prisma.sql`SELECT kimlik FROM kullanicilar WHERE kimlik = ${userId} FOR UPDATE`,
-      );
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM kullanicilar WHERE id = ${userId} FOR UPDATE`);
 
       return tx.stokSecenegi.upsert({
         where: {
@@ -198,9 +210,7 @@ export class PrismaStockRepository implements StockRepository {
 
   async removeOption(userId: string, listKey: OptionListKey, value: string) {
     await this.db.$transaction(async (tx) => {
-      await tx.$queryRaw(
-        Prisma.sql`SELECT kimlik FROM kullanicilar WHERE kimlik = ${userId} FOR UPDATE`,
-      );
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM kullanicilar WHERE id = ${userId} FOR UPDATE`);
 
       const row = await tx.stokSecenegi.findUnique({
         where: {
@@ -220,37 +230,34 @@ export class PrismaStockRepository implements StockRepository {
   }
 
   async create(userId: string, input: CreateStockInput) {
+    return this.saveCard(userId, input);
+  }
+
+  async update(userId: string, id: string, input: CreateStockInput) {
+    return this.saveCard(userId, input, Number(id));
+  }
+
+  private async saveCard(userId: string, input: CreateStockInput, cardId?: number) {
+    const common = commonUnits(input.draft);
     await this.ensureDefaults(userId);
     const requestHash = hash(JSON.stringify(input.draft));
-    const existing = await this.db.stokKarti.findUnique({
-      where: {
-        kullaniciKimligi_kayitIstegiKimligi: {
-          kullaniciKimligi: Number(userId),
-          kayitIstegiKimligi: input.requestId,
-        },
-      },
-    });
-    const replay = (row: { kimlik: number; kayitIstegiHash: string }) => {
-      if (row.kayitIstegiHash !== requestHash)
-        throw new HttpError(
-          409,
-          'CONFLICT',
-          'Bu kayıt isteği farklı bilgilerle kullanılmış. Yeni kayıt başlatın.',
-        );
-      return { id: String(row.kimlik) };
-    };
-    if (existing) return replay(existing);
     try {
       return await retryWrite(() =>
         this.db.$transaction(
           async (tx) => {
-            // Aynı kullanıcının kayıtlarını sıraya alır: barkod kontrolü ile
-            // kayıt arasında başka istek araya giremez. Kullanıcı oturumdan belirlenir.
             await tx.$queryRaw(
-              Prisma.sql`SELECT kimlik FROM kullanicilar WHERE kimlik = ${userId} FOR UPDATE`,
+              Prisma.sql`SELECT id FROM kullanicilar WHERE id = ${Number(userId)} FOR UPDATE`,
             );
-
-            const retried = await tx.stokKarti.findUnique({
+            const current =
+              cardId === undefined
+                ? null
+                : await tx.stokKarti.findFirst({
+                    where: { kimlik: cardId, kullaniciKimligi: Number(userId) },
+                    include: { birimler: { include: { fiyatlar: true } } },
+                  });
+            if (cardId !== undefined && !current)
+              throw new HttpError(404, 'NOT_FOUND', 'Stok kartı bulunamadı.');
+            const replay = await tx.stokKarti.findUnique({
               where: {
                 kullaniciKimligi_kayitIstegiKimligi: {
                   kullaniciKimligi: Number(userId),
@@ -258,151 +265,180 @@ export class PrismaStockRepository implements StockRepository {
                 },
               },
             });
-            if (retried) return replay(retried);
+            if (replay) {
+              if (
+                (cardId !== undefined && replay.kimlik !== cardId) ||
+                replay.kayitIstegiHash !== requestHash
+              )
+                throw new HttpError(
+                  409,
+                  'CONFLICT',
+                  'Bu kayıt isteği farklı bilgilerle kullanılmış. Yeniden kaydedin.',
+                );
+              return { id: String(replay.kimlik) };
+            }
+            const allowedOldOptions = new Set(
+              current
+                ? [
+                    current.stokTipiKimligi,
+                    current.stokNeviKimligi,
+                    current.kdvDepartmaniKimligi,
+                    current.digerVergiKimligi,
+                    ...current.birimler.flatMap((unit) => [
+                      unit.birimKimligi,
+                      ...unit.fiyatlar.map((p) => p.fiyatListesiKimligi),
+                    ]),
+                  ].filter((id): id is number => id !== null)
+                : [],
+            );
             const options = await tx.stokSecenegi.findMany({
-              where: { kullaniciKimligi: Number(userId), etkin: true },
+              where: { kullaniciKimligi: Number(userId) },
             });
             const optionId = (
-              listKey: keyof StockLookups,
+              key: keyof StockLookups,
               value: string,
               optional = false,
             ): number | null => {
               if (optional && !value) return null;
               const found = options.find(
-                (row) => row.listeTuru === listKey && row.secenekKodu === value,
+                (o) =>
+                  o.listeTuru === key &&
+                  o.secenekKodu === value &&
+                  (o.etkin || allowedOldOptions.has(o.kimlik)),
               );
               if (!found)
                 throw new HttpError(
                   400,
                   'VALIDATION_ERROR',
-                  'Seçilen seçenek artık kullanılamıyor. Listeyi yenileyip tekrar seçin.',
+                  'Seçilen seçenek artık kullanılamıyor. Listeyi yenileyin.',
                 );
               return found.kimlik;
             };
             const d = input.draft;
             optionId('stockTypes', d.stockType);
             optionId('stockKinds', d.stockKind);
-            const brand =
-              d.brand && /^[1-9][0-9]{0,9}$/.test(d.brand) && Number(d.brand) <= 2147483647
-                ? await tx.marka.findFirst({
-                    where: {
-                      kullaniciKimligi: Number(userId),
-                      kimlik: Number(d.brand),
-                      etkin: true,
-                    },
-                    select: { kimlik: true },
-                  })
-                : null;
-            if (d.brand && !brand)
-              throw new HttpError(
-                400,
-                'VALIDATION_ERROR',
-                'Seçilen marka artık kullanılamıyor. Listeyi yenileyip tekrar seçin.',
-              );
             optionId('vatDepartments', d.vatDepartment, true);
             optionId('otherTaxes', d.otherTax, true);
-            for (const [list, rows] of Object.entries(d.units)) {
-              optionId('priceLists', list);
-              for (const row of rows) optionId('units', row.unit);
-            }
+            for (const row of common.rows) optionId('units', row.unit);
+            for (const [list] of common.lists) optionId('priceLists', list);
+            if (d.brand && (!/^[1-9][0-9]{0,9}$/.test(d.brand) || Number(d.brand) > 2147483647))
+              throw new HttpError(400, 'VALIDATION_ERROR', 'Geçerli bir marka seçin.');
+            const brand = d.brand
+              ? await tx.marka.findFirst({
+                  where: {
+                    kimlik: Number(d.brand),
+                    kullaniciKimligi: Number(userId),
+                    OR: [
+                      { etkin: true },
+                      ...(current?.markaKimligi ? [{ kimlik: current.markaKimligi }] : []),
+                    ],
+                  },
+                })
+              : null;
+            if (d.brand && !brand)
+              throw new HttpError(400, 'VALIDATION_ERROR', 'Seçilen marka kullanılamıyor.');
             if (
               d.code &&
-              (await tx.stokKarti.findUnique({
+              (await tx.stokKarti.findFirst({
                 where: {
-                  kullaniciKimligi_stokKodu: { kullaniciKimligi: Number(userId), stokKodu: d.code },
+                  kullaniciKimligi: Number(userId),
+                  stokKodu: d.code,
+                  ...(cardId === undefined ? {} : { kimlik: { not: cardId } }),
                 },
                 select: { kimlik: true },
               }))
-            ) {
+            )
               throw new HttpError(
                 409,
                 'CONFLICT',
                 'Bu stok koduyla bir kart zaten var. Farklı bir stok kodu girin.',
               );
-            }
-            const barcodes = [
-              ...new Set(
-                Object.values(d.units).flatMap((rows) =>
-                  rows.flatMap((row) => row.barcodes.map((barcode) => barcode.code)),
-                ),
-              ),
-            ];
             if (
-              barcodes.length > 0 &&
+              common.barcodes.length &&
               (await tx.stokBarkodu.findFirst({
                 where: {
-                  barkod: { in: barcodes },
-                  stokBirimi: { fiyatListesi: { stokKarti: { kullaniciKimligi: Number(userId) } } },
+                  barkod: { in: common.barcodes },
+                  stokBirimi: {
+                    stokKarti: {
+                      kullaniciKimligi: Number(userId),
+                      ...(cardId === undefined ? {} : { kimlik: { not: cardId } }),
+                    },
+                  },
                 },
-                select: { kimlik: true },
               }))
-            ) {
+            )
               throw new HttpError(
                 409,
                 'CONFLICT',
-                'Bu barkod başka bir stok kartında kullanılıyor. Barkodları kontrol edin.',
+                'Bu barkod başka bir stok kartında kullanılıyor.',
               );
-            }
-            // Görünmeyen takip türünün eski değerleri yanlışlıkla kaydedilmez.
             const normal = d.inventoryTracking === 'normal';
             const serial = d.inventoryTracking === 'seri';
             const lot = d.inventoryTracking === 'lot';
             const expiry = d.inventoryTracking === 'omur';
-            const saved = await tx.stokKarti.create({
-              select: { kimlik: true },
-              data: {
-                kullaniciKimligi: Number(userId),
-                kayitIstegiKimligi: input.requestId,
-                kayitIstegiHash: requestHash,
-                stokKodu: nullable(d.code),
-                stokAdi: nullable(d.name),
-                stokTipiKimligi: optionId('stockTypes', d.stockType)!,
-                stokNeviKimligi: optionId('stockKinds', d.stockKind)!,
-                markaKimligi: brand?.kimlik ?? null,
-                kdvDepartmaniKimligi: optionId('vatDepartments', d.vatDepartment, true),
-                digerVergiKimligi: optionId('otherTaxes', d.otherTax, true),
-                envanterTakibi: d.inventoryTracking,
-                altLimit: normal ? decimal(d.lowerLimit) : null,
-                ustLimit: normal ? decimal(d.upperLimit) : null,
-                seriNoZorunlu: serial && d.serialRequired,
-                seriNoOneki: serial ? nullable(d.serialPrefix) : null,
-                lotZorunlu: lot && d.lotRequired,
-                sktTakibi: lot && d.expiryTracking,
-                lotOneki: lot ? nullable(d.lotPrefix) : null,
-                sktZorunlu: expiry && d.expiryRequired,
-                rafOmruGun: expiry && d.shelfLifeDays ? Number(d.shelfLifeDays) : null,
-                riskSuresiGun: expiry && d.riskDays ? Number(d.riskDays) : null,
-                gtipKodu: nullable(d.gtip),
-                mensei: nullable(d.origin),
-                fiyatListeleri: {
-                  create: Object.entries(d.units).map(([key, rows], position) => ({
-                    fiyatListesiKimligi: optionId('priceLists', key)!,
-                    sira: position,
-                    birimler: {
-                      create: rows.map((row, rowPosition) => ({
-                        birimKimligi: optionId('units', row.unit)!,
-                        sira: rowPosition,
-                        carpan: new Prisma.Decimal(row.multiplier),
-                        anaBirim: row.isMain,
-                        varsayilanBirim: row.isDefault,
-                        agirlik: decimal(row.weight),
-                        agirlikBirimi: row.weightUnit,
-                        hacimDesi: decimal(row.volume),
-                        aciklama: nullable(row.note),
-                        fiyatlar: {
-                          create: [priceData('alis', row.purchase), priceData('satis', row.sale)],
-                        },
-                        barkodlar: {
-                          create: row.barcodes.map(({ type, code }) => ({
-                            barkodTuru: type,
-                            barkod: code,
-                          })),
-                        },
-                      })),
-                    },
-                  })),
-                },
+            const changes = {
+              kayitIstegiKimligi: input.requestId,
+              kayitIstegiHash: requestHash,
+              stokKodu: nullable(d.code),
+              stokAdi: nullable(d.name),
+              stokTipiKimligi: optionId('stockTypes', d.stockType)!,
+              stokNeviKimligi: optionId('stockKinds', d.stockKind)!,
+              markaKimligi: brand?.kimlik ?? null,
+              kdvDepartmaniKimligi: optionId('vatDepartments', d.vatDepartment, true),
+              digerVergiKimligi: optionId('otherTaxes', d.otherTax, true),
+              envanterTakibi: d.inventoryTracking,
+              altLimit: normal ? decimal(d.lowerLimit) : null,
+              ustLimit: normal ? decimal(d.upperLimit) : null,
+              seriNoZorunlu: serial && d.serialRequired,
+              seriNoOneki: serial ? nullable(d.serialPrefix) : null,
+              lotZorunlu: lot && d.lotRequired,
+              sktTakibi: lot && d.expiryTracking,
+              lotOneki: lot ? nullable(d.lotPrefix) : null,
+              sktZorunlu: expiry && d.expiryRequired,
+              rafOmruGun: expiry && d.shelfLifeDays ? Number(d.shelfLifeDays) : null,
+              riskSuresiGun: expiry && d.riskDays ? Number(d.riskDays) : null,
+              gtipKodu: nullable(d.gtip),
+              mensei: nullable(d.origin),
+              birimler: {
+                create: common.rows.map((row, position) => ({
+                  birimKimligi: optionId('units', row.unit)!,
+                  sira: position,
+                  carpan: new Prisma.Decimal(row.multiplier),
+                  anaBirim: row.isMain,
+                  varsayilanBirim: row.isDefault,
+                  agirlik: decimal(row.weight),
+                  agirlikBirimi: row.weightUnit,
+                  hacimDesi: decimal(row.volume),
+                  aciklama: nullable(row.note),
+                  barkodlar: {
+                    create: row.barcodes.map((b) => ({ barkodTuru: b.type, barkod: b.code })),
+                  },
+                  fiyatlar: {
+                    create: common.lists.flatMap(([list, rows]) => {
+                      const priceRow = rows[position]!;
+                      const fiyatListesiKimligi = optionId('priceLists', list)!;
+                      return [
+                        { ...priceData('alis', priceRow.purchase), fiyatListesiKimligi },
+                        { ...priceData('satis', priceRow.sale), fiyatListesiKimligi },
+                      ];
+                    }),
+                  },
+                })),
               },
+            };
+            // Kart numarası, satış durumu, stok miktarı ve kategoriler güncellemede korunur.
+            if (cardId !== undefined) {
+              await tx.stokBirimi.deleteMany({ where: { stokKartiKimligi: cardId } });
+              const saved = await tx.stokKarti.update({
+                where: { kimlik: cardId },
+                data: changes,
+                select: { kimlik: true },
+              });
+              return { id: String(saved.kimlik) };
+            }
+            const saved = await tx.stokKarti.create({
+              data: { kullaniciKimligi: Number(userId), ...changes },
+              select: { kimlik: true },
             });
             return { id: String(saved.kimlik) };
           },
@@ -410,27 +446,17 @@ export class PrismaStockRepository implements StockRepository {
         ),
       );
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        const row = await this.db.stokKarti.findUnique({
-          where: {
-            kullaniciKimligi_kayitIstegiKimligi: {
-              kullaniciKimligi: Number(userId),
-              kayitIstegiKimligi: input.requestId,
-            },
-          },
-        });
-        if (row) return replay(row);
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
         throw new HttpError(
           409,
           'CONFLICT',
-          'Bu stok koduyla bir kart zaten var. Farklı bir stok kodu girin.',
+          'Kayıtta tekrarlanan bir kod veya barkod var. Bilgileri kontrol edin.',
         );
-      }
       throw error;
     }
   }
 
-  async get(userId: string, id: string) {
+  private async readCard(userId: string, id: string) {
     const card = await this.db.stokKarti.findFirst({
       where: { kimlik: Number(id), kullaniciKimligi: Number(userId) },
       include: {
@@ -439,103 +465,221 @@ export class PrismaStockRepository implements StockRepository {
         marka: true,
         kdvDepartmani: true,
         digerVergi: true,
-        fiyatListeleri: {
-          orderBy: { sira: 'asc' },
+        kategoriler: { include: { kategori: true }, orderBy: { kategoriId: 'asc' } },
+        birimler: {
+          orderBy: [{ sira: 'asc' }, { kimlik: 'asc' }],
           include: {
             secenek: true,
-            birimler: {
-              orderBy: { sira: 'asc' },
-              include: {
-                secenek: true,
-                barkodlar: true,
-                fiyatlar: { include: { ekFiyatlar: { orderBy: { sira: 'asc' } } } },
-              },
-            },
+            barkodlar: { orderBy: { kimlik: 'asc' } },
+            fiyatlar: { include: { fiyatListesi: true, ekFiyatlar: { orderBy: { sira: 'asc' } } } },
           },
         },
       },
     });
     if (!card) throw new HttpError(404, 'NOT_FOUND', 'Stok kartı bulunamadı.');
+    return card;
+  }
+
+  async get(userId: string, id: string) {
+    return this.getDraft(userId, id);
+  }
+
+  async getDraft(userId: string, id: string) {
+    const card = await this.readCard(userId, id);
+    const str = (value: unknown) => (value == null ? '' : String(value));
+    const listOptions = new Map(
+      card.birimler.flatMap((u) =>
+        u.fiyatlar.map((p) => [p.fiyatListesiKimligi, p.fiyatListesi] as const),
+      ),
+    );
+    const lists = [...listOptions.values()].sort((a, b) => a.sira - b.sira || a.kimlik - b.kimlik);
+    const units = Object.fromEntries(
+      lists.map((list) => [
+        list.secenekKodu,
+        card.birimler.map((unit) => {
+          const price = (side: string) => {
+            const row = unit.fiyatlar.find(
+              (p) => p.fiyatListesiKimligi === list.kimlik && p.fiyatYonu === side,
+            );
+            return {
+              amount: str(row?.girilenFiyat),
+              currency: row?.paraBirimi ?? 'TRY',
+              discount: str(row?.iskontoOrani),
+              vatRate: str(row?.kdvOrani),
+              vatIncluded: row?.kdvDahilGirildi ?? false,
+              extras: (row?.ekFiyatlar ?? []).map((extra) => ({
+                id: String(extra.kimlik),
+                note: str(extra.aciklama),
+                amount: str(extra.tutar),
+                discount: str(extra.iskontoOrani),
+                currency: extra.paraBirimi,
+              })),
+            };
+          };
+          return {
+            id: String(unit.kimlik),
+            unit: unit.secenek.secenekKodu,
+            multiplier: str(unit.carpan),
+            purchase: price('alis'),
+            sale: price('satis'),
+            barcodes: unit.barkodlar.map((b) => ({
+              id: String(b.kimlik),
+              type: b.barkodTuru,
+              code: b.barkod,
+            })),
+            weight: str(unit.agirlik),
+            weightUnit: unit.agirlikBirimi,
+            volume: str(unit.hacimDesi),
+            note: str(unit.aciklama),
+            isMain: unit.anaBirim,
+            isDefault: unit.varsayilanBirim,
+          };
+        }),
+      ]),
+    );
     return {
-      id: String(card.kimlik),
-      userId: String(card.kullaniciKimligi),
-      requestId: card.kayitIstegiKimligi,
-      requestHash: card.kayitIstegiHash,
-      code: card.stokKodu,
-      name: card.stokAdi,
-      stockTypeId: String(card.stokTipiKimligi),
-      stockKindId: String(card.stokNeviKimligi),
-      brandId: card.markaKimligi === null ? null : String(card.markaKimligi),
-      vatDepartmentId:
-        card.kdvDepartmaniKimligi === null ? null : String(card.kdvDepartmaniKimligi),
-      otherTaxId: card.digerVergiKimligi === null ? null : String(card.digerVergiKimligi),
+      stockType: card.stokTipi.secenekKodu,
+      code: str(card.stokKodu),
+      name: str(card.stokAdi),
+      brand: str(card.markaKimligi),
+      vatDepartment: card.kdvDepartmani?.secenekKodu ?? '',
+      stockKind: card.stokNevi.secenekKodu,
       inventoryTracking: card.envanterTakibi,
-      lowerLimit: card.altLimit,
-      upperLimit: card.ustLimit,
+      lowerLimit: str(card.altLimit),
+      upperLimit: str(card.ustLimit),
       serialRequired: card.seriNoZorunlu,
-      serialPrefix: card.seriNoOneki,
+      serialPrefix: str(card.seriNoOneki),
       lotRequired: card.lotZorunlu,
       expiryTracking: card.sktTakibi,
-      lotPrefix: card.lotOneki,
+      lotPrefix: str(card.lotOneki),
       expiryRequired: card.sktZorunlu,
-      shelfLifeDays: card.rafOmruGun,
-      riskDays: card.riskSuresiGun,
-      gtip: card.gtipKodu,
-      origin: card.mensei,
-      createdAt: card.olusturmaZamani,
-      updatedAt: card.guncellemeZamani,
-      stockType: optionDto(card.stokTipi),
-      stockKind: optionDto(card.stokNevi),
-      brand: card.marka === null ? null : brandOptionDto(card.marka),
-      vatDepartment: card.kdvDepartmani === null ? null : optionDto(card.kdvDepartmani),
-      otherTax: card.digerVergi === null ? null : optionDto(card.digerVergi),
-      priceLists: card.fiyatListeleri.map((list) => ({
-        id: String(list.kimlik),
-        cardId: String(list.stokKartiKimligi),
-        optionId: String(list.fiyatListesiKimligi),
-        position: list.sira,
-        option: optionDto(list.secenek),
-        units: list.birimler.map((unit) => ({
-          id: String(unit.kimlik),
-          listId: String(unit.stokFiyatListesiKimligi),
-          optionId: String(unit.birimKimligi),
-          position: unit.sira,
-          multiplier: unit.carpan,
-          isMain: unit.anaBirim,
-          isDefault: unit.varsayilanBirim,
-          weight: unit.agirlik,
-          weightUnit: unit.agirlikBirimi,
-          volume: unit.hacimDesi,
-          note: unit.aciklama,
-          option: optionDto(unit.secenek),
-          prices: unit.fiyatlar.map((price) => ({
-            id: String(price.kimlik),
-            unitId: String(price.stokBirimiKimligi),
-            side: price.fiyatYonu,
-            amount: price.girilenFiyat,
-            currency: price.paraBirimi,
-            discount: price.iskontoOrani,
-            vatRate: price.kdvOrani,
-            vatIncluded: price.kdvDahilGirildi,
-            ...calculatedPrices(price),
-            extras: price.ekFiyatlar.map((extra) => ({
-              id: String(extra.kimlik),
-              priceId: String(extra.stokFiyatiKimligi),
-              position: extra.sira,
-              note: extra.aciklama,
-              amount: extra.tutar,
-              discount: extra.iskontoOrani,
-              currency: extra.paraBirimi,
-            })),
-          })),
-          barcodes: unit.barkodlar.map((price) => ({
-            id: String(price.kimlik),
-            unitId: String(price.stokBirimiKimligi),
-            type: price.barkodTuru,
-            code: price.barkod,
-          })),
-        })),
-      })),
+      shelfLifeDays: str(card.rafOmruGun),
+      riskDays: str(card.riskSuresiGun),
+      gtip: str(card.gtipKodu),
+      origin: str(card.mensei),
+      otherTax: card.digerVergi?.secenekKodu ?? '',
+      units,
     };
+  }
+
+  async list(userId: string, query: StockListQuery): Promise<ProductListPage> {
+    const where: Prisma.StokKartiWhereInput = { kullaniciKimligi: Number(userId) };
+    if (query.arama)
+      where.OR = [
+        { stokKodu: { contains: query.arama } },
+        { stokAdi: { contains: query.arama } },
+        { marka: { markaAdi: { contains: query.arama } } },
+        { birimler: { some: { barkodlar: { some: { barkod: { contains: query.arama } } } } } },
+      ];
+    if (query.marka) where.markaKimligi = Number(query.marka);
+    if (query.kategori) where.kategoriler = { some: { kategoriId: Number(query.kategori) } };
+    if (query.stok === 'unlimited') where.envanterTakibi = 'yok';
+    if (query.stok === 'in' || query.stok === 'out') {
+      where.envanterTakibi = { not: 'yok' };
+      where.stokMiktari = query.stok === 'in' ? { gt: 0 } : { lte: 0 };
+    }
+    if (query.satis === 'open' || query.satis === 'closed')
+      where.satisAcik = query.satis === 'open';
+    return this.db.$transaction(
+      async (tx) => {
+        const total = await tx.stokKarti.count({ where });
+        const rows = await tx.stokKarti.findMany({
+          where,
+          orderBy: [{ olusturmaZamani: 'desc' }, { kimlik: 'desc' }],
+          skip: (query.sayfa - 1) * query.boyut,
+          take: query.boyut,
+          include: {
+            marka: true,
+            stokTipi: true,
+            kategoriler: { orderBy: { kategoriId: 'asc' }, include: { kategori: true } },
+            birimler: {
+              where: { anaBirim: true },
+              take: 1,
+              orderBy: { sira: 'asc' },
+              include: {
+                fiyatlar: { include: { fiyatListesi: true } },
+              },
+            },
+          },
+        });
+        const symbols: Record<string, string> = { TRY: '₺', USD: '$', EUR: '€' };
+        const items: ProductListItem[] = rows.map((card) => {
+          const prices = card.birimler[0]?.fiyatlar ?? [];
+          const saleFor = (key: string) =>
+            prices.find((p) => p.fiyatYonu === 'satis' && p.fiyatListesi.secenekKodu === key);
+          const sales = [saleFor('fiyat'), saleFor('perakende'), saleFor('toptan')];
+          const first = sales[0];
+          const purchase = prices.find(
+            (p) => p.fiyatYonu === 'alis' && p.fiyatListesi.secenekKodu === 'fiyat',
+          );
+          const excludingVat = (p: typeof first) =>
+            p ? Number(calculatedPrices(p).excludingVat ?? 0) : 0;
+          const categories = card.kategoriler.map((k) => k.kategori);
+          return {
+            id: String(card.kimlik),
+            code: card.stokKodu ?? '',
+            name: card.stokAdi ?? '',
+            stockType: card.stokTipi.secenekAdi,
+            brandId: card.markaKimligi === null ? null : String(card.markaKimligi),
+            brandName: card.marka?.markaAdi ?? '',
+            categoryId: categories[0] ? String(categories[0].id) : null,
+            categoryName: categories.map((c) => c.ad).join(', ') || 'Kategorisiz',
+            categoryIds: categories.map((c) => String(c.id)),
+            categoryNames: categories.map((c) => c.ad),
+            imageUrl: null,
+            currency: symbols[first?.paraBirimi ?? 'TRY'] ?? first?.paraBirimi ?? '₺',
+            vatRate: Number(first?.kdvOrani ?? 0),
+            prices: [excludingVat(sales[0]), excludingVat(sales[1]), excludingVat(sales[2])],
+            cost: excludingVat(purchase),
+            stock: Number(card.stokMiktari),
+            stockTracking: card.envanterTakibi !== 'yok',
+            salesOpen: card.satisAcik,
+            dealIds: [],
+            priceVatRates: [
+              Number(sales[0]?.kdvOrani ?? 0),
+              Number(sales[1]?.kdvOrani ?? 0),
+              Number(sales[2]?.kdvOrani ?? 0),
+            ],
+            priceCurrencies: [
+              sales[0]?.paraBirimi ?? 'TRY',
+              sales[1]?.paraBirimi ?? 'TRY',
+              sales[2]?.paraBirimi ?? 'TRY',
+            ],
+          };
+        });
+        return { items, total, page: query.sayfa, pageSize: query.boyut };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
+  async bulk(userId: string, input: StockBulkInput) {
+    return retryWrite(() =>
+      this.db.$transaction(async (tx) => {
+        await tx.$queryRaw(
+          Prisma.sql`SELECT id FROM kullanicilar WHERE id = ${Number(userId)} FOR UPDATE`,
+        );
+        const where = { kullaniciKimligi: Number(userId), kimlik: { in: input.ids } };
+        if ((await tx.stokKarti.count({ where })) !== input.ids.length)
+          throw new HttpError(
+            404,
+            'NOT_FOUND',
+            'Seçilen ürünlerden biri bulunamadı. İşlem yapılmadı.',
+          );
+        if (input.islem === 'sil') {
+          await tx.stokKarti.deleteMany({ where });
+        } else if (input.islem === 'stok_ac') {
+          await tx.stokKarti.updateMany({
+            where: { ...where, envanterTakibi: 'yok' },
+            data: { envanterTakibi: 'normal' },
+          });
+        } else if (input.islem === 'stok_kapat') {
+          await tx.stokKarti.updateMany({ where, data: { envanterTakibi: 'yok' } });
+        } else {
+          await tx.stokKarti.updateMany({ where, data: { satisAcik: input.islem === 'satis_ac' } });
+        }
+        return { affected: input.ids.length };
+      }),
+    );
   }
 }

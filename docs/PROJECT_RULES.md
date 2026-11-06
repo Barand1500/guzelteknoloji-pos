@@ -256,7 +256,7 @@ E-posta doğrulama kodları MySQL'de `eposta_giris_kodlari` tablosunda tutulur (
 
 Teknik terimler kendi adıyla kullanılır: kriptografik hash alanlarında "özet" yerine `hash` yazılır (ör. `sifreHash` / `sifre_hash`). Arayüzdeki ürün özeti gibi normal Türkçe kullanımlar bu kuralın dışındadır. Eski migration dosyaları korunur; fiziksel alan adları yeni RENAME migration'ıyla değiştirilir.
 
-Veritabanı arayüzdeki iş ilişkilerine göre düzenlenir. Kullanıcının isteğe bağlı şifre hash'i ve şifre tarihleri `kullanicilar` içinde tutulur; genel kullanıcı/API yanıtlarına dahil edilmez. Sosyal giriş kimlikleri, oturumlar ve e-posta kodları ayrı yaşam döngülerine sahip olduğundan ayrı kalır. Mevcut stok arayüzünde her fiyat listesi kendi birim satırlarını, ana/varsayılan birimini, çarpanlarını ve barkodlarını düzenler; bu davranış değiştirilmeden listeler arasında birim/barkod birleştirmesi yapılmaz. Migration mevcut şifre hash'lerini ve tarihlerini aynen taşır.
+Veritabanı arayüzdeki iş ilişkilerine göre düzenlenir. Kullanıcının isteğe bağlı şifre hash'i ve şifre tarihleri `kullanicilar` içinde tutulur; genel kullanıcı/API yanıtlarına dahil edilmez. Sosyal giriş kimlikleri, oturumlar ve e-posta kodları ayrı yaşam döngülerine sahip olduğundan ayrı kalır. 2026-11-06 kararı: birim ve barkod stok kartına ortaktır; fiyat listesi yalnızca alış/satış fiyatlarını değiştirir. Güncel API ve geçiş: docs/stok-api.md. Shared paket ve ön yüz güncellemesi ayrı yürütülür. Migration mevcut şifre hash'lerini ve tarihlerini aynen taşır.
 
 ### 8.21 Özellikler (şablon → grup → özellik)
 

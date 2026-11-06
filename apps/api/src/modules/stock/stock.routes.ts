@@ -8,6 +8,7 @@ import { createRateLimiter } from '../../middleware/rate-limit';
 import { readSessionToken } from '../auth/auth.cookies';
 import type { AuthService } from '../auth/auth.service';
 import type { StockRepository } from './stock.repository';
+import { stockBulkSchema, stockListQuery } from './stock.api';
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
@@ -44,6 +45,22 @@ export function createStockRouter(env: Env, service: AuthService, repo: StockRep
     const input = parse(createStockSchema, req.body);
     res.status(201).json(await repo.create(res.locals.stockUserId as string, input));
   });
+  router.get('/kartlar', async (req, res) => {
+    res.json(await repo.list(res.locals.stockUserId as string, parse(stockListQuery, req.query)));
+  });
+  router.post('/kartlar/toplu', async (req, res) => {
+    res.json(await repo.bulk(res.locals.stockUserId as string, parse(stockBulkSchema, req.body)));
+  });
+  router.get('/kartlar/:id/form', async (req, res) => {
+    const id = parse(
+      z
+        .string()
+        .regex(/^[1-9][0-9]{0,9}$/)
+        .refine((value) => Number(value) <= 2147483647),
+      req.params.id,
+    );
+    res.json(await repo.getDraft(res.locals.stockUserId as string, id));
+  });
   router.get('/kartlar/:id', async (req, res) => {
     const id = parse(
       z
@@ -53,6 +70,17 @@ export function createStockRouter(env: Env, service: AuthService, repo: StockRep
       req.params.id,
     );
     res.json(await repo.get(res.locals.stockUserId as string, id));
+  });
+  router.post('/kartlar/:id/guncelle', async (req, res) => {
+    const id = parse(
+      z
+        .string()
+        .regex(/^[1-9][0-9]{0,9}$/)
+        .refine((value) => Number(value) <= 2147483647),
+      req.params.id,
+    );
+    const input = parse(createStockSchema, req.body);
+    res.json(await repo.update(res.locals.stockUserId as string, id, input));
   });
   return router;
 }

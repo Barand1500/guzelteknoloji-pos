@@ -1,6 +1,6 @@
 -- CreateTable
 CREATE TABLE `kullanicilar` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `eposta` VARCHAR(254) NULL,
     `eposta_dogrulama_zamani` DATETIME(3) NULL,
     `gorunen_ad` VARCHAR(120) NULL,
@@ -15,29 +15,29 @@ CREATE TABLE `kullanicilar` (
     `sifre_guncelleme_zamani` DATETIME(3) NULL,
 
     UNIQUE INDEX `kullanicilar_eposta_tekil`(`eposta`),
-    PRIMARY KEY (`kimlik`)
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `giris_kimlikleri` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
-    `kullanici_kimligi` INTEGER NOT NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `kullanici_id` INTEGER NOT NULL,
     `saglayici` ENUM('GOOGLE', 'APPLE') NOT NULL,
-    `saglayici_kullanici_kimligi` VARCHAR(255) NOT NULL,
+    `saglayici_kullanici_id` VARCHAR(255) NOT NULL,
     `eposta` VARCHAR(254) NULL,
     `son_kullanim_zamani` DATETIME(3) NULL,
     `olusturma_zamani` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `guncelleme_zamani` DATETIME(3) NOT NULL,
 
-    INDEX `giris_kimlikleri_kullanici_indeks`(`kullanici_kimligi`),
-    UNIQUE INDEX `giris_kimlikleri_saglayici_kullanici_tekil`(`saglayici`, `saglayici_kullanici_kimligi`),
-    PRIMARY KEY (`kimlik`)
+    INDEX `giris_kimlikleri_kullanici_indeks`(`kullanici_id`),
+    UNIQUE INDEX `giris_kimlikleri_saglayici_kullanici_tekil`(`saglayici`, `saglayici_kullanici_id`),
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `oturumlar` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
-    `kullanici_kimligi` INTEGER NOT NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `kullanici_id` INTEGER NOT NULL,
     `giris_yontemi` ENUM('EMAIL', 'GOOGLE', 'APPLE') NULL,
     `oturum_anahtari_hash` CHAR(64) NOT NULL,
     `gecerlilik_bitis_zamani` DATETIME(3) NOT NULL,
@@ -48,15 +48,29 @@ CREATE TABLE `oturumlar` (
     `olusturma_zamani` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     UNIQUE INDEX `oturumlar_anahtar_hash_tekil`(`oturum_anahtari_hash`),
-    INDEX `oturumlar_kullanici_indeks`(`kullanici_kimligi`),
+    INDEX `oturumlar_kullanici_indeks`(`kullanici_id`),
     INDEX `oturumlar_gecerlilik_indeks`(`gecerlilik_bitis_zamani`),
-    PRIMARY KEY (`kimlik`)
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `eposta_giris_kodlari` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `eposta_hash` CHAR(64) NOT NULL,
+    `kod_hash` CHAR(64) NOT NULL,
+    `gecerlilik_bitis_zamani` DATETIME(3) NOT NULL,
+    `deneme_sayisi` INTEGER NOT NULL DEFAULT 0,
+    `olusturma_zamani` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `eposta_kodlari_eposta_olusturma_indeks`(`eposta_hash`, `olusturma_zamani`),
+    INDEX `eposta_kodlari_olusturma_indeks`(`olusturma_zamani`),
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `stok_secenekleri` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
-    `kullanici_kimligi` INTEGER NOT NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `kullanici_id` INTEGER NOT NULL,
     `liste_turu` VARCHAR(30) NOT NULL,
     `secenek_kodu` VARCHAR(100) NOT NULL,
     `secenek_adi` VARCHAR(120) NOT NULL,
@@ -66,15 +80,15 @@ CREATE TABLE `stok_secenekleri` (
     `sira` INTEGER NOT NULL DEFAULT 0,
     `olusturma_zamani` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
-    UNIQUE INDEX `stok_secenekleri_kod_tekil`(`kullanici_kimligi`, `liste_turu`, `secenek_kodu`),
-    UNIQUE INDEX `stok_secenekleri_ad_tekil`(`kullanici_kimligi`, `liste_turu`, `ad_hash`),
-    PRIMARY KEY (`kimlik`)
+    UNIQUE INDEX `stok_secenekleri_kod_tekil`(`kullanici_id`, `liste_turu`, `secenek_kodu`),
+    UNIQUE INDEX `stok_secenekleri_ad_tekil`(`kullanici_id`, `liste_turu`, `ad_hash`),
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `markalar` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
-    `kullanici_kimligi` INTEGER NOT NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `kullanici_id` INTEGER NOT NULL,
     `marka_kodu` VARCHAR(100) NOT NULL,
     `marka_adi` VARCHAR(120) NOT NULL,
     `ad_hash` CHAR(64) NOT NULL,
@@ -89,24 +103,26 @@ CREATE TABLE `markalar` (
     `seo_aciklamasi` VARCHAR(1000) NOT NULL,
     `guncelleme_zamani` DATETIME(3) NOT NULL,
 
-    UNIQUE INDEX `markalar_kod_tekil`(`kullanici_kimligi`, `marka_kodu`),
-    UNIQUE INDEX `markalar_ad_tekil`(`kullanici_kimligi`, `ad_hash`),
-    PRIMARY KEY (`kimlik`)
+    UNIQUE INDEX `markalar_kod_tekil`(`kullanici_id`, `marka_kodu`),
+    UNIQUE INDEX `markalar_ad_tekil`(`kullanici_id`, `ad_hash`),
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `stok_kartlari` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
-    `kullanici_kimligi` INTEGER NOT NULL,
-    `kayit_istegi_kimligi` CHAR(36) NOT NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `kullanici_id` INTEGER NOT NULL,
+    `kayit_istegi_id` CHAR(36) NOT NULL,
     `kayit_istegi_hash` CHAR(64) NOT NULL,
     `stok_kodu` VARCHAR(100) NULL,
     `stok_adi` VARCHAR(250) NULL,
-    `stok_tipi_kimligi` INTEGER NOT NULL,
-    `stok_nevi_kimligi` INTEGER NOT NULL,
-    `marka_kimligi` INTEGER NULL,
-    `kdv_departmani_kimligi` INTEGER NULL,
-    `diger_vergi_kimligi` INTEGER NULL,
+    `stok_tipi_id` INTEGER NOT NULL,
+    `stok_nevi_id` INTEGER NOT NULL,
+    `marka_id` INTEGER NULL,
+    `satisa_acik` BOOLEAN NOT NULL DEFAULT true,
+    `stok_miktari` DECIMAL(18, 6) NOT NULL DEFAULT 0,
+    `kdv_departmani_id` INTEGER NULL,
+    `diger_vergi_id` INTEGER NULL,
     `envanter_takibi` VARCHAR(10) NOT NULL,
     `alt_limit` DECIMAL(18, 6) NULL,
     `ust_limit` DECIMAL(18, 6) NULL,
@@ -123,27 +139,42 @@ CREATE TABLE `stok_kartlari` (
     `olusturma_zamani` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `guncelleme_zamani` DATETIME(3) NOT NULL,
 
-    UNIQUE INDEX `stok_kartlari_kullanici_kod_tekil`(`kullanici_kimligi`, `stok_kodu`),
-    UNIQUE INDEX `stok_kartlari_kayit_istegi_tekil`(`kullanici_kimligi`, `kayit_istegi_kimligi`),
-    PRIMARY KEY (`kimlik`)
+    UNIQUE INDEX `stok_kartlari_kullanici_kod_tekil`(`kullanici_id`, `stok_kodu`),
+    UNIQUE INDEX `stok_kartlari_kayit_istegi_tekil`(`kullanici_id`, `kayit_istegi_id`),
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `stok_fiyat_listeleri` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
-    `stok_karti_kimligi` INTEGER NOT NULL,
-    `fiyat_listesi_kimligi` INTEGER NOT NULL,
-    `sira` INTEGER NOT NULL,
+CREATE TABLE `kategoriler` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `kullanici_id` INTEGER NOT NULL,
+    `ust_kategori_id` INTEGER NULL,
+    `ad` VARCHAR(120) NOT NULL,
+    `aciklama` TEXT NOT NULL,
+    `gorsel_dosyasi` VARCHAR(255) NULL,
+    `etkin` BOOLEAN NOT NULL DEFAULT true,
+    `gizli` BOOLEAN NOT NULL DEFAULT false,
+    `seo_basligi` VARCHAR(250) NOT NULL,
+    `seo_aciklamasi` VARCHAR(1000) NOT NULL,
+    `sira` INTEGER NOT NULL DEFAULT 0,
 
-    UNIQUE INDEX `stok_fiyat_listeleri_kart_liste_tekil`(`stok_karti_kimligi`, `fiyat_listesi_kimligi`),
-    PRIMARY KEY (`kimlik`)
+    INDEX `kategoriler_kullanici_id_ust_kategori_id_idx`(`kullanici_id`, `ust_kategori_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `stok_karti_kategorileri` (
+    `stok_karti_id` INTEGER NOT NULL,
+    `kategori_id` INTEGER NOT NULL,
+
+    PRIMARY KEY (`stok_karti_id`, `kategori_id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `stok_birimleri` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
-    `stok_fiyat_listesi_kimligi` INTEGER NOT NULL,
-    `birim_kimligi` INTEGER NOT NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stok_karti_id` INTEGER NOT NULL,
+    `birim_id` INTEGER NOT NULL,
     `sira` INTEGER NOT NULL,
     `carpan` DECIMAL(18, 6) NOT NULL,
     `ana_birim` BOOLEAN NOT NULL,
@@ -153,14 +184,15 @@ CREATE TABLE `stok_birimleri` (
     `hacim_desi` DECIMAL(18, 6) NULL,
     `aciklama` VARCHAR(1000) NULL,
 
-    INDEX `stok_birimleri_liste_indeks`(`stok_fiyat_listesi_kimligi`),
-    PRIMARY KEY (`kimlik`)
+    INDEX `stok_birimleri_kart_indeks`(`stok_karti_id`),
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `stok_fiyatlari` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
-    `stok_birimi_kimligi` INTEGER NOT NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stok_birimi_id` INTEGER NOT NULL,
+    `fiyat_listesi_id` INTEGER NOT NULL,
     `fiyat_yonu` VARCHAR(5) NOT NULL,
     `girilen_fiyat` DECIMAL(18, 6) NULL,
     `para_birimi` CHAR(3) NOT NULL,
@@ -168,83 +200,92 @@ CREATE TABLE `stok_fiyatlari` (
     `kdv_orani` DECIMAL(18, 6) NULL,
     `kdv_dahil_girildi` BOOLEAN NOT NULL,
 
-    UNIQUE INDEX `stok_fiyatlari_birim_yon_tekil`(`stok_birimi_kimligi`, `fiyat_yonu`),
-    PRIMARY KEY (`kimlik`)
+    UNIQUE INDEX `stok_fiyatlari_birim_liste_yon_tekil`(`stok_birimi_id`, `fiyat_listesi_id`, `fiyat_yonu`),
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `stok_ek_fiyatlari` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
-    `stok_fiyati_kimligi` INTEGER NOT NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stok_fiyati_id` INTEGER NOT NULL,
     `sira` INTEGER NOT NULL,
     `aciklama` VARCHAR(250) NULL,
     `tutar` DECIMAL(18, 6) NULL,
     `iskonto_orani` DECIMAL(18, 6) NULL,
     `para_birimi` CHAR(3) NOT NULL,
 
-    INDEX `stok_ek_fiyatlari_fiyat_indeks`(`stok_fiyati_kimligi`),
-    PRIMARY KEY (`kimlik`)
+    INDEX `stok_ek_fiyatlari_fiyat_indeks`(`stok_fiyati_id`),
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `stok_barkodlari` (
-    `kimlik` INTEGER NOT NULL AUTO_INCREMENT,
-    `stok_birimi_kimligi` INTEGER NOT NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `stok_birimi_id` INTEGER NOT NULL,
     `barkod_turu` VARCHAR(10) NOT NULL,
     `barkod` VARCHAR(128) NOT NULL,
 
     INDEX `stok_barkodlari_kod_indeks`(`barkod`),
-    UNIQUE INDEX `stok_barkodlari_birim_kod_tekil`(`stok_birimi_kimligi`, `barkod`),
-    PRIMARY KEY (`kimlik`)
+    UNIQUE INDEX `stok_barkodlari_birim_kod_tekil`(`stok_birimi_id`, `barkod`),
+    PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- AddForeignKey
-ALTER TABLE `giris_kimlikleri` ADD CONSTRAINT `giris_kimlikleri_kullanici_baglantisi` FOREIGN KEY (`kullanici_kimligi`) REFERENCES `kullanicilar`(`kimlik`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `giris_kimlikleri` ADD CONSTRAINT `giris_kimlikleri_kullanici_baglantisi` FOREIGN KEY (`kullanici_id`) REFERENCES `kullanicilar`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `oturumlar` ADD CONSTRAINT `oturumlar_kullanici_baglantisi` FOREIGN KEY (`kullanici_kimligi`) REFERENCES `kullanicilar`(`kimlik`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `oturumlar` ADD CONSTRAINT `oturumlar_kullanici_baglantisi` FOREIGN KEY (`kullanici_id`) REFERENCES `kullanicilar`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_secenekleri` ADD CONSTRAINT `stok_secenekleri_kullanici_baglantisi` FOREIGN KEY (`kullanici_kimligi`) REFERENCES `kullanicilar`(`kimlik`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `stok_secenekleri` ADD CONSTRAINT `stok_secenekleri_kullanici_baglantisi` FOREIGN KEY (`kullanici_id`) REFERENCES `kullanicilar`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `markalar` ADD CONSTRAINT `markalar_kullanici_baglantisi` FOREIGN KEY (`kullanici_kimligi`) REFERENCES `kullanicilar`(`kimlik`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `markalar` ADD CONSTRAINT `markalar_kullanici_baglantisi` FOREIGN KEY (`kullanici_id`) REFERENCES `kullanicilar`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_kullanici_baglantisi` FOREIGN KEY (`kullanici_kimligi`) REFERENCES `kullanicilar`(`kimlik`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_kullanici_baglantisi` FOREIGN KEY (`kullanici_id`) REFERENCES `kullanicilar`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_tip_baglantisi` FOREIGN KEY (`stok_tipi_kimligi`) REFERENCES `stok_secenekleri`(`kimlik`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_tip_baglantisi` FOREIGN KEY (`stok_tipi_id`) REFERENCES `stok_secenekleri`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_nevi_baglantisi` FOREIGN KEY (`stok_nevi_kimligi`) REFERENCES `stok_secenekleri`(`kimlik`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_nevi_baglantisi` FOREIGN KEY (`stok_nevi_id`) REFERENCES `stok_secenekleri`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_marka_baglantisi` FOREIGN KEY (`marka_kimligi`) REFERENCES `markalar`(`kimlik`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_marka_baglantisi` FOREIGN KEY (`marka_id`) REFERENCES `markalar`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_departman_baglantisi` FOREIGN KEY (`kdv_departmani_kimligi`) REFERENCES `stok_secenekleri`(`kimlik`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_departman_baglantisi` FOREIGN KEY (`kdv_departmani_id`) REFERENCES `stok_secenekleri`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_vergi_baglantisi` FOREIGN KEY (`diger_vergi_kimligi`) REFERENCES `stok_secenekleri`(`kimlik`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `stok_kartlari` ADD CONSTRAINT `stok_kartlari_vergi_baglantisi` FOREIGN KEY (`diger_vergi_id`) REFERENCES `stok_secenekleri`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_fiyat_listeleri` ADD CONSTRAINT `stok_fiyat_listeleri_kart_baglantisi` FOREIGN KEY (`stok_karti_kimligi`) REFERENCES `stok_kartlari`(`kimlik`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `kategoriler` ADD CONSTRAINT `kategoriler_kullanici_id_fkey` FOREIGN KEY (`kullanici_id`) REFERENCES `kullanicilar`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_fiyat_listeleri` ADD CONSTRAINT `stok_fiyat_listeleri_secenek_baglantisi` FOREIGN KEY (`fiyat_listesi_kimligi`) REFERENCES `stok_secenekleri`(`kimlik`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `kategoriler` ADD CONSTRAINT `kategoriler_ust_kategori_id_fkey` FOREIGN KEY (`ust_kategori_id`) REFERENCES `kategoriler`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_birimleri` ADD CONSTRAINT `stok_birimleri_liste_baglantisi` FOREIGN KEY (`stok_fiyat_listesi_kimligi`) REFERENCES `stok_fiyat_listeleri`(`kimlik`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `stok_karti_kategorileri` ADD CONSTRAINT `stok_karti_kategorileri_stok_karti_id_fkey` FOREIGN KEY (`stok_karti_id`) REFERENCES `stok_kartlari`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_birimleri` ADD CONSTRAINT `stok_birimleri_secenek_baglantisi` FOREIGN KEY (`birim_kimligi`) REFERENCES `stok_secenekleri`(`kimlik`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `stok_karti_kategorileri` ADD CONSTRAINT `stok_karti_kategorileri_kategori_id_fkey` FOREIGN KEY (`kategori_id`) REFERENCES `kategoriler`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_fiyatlari` ADD CONSTRAINT `stok_fiyatlari_birim_baglantisi` FOREIGN KEY (`stok_birimi_kimligi`) REFERENCES `stok_birimleri`(`kimlik`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `stok_birimleri` ADD CONSTRAINT `stok_birimleri_kart_baglantisi` FOREIGN KEY (`stok_karti_id`) REFERENCES `stok_kartlari`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_ek_fiyatlari` ADD CONSTRAINT `stok_ek_fiyatlari_fiyat_baglantisi` FOREIGN KEY (`stok_fiyati_kimligi`) REFERENCES `stok_fiyatlari`(`kimlik`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `stok_birimleri` ADD CONSTRAINT `stok_birimleri_secenek_baglantisi` FOREIGN KEY (`birim_id`) REFERENCES `stok_secenekleri`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `stok_barkodlari` ADD CONSTRAINT `stok_barkodlari_birim_baglantisi` FOREIGN KEY (`stok_birimi_kimligi`) REFERENCES `stok_birimleri`(`kimlik`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `stok_fiyatlari` ADD CONSTRAINT `stok_fiyatlari_birim_baglantisi` FOREIGN KEY (`stok_birimi_id`) REFERENCES `stok_birimleri`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stok_fiyatlari` ADD CONSTRAINT `stok_fiyatlari_liste_baglantisi` FOREIGN KEY (`fiyat_listesi_id`) REFERENCES `stok_secenekleri`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stok_ek_fiyatlari` ADD CONSTRAINT `stok_ek_fiyatlari_fiyat_baglantisi` FOREIGN KEY (`stok_fiyati_id`) REFERENCES `stok_fiyatlari`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `stok_barkodlari` ADD CONSTRAINT `stok_barkodlari_birim_baglantisi` FOREIGN KEY (`stok_birimi_id`) REFERENCES `stok_birimleri`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

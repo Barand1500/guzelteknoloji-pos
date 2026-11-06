@@ -2,7 +2,7 @@
 
 Gerçek kullanıcı Markalar ekranında API üzerinden kendi verileriyle çalışır. Test kullanıcısı ayrı `brand.demo.ts` servisini kullanır; veritabanına yazmaz. Yeni gerçek hesaplara örnek marka eklenmez.
 
-Marka bütün bilgileriyle bağımsız `markalar` tablosundadır: `kimlik`, `kullanici_kimligi`, `marka_kodu`, `marka_adi`, `ad_hash`, `etkin`, `sira`, `olusturma_zamani`, `aciklama`, `logo_dosyasi`, `logo_hash`, `seo_basligi`, `seo_aciklamasi`, `guncelleme_zamani`. `logo_verisi` yalnızca eski kayıtları taşımak için geçici uyumluluk alanı olarak korunur ve taşınan kayıtlarda boşaltılır. Stok kartı doğrudan marka tablosuna bağlanır. API marka kimliği sayısal `kimlik` alanıdır.
+Marka bütün bilgileriyle bağımsız `markalar` tablosundadır: `id`, `kullanici_id`, `marka_kodu`, `marka_adi`, `ad_hash`, `etkin`, `sira`, `olusturma_zamani`, `aciklama`, `logo_dosyasi`, `logo_hash`, `seo_basligi`, `seo_aciklamasi`, `guncelleme_zamani`. `logo_verisi` yalnızca eski kayıtları taşımak için geçici uyumluluk alanı olarak korunur ve taşınan kayıtlarda boşaltılır. Stok kartı doğrudan marka tablosuna bağlanır. API marka kimliği sayısal `id` alanıdır.
 
 Ürün sayısı `stok_kartlari` ilişkilerinden hesaplanır. Marka/ürün işlemleri oturumdaki kullanıcıya göre sınırlandırılır; istemciden kullanıcı kimliği kabul edilmez. Aynı kullanıcının stok ve marka yazmaları ortak kilit altında transaction ile yürür. Toplu atamada tek bir ürün bile başka kullanıcıya aitse işlem bütünüyle reddedilir. Çıkarma yalnızca hâlen o markada olan ürünlere uygulanır. Marka silindiğinde ürünler korunur, marka alanları boşaltılır. İşlem başarısız olursa bütün değişiklikler geri alınır.
 

@@ -120,7 +120,10 @@ try {
       );
     }
     const sql = await readFile(new URL(folder.name + '/migration.sql', migrations), 'utf8');
-    for (const statement of sql.split(';').filter((part) => part.trim()))
+    for (const statement of sql
+      .replace(/^\s*--.*$/gm, '')
+      .split(';')
+      .filter((part) => part.trim()))
       await connection.query(statement);
     if (folder.name === '20261105190000_markalar')
       await connection.query(
@@ -139,7 +142,7 @@ try {
     const brandRepo = new PrismaBrandRepository(prisma, testUploads);
     await brandRepo.migrateLegacyLogos();
     await brandRepo.migrateLegacyLogos();
-    assert.equal((await connection.query("SHOW TABLES LIKE 'eposta_giris_kodlari'")).length, 0);
+    assert.equal((await connection.query("SHOW TABLES LIKE 'eposta_giris_kodlari'")).length, 1);
     const migratedUser = await prisma.kullanici.findUniqueOrThrow({
       where: { eposta: 'legacy@example.com' },
     });
@@ -149,15 +152,13 @@ try {
     const migratedCard = await prisma.stokKarti.findFirstOrThrow({
       where: { kullaniciKimligi: migratedUser.kimlik },
     });
-    const migratedList = await prisma.stokFiyatListesi.findFirstOrThrow({
+    const migratedUnit = await prisma.stokBirimi.findFirstOrThrow({
       where: { stokKartiKimligi: migratedCard.kimlik },
-      include: {
-        birimler: { include: { barkodlar: true, fiyatlar: { include: { ekFiyatlar: true } } } },
-      },
+      include: { barkodlar: true, fiyatlar: { include: { ekFiyatlar: true } } },
     });
-    assert.equal(migratedList.birimler[0]?.barkodlar[0]?.barkod, '8690000000001');
-    assert.equal(migratedList.birimler[0]?.fiyatlar[0]?.girilenFiyat?.toString(), '25.5');
-    assert.equal(migratedList.birimler[0]?.fiyatlar[0]?.ekFiyatlar[0]?.tutar?.toString(), '5');
+    assert.equal(migratedUnit.barkodlar[0]?.barkod, '8690000000001');
+    assert.equal(migratedUnit.fiyatlar[0]?.girilenFiyat?.toString(), '25.5');
+    assert.equal(migratedUnit.fiyatlar[0]?.ekFiyatlar[0]?.tutar?.toString(), '5');
     const legacyBrand = (await brandRepo.list(String(migratedUser.kimlik)))[0]!;
     assert.equal(legacyBrand.id, String(migratedBrand.kimlik));
     assert.equal(legacyBrand.name, 'Eski Marka');
@@ -188,6 +189,7 @@ try {
       APP_URL: 'http://localhost:5175',
       COOKIE_SECRET: 'local-test-secret-long-enough-123456',
       DATABASE_URL: url.href,
+      UPLOADS_DIR: testUploads,
       LOG_LEVEL: 'silent',
     });
     const repo = new PrismaAuthRepository(prisma);
@@ -201,6 +203,7 @@ try {
       google: null,
       stockRepo: new PrismaStockRepository(prisma),
       brandRepo,
+      catalogDb: prisma,
     });
     const users = await Promise.all(
       ['one', 'two'].map((name) =>
@@ -387,8 +390,9 @@ try {
       multiplier: '12',
       isMain: false,
       isDefault: false,
+      barcodes: [{ id: 'second-barcode', type: 'EAN13', code: '8690000000002' }],
     });
-    draft.units.perakende = structuredClone([draft.units.fiyat![0]!]);
+    draft.units.perakende = structuredClone(draft.units.fiyat!);
     const payload = { requestId: randomUUID(), draft };
     const response = await post('/kartlar', payload);
     assert.equal(response.status, 201, JSON.stringify(response.body));
@@ -398,7 +402,7 @@ try {
       .get('/api/stok/kartlar/' + id)
       .set('Cookie', cookie());
     assert.equal(readCreated.status, 200);
-    assert.equal(readCreated.body.id, id);
+    assert.equal(readCreated.body.code, draft.code);
     assert.equal(
       (await brandPost('/' + brandId + '/urunler/ata', { productIds: [id] })).status,
       204,
@@ -520,7 +524,8 @@ try {
     const concurrentDraft = structuredClone(draft);
     concurrentDraft.code = 'CONCURRENT';
     for (const rows of Object.values(concurrentDraft.units))
-      for (const row of rows) for (const barcode of row.barcodes) barcode.code = '8690000000002';
+      for (const [index, row] of rows.entries())
+        for (const barcode of row.barcodes) barcode.code = '869000000001' + index;
     const concurrentPayload = { requestId: randomUUID(), draft: concurrentDraft };
     const concurrent = await Promise.all([
       post('/kartlar', concurrentPayload),
@@ -547,23 +552,18 @@ try {
       .get('/api/stok/kartlar/' + id)
       .set('Cookie', cookie());
     assert.equal(card.status, 200);
-    assert.equal(card.body.priceLists.length, 2);
-    assert.equal(card.body.priceLists[0].units.length, 2);
-    const unit = card.body.priceLists[0].units[0];
+    assert.equal(Object.keys(card.body.units).length, 2);
+    assert.equal(card.body.units.fiyat.length, 2);
+    const unit = card.body.units.fiyat[0];
     assert.equal(unit.weight, '250');
     assert.equal(unit.weightUnit, 'g');
     assert.equal(unit.volume, '1.5');
     assert.equal(unit.barcodes[0].code, '8690000000001');
-    const purchase = unit.prices.find((price: { side: string }) => price.side === 'alis');
+    const purchase = unit.purchase;
     assert.equal(purchase.amount, '100.125');
-    assert.equal(purchase.net, '90.1125');
-    assert.equal(purchase.includingVat, '108.135');
     assert.equal(purchase.extras[0].amount, '50.5');
     assert.equal(purchase.extras[0].currency, 'EUR');
-    assert.equal(
-      unit.prices.find((price: { side: string }) => price.side === 'satis').excludingVat,
-      '100',
-    );
+    assert.equal(unit.sale.amount, '120');
     assert.equal(
       (
         await request(app)
@@ -622,6 +622,179 @@ try {
     });
     assert.equal(days.rafOmruGun, 30);
     assert.equal(days.altLimit, null);
+    const changed = structuredClone(plain);
+    changed.name = 'Güncellenmiş stok kartı';
+    changed.units.fiyat![0]!.sale.amount = '123';
+    const updated = await post(`/kartlar/${saved.body.id}/guncelle`, {
+      requestId: randomUUID(),
+      draft: changed,
+    });
+    assert.equal(updated.status, 200, JSON.stringify(updated.body));
+    assert.equal(updated.body.id, saved.body.id);
+    const afterUpdate = await request(app)
+      .get(`/api/stok/kartlar/${saved.body.id}`)
+      .set('Cookie', cookie());
+    assert.equal(afterUpdate.status, 200);
+    assert.equal(afterUpdate.body.name, changed.name);
+    assert.equal(afterUpdate.body.units.fiyat[0].sale.amount, '123');
+    const editForm = await request(app)
+      .get(`/api/stok/kartlar/${saved.body.id}/form`)
+      .set('Cookie', cookie());
+    assert.equal(editForm.status, 200);
+    assert.equal(editForm.body.name, changed.name);
+    assert.equal(editForm.body.units.fiyat[0].sale.amount, '123');
+    assert.equal(
+      (
+        await post(
+          `/kartlar/${saved.body.id}/guncelle`,
+          { requestId: randomUUID(), draft: changed },
+          1,
+        )
+      ).status,
+      404,
+    );
+    // Yeni liste ve kategori uçları aynı kartı kullanır; kullanıcılar arası yazma yapılmaz.
+    const categoryPost = (path: string, body: object = {}, index = 0) =>
+      request(app)
+        .post('/api/kategoriler' + path)
+        .set('Cookie', cookie(index))
+        .set('Origin', env.APP_URL)
+        .send(body);
+    const categoryGet = (path = '', index = 0) =>
+      request(app)
+        .get('/api/kategoriler' + path)
+        .set('Cookie', cookie(index));
+    const categoryDraft = {
+      parentId: null,
+      name: 'Donanım',
+      description: '',
+      imageUrl: brandDraft.logoUrl,
+      active: true,
+      hidden: false,
+      seoTitle: '',
+      seoDescription: '',
+    };
+    const rootCategory = await categoryPost('', categoryDraft);
+    assert.equal(rootCategory.status, 201, JSON.stringify(rootCategory.body));
+    const childCategory = await categoryPost('', {
+      ...categoryDraft,
+      imageUrl: null,
+      name: 'Yazıcı',
+      parentId: rootCategory.body.id,
+    });
+    assert.equal(childCategory.status, 201);
+    const otherCategory = await categoryPost('', {
+      ...categoryDraft,
+      imageUrl: null,
+      name: 'Diğer',
+    });
+    assert.equal(otherCategory.status, 201);
+    assert.equal(
+      (
+        await categoryPost('/' + rootCategory.body.id + '/tasi', {
+          parentId: childCategory.body.id,
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (await categoryPost('/' + rootCategory.body.id + '/aktiflik', { active: false }, 1)).status,
+      404,
+    );
+    const categoryImage = await request(app)
+      .get(rootCategory.body.imageUrl)
+      .set('Cookie', cookie());
+    assert.equal(categoryImage.status, 200);
+    assert.deepEqual(categoryImage.body, logo);
+    assert.equal(
+      (await request(app).get(rootCategory.body.imageUrl).set('Cookie', cookie(1))).status,
+      404,
+    );
+    const cardNumber = Number(saved.body.id);
+    assert.equal(
+      (
+        await categoryPost('/' + childCategory.body.id + '/urunler/ata', {
+          productIds: [cardNumber],
+        })
+      ).status,
+      204,
+    );
+    assert.equal(
+      (
+        await categoryPost('/' + otherCategory.body.id + '/urunler/ata', {
+          productIds: [cardNumber],
+        })
+      ).status,
+      204,
+    );
+    assert.equal(
+      (
+        await categoryPost('/' + otherCategory.body.id + '/urunler/ata', {
+          productIds: [cardNumber, 2147483647],
+        })
+      ).status,
+      404,
+    );
+    assert.equal(await prisma.stokKartiKategori.count({ where: { stokKartiId: cardNumber } }), 2);
+    const page = await request(app)
+      .get('/api/stok/kartlar?arama=DAYS&sayfa=1&boyut=1')
+      .set('Cookie', cookie());
+    assert.equal(page.status, 200, JSON.stringify(page.body));
+    assert.equal(page.body.total, 1);
+    assert.equal(page.body.items[0].id, saved.body.id);
+    assert.equal(page.body.items[0].prices[0], 102.5);
+    assert.equal(page.body.items[0].cost, 90.1125);
+    assert.equal(page.body.items[0].categoryIds.length, 2);
+    assert.equal(
+      (await request(app).get('/api/stok/kartlar?arama=DAYS').set('Cookie', cookie(1))).body.total,
+      0,
+    );
+    assert.equal(
+      (await request(app).get('/api/stok/kartlar?boyut=201').set('Cookie', cookie())).status,
+      400,
+    );
+    assert.equal(
+      (await post('/kartlar/toplu', { ids: [cardNumber], islem: 'satis_kapat' })).status,
+      200,
+    );
+    assert.equal(
+      (await post('/kartlar/toplu', { ids: [cardNumber, 2147483647], islem: 'satis_ac' })).status,
+      404,
+    );
+    assert.equal(
+      (await prisma.stokKarti.findUniqueOrThrow({ where: { kimlik: cardNumber } })).satisAcik,
+      false,
+    );
+    assert.equal(
+      (await post('/kartlar/toplu', { ids: [cardNumber], islem: 'sil' }, 1)).status,
+      404,
+    );
+    assert.equal(
+      (await post('/kartlar/toplu', { ids: [cardNumber], islem: 'stok_kapat' })).status,
+      200,
+    );
+    assert.equal(
+      (await prisma.stokKarti.findUniqueOrThrow({ where: { kimlik: cardNumber } })).envanterTakibi,
+      'yok',
+    );
+    assert.equal(
+      (await post('/kartlar/toplu', { ids: [cardNumber], islem: 'stok_ac' })).status,
+      200,
+    );
+    assert.equal((await categoryPost('/' + rootCategory.body.id + '/sil')).status, 204);
+    assert.equal(await prisma.stokKartiKategori.count({ where: { stokKartiId: cardNumber } }), 1);
+    assert((await categoryGet()).body.some((c: { id: string }) => c.id === otherCategory.body.id));
+    assert.equal(
+      (
+        await categoryPost('/' + otherCategory.body.id + '/urunler/cikar', {
+          productIds: [cardNumber],
+        })
+      ).status,
+      204,
+    );
+    assert.equal(await prisma.stokKartiKategori.count({ where: { stokKartiId: cardNumber } }), 0);
+    assert.equal(await prisma.stokBirimi.count({ where: { stokKartiKimligi: Number(id) } }), 2);
+    assert.equal((await connection.query("SHOW TABLES LIKE 'stok_fiyat_listeleri'")).length, 0);
     const large = stockFixture();
     large.code = 'LARGE';
     large.units.fiyat = Array.from({ length: 15 }, (_, index) => ({
@@ -709,8 +882,11 @@ try {
 } finally {
   if (created) await connection.query('DROP DATABASE ' + database);
   await connection.end();
-  const logoDir = path.join(testUploads, 'markalar');
-  for (const file of await readdir(logoDir).catch(() => [])) await unlink(path.join(logoDir, file));
-  await rmdir(logoDir).catch(() => {});
+  for (const folder of ['markalar', 'kategoriler']) {
+    const logoDir = path.join(testUploads, folder);
+    for (const file of await readdir(logoDir).catch(() => []))
+      await unlink(path.join(logoDir, file));
+    await rmdir(logoDir).catch(() => {});
+  }
   await rmdir(testUploads);
 }

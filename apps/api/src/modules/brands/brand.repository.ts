@@ -113,7 +113,7 @@ export class PrismaBrandRepository {
           async (tx) => {
             // Stok kaydı da aynı kilidi kullanır; silme, atama ve kayıt birbirini geçemez.
             await tx.$queryRaw(
-              Prisma.sql`SELECT kimlik FROM kullanicilar WHERE kimlik = ${userId} FOR UPDATE`,
+              Prisma.sql`SELECT id FROM kullanicilar WHERE id = ${userId} FOR UPDATE`,
             );
 
             return operation(tx);
@@ -263,9 +263,7 @@ export class PrismaBrandRepository {
         stokKodu: true,
         stokAdi: true,
         marka: { select: { kimlik: true } },
-        fiyatListeleri: {
-          select: { birimler: { select: { barkodlar: { select: { barkod: true } } } } },
-        },
+        birimler: { select: { barkodlar: { select: { barkod: true } } } },
       },
       orderBy: [{ olusturmaZamani: 'desc' }, { kimlik: 'asc' }],
     });
@@ -275,11 +273,7 @@ export class PrismaBrandRepository {
       name: row.stokAdi || row.stokKodu || 'Adsız Ürün',
       brandId: row.marka ? String(row.marka.kimlik) : null,
       barcode: [
-        ...new Set(
-          row.fiyatListeleri.flatMap((list) =>
-            list.birimler.flatMap((unit) => unit.barkodlar.map((b) => b.barkod)),
-          ),
-        ),
+        ...new Set(row.birimler.flatMap((unit) => unit.barkodlar.map((b) => b.barkod))),
       ].join(' '),
     }));
   }

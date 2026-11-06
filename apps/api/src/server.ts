@@ -51,6 +51,7 @@ const app = createApp({
   codes: new MysqlEmailCodeStore(prisma, env.COOKIE_SECRET),
   stockRepo: new PrismaStockRepository(prisma),
   brandRepo,
+  catalogDb: prisma,
   hasher: argon2Hasher,
   mailer: createMailer(env, logger),
   google: env.google ? createGoogleOidcClient(env.google) : null,
