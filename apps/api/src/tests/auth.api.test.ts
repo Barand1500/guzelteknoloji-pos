@@ -33,7 +33,7 @@ describe('POST /api/auth/login', () => {
     expect(setCookie).toMatch(/HttpOnly/i);
     expect(setCookie).toMatch(/SameSite=Lax/i);
 
-    // Veritabanında ham token değil, yalnızca özeti tutulur.
+    // Veritabanında ham token değil, yalnızca hash'i tutulur.
     const token = cookiesFrom(res.headers['set-cookie'])[0]!.split('=')[1]!;
     expect(repo.sessions[0]!.tokenHash).toBe(hashToken(token));
     expect(repo.sessions[0]!.tokenHash).not.toBe(token);

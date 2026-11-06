@@ -78,7 +78,7 @@ Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada 
 
 ## 5. Güvenlik özeti (ayrıntı: `docs/auth-policy.md`)
 
-- Şifreler Argon2id; token/şifre/secret tarayıcı depolamasında tutulmaz. Oturum: HttpOnly + SameSite=Lax cookie (production'da Secure + `__Host-`), DB'de yalnızca SHA-256 özeti, girişte rotation, çıkışta revocation.
+- Şifreler Argon2id; token/şifre/secret tarayıcı depolamasında tutulmaz. Oturum: HttpOnly + SameSite=Lax cookie (production'da Secure + `__Host-`), DB'de yalnızca SHA-256 hash'i, girişte rotation, çıkışta revocation.
 - CSRF: SameSite + durum değiştiren isteklerde Origin kontrolü. Hız sınırlama, gizli bilgi sızdırmayan loglama, hesap varlığını sızdırmayan hata mesajları.
 - Google: sunucu tarafı authorization-code + PKCE + state + nonce; ID token doğrulaması `openid-client` ile. **Yalnızca e-posta eşleşiyor diye hesap otomatik birleştirilmez.**
 - Gerçek şifre/secret repoya konmaz; `.env` ignore edilir, örnekler `.env.example`'dadır. Seed komutu production'da çalışmaz.
@@ -129,7 +129,7 @@ Gelecekteki tüm ekranlar **aynı** ortak bileşenlerle yapılır. Yeni sayfada 
 
 1. **Tema:** Gündüz/gece modu olur. Renkler **60-30-10 kuralına** göre seçilir (60 zemin, 30 yüzey/ikincil, 10 vurgu), yumuşak ve göze hoş; ana vurgu şimdilik turuncu (değişebilir).
 2. **Renkler tek yerden gelir:** Tüm renkler yalnızca merkezi **tema token'larından** (CSS değişkenleri / `@theme`) okunur; bileşenlerde sabit renk kodu yazılmaz. Renk değişikliği tek dosyadan yapılabilmelidir.
-3. **Veri:** Gerçek oturumda stok kartı ve seçenekler API üzerinden MySQL'e kaydedilir. Test kullanıcısı ayrı demo servisini kullanır; veritabanına yazmaz. Bileşenler veriyi servis/hook üzerinden alır. Ayrıntı: `docs/stok-karti-veritabani.md`.
+3. **Veri:** Gerçek oturumda stok kartı, marka ve seçenekler API üzerinden MySQL'e kaydedilir ve kullanıcı hesabına özeldir. Sahiplik oturumdaki kullanıcıdan belirlenir; istemciden kullanıcı kimliği kabul edilmez. Farklı hesaplar birbirinin verilerini göremez. Test kullanıcısı ayrı demo servisini kullanır; veritabanına yazmaz. Bileşenler veriyi servis/hook üzerinden alır. Ayrıntı: `docs/stok-karti-veritabani.md`.
 4. **İlk ekran:** Girişten sonra doğrudan **yeni stok kartı ekleme** ekranı.
 5. **Özgün tasarım:** Klasik "soldaki menü" yapay zeka şablonuna benzemeyecek; yaratıcı, özgün bir gezinme (mobilde alt gezinme dahil). Responsive zorunlu.
 6. **Test butonu** sunucuda da görünür; kodda yorum satırı ile "GEÇİCİ — sonra kaldırılacak" diye işaretlenir.
@@ -203,7 +203,7 @@ Geniş ekranda (xl) "Envanter Takibi + seçime göre alanlar + Menşei + Diğer 
 
 ### 8.14 Markalar ekranı ve yönetim listesi parçaları (Kategoriler/Fırsat/Özellikler de bunları kullanır)
 
-**Kalıcı veri:** Gerçek oturum `brand.service.ts` ile API/MySQL kullanır; yalnızca test kullanıcısı `brand.demo.ts` kullanır. Marka kimliği ve adı mevcut stok seçeneğiyle ortaktır; Türkçe `markalar` tablosu ayrıntıları bire bir saklar. Ürün atama/silme ve sıralama kullanıcıya özel, transaction içindedir. Ayrıntılar: `docs/markalar-veritabani.md`.
+**Kalıcı veri:** Gerçek oturum `brand.service.ts` ile API/MySQL kullanır; yalnızca test kullanıcısı `brand.demo.ts` kullanır. Marka adı ve ayrıntıları bağımsız Türkçe `markalar` tablosundadır; stok kartı bu tabloya bağlanır. Ürün atama/silme ve sıralama kullanıcıya özel, transaction içindedir. Ayrıntılar: `docs/markalar-veritabani.md`.
 
 - **Tasarım (seçilen: "Kaydırmalı Satırlar"):** logo + ad + ürün sayısı + anahtar. Telefonda satır **sola kaydırınca** Düzenle / Tanımla / Sil çıkar; satıra dokunmak düzenler. Masaüstünde satırın içinde ⠿ tutamağı ve ikon düğmeleri bulunur (yan özet kartı YOK, istenmedi).
 - **Sıralama = sürükle-bırak, ayrı "Sıralama" düğmesi YOKTUR:** telefonda satırı ~0,35 sn **basılı tut** → satır havaya kalkar, diğerleri kayarak yer açar, sayfa kenarında kendiliğinden kayar; masaüstünde ⠿ tutamağından; klavyede tutamağa odaklanıp ↑ ↓. Arama yapılırken sıralama kapalıdır. Sıra mağazadaki gösterim sırasıdır.
@@ -224,3 +224,15 @@ Uzayabilecek her liste sayfalıdır: `lib/usePagination` + `components/ui/Pagina
 ### 8.17 Alt menü kayan vurgu
 
 Alt menüde seçili sayfanın arkasındaki yumuşak kutu, başka sekmeye geçince yeni yerine **kayarak** gider (`Dock`: konum doğrudan DOM'a yazılır, `transition` ile yay efekti; ilk yerleşimde animasyon yoktur, pencere boyutu değişince yeniden hesaplanır). Seçiliyken ikon/yazı turuncuya yumuşakça döner. **Alttaki nokta vurgusu YOKTUR** (kaldırıldı). "+" (yeni stok kartı) seçiliyken kutu gizlenir.
+
+### 8.18 Veritabanı ve arayüzün iş mantığı
+
+Marka görselleri Base64 ile aktarılır ve sunucu dosyayı özgün baytları, boyutları ve biçimiyle `UPLOADS_DIR/markalar` altında saklar; boyutlandırma veya WebP dönüşümü yapılmaz. Yalnızca dosya adı ve hash MySQL'de saklanır. Eski BLOB kayıtları API ilk açıldığında doğrulanarak dosyaya taşınır. Dosyalar yetkili API üzerinden sunulur; `uploads` ve MySQL birlikte yedeklenir.
+
+Veritabanındaki tüm ana kayıt kimlikleri ve bunlara bağlı yabancı anahtarlar `INT AUTO_INCREMENT` ile sayısaldır; API uyumluluğu için sayısal kimlikler metin olarak taşınabilir. Marka ve stok API kimlikleri de sayısaldır. Kayıtların silinmesi veya başarısız işlemler nedeniyle numaralar arasında boşluk olabilir; ID sıralaması ekran sırası değildir. Eski UUID kayıtları ve ilişkileri migration sırasında eşleştirilir. İşlem tekrarını engelleyen `kayit_istegi_kimligi` ise bir kayıt ID'si değil, istemcinin rastgele oluşturduğu işlem anahtarıdır.
+
+E-posta doğrulama kodları MySQL'e yazılmaz. Yalnızca kalıcılığı kapalı ayrı Redis instance'ında hash olarak 10 dakika TTL ile tutulur; doğru doğrulamada ve 5. yanlış denemede silinir. Yeniden gönderim beklemesi 60 saniye, saatlik kota 5'tir; bunlar Redis'te atomik uygulanır. Kodun tüketimi ve silinmesi de atomiktir. `REDIS_URL` zorunludur; Redis kesilirse kod akışı hata verir, başka depoya geri dönmez. E-posta/IP kod deposuna açık olarak yazılmaz. Kurulum: `docs/DEPLOY.md`.
+
+Teknik terimler kendi adıyla kullanılır: kriptografik hash alanlarında "özet" yerine `hash` yazılır (ör. `sifreHash` / `sifre_hash`). Arayüzdeki ürün özeti gibi normal Türkçe kullanımlar bu kuralın dışındadır. Eski migration dosyaları korunur; fiziksel alan adları yeni RENAME migration'ıyla değiştirilir.
+
+Veritabanı arayüzdeki iş ilişkilerine göre düzenlenir. Kullanıcının isteğe bağlı şifre hash'i ve şifre tarihleri `kullanicilar` içinde tutulur; genel kullanıcı/API yanıtlarına dahil edilmez. Sosyal giriş kimlikleri, oturumlar ve e-posta kodları ayrı yaşam döngülerine sahip olduğundan ayrı kalır. Mevcut stok arayüzünde her fiyat listesi kendi birim satırlarını, ana/varsayılan birimini, çarpanlarını ve barkodlarını düzenler; bu davranış değiştirilmeden listeler arasında birim/barkod birleştirmesi yapılmaz. Migration mevcut şifre hash'lerini ve tarihlerini aynen taşır.

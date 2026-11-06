@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
-import { readFile, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rmdir, unlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import mariadb from 'mariadb';
 import request from 'supertest';
 import sharp from 'sharp';
@@ -15,6 +17,7 @@ import { createLogger } from '../src/lib/logger';
 import { createPrismaClient } from '../src/lib/prisma';
 import { PrismaAuthRepository } from '../src/modules/auth/auth.repository';
 import { PrismaStockRepository } from '../src/modules/stock/stock.repository';
+import { InMemoryEmailCodeStore } from '../src/tests/in-memory-email-code.store';
 import { stockFixture } from '../src/tests/stock.fixture';
 
 const raw = process.env.DB_MIGRATION_TEST_URL;
@@ -25,6 +28,7 @@ assert(
   'Yalnızca ayrı yerel test sunucusu kullanılır.',
 );
 const database = 'pos_stock_test_' + randomUUID().replaceAll('-', '');
+const testUploads = await mkdtemp(path.join(tmpdir(), 'pos-uploads-test-'));
 const connection = await mariadb.createConnection({
   host: url.hostname,
   port: Number(url.port || 3306),
@@ -35,6 +39,11 @@ let created = false;
 const legacyUserId = randomUUID();
 const legacyBrandId = randomUUID();
 const legacyCardId = randomUUID();
+const legacyLogo = await sharp({
+  create: { width: 2, height: 2, channels: 4, background: '#112233' },
+})
+  .webp()
+  .toBuffer();
 try {
   await connection.query(
     'CREATE DATABASE ' + database + ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
@@ -45,6 +54,41 @@ try {
   for (const folder of (await readdir(migrations, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .sort((a, b) => a.name.localeCompare(b.name))) {
+    if (folder.name === '20261106160000_sirali_sayisal_kimlikler') {
+      const listOption = randomUUID();
+      const unitOption = randomUUID();
+      const listId = randomUUID();
+      const unitId = randomUUID();
+      const priceId = randomUUID();
+      for (const [id, key] of [
+        [listOption, 'priceLists'],
+        [unitOption, 'units'],
+      ])
+        await connection.query(
+          'INSERT INTO stok_secenekleri (kimlik, kullanici_kimligi, liste_turu, secenek_kodu, secenek_adi, ad_hash) VALUES (?, ?, ?, ?, ?, ?)',
+          [id, legacyUserId, key, 'eski', 'Eski', 'c'.repeat(64)],
+        );
+      await connection.query(
+        'INSERT INTO stok_fiyat_listeleri (kimlik, stok_karti_kimligi, fiyat_listesi_kimligi, sira) VALUES (?, ?, ?, 0)',
+        [listId, legacyCardId, listOption],
+      );
+      await connection.query(
+        'INSERT INTO stok_birimleri (kimlik, stok_fiyat_listesi_kimligi, birim_kimligi, sira, carpan, ana_birim, varsayilan_birim, agirlik_birimi) VALUES (?, ?, ?, 0, 1, 1, 1, ?)',
+        [unitId, listId, unitOption, 'kg'],
+      );
+      await connection.query(
+        'INSERT INTO stok_fiyatlari (kimlik, stok_birimi_kimligi, fiyat_yonu, girilen_fiyat, para_birimi, kdv_dahil_girildi) VALUES (?, ?, ?, ?, ?, 0)',
+        [priceId, unitId, 'satis', '25.500000', 'TRY'],
+      );
+      await connection.query(
+        'INSERT INTO stok_ek_fiyatlari (kimlik, stok_fiyati_kimligi, sira, tutar, para_birimi) VALUES (?, ?, 0, ?, ?)',
+        [randomUUID(), priceId, '5.000000', 'TRY'],
+      );
+      await connection.query(
+        'INSERT INTO stok_barkodlari (kimlik, stok_birimi_kimligi, barkod_turu, barkod) VALUES (?, ?, ?, ?)',
+        [randomUUID(), unitId, 'EAN13', '8690000000001'],
+      );
+    }
     if (folder.name === '20261105190000_markalar') {
       await connection.query(
         'INSERT INTO kullanicilar (kimlik, eposta, guncelleme_zamani) VALUES (?, ?, NOW(3))',
@@ -78,25 +122,73 @@ try {
     const sql = await readFile(new URL(folder.name + '/migration.sql', migrations), 'utf8');
     for (const statement of sql.split(';').filter((part) => part.trim()))
       await connection.query(statement);
+    if (folder.name === '20261105190000_markalar')
+      await connection.query(
+        'UPDATE markalar SET logo_verisi = ?, logo_ozeti = ?, aciklama = ? WHERE kimlik = ?',
+        [legacyLogo, 'c'.repeat(64), 'Legacy description', legacyBrandId],
+      );
   }
   url.pathname = '/' + database;
+  assert.equal((await connection.query("SHOW TABLES LIKE 'isletmeler'")).length, 0);
+  assert.equal(
+    (await connection.query("SHOW COLUMNS FROM kullanicilar LIKE 'isletme_kimligi'")).length,
+    0,
+  );
   const prisma = createPrismaClient(url.href);
   try {
-    const legacyBrand = (await new PrismaBrandRepository(prisma).list(legacyUserId))[0]!;
-    assert.equal(legacyBrand.id, 'eski');
+    const brandRepo = new PrismaBrandRepository(prisma, testUploads);
+    await brandRepo.migrateLegacyLogos();
+    await brandRepo.migrateLegacyLogos();
+    assert.equal((await connection.query("SHOW TABLES LIKE 'eposta_giris_kodlari'")).length, 0);
+    const migratedUser = await prisma.kullanici.findUniqueOrThrow({
+      where: { eposta: 'legacy@example.com' },
+    });
+    const migratedBrand = await prisma.marka.findFirstOrThrow({
+      where: { kullaniciKimligi: migratedUser.kimlik, markaKodu: 'eski' },
+    });
+    const migratedCard = await prisma.stokKarti.findFirstOrThrow({
+      where: { kullaniciKimligi: migratedUser.kimlik },
+    });
+    const migratedList = await prisma.stokFiyatListesi.findFirstOrThrow({
+      where: { stokKartiKimligi: migratedCard.kimlik },
+      include: {
+        birimler: { include: { barkodlar: true, fiyatlar: { include: { ekFiyatlar: true } } } },
+      },
+    });
+    assert.equal(migratedList.birimler[0]?.barkodlar[0]?.barkod, '8690000000001');
+    assert.equal(migratedList.birimler[0]?.fiyatlar[0]?.girilenFiyat?.toString(), '25.5');
+    assert.equal(migratedList.birimler[0]?.fiyatlar[0]?.ekFiyatlar[0]?.tutar?.toString(), '5');
+    const legacyBrand = (await brandRepo.list(String(migratedUser.kimlik)))[0]!;
+    assert.equal(legacyBrand.id, String(migratedBrand.kimlik));
     assert.equal(legacyBrand.name, 'Eski Marka');
     assert.equal(legacyBrand.productCount, 1);
-    assert.equal(
-      (await prisma.stokKarti.findUniqueOrThrow({ where: { kimlik: legacyCardId } })).markaKimligi,
-      legacyBrandId,
+    assert.equal(legacyBrand.description, 'Legacy description');
+    assert.deepEqual(
+      (await brandRepo.logo(String(migratedUser.kimlik), String(migratedBrand.kimlik))).data,
+      legacyLogo,
     );
-    assert(await prisma.marka.findUnique({ where: { kimlik: legacyBrandId } }));
-    await prisma.kullanici.delete({ where: { kimlik: legacyUserId } });
+    const movedLegacy = await prisma.marka.findUniqueOrThrow({
+      where: { kimlik: migratedBrand.kimlik },
+    });
+    assert.equal(movedLegacy.logoVerisi, null);
+    assert(movedLegacy.logoDosyasi);
+    assert.deepEqual(
+      await readFile(path.join(testUploads, 'markalar', movedLegacy.logoDosyasi)),
+      legacyLogo,
+    );
+    assert.equal(
+      (await prisma.stokKarti.findUniqueOrThrow({ where: { kimlik: migratedCard.kimlik } }))
+        .markaKimligi,
+      migratedBrand.kimlik,
+    );
+    assert(await prisma.marka.findUnique({ where: { kimlik: migratedBrand.kimlik } }));
+    await prisma.kullanici.delete({ where: { kimlik: migratedUser.kimlik } });
     const env = parseEnv({
       NODE_ENV: 'test',
       APP_URL: 'http://localhost:5175',
       COOKIE_SECRET: 'local-test-secret-long-enough-123456',
       DATABASE_URL: url.href,
+      REDIS_URL: 'redis://localhost:6379',
       LOG_LEVEL: 'silent',
     });
     const repo = new PrismaAuthRepository(prisma);
@@ -104,11 +196,12 @@ try {
       env,
       logger: createLogger('silent'),
       repo,
+      codes: new InMemoryEmailCodeStore(),
       hasher: { hash: async () => '', verify: async () => false },
       mailer: { sendLoginCode: async () => {} },
       google: null,
       stockRepo: new PrismaStockRepository(prisma),
-      brandRepo: new PrismaBrandRepository(prisma),
+      brandRepo,
     });
     const users = await Promise.all(
       ['one', 'two'].map((name) =>
@@ -118,7 +211,7 @@ try {
     const tokens = [randomUUID(), randomUUID()];
     for (const [index, user] of users.entries())
       await repo.createSession({
-        userId: user.kimlik,
+        userId: String(user.kimlik),
         loginMethod: 'EMAIL',
         tokenHash: hashToken(tokens[index]!),
         expiresAt: new Date(Date.now() + 3600000),
@@ -162,15 +255,40 @@ try {
       seoDescription: 'Kaliteli ürünler',
     };
     const firstBrand = await brandPost('', brandDraft);
+    assert.match(firstBrand.body.id, /^[1-9]\d*$/);
     assert.equal(firstBrand.status, 201, JSON.stringify(firstBrand.body));
     const brandId = firstBrand.body.id as string;
     const logoPath = new URL(firstBrand.body.logoUrl as string, env.APP_URL).pathname;
     const logoResponse = await brandGet(logoPath.replace('/api/markalar', ''));
+    const base64Logo = await brandGet('/' + brandId + '/logo?bicim=base64');
+    assert.equal(base64Logo.status, 200);
+    assert.equal(base64Logo.body.mimeType, 'image/png');
+    assert.deepEqual(
+      Buffer.from((base64Logo.body.dataUrl as string).split(',')[1]!, 'base64'),
+      logoResponse.body,
+    );
+    const downloadedLogo = await brandGet('/' + brandId + '/logo?indir=1');
+    assert.equal(downloadedLogo.status, 200);
+    assert.match(downloadedLogo.headers['content-disposition'] as string, /^attachment;/);
     assert.equal(logoResponse.status, 200);
-    assert.equal(logoResponse.headers['content-type'], 'image/webp');
-    assert.equal((await sharp(logoResponse.body as Buffer).metadata()).format, 'webp');
+    assert.equal(logoResponse.headers['content-type'], 'image/png');
+    assert.deepEqual(logoResponse.body, logo);
+    const savedBrand = await prisma.marka.findUniqueOrThrow({ where: { kimlik: Number(brandId) } });
+    assert.equal(savedBrand.logoVerisi, null);
+    assert(savedBrand.logoDosyasi);
+    assert.deepEqual(
+      await readFile(path.join(testUploads, 'markalar', savedBrand.logoDosyasi)),
+      logo,
+    );
+    assert.deepEqual(
+      (await new PrismaBrandRepository(prisma, testUploads).logo(String(users[0]!.kimlik), brandId))
+        .data,
+      logo,
+    );
     assert.equal((await brandGet(logoPath.replace('/api/markalar', ''), 1)).status, 404);
+    const filesBeforeDuplicate = await readdir(path.join(testUploads, 'markalar'));
     assert.equal((await brandPost('', { ...brandDraft, name: 'inci' })).status, 409);
+    assert.deepEqual(await readdir(path.join(testUploads, 'markalar')), filesBeforeDuplicate);
     assert.equal((await brandPost('', { ...brandDraft, logoUrl: 'blob:temporary' })).status, 400);
     assert.equal((await brandPost('', { ...brandDraft, name: '' })).status, 400);
     assert.equal((await brandPost('', { ...brandDraft, name: 'A'.repeat(121) })).status, 400);
@@ -200,8 +318,46 @@ try {
     );
     assert.equal((await brandGet()).body[0].description, 'Güncellendi');
     const secondBrand = await brandPost('', { ...brandDraft, name: 'Diğer', logoUrl: null });
+    assert(Number(secondBrand.body.id) > Number(firstBrand.body.id));
     assert.equal(secondBrand.status, 201);
     const secondBrandId = secondBrand.body.id as string;
+    const svg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900"><rect width="10" height="10"/></svg>',
+    );
+    const svgDraft = {
+      ...brandDraft,
+      name: 'Diğer',
+      logoUrl: 'data:image/svg+xml;base64,' + svg.toString('base64'),
+    };
+    assert.equal((await brandPost('/' + secondBrandId, svgDraft)).status, 200);
+    const svgBrand = await prisma.marka.findUniqueOrThrow({
+      where: { kimlik: Number(secondBrandId) },
+    });
+    assert(svgBrand.logoDosyasi);
+    assert.deepEqual(await readFile(path.join(testUploads, 'markalar', svgBrand.logoDosyasi)), svg);
+    const svgResponse = await brandGet('/' + secondBrandId + '/logo');
+    assert.match(svgResponse.headers['content-type'] as string, /^image\/svg\+xml/);
+    assert.match(svgResponse.headers['content-security-policy'] as string, /sandbox/);
+    const svgBase64 = await brandGet('/' + secondBrandId + '/logo?bicim=base64');
+    assert.equal(svgBase64.body.dataUrl, svgDraft.logoUrl);
+    assert.equal(
+      (await brandPost('/' + secondBrandId, { ...svgDraft, logoUrl: brandDraft.logoUrl })).status,
+      200,
+    );
+    await assert.rejects(readFile(path.join(testUploads, 'markalar', svgBrand.logoDosyasi)));
+    const replacement = await prisma.marka.findUniqueOrThrow({
+      where: { kimlik: Number(secondBrandId) },
+    });
+    assert(replacement.logoDosyasi);
+    assert.deepEqual(
+      await readFile(path.join(testUploads, 'markalar', replacement.logoDosyasi)),
+      logo,
+    );
+    assert.equal(
+      (await brandPost('/' + secondBrandId, { ...svgDraft, logoUrl: null })).status,
+      200,
+    );
+    await assert.rejects(readFile(path.join(testUploads, 'markalar', replacement.logoDosyasi)));
     assert.equal((await brandPost('/sirala', { ids: [secondBrandId, brandId] })).status, 204);
     assert.equal((await brandGet()).body[0].id, secondBrandId);
     assert.equal((await brandPost('/sirala', { ids: [brandId, brandId] })).status, 409);
@@ -238,6 +394,12 @@ try {
     const response = await post('/kartlar', payload);
     assert.equal(response.status, 201, JSON.stringify(response.body));
     const id = response.body.id as string;
+    assert.match(id, /^[1-9]\d*$/);
+    const readCreated = await request(app)
+      .get('/api/stok/kartlar/' + id)
+      .set('Cookie', cookie());
+    assert.equal(readCreated.status, 200);
+    assert.equal(readCreated.body.id, id);
     assert.equal(
       (await brandPost('/' + brandId + '/urunler/ata', { productIds: [id] })).status,
       204,
@@ -251,10 +413,14 @@ try {
       brandId,
     );
     await connection.query(
-      "CREATE TRIGGER reject_brand_delete BEFORE DELETE ON stok_secenekleri FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='forced-brand-delete-failure'",
+      "CREATE TRIGGER reject_brand_delete BEFORE DELETE ON markalar FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='forced-brand-delete-failure'",
     );
     try {
       assert.equal((await brandPost('/' + brandId + '/sil')).status, 500);
+      assert.deepEqual(
+        await readFile(path.join(testUploads, 'markalar', savedBrand.logoDosyasi)),
+        logo,
+      );
       assert.equal(
         (await brandGet('/urunler')).body.find((p: { id: string }) => p.id === id).brandId,
         brandId,
@@ -264,7 +430,7 @@ try {
       await connection.query('DROP TRIGGER reject_brand_delete');
     }
     assert.equal(
-      (await brandPost('/' + secondBrandId + '/urunler/ata', { productIds: [id, randomUUID()] }))
+      (await brandPost('/' + secondBrandId + '/urunler/ata', { productIds: [id, '2147483647'] }))
         .status,
       404,
     );
@@ -328,6 +494,7 @@ try {
       1,
     );
     assert.equal((await brandPost('/' + brandId + '/sil')).status, 204);
+    await assert.rejects(readFile(path.join(testUploads, 'markalar', savedBrand.logoDosyasi)));
     assert.equal(
       (await brandGet('/urunler')).body.find((p: { id: string }) => p.id === brandedCard.body.id)
         .brandId,
@@ -442,7 +609,7 @@ try {
     const saved = await post('/kartlar', { requestId: randomUUID(), draft: plain });
     assert.equal(saved.status, 201);
     const days = await prisma.stokKarti.findUniqueOrThrow({
-      where: { kimlik: saved.body.id as string },
+      where: { kimlik: Number(saved.body.id) },
     });
     assert.equal(days.rafOmruGun, 30);
     assert.equal(days.altLimit, null);
@@ -533,4 +700,8 @@ try {
 } finally {
   if (created) await connection.query('DROP DATABASE ' + database);
   await connection.end();
+  const logoDir = path.join(testUploads, 'markalar');
+  for (const file of await readdir(logoDir).catch(() => [])) await unlink(path.join(logoDir, file));
+  await rmdir(logoDir).catch(() => {});
+  await rmdir(testUploads);
 }

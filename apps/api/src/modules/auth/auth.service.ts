@@ -6,11 +6,12 @@ import {
   type LoginInput,
 } from '@gt/shared';
 import { randomInt } from 'node:crypto';
-import { generateSessionToken, hashLoginCode, hashToken, safeEqualHex } from '../../lib/crypto';
+import { generateSessionToken, hashLoginCode, hashToken } from '../../lib/crypto';
 import { HttpError } from '../../lib/http-error';
 import type { Mailer } from '../../lib/mailer';
 import type { PasswordHasher } from '../../lib/password';
 import type { AuthRepository } from './auth.repository';
+import type { EmailCodeStore } from './email-code.store';
 import type { GoogleClaims } from './google.client';
 import type {
   AuthProvider,
@@ -47,9 +48,10 @@ export const invalidCredentialsError = () =>
 
 export interface AuthServiceDeps {
   repo: AuthRepository;
+  codes: EmailCodeStore;
   hasher: PasswordHasher;
   mailer: Mailer;
-  /** Kod özetlerini anahtarlamak için gizli değer (COOKIE_SECRET). */
+  /** Kod hash'lerini anahtarlamak için gizli değer (COOKIE_SECRET). */
   codeSecret: string;
   sessionTtlMs: number;
   now?: () => Date;
@@ -57,6 +59,7 @@ export interface AuthServiceDeps {
 
 export class AuthService {
   private readonly repo: AuthRepository;
+  private readonly codes: EmailCodeStore;
   private readonly hasher: PasswordHasher;
   private readonly mailer: Mailer;
   private readonly codeSecret: string;
@@ -66,6 +69,7 @@ export class AuthService {
 
   constructor(deps: AuthServiceDeps) {
     this.repo = deps.repo;
+    this.codes = deps.codes;
     this.hasher = deps.hasher;
     this.mailer = deps.mailer;
     this.codeSecret = deps.codeSecret;
@@ -79,44 +83,33 @@ export class AuthService {
    * NOT: Bu uç nokta hesabın var olup olmadığını bilerek ayırt eder (ürün kararı);
    * kötüye kullanımı sıkı hız sınırı ve gönderim kotasıyla sınırlandırılır.
    */
-  async startEmail(rawEmail: string, meta: RequestMeta): Promise<EmailStartResponse> {
+  async startEmail(rawEmail: string, _meta: RequestMeta): Promise<EmailStartResponse> {
     const email = normalizeEmail(rawEmail);
     if (await this.repo.findPasswordLogin(email)) return { step: 'password' };
 
-    const now = this.now();
-    const latest = await this.repo.findLatestLoginCode(email);
-    if (latest && !latest.consumedAt && latest.expiresAt > now) {
-      const elapsed = (now.getTime() - latest.createdAt.getTime()) / 1000;
-      if (elapsed < CODE_RESEND_SECONDS) {
-        // Bekleme süresi dolmadan yeniden gönderilmez; mevcut kod geçerlidir.
-        return {
-          step: 'code',
-          resendAfterSeconds: Math.ceil(CODE_RESEND_SECONDS - elapsed),
-          expiresInSeconds: Math.ceil((latest.expiresAt.getTime() - now.getTime()) / 1000),
-        };
-      }
-    }
-
-    const sentLastHour = await this.repo.countLoginCodesSince(
-      email,
-      new Date(now.getTime() - 60 * 60 * 1000),
-    );
-    if (sentLastHour >= CODE_MAX_PER_HOUR) {
-      throw new HttpError(429, 'RATE_LIMITED', 'Çok fazla kod istendi. Lütfen daha sonra deneyin.');
-    }
-
-    // Kriptografik olarak güvenli rastgele 6 haneli kod (baştaki sıfırlar korunur).
     const code = String(randomInt(0, 10 ** CODE_LENGTH)).padStart(CODE_LENGTH, '0');
-    const pendingCode = await this.repo.createLoginCode({
+    const pendingCode = await this.codes.reserve(
       email,
-      codeHash: hashLoginCode(this.codeSecret, email, code),
-      expiresAt: new Date(now.getTime() + CODE_TTL_SECONDS * 1000),
-      ipAddress: meta.ipAddress?.slice(0, 45) ?? null,
-    });
+      hashLoginCode(this.codeSecret, email, code),
+      {
+        ttlSeconds: CODE_TTL_SECONDS,
+        resendSeconds: CODE_RESEND_SECONDS,
+        maxAttempts: CODE_MAX_ATTEMPTS,
+        maxPerHour: CODE_MAX_PER_HOUR,
+      },
+    );
+    if (pendingCode.status === 'waiting')
+      return {
+        step: 'code',
+        resendAfterSeconds: pendingCode.resendAfterSeconds,
+        expiresInSeconds: pendingCode.expiresInSeconds,
+      };
+    if (pendingCode.status === 'limited')
+      throw new HttpError(429, 'RATE_LIMITED', 'Çok fazla kod istendi. Lütfen daha sonra deneyin.');
     try {
       await this.mailer.sendLoginCode(email, code, CODE_TTL_SECONDS / 60);
     } catch {
-      await this.repo.consumeLoginCode(pendingCode.id, this.now());
+      await this.codes.discard(email, pendingCode.id);
       throw new HttpError(
         503,
         'EMAIL_UNAVAILABLE',
@@ -139,22 +132,12 @@ export class AuthService {
   ): Promise<IssuedSession> {
     const email = normalizeEmail(rawEmail);
     const now = this.now();
-    const record = await this.repo.findLatestLoginCode(email);
-    if (
-      !record ||
-      record.consumedAt ||
-      record.expiresAt <= now ||
-      record.attempts >= CODE_MAX_ATTEMPTS
-    ) {
-      throw invalidCodeError();
-    }
-
-    const expected = hashLoginCode(this.codeSecret, email, code);
-    if (!safeEqualHex(record.codeHash, expected)) {
-      await this.repo.incrementLoginCodeAttempts(record.id);
-      throw invalidCodeError();
-    }
-    await this.repo.consumeLoginCode(record.id, now);
+    const valid = await this.codes.verify(
+      email,
+      hashLoginCode(this.codeSecret, email, code),
+      CODE_MAX_ATTEMPTS,
+    );
+    if (!valid) throw invalidCodeError();
 
     let user = await this.repo.findUserByEmail(email);
     if (user) {

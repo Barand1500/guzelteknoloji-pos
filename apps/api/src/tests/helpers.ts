@@ -5,6 +5,7 @@ import { argon2Hasher } from '../lib/password';
 import type { Mailer } from '../lib/mailer';
 import type { GoogleOidcClient } from '../modules/auth/google.client';
 import { InMemoryAuthRepository } from './in-memory-repository';
+import { InMemoryEmailCodeStore } from './in-memory-email-code.store';
 
 export const APP_URL = 'http://localhost:5173';
 
@@ -26,6 +27,7 @@ export function testEnv(overrides: Record<string, string | undefined> = {}) {
     NODE_ENV: 'test',
     APP_URL,
     DATABASE_URL: 'mysql://user:pass@localhost:3306/test',
+    REDIS_URL: 'redis://localhost:6379',
     COOKIE_SECRET: 'test-cookie-secret-that-is-long-enough-123',
     LOG_LEVEL: 'silent',
     ...overrides,
@@ -44,16 +46,18 @@ export function buildTestApp(
   const env = testEnv(options.env);
   const repo = options.repo ?? new InMemoryAuthRepository();
   const mailer = options.mailer ?? new FakeMailer();
+  const codes = new InMemoryEmailCodeStore();
   const app = createApp({
     env,
     logger: createLogger('silent'),
     repo,
+    codes,
     hasher: argon2Hasher,
     mailer,
     google: options.google ?? null,
     apple: options.apple ?? null,
   });
-  return { app, repo, env, mailer };
+  return { app, repo, env, mailer, codes };
 }
 
 export async function seedPasswordUser(

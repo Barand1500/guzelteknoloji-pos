@@ -1,37 +1,40 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import sharp from 'sharp';
 import type { Brand, BrandDraft, ProductRef } from '@gt/shared';
 import { Prisma } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
+import { BrandLogoStorage, type LogoFormat } from './brand-logo.storage';
 
 const digest = (text: string | Buffer) => createHash('sha256').update(text).digest('hex');
 const nameHash = (name: string) => digest(name.normalize('NFC').trim().toLocaleLowerCase('tr-TR'));
-const detailsSelect = {
+const brandSelect = {
+  kimlik: true,
+  markaKodu: true,
+  markaAdi: true,
+  etkin: true,
   aciklama: true,
-  logoOzeti: true,
+  logoHash: true,
+  logoDosyasi: true,
   seoBasligi: true,
   seoAciklamasi: true,
+  _count: { select: { stokKartlari: true } },
 } as const;
-const includeBrand = {
-  markaBilgisi: { select: detailsSelect },
-  _count: { select: { markaKartlari: true } },
-} as const;
-type BrandRow = Prisma.StokSecenegiGetPayload<{ include: typeof includeBrand }>;
+type BrandRow = Prisma.MarkaGetPayload<{ select: typeof brandSelect }>;
 const dto = (row: BrandRow): Brand => ({
-  id: row.secenekKodu,
-  name: row.secenekAdi,
+  id: String(row.kimlik),
+  name: row.markaAdi,
   active: row.etkin,
-  description: row.markaBilgisi?.aciklama ?? '',
-  seoTitle: row.markaBilgisi?.seoBasligi ?? '',
-  seoDescription: row.markaBilgisi?.seoAciklamasi ?? '',
-  logoUrl: row.markaBilgisi?.logoOzeti
-    ? `/api/markalar/${encodeURIComponent(row.secenekKodu)}/logo?v=${row.markaBilgisi.logoOzeti}`
+  description: row.aciklama ?? '',
+  seoTitle: row.seoBasligi ?? '',
+  seoDescription: row.seoAciklamasi ?? '',
+  logoUrl: row.logoHash
+    ? `/api/markalar/${encodeURIComponent(String(row.kimlik))}/logo?v=${row.logoHash}`
     : null,
-  productCount: row._count.markaKartlari,
+  productCount: row._count.stokKartlari,
 });
 
-/** Yükleme dosya adına güvenmez; içerik çözülür ve tek biçimde yeniden kodlanır. */
+/** Base64 aktarımı çözülür ve içerik doğrulanır; özgün baytlar değiştirilmez. */
 export async function prepareBrandLogo(value: string | null) {
   if (value === null || value.startsWith('/api/markalar/')) return null;
   const match = /^data:image\/(png|jpeg|webp|svg\+xml);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
@@ -47,21 +50,58 @@ export async function prepareBrandLogo(value: string | null) {
   try {
     const image = sharp(original, { limitInputPixels: 40000000, animated: false });
     const metadata = await image.metadata();
-    if (!['png', 'jpeg', 'webp', 'svg'].includes(metadata.format))
-      throw new Error('Unsupported image');
-    const data = await image
-      .rotate()
-      .resize({ width: 800, height: 800, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 85 })
-      .toBuffer();
-    return { logoVerisi: data, logoOzeti: digest(data) };
+    const expected = match[1] === 'svg+xml' ? 'svg' : match[1];
+    if (!metadata.format || metadata.format !== expected) throw new Error('Unsupported image');
+    return { data: original, format: expected as LogoFormat, logoHash: digest(original) };
   } catch {
     throw new HttpError(400, 'VALIDATION_ERROR', 'Logo okunamadı. Başka bir görsel seçin.');
   }
 }
 
 export class PrismaBrandRepository {
-  constructor(private readonly db: PrismaClient) {}
+  private readonly storage: BrandLogoStorage;
+  constructor(
+    private readonly db: PrismaClient,
+    uploadsDir = '../../uploads',
+  ) {
+    this.storage = new BrandLogoStorage(uploadsDir);
+  }
+
+  /** Eski BLOB'lar güvenli yazımdan sonra dosyaya taşınır; kesintide tekrar denenir. */
+  async migrateLegacyLogos() {
+    for (;;) {
+      const rows = await this.db.marka.findMany({
+        where: { logoVerisi: { not: null } },
+        select: { kimlik: true, logoVerisi: true, logoDosyasi: true },
+        take: 50,
+      });
+      if (!rows.length) return;
+      for (const row of rows) {
+        if (!row.logoVerisi) continue;
+        if (row.logoDosyasi) {
+          // Kayıtlı dosyayı kontrol etmeden eski veriyi silme.
+          const file = await this.storage.read(row.logoDosyasi);
+          if (!file.data.equals(Buffer.from(row.logoVerisi)))
+            throw new Error('Eski logo ve dosya eşleşmiyor.');
+          await this.db.marka.update({ where: { kimlik: row.kimlik }, data: { logoVerisi: null } });
+          continue;
+        }
+        const data = Buffer.from(row.logoVerisi);
+        const meta = await sharp(data, { limitInputPixels: 40000000 }).metadata();
+        if (!meta.format || !['png', 'jpeg', 'webp', 'svg'].includes(meta.format))
+          throw new Error('Eski logo okunamadı.');
+        const name = await this.storage.write(data, meta.format as LogoFormat);
+        const written = await this.storage.read(name);
+        if (!written.data.equals(data)) throw new Error('Taşınan logo doğrulanamadı.');
+        // Belirsiz commit sonucunda dosya silinmez; kayıtlı logo kaybolmaz.
+        const result = await this.db.marka.updateMany({
+          where: { kimlik: row.kimlik, logoDosyasi: null, logoVerisi: { not: null } },
+          data: { logoDosyasi: name, logoVerisi: null, logoHash: digest(data) },
+        });
+        if (!result.count) await this.storage.remove(name);
+      }
+    }
+  }
 
   private async write<T>(
     userId: string,
@@ -75,6 +115,7 @@ export class PrismaBrandRepository {
             await tx.$queryRaw(
               Prisma.sql`SELECT kimlik FROM kullanicilar WHERE kimlik = ${userId} FOR UPDATE`,
             );
+
             return operation(tx);
           },
           { timeout: 15000 },
@@ -91,18 +132,18 @@ export class PrismaBrandRepository {
   }
 
   private async find(tx: Prisma.TransactionClient, userId: string, key: string) {
-    const row = await tx.stokSecenegi.findFirst({
-      where: { kullaniciKimligi: userId, listeTuru: 'brands', secenekKodu: key },
-      include: includeBrand,
+    const row = await tx.marka.findFirst({
+      where: { kullaniciKimligi: Number(userId), kimlik: Number(key) },
+      select: brandSelect,
     });
     if (!row) throw new HttpError(404, 'NOT_FOUND', 'Marka bulunamadı.');
     return row;
   }
 
   async list(userId: string): Promise<Brand[]> {
-    const rows = await this.db.stokSecenegi.findMany({
-      where: { kullaniciKimligi: userId, listeTuru: 'brands' },
-      include: includeBrand,
+    const rows = await this.db.marka.findMany({
+      where: { kullaniciKimligi: Number(userId) },
+      select: brandSelect,
       orderBy: [{ sira: 'asc' }, { olusturmaZamani: 'asc' }, { kimlik: 'asc' }],
     });
     return rows.map(dto);
@@ -110,78 +151,99 @@ export class PrismaBrandRepository {
 
   async save(userId: string, draft: BrandDraft, key?: string): Promise<Brand> {
     const image = await prepareBrandLogo(draft.logoUrl);
-    return this.write(userId, async (tx) => {
-      const existing = key ? await this.find(tx, userId, key) : null;
-      if (
-        draft.logoUrl?.startsWith('/api/markalar/') &&
-        (!existing || dto(existing).logoUrl !== draft.logoUrl)
-      )
-        throw new HttpError(
-          400,
-          'VALIDATION_ERROR',
-          'Logo değişmiş. Markayı yeniden açıp deneyin.',
-        );
-      const details = {
-        aciklama: draft.description,
-        seoBasligi: draft.seoTitle,
-        seoAciklamasi: draft.seoDescription,
-        ...(draft.logoUrl === null ? { logoVerisi: null, logoOzeti: null } : (image ?? {})),
-      };
-      const common = { secenekAdi: draft.name, adOzeti: nameHash(draft.name), etkin: draft.active };
-      if (existing)
+    const newFile = image ? await this.storage.write(image.data, image.format) : null;
+    let oldFile: string | null = null;
+    let result: Brand;
+    try {
+      result = await this.write(userId, async (tx) => {
+        const existing = key ? await this.find(tx, userId, key) : null;
+        if (draft.logoUrl === null || image) oldFile = existing?.logoDosyasi ?? null;
+        if (
+          draft.logoUrl?.startsWith('/api/markalar/') &&
+          (!existing || dto(existing).logoUrl !== draft.logoUrl)
+        )
+          throw new HttpError(
+            400,
+            'VALIDATION_ERROR',
+            'Logo değişmiş. Markayı yeniden açıp deneyin.',
+          );
+        const details = {
+          aciklama: draft.description,
+          seoBasligi: draft.seoTitle,
+          seoAciklamasi: draft.seoDescription,
+          ...(draft.logoUrl === null
+            ? { logoVerisi: null, logoDosyasi: null, logoHash: null }
+            : image
+              ? { logoVerisi: null, logoDosyasi: newFile, logoHash: image.logoHash }
+              : {}),
+        };
+        const common = { markaAdi: draft.name, adHash: nameHash(draft.name), etkin: draft.active };
+        if (existing)
+          return dto(
+            await tx.marka.update({
+              where: { kimlik: existing.kimlik },
+              data: { ...common, ...details },
+              select: brandSelect,
+            }),
+          );
+        const last = await tx.marka.aggregate({
+          where: { kullaniciKimligi: Number(userId) },
+          _max: { sira: true },
+        });
         return dto(
-          await tx.stokSecenegi.update({
-            where: { kimlik: existing.kimlik },
-            data: { ...common, markaBilgisi: { upsert: { create: details, update: details } } },
-            include: includeBrand,
+          await tx.marka.create({
+            data: {
+              kullaniciKimligi: Number(userId),
+              markaKodu: 'marka-' + randomBytes(16).toString('hex'),
+              ...common,
+              sira: (last._max.sira ?? -1) + 1,
+              ...details,
+            },
+            select: brandSelect,
           }),
         );
-      const last = await tx.stokSecenegi.aggregate({
-        where: { kullaniciKimligi: userId, listeTuru: 'brands' },
-        _max: { sira: true },
       });
-      return dto(
-        await tx.stokSecenegi.create({
-          data: {
-            kullaniciKimligi: userId,
-            listeTuru: 'brands',
-            secenekKodu: randomUUID(),
-            ...common,
-            silinebilir: true,
-            sira: (last._max.sira ?? -1) + 1,
-            markaBilgisi: { create: details },
-          },
-          include: includeBrand,
-        }),
-      );
-    });
+    } catch (error) {
+      if (newFile && error instanceof HttpError) await this.storage.remove(newFile);
+      throw error;
+    }
+    if (oldFile)
+      await this.storage
+        .remove(oldFile)
+        .catch(() => console.error('Eski logo dosyası silinemedi.'));
+    return result;
   }
 
   async setActive(userId: string, key: string, active: boolean) {
     await this.write(userId, async (tx) => {
       const row = await this.find(tx, userId, key);
-      await tx.stokSecenegi.update({ where: { kimlik: row.kimlik }, data: { etkin: active } });
+      await tx.marka.update({ where: { kimlik: row.kimlik }, data: { etkin: active } });
     });
   }
 
   async remove(userId: string, key: string) {
-    await this.write(userId, async (tx) => {
+    const oldFile = await this.write(userId, async (tx) => {
       const row = await this.find(tx, userId, key);
       await tx.stokKarti.updateMany({
-        where: { kullaniciKimligi: userId, markaKimligi: row.kimlik },
+        where: { kullaniciKimligi: Number(userId), markaKimligi: row.kimlik },
         data: { markaKimligi: null },
       });
-      await tx.stokSecenegi.delete({ where: { kimlik: row.kimlik } });
+      await tx.marka.delete({ where: { kimlik: row.kimlik } });
+      return row.logoDosyasi;
     });
+    if (oldFile)
+      await this.storage
+        .remove(oldFile)
+        .catch(() => console.error('Eski logo dosyası silinemedi.'));
   }
 
   async reorder(userId: string, ids: string[]) {
     await this.write(userId, async (tx) => {
-      const rows = await tx.stokSecenegi.findMany({
-        where: { kullaniciKimligi: userId, listeTuru: 'brands' },
-        select: { kimlik: true, secenekKodu: true },
+      const rows = await tx.marka.findMany({
+        where: { kullaniciKimligi: Number(userId) },
+        select: { kimlik: true },
       });
-      const byKey = new Map(rows.map((row) => [row.secenekKodu, row.kimlik]));
+      const byKey = new Map(rows.map((row) => [String(row.kimlik), row.kimlik]));
       if (
         new Set(ids).size !== ids.length ||
         rows.length !== ids.length ||
@@ -189,18 +251,18 @@ export class PrismaBrandRepository {
       )
         throw new HttpError(409, 'CONFLICT', 'Marka listesi değişmiş. Yenileyip tekrar sıralayın.');
       for (const [sira, key] of ids.entries())
-        await tx.stokSecenegi.update({ where: { kimlik: byKey.get(key)! }, data: { sira } });
+        await tx.marka.update({ where: { kimlik: byKey.get(key)! }, data: { sira } });
     });
   }
 
   async listProducts(userId: string): Promise<ProductRef[]> {
     const rows = await this.db.stokKarti.findMany({
-      where: { kullaniciKimligi: userId },
+      where: { kullaniciKimligi: Number(userId) },
       select: {
         kimlik: true,
         stokKodu: true,
         stokAdi: true,
-        marka: { select: { secenekKodu: true } },
+        marka: { select: { kimlik: true } },
         fiyatListeleri: {
           select: { birimler: { select: { barkodlar: { select: { barkod: true } } } } },
         },
@@ -208,10 +270,10 @@ export class PrismaBrandRepository {
       orderBy: [{ olusturmaZamani: 'desc' }, { kimlik: 'asc' }],
     });
     return rows.map((row) => ({
-      id: row.kimlik,
+      id: String(row.kimlik),
       code: row.stokKodu ?? '',
       name: row.stokAdi || row.stokKodu || 'Adsız Ürün',
-      brandId: row.marka?.secenekKodu ?? null,
+      brandId: row.marka ? String(row.marka.kimlik) : null,
       barcode: [
         ...new Set(
           row.fiyatListeleri.flatMap((list) =>
@@ -225,9 +287,9 @@ export class PrismaBrandRepository {
   async assign(userId: string, key: string, productIds: string[], remove: boolean) {
     await this.write(userId, async (tx) => {
       const row = await this.find(tx, userId, key);
-      const ids = [...new Set(productIds)];
+      const ids = [...new Set(productIds)].map(Number);
       const count = await tx.stokKarti.count({
-        where: { kimlik: { in: ids }, kullaniciKimligi: userId },
+        where: { kimlik: { in: ids }, kullaniciKimligi: Number(userId) },
       });
       if (count !== ids.length)
         throw new HttpError(
@@ -238,7 +300,7 @@ export class PrismaBrandRepository {
       await tx.stokKarti.updateMany({
         where: {
           kimlik: { in: ids },
-          kullaniciKimligi: userId,
+          kullaniciKimligi: Number(userId),
           ...(remove ? { markaKimligi: row.kimlik } : {}),
         },
         data: { markaKimligi: remove ? null : row.kimlik },
@@ -248,10 +310,15 @@ export class PrismaBrandRepository {
 
   async logo(userId: string, key: string) {
     const row = await this.db.marka.findFirst({
-      where: { secenek: { kullaniciKimligi: userId, listeTuru: 'brands', secenekKodu: key } },
-      select: { logoVerisi: true },
+      where: { kullaniciKimligi: Number(userId), kimlik: Number(key) },
+      select: { logoVerisi: true, logoDosyasi: true },
     });
+    if (row?.logoDosyasi) return this.storage.read(row.logoDosyasi);
     if (!row?.logoVerisi) throw new HttpError(404, 'NOT_FOUND', 'Logo bulunamadı.');
-    return Buffer.from(row.logoVerisi);
+    const data = Buffer.from(row.logoVerisi);
+    const meta = await sharp(data).metadata();
+    if (!meta.format || !['png', 'jpeg', 'webp', 'svg'].includes(meta.format))
+      throw new Error('Eski logo okunamadı.');
+    return { data, format: meta.format as LogoFormat };
   }
 }

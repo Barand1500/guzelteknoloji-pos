@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import {
   DEFAULT_STOCK_LOOKUPS,
   type CreateStockInput,
@@ -8,7 +8,7 @@ import {
   type StockLookups,
 } from '@gt/shared';
 import { Prisma } from '../../generated/prisma/client';
-import type { StokSecenegi } from '../../generated/prisma/client';
+import type { Marka, StokFiyati, StokSecenegi } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
 
@@ -40,26 +40,28 @@ async function retryWrite<T>(operation: () => Promise<T>): Promise<T> {
   }
 }
 
-/** Ondalık hesap sunucuda tekrarlanır; tarayıcının hesapladığı toplamlar kabul edilmez. */
-function priceData(side: 'alis' | 'satis', block: PriceBlockData) {
-  const amount = decimal(block.amount);
+/** Türetilen fiyatlar saklanmaz; aynı ondalık hesap ve altı haneli yuvarlama korunur. */
+function calculatedPrices(price: StokFiyati) {
+  const amount = price.girilenFiyat;
   const net =
-    amount?.mul(new Prisma.Decimal(1).minus(new Prisma.Decimal(block.discount || '0').div(100))) ??
-    null;
-  const factor = new Prisma.Decimal(1).plus(new Prisma.Decimal(block.vatRate || '0').div(100));
-  const excludingVat = net === null ? null : block.vatIncluded ? net.div(factor) : net;
+    amount?.mul(
+      new Prisma.Decimal(1).minus((price.iskontoOrani ?? new Prisma.Decimal(0)).div(100)),
+    ) ?? null;
+  const factor = new Prisma.Decimal(1).plus((price.kdvOrani ?? new Prisma.Decimal(0)).div(100));
+  const excludingVat = net === null ? null : price.kdvDahilGirildi ? net.div(factor) : net;
   const includingVat = excludingVat?.mul(factor) ?? null;
-  const round = (value: Prisma.Decimal | null) => value?.toDecimalPlaces(6) ?? null;
+  const round = (value: Prisma.Decimal | null) => value?.toDecimalPlaces(6).toString() ?? null;
+  return { net: round(net), excludingVat: round(excludingVat), includingVat: round(includingVat) };
+}
+
+function priceData(side: 'alis' | 'satis', block: PriceBlockData) {
   return {
     fiyatYonu: side,
-    girilenFiyat: amount,
+    girilenFiyat: decimal(block.amount),
     paraBirimi: block.currency,
     iskontoOrani: decimal(block.discount),
     kdvOrani: decimal(block.vatRate),
     kdvDahilGirildi: block.vatIncluded,
-    netFiyat: round(net),
-    kdvHaricFiyat: round(excludingVat),
-    kdvDahilFiyat: round(includingVat),
     ekFiyatlar: {
       create: block.extras.map((extra, position) => ({
         sira: position,
@@ -75,13 +77,28 @@ function priceData(side: 'alis' | 'satis', block: PriceBlockData) {
 // Prisma adlari Turkce; mevcut API sozlesmesi bu sinirda korunur.
 function optionDto(row: StokSecenegi) {
   return {
-    id: row.kimlik,
-    userId: row.kullaniciKimligi,
+    id: String(row.kimlik),
+    userId: String(row.kullaniciKimligi),
     listKey: row.listeTuru,
     value: row.secenekKodu,
     label: row.secenekAdi,
-    labelHash: row.adOzeti,
+    labelHash: row.adHash,
     removable: row.silinebilir,
+    active: row.etkin,
+    position: row.sira,
+    createdAt: row.olusturmaZamani,
+  };
+}
+
+function brandOptionDto(row: Marka) {
+  return {
+    id: String(row.kimlik),
+    userId: String(row.kullaniciKimligi),
+    listKey: 'brands',
+    value: String(row.kimlik),
+    label: row.markaAdi,
+    labelHash: row.adHash,
+    removable: true,
     active: row.etkin,
     position: row.sira,
     createdAt: row.olusturmaZamani,
@@ -95,7 +112,7 @@ export class PrismaStockRepository implements StockRepository {
     const initialized = await this.db.stokSecenegi.findUnique({
       where: {
         kullaniciKimligi_listeTuru_secenekKodu: {
-          kullaniciKimligi: userId,
+          kullaniciKimligi: Number(userId),
           listeTuru: 'stockTypes',
           secenekKodu: 'basit',
         },
@@ -111,11 +128,11 @@ export class PrismaStockRepository implements StockRepository {
           .filter((key) => key !== 'brands')
           .flatMap((listKey) =>
             DEFAULT_STOCK_LOOKUPS[listKey].map((option, position) => ({
-              kullaniciKimligi: userId,
+              kullaniciKimligi: Number(userId),
               listeTuru: listKey,
               secenekKodu: option.value,
               secenekAdi: option.label,
-              adOzeti: labelHash(option.label),
+              adHash: labelHash(option.label),
               silinebilir: option.removable ?? false,
               sira: position,
             })),
@@ -127,7 +144,7 @@ export class PrismaStockRepository implements StockRepository {
   async getLookups(userId: string): Promise<StockLookups> {
     await this.ensureDefaults(userId);
     const rows = await this.db.stokSecenegi.findMany({
-      where: { kullaniciKimligi: userId, etkin: true },
+      where: { kullaniciKimligi: Number(userId), etkin: true },
       orderBy: [{ sira: 'asc' }, { olusturmaZamani: 'asc' }, { kimlik: 'asc' }],
     });
     const result = {} as StockLookups;
@@ -140,47 +157,66 @@ export class PrismaStockRepository implements StockRepository {
           removable: row.silinebilir,
         }));
     }
+    const brands = await this.db.marka.findMany({
+      where: { kullaniciKimligi: Number(userId), etkin: true },
+      select: { kimlik: true, markaAdi: true },
+      orderBy: [{ sira: 'asc' }, { olusturmaZamani: 'asc' }, { kimlik: 'asc' }],
+    });
+    result.brands = brands.map((brand) => ({ value: String(brand.kimlik), label: brand.markaAdi }));
     return result;
   }
 
   async addOption(userId: string, listKey: OptionListKey, label: string) {
     await this.ensureDefaults(userId);
-    const row = await this.db.stokSecenegi.upsert({
-      where: {
-        kullaniciKimligi_listeTuru_adOzeti: {
-          kullaniciKimligi: userId,
-          listeTuru: listKey,
-          adOzeti: labelHash(label),
+    const row = await this.db.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT kimlik FROM kullanicilar WHERE kimlik = ${userId} FOR UPDATE`,
+      );
+
+      return tx.stokSecenegi.upsert({
+        where: {
+          kullaniciKimligi_listeTuru_adHash: {
+            kullaniciKimligi: Number(userId),
+            listeTuru: listKey,
+            adHash: labelHash(label),
+          },
         },
-      },
-      create: {
-        kullaniciKimligi: userId,
-        listeTuru: listKey,
-        secenekKodu: randomUUID(),
-        secenekAdi: label,
-        adOzeti: labelHash(label),
-        silinebilir: true,
-        sira: 1000,
-      },
-      update: { etkin: true },
+        create: {
+          kullaniciKimligi: Number(userId),
+          listeTuru: listKey,
+          secenekKodu: `ozel-${labelHash(label)}`,
+          secenekAdi: label,
+          adHash: labelHash(label),
+          silinebilir: true,
+          sira: 1000,
+        },
+        update: { etkin: true },
+      });
     });
     return { value: row.secenekKodu, label: row.secenekAdi, removable: row.silinebilir };
   }
 
   async removeOption(userId: string, listKey: OptionListKey, value: string) {
-    const row = await this.db.stokSecenegi.findUnique({
-      where: {
-        kullaniciKimligi_listeTuru_secenekKodu: {
-          kullaniciKimligi: userId,
-          listeTuru: listKey,
-          secenekKodu: value,
+    await this.db.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT kimlik FROM kullanicilar WHERE kimlik = ${userId} FOR UPDATE`,
+      );
+
+      const row = await tx.stokSecenegi.findUnique({
+        where: {
+          kullaniciKimligi_listeTuru_secenekKodu: {
+            kullaniciKimligi: Number(userId),
+            listeTuru: listKey,
+            secenekKodu: value,
+          },
         },
-      },
+      });
+      if (!row) throw new HttpError(404, 'NOT_FOUND', 'Seçenek bulunamadı.');
+      if (!row.silinebilir)
+        throw new HttpError(400, 'VALIDATION_ERROR', 'Sabit seçenek silinemez.');
+      // Fiziksel silme yapılmaz; geçmiş kartların ilişkileri korunur.
+      await tx.stokSecenegi.update({ where: { kimlik: row.kimlik }, data: { etkin: false } });
     });
-    if (!row) throw new HttpError(404, 'NOT_FOUND', 'Seçenek bulunamadı.');
-    if (!row.silinebilir) throw new HttpError(400, 'VALIDATION_ERROR', 'Sabit seçenek silinemez.');
-    // Fiziksel silme yapılmaz; geçmiş kartların ilişkileri korunur.
-    await this.db.stokSecenegi.update({ where: { kimlik: row.kimlik }, data: { etkin: false } });
   }
 
   async create(userId: string, input: CreateStockInput) {
@@ -189,47 +225,48 @@ export class PrismaStockRepository implements StockRepository {
     const existing = await this.db.stokKarti.findUnique({
       where: {
         kullaniciKimligi_kayitIstegiKimligi: {
-          kullaniciKimligi: userId,
+          kullaniciKimligi: Number(userId),
           kayitIstegiKimligi: input.requestId,
         },
       },
     });
-    const replay = (row: { kimlik: string; kayitIstegiOzeti: string }) => {
-      if (row.kayitIstegiOzeti !== requestHash)
+    const replay = (row: { kimlik: number; kayitIstegiHash: string }) => {
+      if (row.kayitIstegiHash !== requestHash)
         throw new HttpError(
           409,
           'CONFLICT',
           'Bu kayıt isteği farklı bilgilerle kullanılmış. Yeni kayıt başlatın.',
         );
-      return { id: row.kimlik };
+      return { id: String(row.kimlik) };
     };
     if (existing) return replay(existing);
     try {
       return await retryWrite(() =>
         this.db.$transaction(
           async (tx) => {
-            // Aynı kullanıcının eşzamanlı kayıtlarını sıraya alır: barkod çakışması sorgusu ile
-            // kayıt arasında başka istek araya giremez. İstemciden kullanıcı kimliği alınmaz.
+            // Aynı kullanıcının kayıtlarını sıraya alır: barkod kontrolü ile
+            // kayıt arasında başka istek araya giremez. Kullanıcı oturumdan belirlenir.
             await tx.$queryRaw(
               Prisma.sql`SELECT kimlik FROM kullanicilar WHERE kimlik = ${userId} FOR UPDATE`,
             );
+
             const retried = await tx.stokKarti.findUnique({
               where: {
                 kullaniciKimligi_kayitIstegiKimligi: {
-                  kullaniciKimligi: userId,
+                  kullaniciKimligi: Number(userId),
                   kayitIstegiKimligi: input.requestId,
                 },
               },
             });
             if (retried) return replay(retried);
             const options = await tx.stokSecenegi.findMany({
-              where: { kullaniciKimligi: userId, etkin: true },
+              where: { kullaniciKimligi: Number(userId), etkin: true },
             });
             const optionId = (
               listKey: keyof StockLookups,
               value: string,
               optional = false,
-            ): string | null => {
+            ): number | null => {
               if (optional && !value) return null;
               const found = options.find(
                 (row) => row.listeTuru === listKey && row.secenekKodu === value,
@@ -245,7 +282,23 @@ export class PrismaStockRepository implements StockRepository {
             const d = input.draft;
             optionId('stockTypes', d.stockType);
             optionId('stockKinds', d.stockKind);
-            optionId('brands', d.brand, true);
+            const brand =
+              d.brand && /^[1-9][0-9]{0,9}$/.test(d.brand) && Number(d.brand) <= 2147483647
+                ? await tx.marka.findFirst({
+                    where: {
+                      kullaniciKimligi: Number(userId),
+                      kimlik: Number(d.brand),
+                      etkin: true,
+                    },
+                    select: { kimlik: true },
+                  })
+                : null;
+            if (d.brand && !brand)
+              throw new HttpError(
+                400,
+                'VALIDATION_ERROR',
+                'Seçilen marka artık kullanılamıyor. Listeyi yenileyip tekrar seçin.',
+              );
             optionId('vatDepartments', d.vatDepartment, true);
             optionId('otherTaxes', d.otherTax, true);
             for (const [list, rows] of Object.entries(d.units)) {
@@ -256,7 +309,7 @@ export class PrismaStockRepository implements StockRepository {
               d.code &&
               (await tx.stokKarti.findUnique({
                 where: {
-                  kullaniciKimligi_stokKodu: { kullaniciKimligi: userId, stokKodu: d.code },
+                  kullaniciKimligi_stokKodu: { kullaniciKimligi: Number(userId), stokKodu: d.code },
                 },
                 select: { kimlik: true },
               }))
@@ -279,7 +332,7 @@ export class PrismaStockRepository implements StockRepository {
               (await tx.stokBarkodu.findFirst({
                 where: {
                   barkod: { in: barcodes },
-                  stokBirimi: { fiyatListesi: { stokKarti: { kullaniciKimligi: userId } } },
+                  stokBirimi: { fiyatListesi: { stokKarti: { kullaniciKimligi: Number(userId) } } },
                 },
                 select: { kimlik: true },
               }))
@@ -298,14 +351,14 @@ export class PrismaStockRepository implements StockRepository {
             const saved = await tx.stokKarti.create({
               select: { kimlik: true },
               data: {
-                kullaniciKimligi: userId,
+                kullaniciKimligi: Number(userId),
                 kayitIstegiKimligi: input.requestId,
-                kayitIstegiOzeti: requestHash,
+                kayitIstegiHash: requestHash,
                 stokKodu: nullable(d.code),
                 stokAdi: nullable(d.name),
                 stokTipiKimligi: optionId('stockTypes', d.stockType)!,
                 stokNeviKimligi: optionId('stockKinds', d.stockKind)!,
-                markaKimligi: optionId('brands', d.brand, true),
+                markaKimligi: brand?.kimlik ?? null,
                 kdvDepartmaniKimligi: optionId('vatDepartments', d.vatDepartment, true),
                 digerVergiKimligi: optionId('otherTaxes', d.otherTax, true),
                 envanterTakibi: d.inventoryTracking,
@@ -351,7 +404,7 @@ export class PrismaStockRepository implements StockRepository {
                 },
               },
             });
-            return { id: saved.kimlik };
+            return { id: String(saved.kimlik) };
           },
           { timeout: 15000 },
         ),
@@ -361,7 +414,7 @@ export class PrismaStockRepository implements StockRepository {
         const row = await this.db.stokKarti.findUnique({
           where: {
             kullaniciKimligi_kayitIstegiKimligi: {
-              kullaniciKimligi: userId,
+              kullaniciKimligi: Number(userId),
               kayitIstegiKimligi: input.requestId,
             },
           },
@@ -379,7 +432,7 @@ export class PrismaStockRepository implements StockRepository {
 
   async get(userId: string, id: string) {
     const card = await this.db.stokKarti.findFirst({
-      where: { kimlik: id, kullaniciKimligi: userId },
+      where: { kimlik: Number(id), kullaniciKimligi: Number(userId) },
       include: {
         stokTipi: true,
         stokNevi: true,
@@ -404,17 +457,18 @@ export class PrismaStockRepository implements StockRepository {
     });
     if (!card) throw new HttpError(404, 'NOT_FOUND', 'Stok kartı bulunamadı.');
     return {
-      id: card.kimlik,
-      userId: card.kullaniciKimligi,
+      id: String(card.kimlik),
+      userId: String(card.kullaniciKimligi),
       requestId: card.kayitIstegiKimligi,
-      requestHash: card.kayitIstegiOzeti,
+      requestHash: card.kayitIstegiHash,
       code: card.stokKodu,
       name: card.stokAdi,
-      stockTypeId: card.stokTipiKimligi,
-      stockKindId: card.stokNeviKimligi,
-      brandId: card.markaKimligi,
-      vatDepartmentId: card.kdvDepartmaniKimligi,
-      otherTaxId: card.digerVergiKimligi,
+      stockTypeId: String(card.stokTipiKimligi),
+      stockKindId: String(card.stokNeviKimligi),
+      brandId: card.markaKimligi === null ? null : String(card.markaKimligi),
+      vatDepartmentId:
+        card.kdvDepartmaniKimligi === null ? null : String(card.kdvDepartmaniKimligi),
+      otherTaxId: card.digerVergiKimligi === null ? null : String(card.digerVergiKimligi),
       inventoryTracking: card.envanterTakibi,
       lowerLimit: card.altLimit,
       upperLimit: card.ustLimit,
@@ -432,19 +486,19 @@ export class PrismaStockRepository implements StockRepository {
       updatedAt: card.guncellemeZamani,
       stockType: optionDto(card.stokTipi),
       stockKind: optionDto(card.stokNevi),
-      brand: card.marka === null ? null : optionDto(card.marka),
+      brand: card.marka === null ? null : brandOptionDto(card.marka),
       vatDepartment: card.kdvDepartmani === null ? null : optionDto(card.kdvDepartmani),
       otherTax: card.digerVergi === null ? null : optionDto(card.digerVergi),
       priceLists: card.fiyatListeleri.map((list) => ({
-        id: list.kimlik,
-        cardId: list.stokKartiKimligi,
-        optionId: list.fiyatListesiKimligi,
+        id: String(list.kimlik),
+        cardId: String(list.stokKartiKimligi),
+        optionId: String(list.fiyatListesiKimligi),
         position: list.sira,
         option: optionDto(list.secenek),
         units: list.birimler.map((unit) => ({
-          id: unit.kimlik,
-          listId: unit.stokFiyatListesiKimligi,
-          optionId: unit.birimKimligi,
+          id: String(unit.kimlik),
+          listId: String(unit.stokFiyatListesiKimligi),
+          optionId: String(unit.birimKimligi),
           position: unit.sira,
           multiplier: unit.carpan,
           isMain: unit.anaBirim,
@@ -455,20 +509,18 @@ export class PrismaStockRepository implements StockRepository {
           note: unit.aciklama,
           option: optionDto(unit.secenek),
           prices: unit.fiyatlar.map((price) => ({
-            id: price.kimlik,
-            unitId: price.stokBirimiKimligi,
+            id: String(price.kimlik),
+            unitId: String(price.stokBirimiKimligi),
             side: price.fiyatYonu,
             amount: price.girilenFiyat,
             currency: price.paraBirimi,
             discount: price.iskontoOrani,
             vatRate: price.kdvOrani,
             vatIncluded: price.kdvDahilGirildi,
-            net: price.netFiyat,
-            excludingVat: price.kdvHaricFiyat,
-            includingVat: price.kdvDahilFiyat,
+            ...calculatedPrices(price),
             extras: price.ekFiyatlar.map((extra) => ({
-              id: extra.kimlik,
-              priceId: extra.stokFiyatiKimligi,
+              id: String(extra.kimlik),
+              priceId: String(extra.stokFiyatiKimligi),
               position: extra.sira,
               note: extra.aciklama,
               amount: extra.tutar,
@@ -477,8 +529,8 @@ export class PrismaStockRepository implements StockRepository {
             })),
           })),
           barcodes: unit.barkodlar.map((price) => ({
-            id: price.kimlik,
-            unitId: price.stokBirimiKimligi,
+            id: String(price.kimlik),
+            unitId: String(price.stokBirimiKimligi),
             type: price.barkodTuru,
             code: price.barkod,
           })),

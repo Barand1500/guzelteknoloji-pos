@@ -45,7 +45,13 @@ export function createStockRouter(env: Env, service: AuthService, repo: StockRep
     res.status(201).json(await repo.create(res.locals.stockUserId as string, input));
   });
   router.get('/kartlar/:id', async (req, res) => {
-    const id = parse(z.uuid({ error: 'Geçersiz stok kartı kimliği.' }), req.params.id);
+    const id = parse(
+      z
+        .string()
+        .regex(/^[1-9][0-9]{0,9}$/)
+        .refine((value) => Number(value) <= 2147483647),
+      req.params.id,
+    );
     res.json(await repo.get(res.locals.stockUserId as string, id));
   });
   return router;

@@ -11,7 +11,7 @@ Bu belge, giriş altyapısındaki güvenlik kararlarını ve gerekçelerini öze
 ## Şifreler
 
 - Şifreler Argon2id ile hash'lenir (m=19 MiB, t=2, p=1; OWASP önerisi). Sistemde düz metin ya da geri çözülebilir şifre bulunmaz.
-- Şifre bilgisi `PasswordCredential` tablosunda kullanıcıdan ayrı tutulur. İleride şifresiz (OTP) akışa geçildiğinde bu tablo kaldırılabilir, diğer tablolar etkilenmez.
+- Şifre hash'i `kullanicilar.sifre_hash` alanında Argon2id PHC biçiminde tutulur. Google/Apple ve yalnızca e-posta koduyla açılan hesaplarda şifre alanları `NULL` kalır. Şifrenin oluşturma/güncelleme tarihleri ayrı alanlarda korunur; genel kullanıcı sorguları ve API yanıtları bu alanları içermez.
 - Kabul edilen en uzun şifre 256 karakterdir. Bu sınır, aşırı uzun girdilerle hash maliyetini şişirmeye dayanan DoS denemelerini engeller.
 
 ## Hesap varlığının sızdırılmaması
@@ -22,7 +22,7 @@ Bu belge, giriş altyapısındaki güvenlik kararlarını ve gerekçelerini öze
 ## Oturumlar
 
 - Girişte 256 bitlik rastgele, opak bir token üretilir. Bu token yalnızca cookie'ye yazılır.
-- Veritabanında token'ın kendisi değil, `SHA-256` özeti (`Session.tokenHash`) saklanır. Veritabanı sızsa bile oturumlar ele geçirilemez.
+- Veritabanında token'ın kendisi değil, `SHA-256` hash'i (`Session.tokenHash`) saklanır. Veritabanı sızsa bile oturumlar ele geçirilemez.
 - Cookie ayarları: `HttpOnly`, `SameSite=Lax`, `Path=/`. Production'da ayrıca `Secure` olur ve `__Host-gt_session` önekiyle Domain'siz yazılır, bu da alt alan adlarının cookie'nin üzerine yazmasını engeller.
 - **Rotation:** Her başarılı girişte varsa eski token iptal edilir ve yeni token üretilir (session fixation koruması).
 - **Revocation:** `POST /api/auth/logout`, `Session.revokedAt` alanını doldurur. Süresi geçmiş ya da iptal edilmiş oturum kabul edilmez.
@@ -83,14 +83,17 @@ Google kimliği, değişmez kullanıcı kimliği olan `sub` ile tanınır (`Auth
 
 | Durum                                                     | Yanıt                                                                                         | Ardından                                      |
 | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| E-postada şifreli (PasswordCredential) hesap var          | `{ step: "password" }`                                                                        | `POST /api/auth/login`                        |
+| E-postada şifre hash'i bulunan hesap var                  | `{ step: "password" }`                                                                        | `POST /api/auth/login`                        |
 | Hesap yok ya da hesabın şifresi yok (ör. yalnızca Google) | `{ step: "code", resendAfterSeconds, expiresInSeconds }` ve e-postaya 6 haneli kod gönderilir | `POST /api/auth/email/verify { email, code }` |
 
 Kod doğrulanınca: hesap yoksa oluşturulur (`emailVerifiedAt` dolu), varsa o hesapla oturum açılır. Kod e-posta sahipliğini kanıtladığı için, aynı e-postalı mevcut hesaba girmek **otomatik birleştirme değildir**; sağlayıcı kimliği (Google `sub`) bu yolla bağlanmaz.
 
 **Kod güvenliği**
 
-- Kriptografik rastgele (`crypto.randomInt`) 6 hane; DB'de düz değil, `HMAC-SHA256(COOKIE_SECRET, "e-posta:kod")` özeti olarak saklanır (`EmailLoginCode.codeHash`). Karşılaştırma sabit sürelidir.
+- Kriptografik rastgele (`crypto.randomInt`) 6 hane; MySQL'e yazılmaz. Yalnızca Redis'te `HMAC-SHA256(COOKIE_SECRET, "e-posta:kod")` hash'i tutulur. Redis anahtarında e-posta yerine anahtarlı hash kullanılır; IP ve açık e-posta saklanmaz. Karşılaştırma hash'in tüm baytları üzerinde yapılır.
+- Kod kaydı Redis TTL ile 10 dakikada otomatik silinir. Doğru doğrulamada ve 5. yanlış denemede hemen silinir. Yeniden gönderim önceki kodu geçersiz kılar. Doğrulama/deneme sayımı/silme ile gönderim kotası Lua scriptleriyle atomiktir; eşzamanlı istekler aynı kodla iki kez oturum açamaz.
+- Saatlik gönderim kotasında yalnızca rastgele istek kimliği ve zaman tutulur (kod/hash içermez); son gönderimden bir saat sonra otomatik silinir. SMTP hatasında yalnızca başarısız gönderimin kodu ve beklemesi silinir, kota korunur. Böylece SMTP hataları kota aşımına izin vermez.
+- Redis bağlantısı zorunludur (`REDIS_URL`); kesintide `503 EMAIL_UNAVAILABLE` döner, MySQL veya süreç belleğine geri dönüş yapılmaz. Redis ayrı instance olarak, RDB/AOF kalıcılığı kapalı (`save ""`, `appendonly no`) ve yerel arayüze bağlı çalıştırılır. Sağlık kontrolü Redis'i de denetler.
 - Ömür 10 dakika; tek kullanımlık; en fazla 5 yanlış deneme (sonra kod ölür); 60 sn'de bir yeniden gönderim; e-posta başına saatte en fazla 5 kod.
 - Hız sınırı: `/email/start` IP başına 15 dk'da 30, (IP + e-posta) başına 8; `/email/verify` (IP + e-posta) başına 12.
 - Hata mesajı tek tiptir: "Kod hatalı ya da süresi dolmuş" (yanlış, süresi dolmuş, kullanılmış ve deneme hakkı bitmiş aynı yanıtı verir).

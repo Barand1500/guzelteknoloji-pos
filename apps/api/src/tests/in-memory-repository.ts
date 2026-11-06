@@ -3,7 +3,6 @@ import type { AuthRepository } from '../modules/auth/auth.repository';
 import type {
   AuthProvider,
   LoginMethod,
-  EmailCodeRecord,
   SessionRecord,
   UserRecord,
 } from '../modules/auth/auth.types';
@@ -20,7 +19,6 @@ export class InMemoryAuthRepository implements AuthRepository {
   passwords = new Map<string, string>();
   identities: { userId: string; provider: AuthProvider; providerUserId: string }[] = [];
   sessions: StoredSession[] = [];
-  codes: EmailCodeRecord[] = [];
 
   async findUserById(id: string) {
     return this.users.get(id) ?? null;
@@ -97,39 +95,6 @@ export class InMemoryAuthRepository implements AuthRepository {
 
   async revokeSessionByTokenHash(tokenHash: string, at: Date) {
     for (const s of this.sessions) if (s.tokenHash === tokenHash && !s.revokedAt) s.revokedAt = at;
-  }
-
-  async findLatestLoginCode(email: string) {
-    const list = this.codes.filter((c) => c.email === email);
-    return list.length ? list[list.length - 1]! : null;
-  }
-
-  async countLoginCodesSince(email: string, since: Date) {
-    return this.codes.filter((c) => c.email === email && c.createdAt >= since).length;
-  }
-
-  async createLoginCode(data: Parameters<AuthRepository['createLoginCode']>[0]) {
-    const record: EmailCodeRecord = {
-      id: randomUUID(),
-      email: data.email,
-      codeHash: data.codeHash,
-      expiresAt: data.expiresAt,
-      attempts: 0,
-      consumedAt: null,
-      createdAt: new Date(),
-    };
-    this.codes.push(record);
-    return record;
-  }
-
-  async incrementLoginCodeAttempts(id: string) {
-    const c = this.codes.find((x) => x.id === id);
-    if (c) c.attempts += 1;
-  }
-
-  async consumeLoginCode(id: string, at: Date) {
-    const c = this.codes.find((x) => x.id === id);
-    if (c) c.consumedAt = at;
   }
 
   async createVerifiedUser(data: Parameters<AuthRepository['createVerifiedUser']>[0]) {

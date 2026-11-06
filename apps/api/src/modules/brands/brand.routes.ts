@@ -12,6 +12,7 @@ import { createRateLimiter } from '../../middleware/rate-limit';
 import { readSessionToken } from '../auth/auth.cookies';
 import type { AuthService } from '../auth/auth.service';
 import type { PrismaBrandRepository } from './brand.repository';
+import { logoMime } from './brand-logo.storage';
 
 function parse<T>(schema: z.ZodType<T>, input: unknown): T {
   const result = schema.safeParse(input);
@@ -59,11 +60,20 @@ export function createBrandRouter(env: Env, service: AuthService, repo: PrismaBr
     res.status(204).end();
   });
   router.get('/:id/logo', async (req, res) => {
-    const image = await repo.logo(
-      res.locals.brandUserId as string,
-      parse(brandKeySchema, req.params.id),
-    );
-    res.type('webp').send(image);
+    const key = parse(brandKeySchema, req.params.id);
+    const image = await repo.logo(res.locals.brandUserId as string, key);
+    const mimeType = logoMime(image.format);
+    if (req.query.bicim === 'base64') {
+      res.json({
+        mimeType,
+        dataUrl: `data:${mimeType};base64,${image.data.toString('base64')}`,
+      });
+      return;
+    }
+    if (image.format === 'svg') res.set('Content-Security-Policy', "default-src 'none'; sandbox");
+    if (req.query.indir === '1')
+      res.attachment(`marka-${key}.${image.format === 'jpeg' ? 'jpg' : image.format}`);
+    res.type(mimeType).send(image.data);
   });
   router.post('/:id', async (req, res) =>
     res.json(

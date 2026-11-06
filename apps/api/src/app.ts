@@ -12,6 +12,7 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler';
 import { originCheck } from './middleware/origin-check';
 import { requestLogger } from './middleware/request-logger';
 import type { AuthRepository } from './modules/auth/auth.repository';
+import type { EmailCodeStore } from './modules/auth/email-code.store';
 import { createAuthRouter } from './modules/auth/auth.routes';
 import { AuthService } from './modules/auth/auth.service';
 import type { GoogleOidcClient } from './modules/auth/google.client';
@@ -26,6 +27,7 @@ export interface AppDeps {
   env: Env;
   logger: Logger;
   repo: AuthRepository;
+  codes: EmailCodeStore;
   hasher: PasswordHasher;
   mailer: Mailer;
   google: GoogleOidcClient | null;
@@ -78,6 +80,7 @@ export function createApp(deps: AppDeps): Express {
 
   const service = new AuthService({
     repo: deps.repo,
+    codes: deps.codes,
     hasher: deps.hasher,
     mailer: deps.mailer,
     codeSecret: env.COOKIE_SECRET,

@@ -23,8 +23,8 @@ export interface ProductRef {
 export const brandKeySchema = z
   .string()
   .min(1)
-  .max(100)
-  .regex(/^[a-zA-Z0-9_-]+$/, 'Geçersiz marka kimliği.');
+  .regex(/^[1-9][0-9]{0,9}$/, 'Geçersiz marka kimliği.')
+  .refine((id) => Number(id) <= 2147483647, 'Geçersiz marka kimliği.');
 export const brandDraftSchema = z
   .object({
     name: z
@@ -43,7 +43,12 @@ export const reorderBrandsSchema = z.object({ ids: z.array(brandKeySchema).max(1
 export const brandProductsSchema = z
   .object({
     productIds: z
-      .array(z.uuid())
+      .array(
+        z
+          .string()
+          .regex(/^[1-9][0-9]{0,9}$/)
+          .refine((id) => Number(id) <= 2147483647),
+      )
       .min(1, 'En az bir ürün seçin.')
       .max(1000, 'Bir işlemde en çok 1000 ürün seçebilirsiniz.'),
   })

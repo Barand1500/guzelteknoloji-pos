@@ -20,16 +20,6 @@ export interface SessionRecord {
   lastSeenAt: Date;
 }
 
-export interface EmailCodeRecord {
-  id: string;
-  email: string;
-  codeHash: string;
-  expiresAt: Date;
-  attempts: number;
-  consumedAt: Date | null;
-  createdAt: Date;
-}
-
 export interface RequestMeta {
   ipAddress: string | null;
   userAgent: string | null;

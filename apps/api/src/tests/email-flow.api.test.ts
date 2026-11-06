@@ -28,11 +28,11 @@ describe('POST /api/auth/email/start', () => {
     expect(mailer.lastCode).toMatch(/^\d{6}$/);
   });
 
-  it("kod DB'de düz saklanmaz", async () => {
-    const { app, repo, mailer } = buildTestApp();
+  it('geçici kod deposunda yalnızca hash bulunur', async () => {
+    const { app, codes, mailer } = buildTestApp();
     await start(app, 'yeni@example.com');
-    expect(repo.codes[0]!.codeHash).toMatch(/^[0-9a-f]{64}$/);
-    expect(repo.codes[0]!.codeHash).not.toContain(mailer.lastCode);
+    expect(codes.codes.get('yeni@example.com')!.codeHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(codes.codes.get('yeni@example.com')!.codeHash).not.toContain(mailer.lastCode);
   });
 
   it('bekleme süresi dolmadan tekrar istenirse yeni kod göndermez', async () => {
@@ -100,10 +100,11 @@ describe('POST /api/auth/email/verify', () => {
   });
 
   it('kod tek kullanımlıktır', async () => {
-    const { app, mailer } = buildTestApp();
+    const { app, mailer, codes } = buildTestApp();
     await start(app, 'yeni@example.com');
     const code = mailer.lastCode;
     expect((await verify(app, 'yeni@example.com', code)).status).toBe(200);
+    expect(codes.codes.size).toBe(0);
     const second = await verify(app, 'yeni@example.com', code);
     expect(second.status).toBe(400);
     expect(second.body.error.code).toBe('CODE_INVALID');
@@ -121,9 +122,9 @@ describe('POST /api/auth/email/verify', () => {
   });
 
   it('süresi dolmuş kodu reddeder', async () => {
-    const { app, repo, mailer } = buildTestApp();
+    const { app, codes, mailer } = buildTestApp();
     await start(app, 'yeni@example.com');
-    repo.codes[0]!.expiresAt = new Date(Date.now() - 1000);
+    codes.codes.get('yeni@example.com')!.expiresAt = Date.now() - 1000;
     expect((await verify(app, 'yeni@example.com', mailer.lastCode)).status).toBe(400);
   });
 

@@ -14,6 +14,7 @@ Bu sprint yalnızca giriş deneyimini kapsar. Kayıt, şifre sıfırlama ve pane
 
 - Node.js 22 veya 24 (LTS)
 - MySQL 8+ ya da MariaDB 10.6+ (lokal kurulum: XAMPP, Laragon veya MySQL Installer)
+- Redis (doğrulama kodları için ayrı instance; `redis-server deploy/redis-auth.conf`, disk kalıcılığı kapalı). `.env` içinde `REDIS_URL=redis://127.0.0.1:6380/0` zorunludur.
 
 ## Kurulum
 
@@ -45,7 +46,9 @@ npm run db:generate  # Prisma istemcisini yeniden üretir
 
 `prisma migrate dev` geçici bir "shadow database" oluşturur, bu yüzden MySQL kullanıcısının `CREATE DATABASE` yetkisi olmalıdır. Paylaşımlı sunucularda yalnızca `db:deploy` kullanın.
 
-Tablolar: `User`, `PasswordCredential`, `AuthIdentity`, `Session` (bkz. [apps/api/prisma/schema.prisma](apps/api/prisma/schema.prisma)).
+Giriş tabloları: `kullanicilar`, `giris_kimlikleri`, `oturumlar` (bkz. [apps/api/prisma/schema.prisma](apps/api/prisma/schema.prisma)). Doğrulama kodları MySQL'e yazılmaz; Redis'te 10 dakika TTL ile hash olarak tutulur ve doğru doğrulamada hemen silinir. Redis kesilirse kod akışı 503 döner. Sunucu kurulumu: [docs/DEPLOY.md](docs/DEPLOY.md).
+
+Gerçek Redis testleri için yalnızca ayrı yerel test instance'ını gösteren `REDIS_TEST_URL` ile `npm test` çalıştırılır. Testler kendilerine ait rastgele anahtarları temizler; `FLUSHDB` kullanmaz.
 
 ## Geliştirme test kullanıcısı (yalnızca geliştirme)
 
@@ -161,5 +164,7 @@ apps/
 packages/shared/  Ortak Zod şemaları ve API tipleri
 docs/             Güvenlik ve kimlik politikası
 ```
-#   g u z e l t e k n o l o j i - p o s  
+
+#   g u z e l t e k n o l o j i - p o s 
+ 
  

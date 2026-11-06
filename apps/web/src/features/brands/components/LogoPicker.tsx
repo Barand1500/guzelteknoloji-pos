@@ -15,7 +15,7 @@ interface LogoPickerProps {
 /**
  * Logo seçici: dokunarak seç ya da (masaüstünde) dosyayı sürükleyip bırak. Seçilen dosya hemen
  * önizlenir. Yalnızca belirtilen görsel türleri ve en çok 2 MB kabul edilir.
- * Dosya içeriği formla gönderilir; sunucu doğrulayıp kalıcı WebP logosuna dönüştürür.
+ * Dosya içeriği formla gönderilir; sunucu doğrulayıp özgün biçimiyle kaydeder.
  */
 export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);

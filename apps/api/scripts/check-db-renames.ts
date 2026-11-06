@@ -36,7 +36,7 @@ try {
     for (const statement of sql.split(';').filter((part) => part.trim()))
       await connection.query(statement);
   }
-  const userId = randomUUID();
+  let userId: string = randomUUID();
   await connection.query(
     'INSERT INTO User (id, email, displayName, updatedAt, lastLoginMethod, lastLoginAt) VALUES (?, ?, ?, NOW(3), ?, NOW(3))',
     [userId, 'test@example.com', 'Test', 'EMAIL'],
@@ -81,6 +81,88 @@ try {
     await connection.query(statement);
   for (const [i, [, table]] of tables.entries())
     assert.deepEqual(await snapshot(table!), before[i], table + ' data preserved');
+  const [oldPassword] = await connection.query('SELECT * FROM sifre_bilgileri');
+  let passwordlessId: string = randomUUID();
+  await connection.query(
+    'INSERT INTO kullanicilar (kimlik, eposta, guncelleme_zamani) VALUES (?, ?, NOW(3))',
+    [passwordlessId, 'passwordless@example.com'],
+  );
+  const passwordMigration = await readFile(
+    new URL(
+      '../prisma/migrations/20261106130000_kullanici_sifre_birlestirme/migration.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  for (const statement of passwordMigration.split(';').filter((part) => part.trim()))
+    await connection.query(statement);
+  const [mergedPassword] = await connection.query(
+    'SELECT sifre_ozeti, sifre_olusturma_zamani, sifre_guncelleme_zamani FROM kullanicilar WHERE kimlik = ?',
+    [userId],
+  );
+  assert.equal(mergedPassword.sifre_ozeti, oldPassword.sifre_ozeti);
+  assert.deepEqual(mergedPassword.sifre_olusturma_zamani, oldPassword.olusturma_zamani);
+  assert.deepEqual(mergedPassword.sifre_guncelleme_zamani, oldPassword.guncelleme_zamani);
+  assert.equal((await connection.query("SHOW TABLES LIKE 'sifre_bilgileri'")).length, 0);
+  const [passwordless] = await connection.query(
+    'SELECT sifre_ozeti, sifre_olusturma_zamani, sifre_guncelleme_zamani FROM kullanicilar WHERE kimlik = ?',
+    [passwordlessId],
+  );
+  assert.deepEqual(Object.values(passwordless), [null, null, null]);
+  for (const name of [
+    '20261105170000_stok_kartlari',
+    '20261105190000_markalar',
+    '20261106120000_bagimsiz_markalar',
+    '20261106121000_hesaplanan_fiyatlar',
+  ]) {
+    const migration = await readFile(
+      new URL('../prisma/migrations/' + name + '/migration.sql', import.meta.url),
+      'utf8',
+    );
+    for (const statement of migration.split(';').filter((part) => part.trim()))
+      await connection.query(statement);
+  }
+  const hashMigration = await readFile(
+    new URL('../prisma/migrations/20261106140000_hash_alan_adlari/migration.sql', import.meta.url),
+    'utf8',
+  );
+  for (const statement of hashMigration.split(';').filter((part) => part.trim()))
+    await connection.query(statement);
+  const [renamedPassword] = await connection.query(
+    'SELECT sifre_hash FROM kullanicilar WHERE kimlik = ?',
+    [userId],
+  );
+  assert.equal(renamedPassword.sifre_hash, oldPassword.sifre_ozeti);
+  const redisMigration = await readFile(
+    new URL(
+      '../prisma/migrations/20261106150000_eposta_kodlari_redis/migration.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  for (const statement of redisMigration.split(';').filter((part) => part.trim()))
+    await connection.query(statement);
+  assert.equal((await connection.query("SHOW TABLES LIKE 'eposta_giris_kodlari'")).length, 0);
+  const numericMigration = await readFile(
+    new URL(
+      '../prisma/migrations/20261106160000_sirali_sayisal_kimlikler/migration.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  for (const statement of numericMigration.split(';').filter((part) => part.trim()))
+    await connection.query(statement);
+  const [migratedUser] = await connection.query(
+    'SELECT kimlik FROM kullanicilar WHERE eposta = ?',
+    ['test@example.com'],
+  );
+  const [migratedPasswordless] = await connection.query(
+    'SELECT kimlik FROM kullanicilar WHERE eposta = ?',
+    ['passwordless@example.com'],
+  );
+  assert(Number.isInteger(migratedUser.kimlik));
+  userId = String(migratedUser.kimlik);
+  passwordlessId = String(migratedPasswordless.kimlik);
   url.pathname = '/' + database;
   const prisma = createPrismaClient(url.href);
   try {
@@ -88,44 +170,70 @@ try {
     assert.equal((await repo.findPasswordLogin('test@example.com'))?.passwordHash, 'test-hash');
     for (const provider of ['GOOGLE', 'APPLE'] as const)
       assert.equal((await repo.findUserByIdentity(provider, 'test-' + provider))?.id, userId);
-    assert.equal((await repo.findLatestLoginCode('test@example.com'))?.attempts, 2);
     assert.equal((await repo.findActiveSession('a'.repeat(64), new Date()))?.user.id, userId);
     assert.equal((await repo.findUserById(userId))?.status, 'ACTIVE');
-    await prisma.kullanici.update({ where: { kimlik: userId }, data: { durum: 'DEVRE_DISI' } });
+    assert.equal(await repo.findPasswordLogin('passwordless@example.com'), null);
+    await prisma.kullanici.delete({ where: { kimlik: Number(passwordlessId) } });
+    await prisma.kullanici.update({
+      where: { kimlik: Number(userId) },
+      data: { durum: 'DEVRE_DISI' },
+    });
     assert.equal((await repo.findUserByEmail('test@example.com'))?.status, 'DISABLED');
-    await prisma.kullanici.update({ where: { kimlik: userId }, data: { durum: 'AKTIF' } });
+    await prisma.kullanici.update({ where: { kimlik: Number(userId) }, data: { durum: 'AKTIF' } });
     const at = new Date();
     await repo.markEmailVerified(userId, at);
     assert.equal((await repo.findUserById(userId))?.emailVerifiedAt?.getTime(), at.getTime());
-    const code = await repo.createLoginCode({
-      email: 'new@example.com',
-      codeHash: 'd'.repeat(64),
-      expiresAt: new Date(Date.now() + 60000),
-      ipAddress: null,
-    });
-    await repo.incrementLoginCodeAttempts(code.id);
-    await repo.consumeLoginCode(code.id, at);
-    assert.equal((await repo.findLatestLoginCode('new@example.com'))?.attempts, 1);
-    assert.equal(
-      (await repo.findLatestLoginCode('new@example.com'))?.consumedAt?.getTime(),
-      at.getTime(),
+    // SQL sürücüsüyle Prisma'nın saat dilimi dönüşümleri farklı olabilir.
+    // Taşınan DATETIME değerini aynı bağlantı üzerinden karşılaştırırız.
+    const [unchangedPassword] = await connection.query(
+      'SELECT sifre_guncelleme_zamani FROM kullanicilar WHERE kimlik = ?',
+      [userId],
     );
-    assert.equal(await repo.countLoginCodesSince('new@example.com', new Date(0)), 1);
+    assert.deepEqual(unchangedPassword.sifre_guncelleme_zamani, oldPassword.guncelleme_zamani);
     const verified = await repo.createVerifiedUser({
       email: 'new@example.com',
       emailVerifiedAt: at,
     });
+    assert.equal(await repo.findPasswordLogin('new@example.com'), null);
     await repo.upsertPasswordUser({
       email: 'new@example.com',
       passwordHash: 'first',
       displayName: 'Yeni',
     });
+    const firstPassword = await prisma.kullanici.findUniqueOrThrow({
+      where: { kimlik: Number(verified.id) },
+    });
+    assert(firstPassword.sifreOlusturmaZamani);
+    assert(firstPassword.sifreGuncellemeZamani);
     await repo.upsertPasswordUser({
       email: 'new@example.com',
       passwordHash: 'second',
       displayName: 'Yeni',
     });
     assert.equal((await repo.findPasswordLogin('new@example.com'))?.passwordHash, 'second');
+    const secondPassword = await prisma.kullanici.findUniqueOrThrow({
+      where: { kimlik: Number(verified.id) },
+    });
+    assert.equal(
+      secondPassword.sifreOlusturmaZamani?.getTime(),
+      firstPassword.sifreOlusturmaZamani.getTime(),
+    );
+    assert(secondPassword.sifreGuncellemeZamani! >= firstPassword.sifreGuncellemeZamani);
+    const publicUser = await repo.findUserById(verified.id);
+    assert(publicUser);
+    for (const field of [
+      'sifreHash',
+      'passwordHash',
+      'sifreOlusturmaZamani',
+      'sifreGuncellemeZamani',
+    ])
+      assert.equal(Object.hasOwn(publicUser, field), false);
+    const passwordUser = await repo.upsertPasswordUser({
+      email: 'password@example.com',
+      passwordHash: 'seed-hash',
+      displayName: 'Şifreli',
+    });
+    assert.equal((await repo.findPasswordLogin('password@example.com'))?.passwordHash, 'seed-hash');
     await repo.linkIdentity({
       userId: verified.id,
       provider: 'APPLE',
@@ -143,6 +251,13 @@ try {
       providerUserId: 'new-google',
     });
     assert.equal((await repo.findUserByIdentity('GOOGLE', 'new-google'))?.id, oauth.id);
+    assert.equal(await repo.findPasswordLogin('oauth@example.com'), null);
+    const oauthRow = await prisma.kullanici.findUniqueOrThrow({
+      where: { kimlik: Number(oauth.id) },
+    });
+    assert.equal(oauthRow.sifreHash, null);
+    assert.equal(oauthRow.sifreOlusturmaZamani, null);
+    assert.equal(oauthRow.sifreGuncellemeZamani, null);
     const session = await repo.createSession({
       userId: verified.id,
       tokenHash: 'e'.repeat(64),
@@ -152,7 +267,8 @@ try {
       userAgent: null,
     });
     assert.equal(
-      (await prisma.kullanici.findUnique({ where: { kimlik: verified.id } }))?.sonGirisYontemi,
+      (await prisma.kullanici.findUnique({ where: { kimlik: Number(verified.id) } }))
+        ?.sonGirisYontemi,
       'EPOSTA',
     );
     const [physical] = await connection.query(
@@ -167,7 +283,9 @@ try {
     );
     await repo.revokeSessionByTokenHash('e'.repeat(64), at);
     assert.equal(await repo.findActiveSession('e'.repeat(64), at), null);
-    await prisma.kullanici.deleteMany({ where: { kimlik: { in: [verified.id, oauth.id] } } });
+    await prisma.kullanici.deleteMany({
+      where: { kimlik: { in: [verified.id, oauth.id, passwordUser.id].map(Number) } },
+    });
     await repo.createSession({
       userId,
       tokenHash: 'c'.repeat(64),
@@ -177,14 +295,14 @@ try {
       userAgent: null,
     });
     assert.equal(
-      (await prisma.kullanici.findUnique({ where: { kimlik: userId } }))?.sonGirisYontemi,
+      (await prisma.kullanici.findUnique({ where: { kimlik: Number(userId) } }))?.sonGirisYontemi,
       'APPLE',
     );
     await assert.rejects(prisma.kullanici.create({ data: { eposta: 'test@example.com' } }));
-    await prisma.kullanici.delete({ where: { kimlik: userId } });
+    await prisma.kullanici.delete({ where: { kimlik: Number(userId) } });
     assert.equal(await prisma.girisKimligi.count(), 0);
     assert.equal(await prisma.oturum.count(), 0);
-    assert.equal(await prisma.sifreBilgisi.count(), 0);
+    assert.equal(await prisma.kullanici.count(), 0);
     console.log(
       'PASS: MySQL migration, all row values, Prisma queries, login methods, unique constraints and cascading relations.',
     );

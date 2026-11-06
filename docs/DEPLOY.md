@@ -68,7 +68,29 @@ nano .env
 
 `VITE_SUPPORT_FORM_URL` (destek formu) derleme sırasında gömülür: `.env` build'den **önce** hazır olmalı. API de aynı değişkenden CSP `frame-src` üretir, bu yüzden değiştirince hem `npm run build` hem `pm2 restart guzel-auth --update-env` gerekir. Build sırasında çıkan "NODE_ENV=production is not supported in the .env file" uyarısı zararsızdır.
 
+## 3.1 Doğrulama kodları için Redis (güncellemeden önce)
+
+Kodlar MySQL'de tutulmaz. Redis yalnızca geçici kodlar ve süreli gönderim sayacı içindir; ayrı 6380 portunda disk kalıcılığı kapalı çalışır. Sunucuda yönetici hesabıyla, proje kökünden:
+
+```bash
+sudo apt-get install redis-server redis-tools
+sudo install -m 644 deploy/redis-auth.conf /etc/redis/gt-auth.conf
+sudo install -m 644 deploy/redis-auth.service /etc/systemd/system/gt-auth-redis.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now gt-auth-redis
+redis-cli -h 127.0.0.1 -p 6380 ping
+redis-cli -h 127.0.0.1 -p 6380 CONFIG GET save appendonly
+```
+
+`PING` → `PONG`, `save` → boş, `appendonly` → `no` olmalı. Bu port internete açılmaz. `maxmemory-policy noeviction`, bellek dolunca deneme/kota kayıtlarının erkenden atılmasını önler; kod gönderimi hata verir. Redis servisi mevcut 6379 instance'ından bağımsızdır.
+
+Uygulamanın `.env` dosyasına `REDIS_URL=redis://127.0.0.1:6380/0` ekleyin. API, Redis bağlantısı kurulmadan başlamaz; sağlık kontrolü MySQL ve Redis'i birlikte denetler. Redis yeniden başlarsa bekleyen kodlar kaybolur, kullanıcı yeni kod ister. Veri tabanı migration'ı eski `eposta_giris_kodlari` tablosunu kaldırır; eski kodlar taşınmaz.
+
 ## 4. Kurulum ve ilk başlatma
+
+Marka logoları için `.env` içinde `UPLOADS_DIR=/home/guzelteknoloji-pos/uploads` ayarlayın ve bu dizine site kullanıcısının yazabilmesini sağlayın. Dizin web kökünün dışında olmalıdır. İlk açılış, MySQL'deki eski logo verilerini dosyaya taşır; başarısız olursa API başlamaz ve eski BLOB'lar yeniden deneme için korunur. Daha önce WebP'ye çevrilmiş logolar aynen taşınır; eski orijinalleri geri getirilemez.
+
+`UPLOADS_DIR` kalıcı veridir: Git, `npm ci` veya dağıtım işlemleriyle temizlemeyin. **MySQL ve uploads dizinini birlikte yedekleyin ve birlikte geri yükleyin.**
 
 ```bash
 npm ci

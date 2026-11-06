@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import path from 'node:path';
 
 const booleanish = z.enum(['true', 'false', '1', '0']).transform((v) => v === 'true' || v === '1');
 
@@ -27,6 +28,11 @@ const envSchema = z
       .refine((v) => v.startsWith('mysql://') || v.startsWith('mariadb://'), {
         message: 'DATABASE_URL mysql:// ile başlamalıdır.',
       }),
+    REDIS_URL: z.url().refine((value) => ['redis:', 'rediss:'].includes(new URL(value).protocol), {
+      message: 'REDIS_URL redis:// veya rediss:// ile başlamalıdır.',
+    }),
+    /** Kalıcı görseller için dizin; production ortamında mutlak yol önerilir. */
+    UPLOADS_DIR: z.string().trim().min(1).default('../../uploads'),
 
     /** OAuth akış cookie'sini imzalamak için kullanılır. */
     COOKIE_SECRET: z.string().min(32, 'COOKIE_SECRET en az 32 karakter olmalıdır.'),
@@ -70,6 +76,13 @@ const envSchema = z
     RATE_LIMIT_ENABLED: booleanish.optional(),
   })
   .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && !path.isAbsolute(env.UPLOADS_DIR)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['UPLOADS_DIR'],
+        message: 'Production ortamında UPLOADS_DIR mutlak bir yol olmalıdır.',
+      });
+    }
     if (Boolean(env.APPLE_CLIENT_ID) !== Boolean(env.APPLE_CLIENT_SECRET)) {
       ctx.addIssue({
         code: 'custom',

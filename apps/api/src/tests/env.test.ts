@@ -5,6 +5,8 @@ import { testEnv } from './helpers';
 describe('ortam değişkenleri', () => {
   it('zorunlu değişken eksikse açık hata verir', () => {
     expect(() => testEnv({ DATABASE_URL: undefined })).toThrow(/DATABASE_URL/);
+    expect(() => testEnv({ REDIS_URL: undefined })).toThrow(/REDIS_URL/);
+    expect(() => testEnv({ REDIS_URL: 'https://localhost' })).toThrow(/REDIS_URL/);
     expect(() => testEnv({ COOKIE_SECRET: 'kisa' })).toThrow(/COOKIE_SECRET/);
   });
 
@@ -17,6 +19,13 @@ describe('ortam değişkenleri', () => {
 
   it('production ortamında https zorunludur', () => {
     expect(() => testEnv({ NODE_ENV: 'production' })).toThrow(/https/);
+    expect(() =>
+      testEnv({
+        NODE_ENV: 'production',
+        APP_URL: 'https://example.com',
+        UPLOADS_DIR: '../../uploads',
+      }),
+    ).toThrow(/UPLOADS_DIR/);
   });
 });
 
