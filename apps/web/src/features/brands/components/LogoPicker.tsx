@@ -107,9 +107,7 @@ export function LogoPicker({
               <ImagePlus className="size-6" aria-hidden="true" />
             </span>
             <span className="text-base font-semibold">{noun} Ekle</span>
-            <span className="px-3 text-center text-xs">
-              Dokun ya da buraya sürükle · {hint}
-            </span>
+            <span className="px-3 text-center text-xs">Dokun ya da buraya sürükle · {hint}</span>
           </button>
         )}
       </div>

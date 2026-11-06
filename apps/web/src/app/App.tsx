@@ -6,6 +6,7 @@ import { SessionProvider } from '../features/auth/hooks/session-context';
 import { ThemeProvider } from '../features/theme/ThemeProvider';
 import { AttributesPage } from '../pages/app/AttributesPage';
 import { DealsPage } from '../pages/app/DealsPage';
+import { ProductEditPage } from '../pages/app/ProductEditPage';
 import { ProductsPage } from '../pages/app/ProductsPage';
 import { CategoriesPage } from '../pages/app/CategoriesPage';
 import { BrandsPage } from '../pages/app/BrandsPage';
@@ -34,6 +35,7 @@ export function App() {
             {/* Sıradaki adımlarda tek tek tasarlanacak sayfalar */}
             <Route path="urunler" element={<ProductsPage />} />
             <Route path="urunler/firsatlar" element={<DealsPage />} />
+            <Route path="urunler/:productId" element={<ProductEditPage />} />
             <Route path="kategoriler" element={<CategoriesPage />} />
             <Route path="markalar" element={<BrandsPage />} />
             <Route path="ozellikler" element={<AttributesPage />} />
