@@ -25,9 +25,14 @@ interface StockCardFormProps {
 export function StockCardForm({ cardId, copyFromId }: StockCardFormProps = {}) {
   const { session } = useSession();
   // Test düğmesi kalır; gerçek kullanıcı asla sahte kayda yönlendirilmez.
-  const demo = session.status === 'anonymous' && hasDevAccess();
-  const service = demo ? demoStockService : stockService;
   const sourceId = cardId ?? copyFromId;
+  // Ürün listesi henüz sunucuya bağlı değil (sahte liste): onun "p1" gibi metin kimlikli ürünleri
+  // sunucuda yoktur. Bunlar deneme servisiyle açılır; gerçek kartların kimliği sayıdır.
+  // Liste gerçek API'ye bağlanınca bu satır kalkar.
+  const mockSource = sourceId !== undefined && !/^[0-9]+$/.test(sourceId);
+  const devUser = session.status === 'anonymous' && hasDevAccess();
+  const demo = devUser || mockSource;
+  const service = demo ? demoStockService : stockService;
   const [lookups, setLookups] = useState<StockLookups | null>(null);
   const [initial, setInitial] = useState<StockCardDraft | undefined>();
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -78,6 +83,7 @@ export function StockCardForm({ cardId, copyFromId }: StockCardFormProps = {}) {
   return (
     <StockCardEditor
       key={`${demo ? 'demo' : session.user?.id}:${sourceId ?? 'yeni'}`}
+      devUser={devUser}
       lookups={lookups}
       service={service}
       demo={demo}
@@ -96,6 +102,7 @@ function StockCardEditor({
   lookups,
   service,
   demo,
+  devUser,
   initialDraft,
   cardId,
   mode,
@@ -103,6 +110,8 @@ function StockCardEditor({
   lookups: StockLookups;
   service: StockService;
   demo: boolean;
+  /** Test kullanıcısı mı (değilse sahte listeden açılan deneme ürünüdür). */
+  devUser: boolean;
   initialDraft?: StockCardDraft;
   cardId?: string;
   mode: 'create' | 'edit' | 'copy';
@@ -171,7 +180,8 @@ function StockCardEditor({
       )}
       {demo ? (
         <p className="text-sm text-ink-muted">
-          Test Kullanıcısı · Deneme verileriyle çalışıyorsunuz.
+          {devUser ? 'Test Kullanıcısı · ' : 'Deneme ürünü · '}Deneme verileriyle çalışıyorsunuz;
+          değişiklikler veritabanına kaydedilmez.
         </p>
       ) : null}
       {editor.saveError ? (

@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { productService } from '../../features/products/services/product.service';
-import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
+import { anonymousRoutes, jsonResponse, mockFetch, renderApp } from '../../test/utils';
 
 const NAME_1 = 'FLEXYPOS FP-503 İ3-15.6" Dokunmatik POS';
 
@@ -114,5 +114,21 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
     renderApp('/uygulama/stok-karti/yok-boyle-bir-urun');
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tekrar Dene' })).toBeInTheDocument();
+  });
+
+  it('gerçek hesapla da sahte listeden Düzenle çalışır (sunucuya gitmez, deneme ürünü olarak açılır)', async () => {
+    mockFetch({
+      ...anonymousRoutes,
+      'GET /api/auth/me': () =>
+        jsonResponse(200, {
+          user: { id: 'u1', email: 'a@b.com', displayName: null, avatarUrl: null },
+        }),
+    });
+    const user = userEvent.setup();
+    renderApp('/uygulama/urunler');
+    await user.dblClick(await screen.findByText(NAME_1));
+    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('FLEXYPOS.FP-503');
+    expect(screen.getByText(/Deneme ürünü/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
