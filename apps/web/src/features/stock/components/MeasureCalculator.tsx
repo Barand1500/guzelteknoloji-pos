@@ -159,12 +159,6 @@ export function MeasureCalculator({ mode, anchor, onApply, onClose }: MeasureCal
           'border border-line bg-surface-raised shadow-card',
         ].join(' ')}
       >
-        {/* Üst vurgu şeridi */}
-        <div
-          aria-hidden="true"
-          className="h-1.5 rounded-t-[1.75rem] bg-gradient-to-r from-brand-600 to-accent"
-        />
-
         <div className="flex flex-col gap-4 p-5">
           <div className="flex items-center gap-3">
             <span

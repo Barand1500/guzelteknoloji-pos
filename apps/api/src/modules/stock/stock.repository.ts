@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
   DEFAULT_STOCK_LOOKUPS,
-  type CreateStockInput,
   type OptionListKey,
   type PriceBlockData,
   type SelectOption,
@@ -11,21 +10,27 @@ import { Prisma } from '../../generated/prisma/client';
 import type { StokFiyati } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
-import type { ProductListItem, ProductListPage, StockBulkInput, StockListQuery } from './stock.api';
+import type {
+  StockSaveInput,
+  ProductListItem,
+  ProductListPage,
+  StockBulkInput,
+  StockListQuery,
+} from './stock.api';
 
 export interface StockRepository {
   getLookups(userId: string): Promise<StockLookups>;
   addOption(userId: string, list: OptionListKey, label: string): Promise<SelectOption>;
   removeOption(userId: string, list: OptionListKey, value: string): Promise<void>;
-  create(userId: string, input: CreateStockInput): Promise<{ id: string }>;
-  update(userId: string, id: string, input: CreateStockInput): Promise<{ id: string }>;
+  create(userId: string, input: StockSaveInput): Promise<{ id: string }>;
+  update(userId: string, id: string, input: StockSaveInput): Promise<{ id: string }>;
   get(userId: string, id: string): Promise<unknown>;
   getDraft(userId: string, id: string): Promise<unknown>;
   list(userId: string, query: StockListQuery): Promise<ProductListPage>;
   bulk(userId: string, input: StockBulkInput): Promise<{ affected: number }>;
   saveImported(
     userId: string,
-    input: CreateStockInput,
+    input: StockSaveInput,
     id: string | undefined,
     metadata: { stock?: string; categoryId?: number },
   ): Promise<{ id: string }>;
@@ -37,7 +42,7 @@ const nullable = (value: string) => (value === '' ? null : value);
 const decimal = (value: string) => (value === '' ? null : new Prisma.Decimal(value));
 
 /** Shared paket değişene kadar eski fiyat-listesi sözleşmesini ortak birimlere çevirir. */
-function commonUnits(draft: CreateStockInput['draft']) {
+function commonUnits(draft: StockSaveInput['draft']) {
   const lists = Object.entries(draft.units);
   const first = lists[0]?.[1];
   if (!first?.length) throw new HttpError(400, 'VALIDATION_ERROR', 'En az bir birim ekleyin.');
@@ -235,16 +240,16 @@ export class PrismaStockRepository implements StockRepository {
     });
   }
 
-  async create(userId: string, input: CreateStockInput) {
+  async create(userId: string, input: StockSaveInput) {
     return this.saveCard(userId, input);
   }
 
-  async update(userId: string, id: string, input: CreateStockInput) {
+  async update(userId: string, id: string, input: StockSaveInput) {
     return this.saveCard(userId, input, Number(id));
   }
   async saveImported(
     userId: string,
-    input: CreateStockInput,
+    input: StockSaveInput,
     id: string | undefined,
     metadata: { stock?: string; categoryId?: number },
   ) {
@@ -253,13 +258,15 @@ export class PrismaStockRepository implements StockRepository {
 
   private async saveCard(
     userId: string,
-    input: CreateStockInput,
+    input: StockSaveInput,
     cardId?: number,
     metadata?: { stock?: string; categoryId?: number },
   ) {
     const common = commonUnits(input.draft);
     await this.ensureDefaults(userId);
-    const requestHash = hash(JSON.stringify(input.draft));
+    const requestHash = hash(
+      JSON.stringify(input.extras ? { draft: input.draft, extras: input.extras } : input.draft),
+    );
     try {
       return await retryWrite(() =>
         this.db.$transaction(
@@ -276,6 +283,22 @@ export class PrismaStockRepository implements StockRepository {
                   });
             if (cardId !== undefined && !current)
               throw new HttpError(404, 'NOT_FOUND', 'Stok kartı bulunamadı.');
+            if (input.extras) {
+              const { categoryIds, dealIds } = input.extras;
+              const user = Number(userId);
+              if (
+                (await tx.kategori.count({
+                  where: { kullaniciId: user, id: { in: categoryIds } },
+                })) !== categoryIds.length ||
+                (await tx.firsat.count({ where: { kullaniciId: user, id: { in: dealIds } } })) !==
+                  dealIds.length
+              )
+                throw new HttpError(
+                  404,
+                  'NOT_FOUND',
+                  'Seçilen kategori veya fırsat bulunamadı. İşlem yapılmadı.',
+                );
+            }
             if (
               metadata?.categoryId !== undefined &&
               !(await tx.kategori.findFirst({
@@ -455,6 +478,21 @@ export class PrismaStockRepository implements StockRepository {
             };
             // Kart numarası, satış durumu, stok miktarı ve kategoriler güncellemede korunur.
             const finish = async (id: number) => {
+              if (input.extras) {
+                await tx.stokKartiKategori.deleteMany({ where: { stokKartiId: id } });
+                await tx.stokFirsati.deleteMany({ where: { stokKartiId: id } });
+                if (input.extras.categoryIds.length)
+                  await tx.stokKartiKategori.createMany({
+                    data: input.extras.categoryIds.map((kategoriId) => ({
+                      stokKartiId: id,
+                      kategoriId,
+                    })),
+                  });
+                if (input.extras.dealIds.length)
+                  await tx.stokFirsati.createMany({
+                    data: input.extras.dealIds.map((firsatId) => ({ stokKartiId: id, firsatId })),
+                  });
+              }
               if (metadata?.stock !== undefined)
                 await tx.stokKarti.update({
                   where: { kimlik: id },

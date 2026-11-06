@@ -51,7 +51,7 @@ export function ProductFilterSheet({ products, value, onApply, onClose }: Produc
     ...new Map(
       products.flatMap((p) =>
         (p.categoryIds ?? (p.categoryId ? [p.categoryId] : [])).map(
-          (id, i) => [id, p.categoryNames?.[i] ?? p.categoryName] as const,
+          (id, i) => [id, p.categoryNames?.[i] ?? p.categoryName ?? 'Kategorisiz'] as const,
         ),
       ),
     ),

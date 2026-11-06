@@ -27,6 +27,8 @@ export function mockFetch(routes: Record<string, Handler>) {
 }
 
 export const anonymousRoutes: Record<string, Handler> = {
+  'GET /api/kategoriler': () => jsonResponse(200, []),
+  'GET /api/firsatlar': () => jsonResponse(200, []),
   'GET /api/stok/secenekler': () => jsonResponse(200, DEFAULT_STOCK_LOOKUPS),
   'GET /api/auth/me': () =>
     jsonResponse(401, { error: { code: 'UNAUTHENTICATED', message: 'Oturum bulunamadı.' } }),

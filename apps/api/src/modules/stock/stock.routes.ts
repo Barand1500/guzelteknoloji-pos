@@ -1,4 +1,4 @@
-import { addStockOptionSchema, createStockSchema, removeStockOptionSchema } from '@gt/shared';
+import { addStockOptionSchema, removeStockOptionSchema } from '@gt/shared';
 import { stockValidationMessage } from '@gt/shared';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -8,7 +8,7 @@ import { createRateLimiter } from '../../middleware/rate-limit';
 import { readSessionToken } from '../auth/auth.cookies';
 import type { AuthService } from '../auth/auth.service';
 import type { StockRepository } from './stock.repository';
-import { stockBulkSchema, stockListQuery } from './stock.api';
+import { stockBulkSchema, stockListQuery, stockSaveSchema, recordKey } from './stock.api';
 import type { PrismaClient } from '../../lib/prisma';
 import { importSchema, StockImport } from './stock-import';
 
@@ -62,7 +62,7 @@ export function createStockRouter(
     res.status(204).end();
   });
   router.post('/kartlar', async (req, res) => {
-    const input = parse(createStockSchema, req.body);
+    const input = parse(stockSaveSchema, req.body);
     res.status(201).json(await repo.create(res.locals.stockUserId as string, input));
   });
   router.get('/kartlar', async (req, res) => {
@@ -80,6 +80,16 @@ export function createStockRouter(
       req.params.id,
     );
     res.json(await repo.getDraft(res.locals.stockUserId as string, id));
+  });
+  router.get('/kartlar/:id/ekler', async (req, res) => {
+    const id = parse(recordKey, req.params.id);
+    const result = await repo.list(
+      res.locals.stockUserId as string,
+      stockListQuery.parse({ kimlik: id, boyut: 1 }),
+    );
+    const card = result.items[0];
+    if (!card) throw new HttpError(404, 'NOT_FOUND', 'Stok kartı bulunamadı.');
+    res.json({ categoryIds: card.categoryIds, dealIds: card.dealIds });
   });
   router.get('/kartlar/:id', async (req, res) => {
     const id = parse(
@@ -99,7 +109,7 @@ export function createStockRouter(
         .refine((value) => Number(value) <= 2147483647),
       req.params.id,
     );
-    const input = parse(createStockSchema, req.body);
+    const input = parse(stockSaveSchema, req.body);
     res.json(await repo.update(res.locals.stockUserId as string, id, input));
   });
   return router;

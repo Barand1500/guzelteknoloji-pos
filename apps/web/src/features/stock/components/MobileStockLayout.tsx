@@ -16,6 +16,7 @@ import type { UnitRow } from '../types';
 import { BasicInfoSection } from './BasicInfoSection';
 import { KasaPriceEditor } from './KasaPriceEditor';
 import { PriceTabs } from './PriceTabs';
+import { StockSidePanel, useSidePanel, type SideBoxId } from './StockSidePanel';
 import {
   UnitBarcodeField,
   UnitHeaderFields,
@@ -39,8 +40,15 @@ const slideClass = 'rounded-3xl border border-line bg-surface-raised p-4 shadow-
  * Telefon / tablet düzeni: üstte Ürün · Fiyat · Barkod · Ölçü sekmeleri, birimler yana
  * kaydırılan kartlar, sağ altta yüzen Kaydet. Seçili birim sekmeler arasında korunur.
  */
-export function MobileStockLayout({ editor }: { editor: StockEditor }) {
+export function MobileStockLayout({
+  editor,
+  initialBox,
+}: {
+  editor: StockEditor;
+  initialBox: SideBoxId | null;
+}) {
   const [tab, setTab] = useState<TabId>('urun');
+  const panel = useSidePanel(initialBox);
   const [activeUnit, setActiveUnit] = useState(0);
   const { rows, lists, lookups, errors } = editor;
   const unitIndex = Math.min(activeUnit, rows.length - 1);
@@ -260,8 +268,11 @@ export function MobileStockLayout({ editor }: { editor: StockEditor }) {
           : null}
       </div>
 
+      {/* Sağ kenar sekmeleri; panel açıkken Kaydet panelin içindedir */}
+      <StockSidePanel editor={editor} panel={panel} onInvalid={() => setTab('urun')} />
+
       {/* Yüzen Kaydet düğmesi (alt çubuğun üstünde); Fiyat sekmesinde tuş takımındaki Kaydet kullanılır */}
-      {tab !== 'fiyat' ? (
+      {tab !== 'fiyat' && panel.openId === null ? (
         <button
           type="button"
           onClick={() => void editor.save(() => setTab('urun'))}

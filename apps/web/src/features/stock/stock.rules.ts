@@ -102,6 +102,41 @@ export function createEmptyDraft(firstPriceListId: string): StockCardDraft {
   };
 }
 
+/**
+ * Birim ve barkod ürüne ORTAKTIR; fiyat listeleri yalnızca fiyatı (alış/satış bloklarını) değiştirir.
+ * Bu fonksiyon `sourceId` listesindeki birim yapısını (birim, çarpan, barkod, ağırlık, hacim, not,
+ * ana/varsayılan) diğer tüm listelere kopyalar; her listenin kendi fiyatları korunur. Sunucu, listeler
+ * arasında yapı farkı olan kartı reddeder (400), bu yüzden form her değişiklikte eşitler.
+ *
+ * - `by: 'id'`: aynı birimi satır kimliğiyle eşler (aynı oturumda birim eklenir/silinir/sıralanır).
+ * - `by: 'index'`: sunucudan gelen karttaki satırları sıraya göre eşler ve kimlikleri ortaklaştırır.
+ */
+export function syncUnits(
+  units: Record<string, UnitRow[]>,
+  sourceId: string,
+  by: 'id' | 'index' = 'id',
+): Record<string, UnitRow[]> {
+  const source = units[sourceId];
+  if (!source) return units;
+  const next: Record<string, UnitRow[]> = {};
+  for (const [listId, rows] of Object.entries(units)) {
+    if (listId === sourceId) {
+      next[listId] = rows;
+      continue;
+    }
+    next[listId] = source.map((s, i) => {
+      const own = by === 'id' ? rows.find((r) => r.id === s.id) : rows[i];
+      return {
+        ...s,
+        barcodes: s.barcodes.map((b) => ({ ...b })),
+        purchase: own?.purchase ?? emptyBlock(),
+        sale: own?.sale ?? emptyBlock(),
+      };
+    });
+  }
+  return next;
+}
+
 /** Envanter takibi türüne göre gösterilecek alanlar. Anahtar = envanter takibi seçeneğinin değeri. */
 export type InventoryField =
   | {

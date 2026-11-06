@@ -10,44 +10,67 @@ import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { useStockEditor } from '../hooks/useStockEditor';
 import { stockService, stockErrorMessage, type StockService } from '../services/stock.service';
 import { demoStockService } from '../services/stock.demo';
-import type { StockCardDraft, StockLookups } from '../types';
+import type { StockCardDraft, StockExtraOptions, StockExtras, StockLookups } from '../types';
 import { DesktopStockLayout } from './DesktopStockLayout';
 import { MobileStockLayout } from './MobileStockLayout';
 import { StockSavedScreen } from './StockSavedScreen';
+import type { SideBoxId } from './StockSidePanel';
 
 interface StockCardFormProps {
   /** Verilirse bu kayıtlı kart dolu gelir ve Kaydet onu günceller (düzenleme). */
   cardId?: string;
   /** Verilirse bu kartın kopyası dolu gelir ama YENİ kayıt olarak kaydedilir. */
   copyFromId?: string;
+  /** Hangi yan kutu açık gelsin (kayıt sonrası ekrandan bir karta dokunulunca). */
+  initialBox?: SideBoxId;
+}
+
+/** Ekranın ihtiyaç duyduğu, sunucudan yüklenen her şey. */
+interface Loaded {
+  lookups: StockLookups;
+  /** Düzenleme/kopya için dolu kart; yeni kartta yok. */
+  draft?: StockCardDraft;
+  extras?: StockExtras;
+  /** `null`: kategori/fırsat kutuları sunucuya bağlı değil (kilitli). */
+  extraOptions: StockExtraOptions | null;
 }
 
 /** Veriyi yükler; hazır olunca düzenleyiciyi gösterir (listeler yüklenmeden hook'lar kurulamaz). */
-export function StockCardForm({ cardId, copyFromId }: StockCardFormProps = {}) {
+export function StockCardForm({ cardId, copyFromId, initialBox }: StockCardFormProps = {}) {
   const { session } = useSession();
-  // Test düğmesi kalır; gerçek kullanıcı asla sahte kayda yönlendirilmez.
   const sourceId = cardId ?? copyFromId;
+  // Test düğmesi kalır; gerçek kullanıcı asla sahte kayda yönlendirilmez.
   const devUser = session.status === 'anonymous' && hasDevAccess();
   const demo = devUser;
   const service = demo ? demoStockService : stockService;
-  const [lookups, setLookups] = useState<StockLookups | null>(null);
-  const [initial, setInitial] = useState<StockCardDraft | undefined>();
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (session.status === 'loading') return;
     let active = true;
-    void Promise.all([service.getLookups(), sourceId ? service.get(sourceId) : undefined])
-      .then(([data, card]) => {
+    void Promise.all([
+      service.getLookups(),
+      sourceId ? service.get(sourceId) : undefined,
+      sourceId ? service.getExtras(sourceId) : undefined,
+      service.getExtraOptions(),
+    ])
+      .then(([lookups, card, extras, extraOptions]) => {
         if (!active) return;
-        setLookups(data);
-        // Kopya yeni kayıttır: ad ve kod, asıl kartla karışmasın diye ayrıştırılır.
-        setInitial(
-          card && copyFromId
-            ? { ...card, name: `${card.name} (Kopya)`, code: `${card.code}-KOPYA` }
-            : card,
-        );
+        setLoaded({
+          lookups,
+          extraOptions,
+          // Kopya yeni kayıttır: ad ve kod, asıl kartla karışmasın diye ayrıştırılır.
+          ...(card
+            ? {
+                draft: copyFromId
+                  ? { ...card, name: `${card.name} (Kopya)`, code: `${card.code}-KOPYA` }
+                  : card,
+              }
+            : {}),
+          ...(extras ? { extras } : {}),
+        });
       })
       .catch((error: unknown) => active && setLoadError(stockErrorMessage(error)));
     return () => {
@@ -63,7 +86,7 @@ export function StockCardForm({ cardId, copyFromId }: StockCardFormProps = {}) {
           fullWidth={false}
           onClick={() => {
             setLoadError(null);
-            setLookups(null);
+            setLoaded(null);
             setRetry((n) => n + 1);
           }}
         >
@@ -72,7 +95,7 @@ export function StockCardForm({ cardId, copyFromId }: StockCardFormProps = {}) {
       </div>
     );
 
-  if (!lookups) {
+  if (!loaded) {
     return (
       <div className="h-96 animate-pulse rounded-[1.75rem] bg-surface-muted" aria-busy="true" />
     );
@@ -81,11 +104,11 @@ export function StockCardForm({ cardId, copyFromId }: StockCardFormProps = {}) {
     <StockCardEditor
       key={`${demo ? 'demo' : session.user?.id}:${sourceId ?? 'yeni'}`}
       devUser={devUser}
-      lookups={lookups}
+      loaded={loaded}
       service={service}
       demo={demo}
-      {...(initial ? { initialDraft: initial } : {})}
       {...(cardId ? { cardId } : {})}
+      {...(initialBox ? { initialBox } : {})}
       mode={cardId ? 'edit' : copyFromId ? 'copy' : 'create'}
     />
   );
@@ -93,29 +116,31 @@ export function StockCardForm({ cardId, copyFromId }: StockCardFormProps = {}) {
 
 /**
  * Durum tek yerde (useStockEditor); görünüm ekrana göre seçilir: geniş ekran (≥80rem) tek sayfa +
- * sağda özet, daha dar ekran sekmeli/kaydırmalı düzen. Aynı anda yalnızca biri çizilir.
+ * sağda yan kutular, daha dar ekran sekmeli/kaydırmalı düzen. Aynı anda yalnızca biri çizilir.
  */
 function StockCardEditor({
-  lookups,
+  loaded,
   service,
   demo,
   devUser,
-  initialDraft,
   cardId,
+  initialBox,
   mode,
 }: {
-  lookups: StockLookups;
+  loaded: Loaded;
   service: StockService;
   demo: boolean;
   /** Test kullanıcısı mı (değilse sahte listeden açılan deneme ürünüdür). */
   devUser: boolean;
-  initialDraft?: StockCardDraft;
   cardId?: string;
+  initialBox?: SideBoxId;
   mode: 'create' | 'edit' | 'copy';
 }) {
-  const editor = useStockEditor(lookups, service, {
-    ...(initialDraft ? { initialDraft } : {}),
+  const editor = useStockEditor(loaded.lookups, service, {
+    ...(loaded.draft ? { initialDraft: loaded.draft } : {}),
+    ...(loaded.extras ? { initialExtras: loaded.extras } : {}),
     ...(cardId ? { cardId } : {}),
+    extraOptions: loaded.extraOptions,
   });
   const wide = useMediaQuery('(min-width: 80rem)');
   const errorRef = useRef<HTMLDivElement>(null);
@@ -133,6 +158,8 @@ function StockCardEditor({
         code={editor.draft.code}
         brand={editor.lookups.brands.find((b) => b.value === editor.draft.brand)?.label ?? ''}
         savedId={editor.savedId}
+        extras={editor.extras}
+        extraOptions={editor.extraOptions}
         onNew={editor.startOver}
         onKeepEditing={editor.keepEditing}
       />
@@ -140,7 +167,7 @@ function StockCardEditor({
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4 pr-10 sm:pr-12">
       {mode === 'create' ? null : (
         <div className="flex flex-wrap items-center gap-3">
           <Link
@@ -174,7 +201,11 @@ function StockCardEditor({
         className="m-0 min-w-0 border-0 p-0"
         aria-busy={editor.saving}
       >
-        {wide ? <DesktopStockLayout editor={editor} /> : <MobileStockLayout editor={editor} />}
+        {wide ? (
+          <DesktopStockLayout editor={editor} initialBox={initialBox ?? null} />
+        ) : (
+          <MobileStockLayout editor={editor} initialBox={initialBox ?? null} />
+        )}
       </fieldset>
     </div>
   );

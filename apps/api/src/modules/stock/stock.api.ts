@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createStockSchema } from '@gt/shared';
 
 export const recordId = z.number().int().min(1).max(2147483647);
 export const recordKey = z
@@ -6,6 +7,14 @@ export const recordKey = z
   .regex(/^[1-9][0-9]{0,9}$/)
   .refine((value) => Number(value) <= 2147483647);
 const filterId = z.union([z.literal(''), recordKey]).default('');
+const selection = z
+  .array(z.union([recordId, recordKey.transform(Number)]))
+  .max(1000)
+  .refine((ids) => new Set(ids).size === ids.length, 'Aynı kayıt iki kez seçilemez.');
+export const stockSaveSchema = createStockSchema.extend({
+  extras: z.strictObject({ categoryIds: selection, dealIds: selection }).optional(),
+});
+export type StockSaveInput = z.infer<typeof stockSaveSchema>;
 
 export const stockListQuery = z.object({
   arama: z.string().trim().max(250).default(''),

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import type { Express } from 'express';
 import type { PrismaClient } from '../src/lib/prisma';
@@ -59,6 +60,53 @@ export async function checkCatalog(
   const created = await post('/firsatlar', draft);
   assert.equal(created.status, 201, JSON.stringify(created.body));
   const dealId = created.body.id as string;
+  // Stok kartının yeni yan panelleri: kategori/fırsat birlikte ve atomik kaydedilir.
+  const source = (await get('/stok/kartlar/' + cardId)).body;
+  source.code = 'EXTRAS-ATOMIC';
+  for (const units of Object.values(source.units) as { barcodes: unknown[] }[][])
+    for (const unit of units) unit.barcodes = [];
+  const extrasInput = {
+    requestId: randomUUID(),
+    draft: source,
+    extras: { categoryIds: [categoryId], dealIds: [dealId] },
+  };
+  const extrasSaved = await post('/stok/kartlar', extrasInput);
+  assert.equal(extrasSaved.status, 201, JSON.stringify(extrasSaved.body));
+  const extrasId = extrasSaved.body.id as string;
+  assert.equal((await post('/stok/kartlar', extrasInput)).body.id, extrasId);
+  assert.deepEqual((await get(`/stok/kartlar/${extrasId}/ekler`)).body, extrasInput.extras);
+  assert.equal((await get(`/stok/kartlar/${extrasId}/ekler`, 1)).status, 404);
+  const clearInput = {
+    ...extrasInput,
+    requestId: randomUUID(),
+    extras: { categoryIds: [], dealIds: [] },
+  };
+  assert.equal((await post(`/stok/kartlar/${extrasId}/guncelle`, clearInput)).status, 200);
+  assert.deepEqual((await get(`/stok/kartlar/${extrasId}/ekler`)).body, clearInput.extras);
+  assert.equal(
+    (
+      await post(`/stok/kartlar/${extrasId}/guncelle`, {
+        ...clearInput,
+        extras: extrasInput.extras,
+      })
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await post(`/stok/kartlar/${extrasId}/guncelle`, {
+        ...clearInput,
+        requestId: randomUUID(),
+        extras: { categoryIds: [2147483647], dealIds: [dealId] },
+      })
+    ).status,
+    404,
+  );
+  assert.deepEqual((await get(`/stok/kartlar/${extrasId}/ekler`)).body, clearInput.extras);
+  assert.equal(
+    (await post('/stok/kartlar/toplu', { ids: [Number(extrasId)], islem: 'sil' })).status,
+    200,
+  );
   assert.match(dealId, /^[1-9]\d*$/);
   assert.equal((await get('/firsatlar', 1)).body.length, 0);
   assert.equal((await get(created.body.iconUrl as string)).status, 200);

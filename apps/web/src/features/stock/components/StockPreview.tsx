@@ -1,5 +1,4 @@
-import { Check, ChevronRight, Circle, Package } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Check, Circle, Package } from 'lucide-react';
 import { blockTotals, formatMoney, getCompletion, marginPercent } from '../stock.calc';
 import type { StockCardDraft, StockLookups, UnitRow } from '../types';
 
@@ -8,27 +7,16 @@ interface StockPreviewProps {
   lookups: StockLookups;
   rows: UnitRow[];
   priceListLabel: string;
-  /** Kaydet düğmesi vb. kartın altına eklenir. */
-  footer: ReactNode;
-  /** Verilirse (geniş ekranda) kartı sağa doğru kapatan ok düğmesi gösterilir. */
-  onCollapse?: (() => void) | undefined;
 }
 
 const labelOf = (options: { value: string; label: string }[], value: string) =>
   options.find((o) => o.value === value)?.label ?? '';
 
 /**
- * Canlı kart önizlemesi: kullanıcı yazdıkça ürünün nasıl görüneceğini ve fiyat/kâr hesabını
- * anında gösterir. Masaüstünde sağda yapışkan durur (boş alan kullanılır), telefonda son adımdır.
+ * Canlı kart önizlemesi (yan panelin "Özet" kutusunun içeriği): kullanıcı yazdıkça ürünün nasıl
+ * görüneceğini ve fiyat/kâr hesabını anında gösterir. Kutu çerçevesini SideBox çizer.
  */
-export function StockPreview({
-  draft,
-  lookups,
-  rows,
-  priceListLabel,
-  footer,
-  onCollapse,
-}: StockPreviewProps) {
+export function StockPreview({ draft, lookups, rows, priceListLabel }: StockPreviewProps) {
   const chips = [
     labelOf(lookups.stockTypes, draft.stockType),
     labelOf(lookups.brands, draft.brand),
@@ -39,10 +27,7 @@ export function StockPreview({
   const done = checks.filter((x) => x.ok).length;
 
   return (
-    <aside
-      aria-label="Kart önizlemesi"
-      className="flex flex-col gap-5 rounded-[1.75rem] border border-line bg-surface-raised p-5 shadow-soft tablet:p-6"
-    >
+    <section aria-label="Kart önizlemesi" className="flex flex-col gap-5 pt-1">
       <div className="flex items-start gap-3">
         <span
           aria-hidden="true"
@@ -58,17 +43,6 @@ export function StockPreview({
           </p>
           <p className="mt-0.5 font-mono text-sm text-ink-muted">{draft.code || 'STOK-KODU'}</p>
         </div>
-        {onCollapse ? (
-          <button
-            type="button"
-            onClick={onCollapse}
-            aria-label="Özeti Kapat"
-            title="Özeti kapat"
-            className="hidden size-10 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink xl:inline-flex"
-          >
-            <ChevronRight className="size-5" aria-hidden="true" />
-          </button>
-        ) : null}
       </div>
 
       <div>
@@ -165,8 +139,6 @@ export function StockPreview({
           })}
         </ul>
       </div>
-
-      {footer}
-    </aside>
+    </section>
   );
 }

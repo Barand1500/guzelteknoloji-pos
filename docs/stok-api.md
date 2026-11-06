@@ -23,6 +23,8 @@ Migration `20261106210000_ortak_stok_kategori`, henüz uygulanmamış eski katal
 
 `GET /api/stok/kartlar/:id` doğrudan formun beklediği draft nesnesini döndürür. Önceki ayrıntılı ilişkisel yanıtın yerine bu kullanılır. `/api/stok/kartlar/:id/form` aynı yanıt için uyumluluk yoludur.
 
+Yeni stok kartı yan panelleri için `GET /api/stok/kartlar/:id/ekler` → `{categoryIds, dealIds}`. Oluşturma/güncelleme gövdesinde isteğe bağlı `extras: {categoryIds, dealIds}` kabul edilir; ID'ler sayısal veya sayısal metin olabilir. Seçimlerin tümü oturum sahibine ait olmalıdır. Bu alan gönderildiğinde iki ilişki listesi kart/birim/fiyatlarla aynı transaction içinde değiştirilir; boş dizi bağlantıları temizler. Alan gönderilmezse eski bağlantılar korunur. Tekrar isteği hash'ine bu seçimler de katılır. Shared paket değiştirilmedi.
+
 Shared paket güncellemesi beklenirken mevcut `draft.units` (liste kodu → birim satırları) kabul edilir. Tüm listelerde birim sırası, birim türü, çarpan, barkod, ölçüler ve ana/varsayılan bayrakları aynı olmalıdır. Satır ID'lerinin aynı olması gerekmez. Yalnızca fiyat blokları farklı olabilir. Farklı ortak bilgiler 400 hatasıyla reddedilir; sessizce ilk listenin bilgileriyle değiştirilmez. Veritabanında birimler ve barkodlar yine tek kayıttır. Bu geçici adaptör yeni shared yapısı geldiğinde kaldırılabilir.
 
 `requestId` bir kayıt ID'si değildir; tekrar gönderilen isteği tanıyan UUID anahtarıdır. Kart ID'leri sıralı sayıdır. Son başarılı kaydetmenin aynı anahtar ve aynı içerikle tekrarı aynı kart ID'sini döndürür; anahtar farklı içerik/kart için tekrar kullanılamaz. Yeni düzenlemelerde yeni requestId gönderilir.

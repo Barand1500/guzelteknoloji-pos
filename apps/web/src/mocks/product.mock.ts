@@ -39,8 +39,7 @@ const sheet: { p: [number, number, number]; cost: number; stock: number; sales?:
 ];
 
 const brandName = (id: string | null): string => brandSeeds.find((b) => b.id === id)?.name ?? '';
-const categoryName = (id: string | null): string =>
-  categorySeeds.find((c) => c.id === id)?.name ?? 'Kategorisiz';
+const categoryName = (id: string): string => categorySeeds.find((c) => c.id === id)?.name ?? '';
 
 export const productItemSeeds: ProductItem[] = productSeeds.map((seed, i) => {
   const row = sheet[i % sheet.length]!;
@@ -52,8 +51,8 @@ export const productItemSeeds: ProductItem[] = productSeeds.map((seed, i) => {
     stockType: 'Basit Ürün',
     brandId: seed.brandId,
     brandName: brandName(seed.brandId),
-    categoryId,
-    categoryName: categoryName(categoryId),
+    categoryIds: categoryId ? [categoryId] : [],
+    categoryNames: categoryId ? [categoryName(categoryId)] : [],
     imageUrl: device(i % 2 === 0 ? '#1d232b' : '#16324f'),
     currency: i < 6 ? '$' : '₺',
     vatRate: 20,

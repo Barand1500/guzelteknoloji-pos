@@ -4,11 +4,19 @@ import { stockDraftSchema, stockValidationMessage } from '@gt/shared';
 import {
   createEmptyDraft,
   createUnitRow,
+  syncUnits,
   rebaseUnits,
   validateRequired,
   type DraftErrors,
 } from '../stock.rules';
-import type { StockCardDraft, StockLookups, UnitRow } from '../types';
+import {
+  emptyExtras,
+  type StockCardDraft,
+  type StockExtraOptions,
+  type StockExtras,
+  type StockLookups,
+  type UnitRow,
+} from '../types';
 import { useOptionList } from './useOptionList';
 
 /**
@@ -20,14 +28,10 @@ export interface StockEditorOptions {
   initialDraft?: StockCardDraft;
   /** Verilirse kayıt, yeni kart eklemek yerine bu kartı günceller. */
   cardId?: string;
-}
-
-/** Fiyat listesi açılırken ortak birimler korunur; yalnızca fiyat blokları boş başlar. */
-function forPriceList(rows: UnitRow[]): UnitRow[] {
-  return rows.map((row) => {
-    const empty = createUnitRow(row.isMain, row.unit);
-    return { ...structuredClone(row), purchase: empty.purchase, sale: empty.sale };
-  });
+  /** Kayıtlı (ya da kopyalanan) kartın kategori ve fırsat seçimleri. */
+  initialExtras?: StockExtras;
+  /** Kategori/fırsat seçenekleri; `null` ise bu kutular sunucuya bağlı değildir (kilitli). */
+  extraOptions?: StockExtraOptions | null;
 }
 
 export function useStockEditor(
@@ -49,31 +53,34 @@ export function useStockEditor(
   const [draft, setDraft] = useState<StockCardDraft>(() => {
     const start = options.initialDraft ?? createEmptyDraft(firstListId);
     // Aktif fiyat listesinin birim satırı yoksa (eski kart) boş bir ana birim eklenir.
-    return start.units[firstListId]
+    const base = start.units[firstListId]
       ? start
-      : {
-          ...start,
-          units: {
-            ...start.units,
-            [firstListId]: forPriceList(Object.values(start.units)[0] ?? [createUnitRow(true)]),
-          },
-        };
+      : { ...start, units: { ...start.units, [firstListId]: [] } };
+    // Birim/barkod ortaktır: sunucudan gelen kartın listeleri aynı yapıya getirilir.
+    return {
+      ...base,
+      units: syncUnits(
+        base.units,
+        start.units[firstListId] ? firstListId : Object.keys(start.units)[0]!,
+        'index',
+      ),
+    };
   });
   const [activeList, selectList] = useState(firstListId);
   const setActiveList = (id: string) => {
+    // Yeni açılan listenin birim yapısı ortak yapıdan gelir; yalnızca fiyatları boştur.
     setDraft((d) =>
-      d.units[id]
-        ? d
-        : {
-            ...d,
-            units: {
-              ...d.units,
-              [id]: forPriceList(Object.values(d.units)[0] ?? [createUnitRow(true)]),
-            },
-          },
+      d.units[id] ? d : { ...d, units: syncUnits({ ...d.units, [id]: [] }, firstListId) },
     );
     selectList(id);
   };
+  const [extras, setExtras] = useState<StockExtras>(() => options.initialExtras ?? emptyExtras());
+  const extraOptions = options.extraOptions ?? null;
+  const toggleExtra = (key: keyof StockExtras, id: string) =>
+    setExtras((e) => ({
+      ...e,
+      [key]: e[key].includes(id) ? e[key].filter((x) => x !== id) : [...e[key], id],
+    }));
   const [errors, setErrors] = useState<DraftErrors>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -87,28 +94,9 @@ export function useStockEditor(
 
   // ---- Birim satırları (aktif fiyat listesi) -----------------------------------------
   const rows = draft.units[activeList] ?? [];
+  // Birim yapısı ortaktır: bir listede yapılan değişiklik diğer listelere de yansır (fiyatlar hariç).
   const setRows = (listId: string, next: UnitRow[]) =>
-    setDraft((d) => ({
-      ...d,
-      units: Object.fromEntries(
-        Object.entries(d.units).map(([id, oldRows]) => [
-          id,
-          id === listId
-            ? next
-            : next.map((row, index) => {
-                const old =
-                  oldRows.find((item) => item.id === row.id) ??
-                  (oldRows[index]?.unit === row.unit ? oldRows[index] : undefined);
-                const empty = createUnitRow(row.isMain, row.unit);
-                return {
-                  ...structuredClone(row),
-                  purchase: old?.purchase ?? empty.purchase,
-                  sale: old?.sale ?? empty.sale,
-                };
-              }),
-        ]),
-      ),
-    }));
+    setDraft((d) => ({ ...d, units: syncUnits({ ...d.units, [listId]: next }, listId) }));
 
   const updateRow = (rowId: string, patch: Partial<UnitRow>) => {
     if (patch.isMain === true) {
@@ -174,13 +162,7 @@ export function useStockEditor(
       setDraft((d) =>
         d.units[created.value]
           ? d
-          : {
-              ...d,
-              units: {
-                ...d.units,
-                [created.value]: forPriceList(Object.values(d.units)[0] ?? [createUnitRow(true)]),
-              },
-            },
+          : { ...d, units: syncUnits({ ...d.units, [created.value]: [] }, firstListId) },
       );
       setActiveList(created.value);
     } catch {
@@ -219,11 +201,13 @@ export function useStockEditor(
     saveLock.current = true;
     setSaving(true);
     try {
-      const body = JSON.stringify(parsed.data);
+      const sent = extraOptions ? extras : undefined;
+      const body = JSON.stringify({ draft: parsed.data, extras: sent });
       if (request.current?.body !== body) request.current = { body, id: crypto.randomUUID() };
+      // Kutular kilitliyse (sunucuya bağlı değilse) ek bilgi gönderilmez.
       const result = options.cardId
-        ? await service.update(options.cardId, parsed.data, request.current.id)
-        : await service.save(parsed.data, request.current.id);
+        ? await service.update(options.cardId, parsed.data, request.current.id, sent)
+        : await service.save(parsed.data, request.current.id, sent);
       setSavedId(result.id);
       setSaved(true);
     } catch (error) {
@@ -236,6 +220,7 @@ export function useStockEditor(
 
   const startOver = () => {
     setDraft(createEmptyDraft(firstListId));
+    setExtras(emptyExtras());
     setActiveList(firstListId);
     setSaved(false);
     setSaveError(null);
@@ -259,6 +244,10 @@ export function useStockEditor(
     removePriceList,
     saving,
     saveError,
+    extras,
+    extraOptions,
+    toggleCategory: (id: string) => toggleExtra('categoryIds', id),
+    toggleDeal: (id: string) => toggleExtra('dealIds', id),
     saved,
     savedId,
     keepEditing: () => setSaved(false),

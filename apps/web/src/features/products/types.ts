@@ -10,10 +10,10 @@ export interface ProductItem {
   stockType: string;
   brandId: string | null;
   brandName: string;
-  categoryId: string | null;
-  categoryIds?: string[];
-  categoryNames?: string[];
-  categoryName: string;
+  categoryId?: string | null;
+  categoryIds: string[];
+  categoryNames: string[];
+  categoryName?: string;
   imageUrl: string | null;
   /** Para birimi simgesi (ör. "$", "₺"). */
   currency: string;

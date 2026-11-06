@@ -181,6 +181,31 @@ for (const width of [390, 768, 1440]) {
         expect(product.categoryNames).toContain(categoryName);
         expect(product.dealIds).toHaveLength(1);
         expect(product.salesOpen).toBe(false);
+        // Git'ten gelen yeni yan paneller de gerçek kart ilişkilerini okur ve yazar.
+        await page.goto('/uygulama/stok-karti/' + card.id + '?ac=kategori');
+        await expect(
+          page.getByRole('checkbox', { name: categoryName + ' kategorisini seç', exact: true }),
+        ).toBeChecked();
+        await screenshot('yan-kategori');
+        await page.getByRole('tab', { name: 'Fırsat', exact: true }).click();
+        const dealSwitch = page.getByRole('switch', { name: dealName + ' fırsatı', exact: true });
+        await expect(dealSwitch).toBeChecked();
+        await dealSwitch.click();
+        const updateResponse = page.waitForResponse(
+          (r) =>
+            r.url().endsWith(`/api/stok/kartlar/${card.id}/guncelle`) &&
+            r.request().method() === 'POST',
+        );
+        await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+        expect((await updateResponse).status()).toBe(200);
+        await expect(page.getByText('Stok kartı güncellendi!', { exact: true })).toBeVisible();
+        await page.goto('/uygulama/stok-karti/' + card.id + '?ac=firsat');
+        await expect(dealSwitch).not.toBeChecked();
+        await screenshot('yan-firsat');
+        const extrasRead = await request.get(api + `/api/stok/kartlar/${card.id}/ekler`, {
+          headers,
+        });
+        expect((await extrasRead.json()).categoryIds).toEqual(product.categoryIds);
       });
     });
   }

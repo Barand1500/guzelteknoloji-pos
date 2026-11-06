@@ -45,8 +45,10 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
 
     await user.type(await screen.findByLabelText('Stok Kodu'), 'A-1');
     await user.type(screen.getByLabelText('Stok Adı'), 'Deneme Ürünü');
-    // Canlı önizleme yazdıkça güncellenir.
+    // Canlı önizleme (sağ kenardaki Özet sekmesi) yazdıkça güncellenir.
+    await user.click(screen.getByRole('tab', { name: 'Özet' }));
     expect(screen.getByLabelText('Kart önizlemesi')).toHaveTextContent('Deneme Ürünü');
+    await user.click(screen.getByRole('button', { name: 'Paneli kapat' }));
 
     // Özel açılır liste: aç, seç.
     await user.click(screen.getByRole('combobox', { name: 'Marka' }));
@@ -136,7 +138,7 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     );
   });
 
-  it('özet paneli ok ile kapanıp açılır; kapalıyken kaydet düğmesi şeritte kalır', async () => {
+  it('birim ve barkod ortaktır: bir fiyat listesinde yapılan değişiklik diğerlerinde de görünür, fiyatlar ayrı kalır', async () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
     renderApp();
@@ -144,12 +146,24 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
       await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
     );
 
-    await user.click(await screen.findByRole('button', { name: 'Özeti Kapat' }));
-    expect(screen.getByRole('button', { name: 'Özeti Aç' })).toBeInTheDocument();
-    // jsdom CSS çalıştırmaz: dar ekran özeti DOM'da kalır, şerit düğmesi de vardır (en az biri).
-    expect(screen.getAllByRole('button', { name: 'Kaydet' }).length).toBeGreaterThanOrEqual(1);
-    await user.click(screen.getByRole('button', { name: 'Özeti Aç' }));
-    expect(screen.getByRole('button', { name: 'Özeti Kapat' })).toBeInTheDocument();
+    // FİYAT listesinde satış fiyatı gir, ikinci birim ekle ve barkod yaz.
+    await user.type(await screen.findByLabelText('Satış Fiyatı'), '100');
+    await user.click(screen.getByRole('button', { name: 'Birim Ekle' }));
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+    await user.type(screen.getAllByLabelText('Barkod')[0]!, '8690001');
+    await user.click(screen.getAllByRole('button', { name: 'Barkod Ekle' })[0]!);
+
+    // PERAKENDE listesine geçilince aynı iki birim ve barkod orada da vardır; fiyat boştur.
+    await user.click(screen.getByRole('tab', { name: 'PERAKENDE' }));
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+    expect(within(screen.getAllByRole('article')[0]!).getByText('8690001')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Satış Fiyatı')[0]).toHaveValue('');
+
+    // Perakendeye birim eklenirse FİYAT listesinde de görünür.
+    await user.click(screen.getByRole('button', { name: 'Birim Ekle' }));
+    await user.click(screen.getByRole('tab', { name: 'FİYAT' }));
+    expect(screen.getAllByRole('article')).toHaveLength(3);
+    expect(screen.getAllByLabelText('Satış Fiyatı')[0]).toHaveValue('100');
   });
 
   it('desi hesaplayıcı yurt içi ÷3000, yurt dışı ÷5000 ile hesaplar', async () => {

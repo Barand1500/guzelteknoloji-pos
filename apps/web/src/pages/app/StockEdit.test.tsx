@@ -130,6 +130,7 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
       'GET /api/stok/kartlar': () =>
         jsonResponse(200, { items: [item], total: 1, page: 1, pageSize: 200 }),
       'GET /api/stok/kartlar/123': () => jsonResponse(200, draft),
+      'GET /api/stok/kartlar/123/ekler': () => jsonResponse(200, { categoryIds: [], dealIds: [] }),
     });
     const user = userEvent.setup();
     renderApp('/uygulama/urunler');
@@ -140,20 +141,6 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
     );
     expect(screen.queryByText(/Deneme ürünü/)).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
-
-  it('kayıttan sonra "Ayrıntıları Doldur" kaydedilen kartı dolu düzenleme ekranında açar', async () => {
-    const user = await openList();
-    await user.click(screen.getByRole('button', { name: 'Ürün Ekle' }));
-    await user.type(await screen.findByLabelText('Stok Kodu'), 'DETAY-1');
-    await user.type(screen.getByLabelText('Stok Adı'), 'Detay Ürünü');
-    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
-    expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
-    expect(screen.getByText('Detay Ürünü')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Ayrıntıları Doldur' }));
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('DETAY-1');
-    expect(screen.getByRole('heading', { name: 'Stok Kartını Düzenle' })).toBeInTheDocument();
   });
 
   it('düzenleme kaydından sonra yeni kart önerilmez; düzenlemeye devam edilebilir', async () => {

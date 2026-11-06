@@ -38,11 +38,15 @@ async function openStockCard() {
 describe('Telefon düzeni (sekmeler + yana kaydırmalı birim kartları)', () => {
   it('4 sekme gösterir; Ürün sekmesi açık başlar ve sekmeler arası geçilir', async () => {
     const user = await openStockCard();
-    const tabs = screen.getAllByRole('tab').map((t) => t.textContent?.trim());
+    // Sağ kenardaki yan sekmeler (Özet/Kategori/Fırsat) ayrıdır; burada yalnızca bölüm sekmeleri sayılır.
+    const sections = screen.getByRole('tablist', { name: 'Stok kartı bölümleri' });
+    const tabs = within(sections)
+      .getAllByRole('tab')
+      .map((t) => t.textContent?.trim());
     expect(tabs).toEqual(['Ürün', 'Fiyat', 'Barkod', 'Ölçü']);
     expect(screen.getByRole('tab', { name: 'Ürün' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByLabelText('Stok Kodu')).toBeInTheDocument();
-    // Masaüstü özeti telefonda yoktur.
+    // Yan panel kapalı başlar.
     expect(screen.queryByLabelText('Kart önizlemesi')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Fiyat' }));

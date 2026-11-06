@@ -1,16 +1,36 @@
 import type { SelectOption } from '../../../components/ui/SelectField';
 import { ApiError, apiRequest, NetworkError } from '../../../lib/http';
-import type { OptionListKey, StockCardDraft, StockLookups } from '../types';
+import { categoryService } from '../../categories/services/category.service';
+import { dealService } from '../../deals/services/deal.service';
+import type {
+  OptionListKey,
+  StockCardDraft,
+  StockExtraOptions,
+  StockExtras,
+  StockLookups,
+} from '../types';
 
 export interface StockService {
   getLookups(): Promise<StockLookups>;
   addOption(list: OptionListKey, label: string): Promise<SelectOption>;
   removeOption(list: OptionListKey, value: string): Promise<void>;
-  save(draft: StockCardDraft, requestId: string): Promise<{ id: string }>;
+  save(draft: StockCardDraft, requestId: string, extras?: StockExtras): Promise<{ id: string }>;
   /** Düzenleme: kayıtlı kartı forma dolu getirir. */
   get(id: string): Promise<StockCardDraft>;
   /** Düzenleme: kayıtlı kartı günceller (sunucuda POST /kartlar/:id/guncelle gerekir). */
-  update(id: string, draft: StockCardDraft, requestId: string): Promise<{ id: string }>;
+  update(
+    id: string,
+    draft: StockCardDraft,
+    requestId: string,
+    extras?: StockExtras,
+  ): Promise<{ id: string }>;
+  /**
+   * Kategori ve fırsat kutularının seçenekleri. `null` = bu kutular henüz sunucuya bağlı değil;
+   * ekranda kilitli görünür ve seçim kaydedilmez (sahte başarı gösterilmez).
+   */
+  getExtraOptions(): Promise<StockExtraOptions | null>;
+  /** Kartın kayıtlı kategori ve fırsat seçimleri. */
+  getExtras(id: string): Promise<StockExtras>;
 }
 
 export const stockService: StockService = {
@@ -19,14 +39,19 @@ export const stockService: StockService = {
     apiRequest('/api/stok/secenekler/ekle', { method: 'POST', body: { list, label } }),
   removeOption: (list, value) =>
     apiRequest('/api/stok/secenekler/kaldir', { method: 'POST', body: { list, value } }),
-  save: (draft, requestId) =>
-    apiRequest('/api/stok/kartlar', { method: 'POST', body: { draft, requestId } }),
+  save: (draft, requestId, extras) =>
+    apiRequest('/api/stok/kartlar', { method: 'POST', body: { draft, requestId, extras } }),
   get: (id) => apiRequest(`/api/stok/kartlar/${encodeURIComponent(id)}`),
-  update: (id, draft, requestId) =>
+  update: (id, draft, requestId, extras) =>
     apiRequest(`/api/stok/kartlar/${encodeURIComponent(id)}/guncelle`, {
       method: 'POST',
-      body: { draft, requestId },
+      body: { draft, requestId, extras },
     }),
+  getExtraOptions: async () => {
+    const [categories, deals] = await Promise.all([categoryService.list(), dealService.list()]);
+    return { categories, deals };
+  },
+  getExtras: (id) => apiRequest(`/api/stok/kartlar/${encodeURIComponent(id)}/ekler`),
 };
 
 export function stockErrorMessage(error: unknown): string {
