@@ -30,6 +30,8 @@ interface DealPlacePickerProps {
   look: Pick<DealDraft, 'iconUrl' | 'showOnImage' | 'position' | 'size'>;
   onPosition: (position: DealPosition) => void;
   onSize: (size: DealSize) => void;
+  /** Örnek resimdeki yer tutucunun yazısı (varsayılan "İkon"). */
+  placeholderLabel?: string;
 }
 
 /**
@@ -37,13 +39,19 @@ interface DealPlacePickerProps {
  * üzerindeki 6 noktadan birine dokunulur, rozet o anda orada belirir (canlı önizleme). Boyut için
  * üç büyüklük düğmesi vardır. Seçilen yer ve boyut yazıyla da özetlenir.
  */
-export function DealPlacePicker({ look, onPosition, onSize }: DealPlacePickerProps) {
+export function DealPlacePicker({
+  look,
+  onPosition,
+  onSize,
+  placeholderLabel,
+}: DealPlacePickerProps) {
   return (
     <div className="grid gap-5 sm:grid-cols-[13rem_minmax(0,1fr)] sm:items-center">
       <div className="relative mx-auto aspect-square w-full max-w-56 sm:mx-0">
         <DealPreview
           look={look}
           placeholder
+          {...(placeholderLabel ? { placeholderLabel } : {})}
           highlight
           className="absolute inset-0 rounded-3xl shadow-soft"
         />

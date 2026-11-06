@@ -492,8 +492,14 @@ function Crumb({
   onClick: () => void;
   children: ReactNode;
 }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  // Uzun yolda aktif halka telefonda görünür alana kayar.
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
+  }, [active]);
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onClick}
       aria-current={active ? 'page' : undefined}

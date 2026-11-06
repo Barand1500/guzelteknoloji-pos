@@ -22,6 +22,8 @@ interface DealPreviewProps {
   className: string;
   /** İkon henüz yüklenmediyse rozetin yerinde noktalı bir yer tutucu çizer (yalnızca formda). */
   placeholder?: boolean;
+  /** Yer tutucunun yazısı (varsayılan "İkon"; özellik gruplarında "Resim"). */
+  placeholderLabel?: string;
   /** Rozetin etrafına seçili çerçevesi çizer (yer seçicide). */
   highlight?: boolean;
 }
@@ -34,6 +36,7 @@ export function DealPreview({
   look,
   className,
   placeholder = false,
+  placeholderLabel = 'İkon',
   highlight = false,
 }: DealPreviewProps) {
   const showBadge = look.showOnImage && (look.iconUrl || placeholder);
@@ -58,7 +61,7 @@ export function DealPreview({
             <DealBadge url={look.iconUrl} className="size-full" />
           ) : (
             <span className="flex size-full items-center justify-center rounded-full border-2 border-dashed border-ink-muted/60 text-[0.625rem] font-bold text-ink-muted">
-              İkon
+              {placeholderLabel}
             </span>
           )}
         </span>
