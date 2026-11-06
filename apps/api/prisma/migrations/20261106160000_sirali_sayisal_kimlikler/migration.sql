@@ -2,7 +2,7 @@
 
 -- Once yedek alin. Eski tablolar, yeni baglantilar kuruluncaya kadar korunur.
 
-CREATE TABLE `__gt_id_map` (`tablo` VARCHAR(64) NOT NULL, `eski` CHAR(36) NOT NULL, `yeni` INT NOT NULL, PRIMARY KEY (`tablo`, `eski`), UNIQUE KEY `tablo_yeni` (`tablo`, `yeni`));
+CREATE TABLE `__gt_id_map` (`tablo` VARCHAR(64) NOT NULL, `eski` CHAR(36) NOT NULL, `yeni` INT NOT NULL, PRIMARY KEY (`tablo`, `eski`), UNIQUE KEY `tablo_yeni` (`tablo`, `yeni`)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 INSERT INTO `__gt_id_map` (`tablo`, `eski`, `yeni`) SELECT 'kullanicilar', `kimlik`, ROW_NUMBER() OVER (ORDER BY `kimlik`) FROM `kullanicilar`;
 
