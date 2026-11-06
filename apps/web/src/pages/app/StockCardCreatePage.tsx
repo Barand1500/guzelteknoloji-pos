@@ -10,5 +10,11 @@ export function StockCardCreatePage() {
   const { cardId } = useParams();
   const [params] = useSearchParams();
   const copyFromId = params.get('kopya') ?? undefined;
-  return <StockCardForm {...(cardId ? { cardId } : {})} {...(copyFromId ? { copyFromId } : {})} />;
+  return (
+    <StockCardForm
+      key={cardId ?? copyFromId ?? 'yeni'}
+      {...(cardId ? { cardId } : {})}
+      {...(copyFromId ? { copyFromId } : {})}
+    />
+  );
 }

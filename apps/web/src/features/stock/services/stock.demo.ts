@@ -31,7 +31,10 @@ export const demoStockService: StockService = {
   async save(draft: StockCardDraft): Promise<{ id: string }> {
     await fakeDelay();
     // Deneme kartı ürün listesine de düşer (yalnızca bellekte).
-    const id = await productService.applyCard(null, patchFromDraft(draft, await demoStockService.getLookups()));
+    const id = await productService.applyCard(
+      null,
+      patchFromDraft(draft, await demoStockService.getLookups()),
+    );
     return { id };
   },
 

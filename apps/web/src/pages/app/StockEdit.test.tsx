@@ -131,4 +131,34 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
     expect(screen.getByText(/Deneme ürünü/)).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('kayıttan sonra "Ayrıntıları Doldur" kaydedilen kartı dolu düzenleme ekranında açar', async () => {
+    const user = await openList();
+    await user.click(screen.getByRole('button', { name: 'Ürün Ekle' }));
+    await user.type(await screen.findByLabelText('Stok Kodu'), 'DETAY-1');
+    await user.type(screen.getByLabelText('Stok Adı'), 'Detay Ürünü');
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
+    expect(screen.getByText('Detay Ürünü')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Ayrıntıları Doldur' }));
+    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('DETAY-1');
+    expect(screen.getByRole('heading', { name: 'Stok Kartını Düzenle' })).toBeInTheDocument();
+  });
+
+  it('düzenleme kaydından sonra yeni kart önerilmez; düzenlemeye devam edilebilir', async () => {
+    const user = await openList();
+    await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: NAME_1 })).getByRole('button', {
+        name: 'Düzenle',
+      }),
+    );
+    await screen.findByLabelText('Stok Adı');
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await screen.findByText('Deneme tamamlandı!');
+    expect(screen.queryByRole('button', { name: 'Ayrıntıları Doldur' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Düzenlemeye Devam Et' }));
+    expect(await screen.findByLabelText('Stok Adı')).toHaveValue(NAME_1);
+  });
 });
