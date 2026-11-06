@@ -72,3 +72,46 @@ for (const width of [390, 768, 1440])
       });
     });
   }
+
+for (const width of [390, 768, 1440])
+  for (const mode of ['light', 'dark'] as const) {
+    test.describe(`Kategori ve fırsat ${mode} ${width}`, () => {
+      test.use({ viewport: { width, height: 1000 }, colorScheme: mode });
+      test('listeler ve ekleme pencereleri temaya uyar, ekrana sığar', async ({ page }) => {
+        await page.addInitScript((theme) => {
+          sessionStorage.setItem('gt-dev-access', '1');
+          localStorage.setItem('gt-theme', theme);
+        }, mode);
+        await page.route('**/api/auth/me', (route) => route.fulfill({ status: 401, json: {} }));
+        for (const [url, label] of [
+          ['/uygulama/kategoriler', 'Kategori Ekle'],
+          ['/uygulama/urunler/firsatlar', 'Fırsat Ekle'],
+        ]) {
+          await page.goto(url!);
+          await expect(page.locator('html')).toHaveAttribute('data-theme', mode);
+          await page.getByRole('button', { name: label, exact: true }).first().click();
+          const dialog = page.getByRole('dialog', { name: label, exact: true });
+          await expect(dialog).toBeVisible();
+          const box = await dialog.boundingBox();
+          expect(box!.x).toBeGreaterThanOrEqual(-1);
+          expect(box!.x + box!.width).toBeLessThanOrEqual(width + 1);
+          expect(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            ),
+          ).toBeLessThanOrEqual(0);
+          expect(
+            await dialog.evaluate((element) =>
+              getComputedStyle(element).getPropertyValue('--color-surface-raised').trim(),
+            ),
+          ).toBe(mode === 'dark' ? '#1c1c1f' : '#ffffff');
+          await page.screenshot({
+            path: `e2e/.screenshots/yeni-${label}-${mode}-${width}.png`,
+            fullPage: true,
+          });
+          await page.keyboard.press('Escape');
+          await expect(dialog).toHaveCount(0);
+        }
+      });
+    });
+  }

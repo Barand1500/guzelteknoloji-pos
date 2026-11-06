@@ -118,6 +118,8 @@ bash deploy/update.sh
 
 Bu komut `git pull`, `npm ci`, derleme, veritabanı migration'ı, PM2 yeniden başlatma ve sağlık kontrolünü sırayla yapar. `.env` Git'te olmadığı için korunur.
 
+Servis durdurulmadan önce MySQL, kalıcılığı kapalı Redis ve yazılabilir `UPLOADS_DIR` denetlenir; ön kontrol başarısızsa çalışan API durdurulmaz. Bu kontrol yedek almaz: özellikle sayısal ID geçişinden önce MySQL ve uploads yedeği alındığını doğrulayın.
+
 ## 6. E-posta (giriş kodu) için SMTP sertifikası
 
 `smtp.guzelteknoloji.com` kendinden imzalı sertifika sunuyorsa uygulama güvenli bağlantıyı reddeder. Doğrulamayı kapatmayız; yalnızca o sertifikayı güvenilir ekleriz:

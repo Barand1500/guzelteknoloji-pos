@@ -483,12 +483,22 @@ try {
       lookupsWithBrands.body.brands.map((b: { value: string }) => b.value),
       [secondBrandId, brandId],
     );
+    assert.deepEqual(
+      lookupsWithBrands.body.brands.map((b: { label: string }) => b.label),
+      ['Diğer', 'İnci'],
+    );
     const withBrand = structuredClone(draft);
     withBrand.brand = brandId;
     withBrand.code = 'BRANDED';
     for (const rows of Object.values(withBrand.units)) for (const row of rows) row.barcodes = [];
     const brandedCard = await post('/kartlar', { requestId: randomUUID(), draft: withBrand });
     assert.equal(brandedCard.status, 201);
+    const cardWithBrand = await prisma.stokKarti.findUniqueOrThrow({
+      where: { kimlik: Number(brandedCard.body.id) },
+      include: { marka: true },
+    });
+    assert.equal(cardWithBrand.marka?.markaAdi, 'İnci');
+    assert.equal(cardWithBrand.markaKimligi, Number(brandId));
     assert.equal(
       (await brandGet()).body.find((b: { id: string }) => b.id === brandId).productCount,
       1,

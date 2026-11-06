@@ -3,6 +3,9 @@ import { FolderTree, Package, SlidersHorizontal, Tags, type LucideIcon } from 'l
 /** Uygulama yolları tek yerden yönetilir; sayfa eklerken yalnızca burası ve App.tsx değişir. */
 export const APP_BASE = '/uygulama';
 export const STOCK_CREATE_PATH = `${APP_BASE}/stok-karti/yeni`;
+export const PRODUCTS_PATH = `${APP_BASE}/urunler`;
+/** Alt sayfa: Ürünler sekmesinin altında olduğu için alt menüde Ürünler seçili kalır. */
+export const DEALS_PATH = `${PRODUCTS_PATH}/firsatlar`;
 /** Girişten sonra açılan ilk ekran: yeni stok kartı. */
 export const APP_HOME_PATH = STOCK_CREATE_PATH;
 
@@ -32,5 +35,6 @@ export const navRight: readonly NavItem[] = [
 /** Üst çubukta gösterilen sayfa başlıkları. */
 export const PAGE_TITLES: Record<string, string> = {
   [STOCK_CREATE_PATH]: 'Yeni Stok Kartı',
+  [DEALS_PATH]: 'Fırsatlar',
   ...Object.fromEntries([...navLeft, ...navRight].map((i) => [i.path, i.label])),
 };

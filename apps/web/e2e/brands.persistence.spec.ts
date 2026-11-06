@@ -112,6 +112,26 @@ for (const width of [320, 390, 768, 1440]) {
           (p) => p.id === product.id,
         )?.brandId,
       ).toBe(brand.id);
+      // Markalar ekranında kaydedilen ad stok kartındaki seçimde görünmeli ve doğru markaya bağlanmalı.
+      await page.goto('/uygulama/stok-karti/yeni');
+      await page.getByRole('combobox', { name: 'Marka', exact: true }).click();
+      await page.getByRole('option', { name, exact: true }).click();
+      await expect(page.getByRole('combobox', { name: 'Marka', exact: true })).toContainText(name);
+      await page
+        .getByLabel('Stok Kodu', { exact: true })
+        .fill('MARKA-SECIM-' + width + '-' + Date.now());
+      const savedCard = page.waitForResponse(
+        (response) =>
+          response.url().endsWith('/api/stok/kartlar') && response.request().method() === 'POST',
+      );
+      await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+      const cardResponse = await savedCard;
+      expect(cardResponse.status()).toBe(201);
+      const newCard = (await cardResponse.json()) as { id: string };
+      const readCard = await request.get(api + '/api/stok/kartlar/' + newCard.id, { headers });
+      const card = (await readCard.json()) as { brandId: string; brand: { label: string } };
+      expect(card.brandId).toBe(brand.id);
+      expect(card.brand.label).toBe(name);
       expect(
         (await request.post(api + '/api/markalar/' + brand.id + '/sil', { headers })).status(),
       ).toBe(204);
