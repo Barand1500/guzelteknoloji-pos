@@ -2,6 +2,7 @@ import { ChevronLeft, Layers, Plus } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
@@ -9,6 +10,7 @@ import { SortableGrid } from '../../../components/ui/SortableGrid';
 import { SortableList } from '../../../components/ui/SortableList';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { usePagination } from '../../../lib/usePagination';
+import { dataError } from '../../../lib/catalog-data';
 import { useCategories } from '../../categories/hooks/useCategories';
 import { useAttributes } from '../hooks/useAttributes';
 import {
@@ -183,15 +185,17 @@ export function AttributesView() {
     }, 'Kaydedilemedi.');
 
   /** Hızlı giriş: adı yaz, Enter. Hata varsa mesaj döndürülür (kutu açık kalır). */
-  const quickAdd = (name: string, color: string | null): string | null => {
+  const quickAdd = async (name: string, color: string | null): Promise<string | null> => {
     if (!group) return null;
     if (values.some((v) => fold(v.name).trim() === fold(name).trim()))
       return 'Bu grupta aynı adda bir özellik zaten var.';
-    void run(async () => {
+    try {
       await attrs.saveValue(group.id, { code: slugify(name), name, color, imageUrl: null });
       showNotice(`${name} eklendi.`);
-    }, 'Eklenemedi.');
-    return null;
+      return null;
+    } catch (error) {
+      return dataError(error);
+    }
   };
 
   const confirmDelete = async () => {
@@ -434,6 +438,21 @@ export function AttributesView() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      {attrs.error || cats.error ? (
+        <Alert tone="error">
+          {attrs.error || cats.error}
+          <button
+            type="button"
+            className="ml-3 underline"
+            onClick={() => {
+              void attrs.refresh();
+              void cats.refresh();
+            }}
+          >
+            Tekrar Dene
+          </button>
+        </Alert>
+      ) : null}
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <SearchField
@@ -593,6 +612,7 @@ export function AttributesView() {
           template={editingTemplate}
           categories={cats.categories}
           onSave={saveTemplate}
+          saveError={attrs.error}
           onClose={() => setForm(null)}
         />
       ) : null}
@@ -603,6 +623,7 @@ export function AttributesView() {
           defaultTemplateId={template?.id ?? null}
           templates={templates}
           onSave={saveGroup}
+          saveError={attrs.error}
           onClose={() => setForm(null)}
         />
       ) : null}
@@ -613,6 +634,7 @@ export function AttributesView() {
           value={editingValue}
           takenNames={values.filter((v) => v.id !== editingValue?.id).map((v) => v.name)}
           onSave={saveValue}
+          saveError={attrs.error}
           {...(editingValue
             ? { onDelete: () => setDeleting({ type: 'value', item: editingValue }) }
             : {})}

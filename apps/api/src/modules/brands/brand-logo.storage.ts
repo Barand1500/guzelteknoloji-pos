@@ -16,7 +16,10 @@ export const logoMime = (format: LogoFormat) =>
 /** Dosya adları sunucu üretimidir; kullanıcıdan gelen yollar kullanılmaz. */
 export class BrandLogoStorage {
   private readonly directory: string;
-  constructor(root: string, folder: 'markalar' | 'kategoriler' = 'markalar') {
+  constructor(
+    root: string,
+    folder: 'markalar' | 'kategoriler' | 'firsatlar' | 'ozellikler' = 'markalar',
+  ) {
     this.directory = path.resolve(root, folder);
   }
 

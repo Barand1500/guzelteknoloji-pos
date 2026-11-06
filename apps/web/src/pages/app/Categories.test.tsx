@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { categoryService } from '../../features/categories/services/category.service';
+import { demoCategoryService as categoryService } from '../../features/categories/services/category.demo';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
 
 const ids = () =>

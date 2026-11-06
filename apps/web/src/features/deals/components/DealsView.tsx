@@ -2,6 +2,7 @@ import { ChevronLeft, Plus, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
@@ -27,7 +28,8 @@ type FormState = { dealId: string | null } | null;
  * tıklanır. Liste sayfalıdır; arama sırasında sıralama kapalıdır.
  */
 export function DealsView() {
-  const { deals, loading, toggleActive, reorder, save, remove, assign, unassign } = useDeals();
+  const { deals, loading, error, refresh, toggleActive, reorder, save, remove, assign, unassign } =
+    useDeals();
   const phone = !useMediaQuery('(min-width: 48rem)');
 
   const [query, setQuery] = useState('');
@@ -67,9 +69,13 @@ export function DealsView() {
 
   const saveDeal = async (draft: DealDraft) => {
     const wasEditing = editing;
-    const saved = await save(draft, wasEditing?.id);
-    setForm(null);
-    showNotice(wasEditing ? `${saved.name} güncellendi.` : `${saved.name} eklendi.`);
+    try {
+      const saved = await save(draft, wasEditing?.id);
+      setForm(null);
+      showNotice(wasEditing ? `${saved.name} güncellendi.` : `${saved.name} eklendi.`);
+    } catch (error) {
+      showNotice(error instanceof Error ? error.message : 'Kaydedilemedi.');
+    }
   };
 
   const confirmDelete = async () => {
@@ -154,6 +160,14 @@ export function DealsView() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      {error ? (
+        <Alert tone="error">
+          {error}
+          <button type="button" className="ml-3 underline" onClick={() => void refresh()}>
+            Tekrar Dene
+          </button>
+        </Alert>
+      ) : null}
       <nav aria-label="Sayfa yolu" className="flex items-center gap-2">
         <Link
           to={PRODUCTS_PATH}
@@ -248,6 +262,7 @@ export function DealsView() {
           key={form.dealId ?? 'yeni'}
           deal={editing}
           onSave={saveDeal}
+          saveError={error}
           onAssign={assign}
           onUnassign={unassign}
           onClose={() => setForm(null)}
@@ -274,7 +289,7 @@ export function DealsView() {
             : ''
         }
         confirmLabel="Sil"
-        onConfirm={() => void confirmDelete()}
+        onConfirm={() => void confirmDelete().catch(() => undefined)}
         onClose={() => setDeleting(null)}
       />
     </div>

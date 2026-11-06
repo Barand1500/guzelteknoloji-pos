@@ -27,12 +27,8 @@ export function StockCardForm({ cardId, copyFromId }: StockCardFormProps = {}) {
   const { session } = useSession();
   // Test düğmesi kalır; gerçek kullanıcı asla sahte kayda yönlendirilmez.
   const sourceId = cardId ?? copyFromId;
-  // Ürün listesi henüz sunucuya bağlı değil (sahte liste): onun "p1" gibi metin kimlikli ürünleri
-  // sunucuda yoktur. Bunlar deneme servisiyle açılır; gerçek kartların kimliği sayıdır.
-  // Liste gerçek API'ye bağlanınca bu satır kalkar.
-  const mockSource = sourceId !== undefined && !/^[0-9]+$/.test(sourceId);
   const devUser = session.status === 'anonymous' && hasDevAccess();
-  const demo = devUser || mockSource;
+  const demo = devUser;
   const service = demo ? demoStockService : stockService;
   const [lookups, setLookups] = useState<StockLookups | null>(null);
   const [initial, setInitial] = useState<StockCardDraft | undefined>();

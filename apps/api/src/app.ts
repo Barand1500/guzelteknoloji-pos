@@ -24,6 +24,8 @@ import { createBrandRouter } from './modules/brands/brand.routes';
 import type { PrismaBrandRepository } from './modules/brands/brand.repository';
 import type { PrismaClient } from './lib/prisma';
 import { createCatalogRouter } from './modules/catalog/catalog.routes';
+import { createDealRouter } from './modules/catalog/deal.routes';
+import { createAttributeRouter } from './modules/catalog/attribute.routes';
 
 export interface AppDeps {
   env: Env;
@@ -79,6 +81,7 @@ export function createApp(deps: AppDeps): Express {
   app.use('/api/stok', express.json({ limit: '512kb' }));
   app.use('/api/markalar', express.json({ limit: '3mb' }));
   app.use(['/api/kategoriler', '/api/katalog/kategoriler'], express.json({ limit: '3mb' }));
+  app.use(['/api/firsatlar', '/api/ozellikler'], express.json({ limit: '3mb' }));
   app.use(express.json({ limit: '10kb' }));
   app.use(cookieParser(env.COOKIE_SECRET));
 
@@ -109,13 +112,18 @@ export function createApp(deps: AppDeps): Express {
       logger,
     }),
   );
-  if (deps.stockRepo) app.use('/api/stok', createStockRouter(env, service, deps.stockRepo));
+  if (deps.stockRepo)
+    app.use('/api/stok', createStockRouter(env, service, deps.stockRepo, deps.catalogDb));
   if (deps.brandRepo) app.use('/api/markalar', createBrandRouter(env, service, deps.brandRepo));
   if (deps.catalogDb)
     app.use(
       ['/api/kategoriler', '/api/katalog/kategoriler'],
       createCatalogRouter(env, service, deps.catalogDb),
     );
+  if (deps.catalogDb) {
+    app.use('/api/firsatlar', createDealRouter(env, service, deps.catalogDb));
+    app.use('/api/ozellikler', createAttributeRouter(env, service, deps.catalogDb));
+  }
   app.use('/api', notFoundHandler);
 
   // Tek origin dağıtımı: derlenmiş SPA aynı sunucudan sunulur.

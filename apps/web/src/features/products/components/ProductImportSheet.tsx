@@ -4,11 +4,12 @@ import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import { Sheet } from '../../../components/ui/Sheet';
 import { IMPORT_COLUMNS, sampleImportCsv } from '../import.csv';
-import { productService } from '../services/product.service';
+import { useProductService } from '../services/product.service';
+import { dataError } from '../../../lib/catalog-data';
 import type { ImportPreview, ImportRow } from '../types';
 
 interface ProductImportSheetProps {
-  onDone: (result: { created: number; updated: number }) => void;
+  onDone: (result: { created: number; updated: number; errors?: string[] }) => void;
   onClose: () => void;
 }
 
@@ -38,6 +39,7 @@ const STATUS_STYLE: Record<ImportRow['status'], { label: string; cls: string }> 
  * satırlar kaydedilir, hatalılar atlanır.
  */
 export function ProductImportSheet({ onDone, onClose }: ProductImportSheetProps) {
+  const productService = useProductService();
   const [step, setStep] = useState<Step>(1);
   const [text, setText] = useState('');
   const [fileName, setFileName] = useState('');
@@ -64,31 +66,51 @@ export function ProductImportSheet({ onDone, onClose }: ProductImportSheetProps)
       setError('Dosya CSV olmalı. Excel\'de "Farklı Kaydet → CSV" ile kaydedin.');
       return;
     }
-    setText(await readText(file));
-    setFileName(file.name);
+    try {
+      setText(await readText(file));
+      setFileName(file.name);
+    } catch (error) {
+      setError(dataError(error));
+    }
   };
 
   const check = async () => {
     setBusy(true);
-    const result = await productService.previewImport(text);
-    setBusy(false);
-    if (result.missingColumns.length > 0) {
-      setError(`Dosyada şu sütunlar yok: ${result.missingColumns.join(', ')}.`);
-      return;
+    setError(null);
+    try {
+      const result = await productService.previewImport(text);
+      setBusy(false);
+      if (result.missingColumns.length > 0) {
+        setError(`Dosyada şu sütunlar yok: ${result.missingColumns.join(', ')}.`);
+        return;
+      }
+      if (result.rows.length === 0) {
+        setError('Dosyada okunacak ürün satırı bulunamadı.');
+        return;
+      }
+      setPreview(result);
+      setStep(3);
+    } catch (error) {
+      setError(dataError(error));
+    } finally {
+      setBusy(false);
     }
-    if (result.rows.length === 0) {
-      setError('Dosyada okunacak ürün satırı bulunamadı.');
-      return;
-    }
-    setPreview(result);
-    setStep(3);
   };
 
   const save = async () => {
     setBusy(true);
-    const result = await productService.commitImport(text);
-    setBusy(false);
-    onDone(result);
+    setError(null);
+    try {
+      const result = await productService.commitImport(text);
+      setBusy(false);
+      if ('errors' in result && result.errors?.length)
+        setError(result.errors.slice(0, 5).join(' · '));
+      onDone(result);
+    } catch (error) {
+      setError(dataError(error));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const saveCount = preview ? preview.newCount + preview.updateCount : 0;

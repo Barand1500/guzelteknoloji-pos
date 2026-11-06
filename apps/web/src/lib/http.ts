@@ -35,7 +35,7 @@ function isApiErrorBody(value: unknown): value is ApiErrorBody {
 
 export async function apiRequest<T>(
   path: string,
-  init: { method?: 'GET' | 'POST'; body?: unknown } = {},
+  init: { method?: 'GET' | 'POST'; body?: unknown; timeoutMs?: number } = {},
 ): Promise<T> {
   let response: Response;
   try {
@@ -47,7 +47,7 @@ export async function apiRequest<T>(
         ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       },
       body: init.body !== undefined ? JSON.stringify(init.body) : null,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(init.timeoutMs ?? REQUEST_TIMEOUT_MS),
     });
   } catch {
     throw new NetworkError();

@@ -52,6 +52,8 @@ model Kullanici {
   stokKartlari          StokKarti[]
   markalar              Marka[]
   kategoriler           Kategori[]
+  firsatlar             Firsat[]
+  ozellikSablonlari      OzellikSablonu[]
 
   @@map("kullanicilar")
 }
@@ -200,6 +202,7 @@ model StokKarti {
   digerVergi           StokSecenegi?      @relation("StockTax", fields: [digerVergiKimligi], references: [kimlik], map: "stok_kartlari_vergi_baglantisi")
   birimler             StokBirimi[]
   kategoriler          StokKartiKategori[]
+  firsatlar            StokFirsati[]
 
   @@unique([kullaniciKimligi, stokKodu], map: "stok_kartlari_kullanici_kod_tekil")
   @@unique([kullaniciKimligi, kayitIstegiKimligi], map: "stok_kartlari_kayit_istegi_tekil")
@@ -222,6 +225,7 @@ model Kategori {
   ust             Kategori?               @relation("KategoriAgaci", fields: [ustId], references: [id], onDelete: Restrict)
   altlar          Kategori[]              @relation("KategoriAgaci")
   stokKartlari    StokKartiKategori[]
+  ozellikSablonlari OzellikSablonKategori[]
   @@index([kullaniciId, ustId])
   @@map("kategoriler")
 }
@@ -233,6 +237,87 @@ model StokKartiKategori {
   kategori Kategori @relation(fields: [kategoriId], references: [id], onDelete: Cascade)
   @@id([stokKartiId, kategoriId])
   @@map("stok_karti_kategorileri")
+}
+
+model Firsat {
+  id Int @id @default(autoincrement())
+  kullaniciId Int @map("kullanici_id")
+  ad String @db.VarChar(120)
+  ikonDosyasi String? @map("ikon_dosyasi") @db.VarChar(255)
+  etkin Boolean @default(true)
+  resimdeGoster Boolean @map("resimde_goster")
+  konum String @db.VarChar(10)
+  boyut String @db.VarChar(10)
+  seoBasligi String @map("seo_basligi") @db.VarChar(250)
+  seoAciklamasi String @map("seo_aciklamasi") @db.VarChar(1000)
+  sira Int @default(0)
+  kullanici Kullanici @relation(fields: [kullaniciId], references: [kimlik], onDelete: Cascade)
+  stokKartlari StokFirsati[]
+  @@index([kullaniciId, sira])
+  @@map("firsatlar")
+}
+
+model StokFirsati {
+  stokKartiId Int @map("stok_karti_id")
+  firsatId Int @map("firsat_id")
+  stokKarti StokKarti @relation(fields: [stokKartiId], references: [kimlik], onDelete: Cascade)
+  firsat Firsat @relation(fields: [firsatId], references: [id], onDelete: Cascade)
+  @@id([stokKartiId, firsatId])
+  @@map("stok_firsatlari")
+}
+
+model OzellikSablonu {
+  id Int @id @default(autoincrement())
+  kullaniciId Int @map("kullanici_id")
+  ad String @db.VarChar(120)
+  tumUrunler Boolean @default(false) @map("tum_urunler")
+  sira Int @default(0)
+  kullanici Kullanici @relation(fields: [kullaniciId], references: [kimlik], onDelete: Cascade)
+  kategoriler OzellikSablonKategori[]
+  gruplar OzellikGrubu[]
+  @@index([kullaniciId, sira])
+  @@map("ozellik_sablonlari")
+}
+
+model OzellikSablonKategori {
+  sablonId Int @map("sablon_id")
+  kategoriId Int @map("kategori_id")
+  sablon OzellikSablonu @relation(fields: [sablonId], references: [id], onDelete: Cascade)
+  kategori Kategori @relation(fields: [kategoriId], references: [id], onDelete: Cascade)
+  @@id([sablonId, kategoriId])
+  @@map("ozellik_sablon_kategorileri")
+}
+
+model OzellikGrubu {
+  id Int @id @default(autoincrement())
+  sablonId Int @map("sablon_id")
+  ad String @db.VarChar(120)
+  tur String @db.VarChar(10)
+  filtre Boolean @default(false)
+  coklu Boolean @default(false)
+  varyant Boolean @default(false)
+  resimdeGoster Boolean @default(false) @map("resimde_goster")
+  konum String @db.VarChar(10)
+  boyut String @db.VarChar(10)
+  sira Int @default(0)
+  sablon OzellikSablonu @relation(fields: [sablonId], references: [id], onDelete: Cascade)
+  degerler OzellikDegeri[]
+  @@index([sablonId, sira])
+  @@map("ozellik_gruplari")
+}
+
+model OzellikDegeri {
+  id Int @id @default(autoincrement())
+  grupId Int @map("grup_id")
+  kod String @db.VarChar(120)
+  ad String @db.VarChar(120)
+  renk String? @db.VarChar(7)
+  gorselDosyasi String? @map("gorsel_dosyasi") @db.VarChar(255)
+  sira Int @default(0)
+  grup OzellikGrubu @relation(fields: [grupId], references: [id], onDelete: Cascade)
+  @@unique([grupId, kod])
+  @@index([grupId, sira])
+  @@map("ozellik_degerleri")
 }
 
 model StokBirimi {

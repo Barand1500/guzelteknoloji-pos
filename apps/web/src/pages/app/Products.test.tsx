@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseImport, sampleImportCsv } from '../../features/products/import.csv';
-import { productService } from '../../features/products/services/product.service';
+import { demoProductService as productService } from '../../features/products/services/product.demo';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
 
 const NAME_1 = 'FLEXYPOS FP-503 İ3-15.6" Dokunmatik POS';
@@ -84,12 +84,14 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     await waitFor(() => expect(rowCount()).toBe(10));
   });
 
-  it('satış anahtarı ürünü anında günceller ve kaydeder', async () => {
+  it('satış anahtarı kayıt tamamlanınca ürünü günceller', async () => {
     const user = await openProducts();
     await user.click(screen.getByRole('switch', { name: `${NAME_1} satışta` }));
-    expect(screen.getByRole('switch', { name: `${NAME_1} satışta` })).toHaveAttribute(
-      'aria-checked',
-      'false',
+    await waitFor(() =>
+      expect(screen.getByRole('switch', { name: `${NAME_1} satışta` })).toHaveAttribute(
+        'aria-checked',
+        'false',
+      ),
     );
     const saved = (await productService.list()).find((p) => p.id === 'p1');
     expect(saved?.salesOpen).toBe(false);

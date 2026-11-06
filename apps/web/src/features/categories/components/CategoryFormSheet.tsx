@@ -1,6 +1,7 @@
 import { Boxes, ChevronDown, ChevronRight, FolderInput } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
 import { SelectField, type SelectOption } from '../../../components/ui/SelectField';
 import { Sheet } from '../../../components/ui/Sheet';
 import { Switch } from '../../../components/ui/Switch';
@@ -20,6 +21,7 @@ interface CategoryFormSheetProps {
   categories: Category[];
   categoryNames: Record<string, string>;
   onSave: (draft: CategoryDraft) => Promise<void>;
+  saveError?: string | null;
   onAssign: (categoryId: string, productIds: string[]) => Promise<void>;
   onUnassign: (categoryId: string, productIds: string[]) => Promise<void>;
   /** Mevcut kategoriyi hemen taşır (Kaydet'ten bağımsız). */
@@ -41,6 +43,7 @@ export function CategoryFormSheet({
   categories,
   categoryNames,
   onSave,
+  saveError,
   onAssign,
   onUnassign,
   onMove,
@@ -140,6 +143,7 @@ export function CategoryFormSheet({
       }
     >
       <div className="flex flex-col gap-5">
+        {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <div className="grid gap-5 md:grid-cols-[15rem_minmax(0,1fr)]">
           <LogoPicker
             value={draft.imageUrl}

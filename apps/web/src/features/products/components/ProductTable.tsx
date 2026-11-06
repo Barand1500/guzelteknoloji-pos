@@ -1,6 +1,13 @@
 import { Check, MoreVertical } from 'lucide-react';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
-import { formatMoney, withVat, type ProductItem } from '../types';
+import {
+  currencyOf,
+  formatMoney,
+  vatOf,
+  withVat,
+  type PriceView,
+  type ProductItem,
+} from '../types';
 import { ProductThumb } from './ProductThumb';
 import { StockBadge } from './StockBadge';
 
@@ -87,9 +94,12 @@ export function ProductTable({
               </td>
               {p.prices.map((net, i) => (
                 <td key={i} className="p-3 text-right font-bold whitespace-nowrap">
-                  {formatMoney(withVat(net, p.vatRate), p.currency)}
+                  {formatMoney(
+                    withVat(net, vatOf(p, `p${i + 1}` as PriceView)),
+                    currencyOf(p, `p${i + 1}` as PriceView),
+                  )}
                   <span className="block text-xs font-medium text-ink-muted">
-                    KDV hariç {formatMoney(net, p.currency)}
+                    KDV hariç {formatMoney(net, currencyOf(p, `p${i + 1}` as PriceView))}
                   </span>
                 </td>
               ))}

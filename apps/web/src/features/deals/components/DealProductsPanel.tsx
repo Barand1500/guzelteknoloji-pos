@@ -2,7 +2,9 @@ import { Check, Minus, PackageOpen, Undo2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { SearchField } from '../../../components/ui/SearchField';
-import { dealService } from '../services/deal.service';
+import { useDealService } from '../services/deal.service';
+import { Alert } from '../../../components/ui/Alert';
+import { dataError } from '../../../lib/catalog-data';
 import type { Deal, DealProductRef } from '../types';
 import { BrandLogo } from '../../brands/components/BrandLogo';
 
@@ -28,6 +30,9 @@ const UNDO_MS = 6000;
  *   eklenenler kısa süre vurgulanır. Değişiklikler anında uygulanır (formdaki Kaydet'ten bağımsız).
  */
 export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPanelProps) {
+  const dealService = useDealService();
+  const [error, setError] = useState<string | null>(null);
+  const saving = useRef(false);
   const [products, setProducts] = useState<DealProductRef[] | null>(null);
   const [tab, setTab] = useState<Tab>('in');
   const [query, setQuery] = useState('');
@@ -39,13 +44,21 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
 
   useEffect(() => {
     let active = true;
-    void dealService.listProducts().then((list) => active && setProducts(list));
+    void dealService
+      .listProducts()
+      .then((list) => active && setProducts(list))
+      .catch((error) => {
+        if (active) {
+          setError(dataError(error));
+          setProducts([]);
+        }
+      });
     const pending = timers.current;
     return () => {
       active = false;
       pending.forEach((t) => window.clearTimeout(t));
     };
-  }, []);
+  }, [dealService]);
 
   const mine = useMemo(
     () => (products ?? []).filter((p) => p.dealIds.includes(deal.id)),
@@ -75,7 +88,11 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
   };
 
   // Anında uygula: ekran hemen güncellenir, kayıt arkadan yapılır.
-  const apply = (ids: string[], toDeal: boolean) => {
+  const apply = async (ids: string[], toDeal: boolean) => {
+    if (saving.current) return false;
+    saving.current = true;
+    setError(null);
+    const previous = products;
     setProducts((list) =>
       (list ?? []).map((p) =>
         !ids.includes(p.id)
@@ -90,7 +107,18 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
             },
       ),
     );
-    void (toDeal ? onAssign(deal.id, ids) : onUnassign(deal.id, ids));
+    try {
+      await (toDeal ? onAssign(deal.id, ids) : onUnassign(deal.id, ids));
+      return true;
+    } catch (error) {
+      setProducts(previous);
+      setUndo(null);
+      setFresh(new Set());
+      setError(dataError(error));
+      return false;
+    } finally {
+      saving.current = false;
+    }
   };
 
   const togglePick = (id: string) =>
@@ -111,10 +139,10 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
       return next;
     });
 
-  const addPicked = () => {
+  const addPicked = async () => {
     const ids = [...picked];
     if (ids.length === 0) return;
-    apply(ids, true);
+    if (!(await apply(ids, true))) return;
     setPicked(new Set());
     setQuery('');
     setUndo(null);
@@ -124,15 +152,15 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
     setTab('in');
   };
 
-  const removeOne = (p: DealProductRef) => {
-    apply([p.id], false);
+  const removeOne = async (p: DealProductRef) => {
+    if (!(await apply([p.id], false))) return;
     setUndo({ ids: [p.id], label: p.name });
     later(() => setUndo((u) => (u?.ids[0] === p.id ? null : u)), UNDO_MS);
   };
 
-  const undoRemove = () => {
+  const undoRemove = async () => {
     if (!undo) return;
-    apply(undo.ids, true);
+    if (!(await apply(undo.ids, true))) return;
     setFresh(new Set(undo.ids));
     later(() => setFresh(new Set()), FRESH_MS);
     setUndo(null);
@@ -151,6 +179,7 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
 
   return (
     <div className="flex min-h-full flex-col gap-4">
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <div
         role="tablist"
         aria-label="Ürün işlemleri"

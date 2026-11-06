@@ -1,6 +1,7 @@
 import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
 import { Sheet } from '../../../components/ui/Sheet';
 import { TextField } from '../../../components/ui/TextField';
 import { LogoPicker } from '../../brands/components/LogoPicker';
@@ -19,6 +20,7 @@ interface ValueFormSheetProps {
   /** Aynı gruptaki diğer özelliklerin adları (aynı ad iki kez eklenmesin). */
   takenNames: string[];
   onSave: (draft: ValueDraft) => Promise<void>;
+  saveError?: string | null;
   onDelete?: () => void;
   onClose: () => void;
 }
@@ -50,6 +52,7 @@ export function ValueFormSheet({
   value,
   takenNames,
   onSave,
+  saveError,
   onDelete,
   onClose,
 }: ValueFormSheetProps) {
@@ -87,6 +90,7 @@ export function ValueFormSheet({
       size="md"
     >
       <div className="flex flex-col gap-5">
+        {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <TextField
           label="Özellik Adı"
           value={draft.name}

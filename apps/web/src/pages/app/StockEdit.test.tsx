@@ -1,7 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { productService } from '../../features/products/services/product.service';
+import { demoProductService as productService } from '../../features/products/services/product.demo';
+import { draftFromProduct } from '../../features/products/product.draft';
 import { anonymousRoutes, jsonResponse, mockFetch, renderApp } from '../../test/utils';
 
 const NAME_1 = 'FLEXYPOS FP-503 İ3-15.6" Dokunmatik POS';
@@ -116,19 +117,28 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
     expect(screen.getByRole('button', { name: 'Tekrar Dene' })).toBeInTheDocument();
   });
 
-  it('gerçek hesapla da sahte listeden Düzenle çalışır (sunucuya gitmez, deneme ürünü olarak açılır)', async () => {
-    mockFetch({
+  it('gerçek hesapta liste ve düzenleme sunucudan açılır; deneme girişi bunu değiştirmez', async () => {
+    sessionStorage.setItem('gt-dev-access', '1');
+    const item = { ...(await productService.list())[0]!, id: '123' };
+    const draft = draftFromProduct(item);
+    const fetch = mockFetch({
       ...anonymousRoutes,
       'GET /api/auth/me': () =>
         jsonResponse(200, {
           user: { id: 'u1', email: 'a@b.com', displayName: null, avatarUrl: null },
         }),
+      'GET /api/stok/kartlar': () =>
+        jsonResponse(200, { items: [item], total: 1, page: 1, pageSize: 200 }),
+      'GET /api/stok/kartlar/123': () => jsonResponse(200, draft),
     });
     const user = userEvent.setup();
     renderApp('/uygulama/urunler');
-    await user.dblClick(await screen.findByText(NAME_1));
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('FLEXYPOS.FP-503');
-    expect(screen.getByText(/Deneme ürünü/)).toBeInTheDocument();
+    await user.dblClick(await screen.findByText(item.name));
+    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue(item.code);
+    expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/api/stok/kartlar/123'))).toBe(
+      true,
+    );
+    expect(screen.queryByText(/Deneme ürünü/)).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 

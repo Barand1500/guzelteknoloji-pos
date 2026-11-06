@@ -9,6 +9,8 @@ import { readSessionToken } from '../auth/auth.cookies';
 import type { AuthService } from '../auth/auth.service';
 import type { StockRepository } from './stock.repository';
 import { stockBulkSchema, stockListQuery } from './stock.api';
+import type { PrismaClient } from '../../lib/prisma';
+import { importSchema, StockImport } from './stock-import';
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
@@ -17,7 +19,12 @@ function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   return result.data;
 }
 
-export function createStockRouter(env: Env, service: AuthService, repo: StockRepository) {
+export function createStockRouter(
+  env: Env,
+  service: AuthService,
+  repo: StockRepository,
+  db?: PrismaClient,
+) {
   const router = Router();
   router.use(async (req, res, next) => {
     const token = readSessionToken(req, env);
@@ -29,6 +36,19 @@ export function createStockRouter(env: Env, service: AuthService, repo: StockRep
     next();
   });
   router.use(createRateLimiter({ enabled: env.rateLimitEnabled, windowMs: 60000, limit: 120 }));
+  if (db) {
+    const importer = new StockImport(db, repo);
+    router.post('/aktarim/onizle', async (req, res) =>
+      res.json(
+        await importer.preview(res.locals.stockUserId as string, importSchema.parse(req.body).text),
+      ),
+    );
+    router.post('/aktarim/kaydet', async (req, res) =>
+      res.json(
+        await importer.commit(res.locals.stockUserId as string, importSchema.parse(req.body).text),
+      ),
+    );
+  }
   router.get('/secenekler', async (_req, res) =>
     res.json(await repo.getLookups(res.locals.stockUserId as string)),
   );

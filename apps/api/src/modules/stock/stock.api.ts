@@ -13,6 +13,7 @@ export const stockListQuery = z.object({
   boyut: z.coerce.number().int().min(1).max(200).default(10),
   kategori: filterId,
   marka: filterId,
+  kimlik: filterId,
   stok: z.enum(['', 'all', 'in', 'out', 'unlimited']).default('all'),
   satis: z.enum(['', 'all', 'open', 'closed']).default('all'),
 });
@@ -50,6 +51,8 @@ export interface ProductListItem {
   dealIds: string[];
   priceVatRates: [number, number, number];
   priceCurrencies: [string, string, string];
+  costVatRate: number;
+  costCurrency: string;
 }
 
 export interface ProductListPage {

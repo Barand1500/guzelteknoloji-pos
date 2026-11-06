@@ -1,6 +1,6 @@
 # Stok ve kategori API sözleşmesi
 
-2026-11-06 kararı. Bu değişiklik sunucu, Prisma şeması ve migration içindir. Shared paket ve ön yüz bu çalışmada değiştirilmez; yeni ön yüz sözleşmesi geldiğinde giriş/çıkış adaptörü birlikte uyarlanır. Fırsat, özellik, ürün görseli, ürün açıklaması ve ürün SEO tabloları ertelendi. E-posta kodları bilinçli olarak MySQL'dedir.
+2026-11-06 güncellemesi: Ürünler, Kategoriler, Fırsatlar ve Özellikler ekranları gerçek oturumda API/MySQL kullanır. Deneme kullanıcısı ayrı `.demo.ts` servislerinde kalır. Shared paket değiştirilmedi; mevcut stok taslağı adaptörü korunur. Ürün görseli, ürün açıklaması ve ürün SEO kayıtları ayrı kapsamdır. E-posta kodları bilinçli olarak MySQL'dedir. Fırsat ve özellik uçları: [katalog-api.md](katalog-api.md).
 
 ## Veritabanı
 
@@ -44,7 +44,20 @@ Satırda `ProductItem` alanları bulunur: `id`, `code`, `name`, `stockType`, `br
 
 `prices[0..2]`: ana birimin `fiyat`, `perakende`, `toptan` listelerindeki KDV hariç, indirim uygulanmış satış fiyatları. `cost`: `fiyat` listesinin KDV hariç alış fiyatı. Hesap veritabanındaki ondalıklarla yapılır. Eksik tutar 0 gösterilir; başka listeden fiyat kopyalanmaz. Ana birim yoksa fiyatlar 0'dır. Eski `currency` simge, `vatRate` ilk satış fiyatının oranıdır. Fiyat listelerinde farklı KDV/para birimleri kullanılabildiği için `priceVatRates` ve ISO kodlu `priceCurrencies` dizileri ayrıca döner; ön yüz farklı oranları gösterirken bunları kullanmalıdır.
 
-Ürün görseli ve fırsat tabloları ertelendiğinden `imageUrl: null`, `dealIds: []` döner. Örnek görsel/fırsat üretilmez.
+`dealIds`, `stok_firsatlari` ilişkilerinden döner. Ürün görseli kapsamı ertelendiğinden `imageUrl: null` döner; örnek ürün görseli üretilmez. Ön yüz her fiyatın kendi `priceVatRates` / `priceCurrencies` bilgisini kullanır. Alış fiyatı için `costVatRate`, `costCurrency` döner; farklı para birimlerindeki alış/satış arasında kâr yüzdesi hesaplanmaz.
+
+Ön yüz mevcut çoklu süzgeçleri ve sayfalama düzenini korumak için sayfalı API'den tüm kayıtları 200'lük parçalarla yükler. Sahte ürün listesine geri dönmez. `kimlik` sorgusu tek ürün satırını seçer. Gerçek hesapta düzenleme ve kopyalama aynı stok kartı API'sini kullanır; metin ID'li deneme ürünü istisnası kaldırıldı.
+
+## CSV ürün aktarımı
+
+- `POST /api/stok/aktarim/onizle`: `{text}` → `{rows, missingColumns, newCount, updateCount, errorCount}`.
+- `POST /api/stok/aktarim/kaydet`: `{text}` → `{created, updated, errors: string[]}`.
+- UTF-8 CSV, en fazla 400.000 karakter ve 1000 satır. Zorunlu sütunlar: Stok Kodu, Ürün Adı, Fiyat 1. Fiyatlar KDV hariçtir; 6 ondalık basamağa kadar kabul edilir.
+- Aynı stok kodu varsa mevcut kart güncellenir. Dosyada tekrarlanan kodun ikinci satırı reddedilir. Boş isteğe bağlı alanlar güncellemede önceki değerleri korur. Stok miktarı verilince kapalı stok takibi açılır. Diğer satış/takip ayarları ve kategori bağları korunur.
+- Marka mevcut aktif marka adıyla eşleşir; aktarım sessizce marka veya kategori oluşturmaz. Kategori adına birden fazla eşleşme varsa `Ana > Alt` tam yolu gerekir; kategori eklemesi mevcut bağları silmez.
+- Önizleme yazma yapmaz. Onayda yeniden doğrulanır. Her geçerli satır, birim/fiyat/stok/kategoriyle tek transaction içinde kaydedilir. Hatalı satırlar atlanır ve nedenleri döner; kısmi hata ekranda gösterilir.
+
+Stok kartı formunda birim ve barkod değişiklikleri artık bütün fiyat listelerine birlikte yansır; yalnızca alış/satış fiyat blokları listeye özeldir. Shared paketin geçici liste temelli gövdesi veritabanında çoğaltılmaz.
 
 ## Toplu işlem
 

@@ -11,12 +11,18 @@ export interface ProductItem {
   brandId: string | null;
   brandName: string;
   categoryId: string | null;
+  categoryIds?: string[];
+  categoryNames?: string[];
   categoryName: string;
   imageUrl: string | null;
   /** Para birimi simgesi (ör. "$", "₺"). */
   currency: string;
   /** KDV yüzdesi (ör. 20). */
   vatRate: number;
+  priceVatRates?: [number, number, number];
+  priceCurrencies?: [string, string, string];
+  costVatRate?: number;
+  costCurrency?: string;
   /** KDV HARİÇ satış fiyatları: Fiyat 1, 2, 3. */
   prices: [number, number, number];
   /** KDV hariç alış fiyatı. */
@@ -73,6 +79,13 @@ export const withVat = (net: number, vatRate: number): number =>
 export const netOf = (p: ProductItem, view: PriceView): number =>
   view === 'cost' ? p.cost : p.prices[view === 'p1' ? 0 : view === 'p2' ? 1 : 2];
 
+const priceIndex = (view: PriceView) => (view === 'p1' ? 0 : view === 'p2' ? 1 : 2);
+export const vatOf = (p: ProductItem, view: PriceView): number =>
+  (view === 'cost' ? p.costVatRate : p.priceVatRates?.[priceIndex(view)]) ?? p.vatRate;
+const symbol = (code: string) => ({ TRY: '₺', USD: '$', EUR: '€' })[code] ?? code;
+export const currencyOf = (p: ProductItem, view: PriceView): string =>
+  symbol((view === 'cost' ? p.costCurrency : p.priceCurrencies?.[priceIndex(view)]) ?? p.currency);
+
 export const formatMoney = (amount: number, currency: string): string =>
   `${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 
@@ -85,7 +98,12 @@ export function stockLabel(p: ProductItem): { text: string; tone: 'ok' | 'none' 
 
 /** Süzgeçleri bir ürüne uygular. */
 export function matchesFilters(p: ProductItem, f: ProductFilters): boolean {
-  if (f.categoryIds.length > 0 && !(p.categoryId && f.categoryIds.includes(p.categoryId)))
+  if (
+    f.categoryIds.length > 0 &&
+    !(p.categoryIds ?? (p.categoryId ? [p.categoryId] : [])).some((id) =>
+      f.categoryIds.includes(id),
+    )
+  )
     return false;
   if (f.brandIds.length > 0 && !(p.brandId && f.brandIds.includes(p.brandId))) return false;
   if (f.stock === 'in' && !(p.stockTracking && p.stock > 0)) return false;
@@ -95,7 +113,7 @@ export function matchesFilters(p: ProductItem, f: ProductFilters): boolean {
   if (f.sales === 'closed' && p.salesOpen) return false;
   if (f.deal === 'with' && p.dealIds.length === 0) return false;
   if (f.deal === 'without' && p.dealIds.length > 0) return false;
-  const price = withVat(p.prices[0], p.vatRate);
+  const price = withVat(p.prices[0], vatOf(p, 'p1'));
   const min = Number.parseFloat(f.minPrice.replace(',', '.'));
   const max = Number.parseFloat(f.maxPrice.replace(',', '.'));
   if (Number.isFinite(min) && price < min) return false;

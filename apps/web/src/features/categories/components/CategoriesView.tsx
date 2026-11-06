@@ -2,6 +2,7 @@ import { ChevronLeft, FolderTree, Plus } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
@@ -167,6 +168,7 @@ export function CategoriesView() {
       showNotice(`${c.name}, ${target} içine taşındı.`);
     } catch (error) {
       showNotice(error instanceof Error ? error.message : 'Taşınamadı.');
+      throw error;
     }
   };
   const openProducts = (c: Category) => {
@@ -265,6 +267,14 @@ export function CategoriesView() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      {cats.error ? (
+        <Alert tone="error">
+          {cats.error}
+          <button type="button" className="ml-3 underline" onClick={() => void cats.refresh()}>
+            Tekrar Dene
+          </button>
+        </Alert>
+      ) : null}
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <SearchField
@@ -437,6 +447,7 @@ export function CategoriesView() {
           categories={categories}
           categoryNames={names}
           onSave={saveCategory}
+          saveError={cats.error}
           onAssign={cats.assign}
           onUnassign={cats.unassign}
           onMove={(id, parentId) => cats.move(id, parentId)}
@@ -476,7 +487,7 @@ export function CategoriesView() {
             : ''
         }
         confirmLabel="Sil"
-        onConfirm={() => void confirmDelete()}
+        onConfirm={() => void confirmDelete().catch(() => undefined)}
         onClose={() => setDeleting(null)}
       />
     </div>

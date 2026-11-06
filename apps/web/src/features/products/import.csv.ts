@@ -94,8 +94,8 @@ export function parseImport(rawText: string): ParsedImport {
 export function sampleImportCsv(): string {
   const lines = [
     IMPORT_COLUMNS.map((c) => c.title).join(';'),
-    'ORNEK-001;Örnek Dokunmatik POS 15";Dokunmatik POS;FLEXYPOS;265,00;275,00;375,00;224,00;20;5',
-    'ORNEK-002;Örnek Barkod Okuyucu;Barkod Okuyucular;;650,00;;;520,00;20;',
+    'ORNEK-001;Örnek Dokunmatik POS 15";265,00;Dokunmatik POS;FLEXYPOS;275,00;375,00;224,00;20;5',
+    'ORNEK-002;Örnek Barkod Okuyucu;650,00;Barkod Okuyucular;;;;520,00;20;',
   ];
   return `${BOM}${lines.join('\r\n')}\r\n`;
 }

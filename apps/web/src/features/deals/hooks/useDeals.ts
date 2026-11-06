@@ -1,60 +1,26 @@
-import { useCallback, useEffect, useState } from 'react';
-import { dealService } from '../services/deal.service';
+import { useCallback } from 'react';
+import { useDealService } from '../services/deal.service';
+import { useManagedData } from '../../../lib/useManagedData';
 import type { Deal, DealDraft } from '../types';
-
-/**
- * Fırsat listesinin durumu. Aç/kapa ve sıralama "iyimser" çalışır: ekran anında güncellenir,
- * servis arkadan kaydeder. Gerçek API gelince yalnızca deal.service.ts değişir.
- */
 export function useDeals() {
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    void dealService.list().then((list) => {
-      if (!active) return;
-      setDeals(list);
-      setLoading(false);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const refresh = useCallback(async () => setDeals(await dealService.list()), []);
-
-  const toggleActive = (id: string, active: boolean) => {
-    setDeals((list) => list.map((d) => (d.id === id ? { ...d, active } : d)));
-    void dealService.setActive(id, active);
+  const service = useDealService();
+  const load = useCallback(() => service.list(), [service]);
+  const state = useManagedData<Deal[]>(load, []);
+  return {
+    deals: state.data,
+    loading: state.loading,
+    error: state.error,
+    refresh: state.refresh,
+    toggleActive: (id: string, active: boolean) => {
+      void state.perform(() => service.setActive(id, active)).catch(() => undefined);
+    },
+    reorder: (next: Deal[]) => {
+      void state.perform(() => service.reorder(next.map((d) => d.id))).catch(() => undefined);
+    },
+    save: (draft: DealDraft, id?: string) =>
+      state.perform(() => (id ? service.update(id, draft) : service.create(draft))),
+    remove: (id: string) => state.perform(() => service.remove(id)),
+    assign: (id: string, ids: string[]) => state.perform(() => service.assignProducts(id, ids)),
+    unassign: (id: string, ids: string[]) => state.perform(() => service.unassignProducts(id, ids)),
   };
-
-  const reorder = (next: Deal[]) => {
-    setDeals(next);
-    void dealService.reorder(next.map((d) => d.id));
-  };
-
-  /** Kimlik verilirse günceller, verilmezse yeni fırsat ekler (listenin sonuna). */
-  const save = async (draft: DealDraft, id?: string): Promise<Deal> => {
-    const saved = id ? await dealService.update(id, draft) : await dealService.create(draft);
-    await refresh();
-    return saved;
-  };
-
-  const remove = async (id: string) => {
-    await dealService.remove(id);
-    await refresh();
-  };
-
-  const assign = async (dealId: string, productIds: string[]) => {
-    await dealService.assignProducts(dealId, productIds);
-    await refresh();
-  };
-
-  const unassign = async (dealId: string, productIds: string[]) => {
-    await dealService.unassignProducts(dealId, productIds);
-    await refresh();
-  };
-
-  return { deals, loading, toggleActive, reorder, save, remove, assign, unassign };
 }

@@ -23,6 +23,12 @@ export interface StockRepository {
   getDraft(userId: string, id: string): Promise<unknown>;
   list(userId: string, query: StockListQuery): Promise<ProductListPage>;
   bulk(userId: string, input: StockBulkInput): Promise<{ affected: number }>;
+  saveImported(
+    userId: string,
+    input: CreateStockInput,
+    id: string | undefined,
+    metadata: { stock?: string; categoryId?: number },
+  ): Promise<{ id: string }>;
 }
 
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -236,8 +242,21 @@ export class PrismaStockRepository implements StockRepository {
   async update(userId: string, id: string, input: CreateStockInput) {
     return this.saveCard(userId, input, Number(id));
   }
+  async saveImported(
+    userId: string,
+    input: CreateStockInput,
+    id: string | undefined,
+    metadata: { stock?: string; categoryId?: number },
+  ) {
+    return this.saveCard(userId, input, id === undefined ? undefined : Number(id), metadata);
+  }
 
-  private async saveCard(userId: string, input: CreateStockInput, cardId?: number) {
+  private async saveCard(
+    userId: string,
+    input: CreateStockInput,
+    cardId?: number,
+    metadata?: { stock?: string; categoryId?: number },
+  ) {
     const common = commonUnits(input.draft);
     await this.ensureDefaults(userId);
     const requestHash = hash(JSON.stringify(input.draft));
@@ -257,6 +276,14 @@ export class PrismaStockRepository implements StockRepository {
                   });
             if (cardId !== undefined && !current)
               throw new HttpError(404, 'NOT_FOUND', 'Stok kartı bulunamadı.');
+            if (
+              metadata?.categoryId !== undefined &&
+              !(await tx.kategori.findFirst({
+                where: { id: metadata.categoryId, kullaniciId: Number(userId) },
+                select: { id: true },
+              }))
+            )
+              throw new HttpError(404, 'NOT_FOUND', 'Kategori bulunamadı.');
             const replay = await tx.stokKarti.findUnique({
               where: {
                 kullaniciKimligi_kayitIstegiKimligi: {
@@ -427,6 +454,19 @@ export class PrismaStockRepository implements StockRepository {
               },
             };
             // Kart numarası, satış durumu, stok miktarı ve kategoriler güncellemede korunur.
+            const finish = async (id: number) => {
+              if (metadata?.stock !== undefined)
+                await tx.stokKarti.update({
+                  where: { kimlik: id },
+                  data: { stokMiktari: new Prisma.Decimal(metadata.stock) },
+                });
+              if (metadata?.categoryId !== undefined)
+                await tx.stokKartiKategori.createMany({
+                  skipDuplicates: true,
+                  data: [{ stokKartiId: id, kategoriId: metadata.categoryId }],
+                });
+              return { id: String(id) };
+            };
             if (cardId !== undefined) {
               await tx.stokBirimi.deleteMany({ where: { stokKartiKimligi: cardId } });
               const saved = await tx.stokKarti.update({
@@ -434,13 +474,13 @@ export class PrismaStockRepository implements StockRepository {
                 data: changes,
                 select: { kimlik: true },
               });
-              return { id: String(saved.kimlik) };
+              return finish(saved.kimlik);
             }
             const saved = await tx.stokKarti.create({
               data: { kullaniciKimligi: Number(userId), ...changes },
               select: { kimlik: true },
             });
-            return { id: String(saved.kimlik) };
+            return finish(saved.kimlik);
           },
           { timeout: 15000 },
         ),
@@ -572,6 +612,7 @@ export class PrismaStockRepository implements StockRepository {
         { birimler: { some: { barkodlar: { some: { barkod: { contains: query.arama } } } } } },
       ];
     if (query.marka) where.markaKimligi = Number(query.marka);
+    if (query.kimlik) where.kimlik = Number(query.kimlik);
     if (query.kategori) where.kategoriler = { some: { kategoriId: Number(query.kategori) } };
     if (query.stok === 'unlimited') where.envanterTakibi = 'yok';
     if (query.stok === 'in' || query.stok === 'out') {
@@ -589,6 +630,7 @@ export class PrismaStockRepository implements StockRepository {
           skip: (query.sayfa - 1) * query.boyut,
           take: query.boyut,
           include: {
+            firsatlar: true,
             marka: true,
             stokTipi: true,
             kategoriler: { orderBy: { kategoriId: 'asc' }, include: { kategori: true } },
@@ -631,10 +673,12 @@ export class PrismaStockRepository implements StockRepository {
             vatRate: Number(first?.kdvOrani ?? 0),
             prices: [excludingVat(sales[0]), excludingVat(sales[1]), excludingVat(sales[2])],
             cost: excludingVat(purchase),
+            costVatRate: Number(purchase?.kdvOrani ?? 0),
+            costCurrency: purchase?.paraBirimi ?? 'TRY',
             stock: Number(card.stokMiktari),
             stockTracking: card.envanterTakibi !== 'yok',
             salesOpen: card.satisAcik,
-            dealIds: [],
+            dealIds: card.firsatlar.map((f) => String(f.firsatId)),
             priceVatRates: [
               Number(sales[0]?.kdvOrani ?? 0),
               Number(sales[1]?.kdvOrani ?? 0),

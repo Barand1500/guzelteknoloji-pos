@@ -1,6 +1,7 @@
 import { Boxes, ChevronDown, ChevronRight } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
 import { Sheet } from '../../../components/ui/Sheet';
 import { Switch } from '../../../components/ui/Switch';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
@@ -14,6 +15,7 @@ interface DealFormSheetProps {
   /** Düzenlenen fırsat (güncel ürün sayısıyla); yoksa yeni fırsat eklenir. */
   deal: Deal | null;
   onSave: (draft: DealDraft) => Promise<void>;
+  saveError?: string | null;
   onAssign: (dealId: string, productIds: string[]) => Promise<void>;
   onUnassign: (dealId: string, productIds: string[]) => Promise<void>;
   onClose: () => void;
@@ -27,7 +29,14 @@ const ICON_REQUIRED = 'Rozet olarak kullanılacak bir ikon yükleyin.';
  * yazısı ve ürün resmindeki yeri tek yerde ayarlanır; yer ve boyut ÖRNEK ÜRÜN RESMİ üzerinde
  * canlı görünür. SEO "Gelişmiş" altında katlıdır. Her açılışta yeniden kurulur (key ile).
  */
-export function DealFormSheet({ deal, onSave, onAssign, onUnassign, onClose }: DealFormSheetProps) {
+export function DealFormSheet({
+  deal,
+  onSave,
+  saveError,
+  onAssign,
+  onUnassign,
+  onClose,
+}: DealFormSheetProps) {
   const [panelOpen, setPanelOpen] = useState(false);
   const productsButton = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState<DealDraft>(() => {
@@ -82,6 +91,7 @@ export function DealFormSheet({ deal, onSave, onAssign, onUnassign, onClose }: D
       }
     >
       <div className="flex flex-col gap-5">
+        {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <TextField
           label="Fırsat Adı"
           value={draft.name}

@@ -22,6 +22,14 @@ export interface StockEditorOptions {
   cardId?: string;
 }
 
+/** Fiyat listesi açılırken ortak birimler korunur; yalnızca fiyat blokları boş başlar. */
+function forPriceList(rows: UnitRow[]): UnitRow[] {
+  return rows.map((row) => {
+    const empty = createUnitRow(row.isMain, row.unit);
+    return { ...structuredClone(row), purchase: empty.purchase, sale: empty.sale };
+  });
+}
+
 export function useStockEditor(
   lookups: StockLookups,
   service: StockService,
@@ -43,12 +51,26 @@ export function useStockEditor(
     // Aktif fiyat listesinin birim satırı yoksa (eski kart) boş bir ana birim eklenir.
     return start.units[firstListId]
       ? start
-      : { ...start, units: { ...start.units, [firstListId]: [createUnitRow(true)] } };
+      : {
+          ...start,
+          units: {
+            ...start.units,
+            [firstListId]: forPriceList(Object.values(start.units)[0] ?? [createUnitRow(true)]),
+          },
+        };
   });
   const [activeList, selectList] = useState(firstListId);
   const setActiveList = (id: string) => {
     setDraft((d) =>
-      d.units[id] ? d : { ...d, units: { ...d.units, [id]: [createUnitRow(true)] } },
+      d.units[id]
+        ? d
+        : {
+            ...d,
+            units: {
+              ...d.units,
+              [id]: forPriceList(Object.values(d.units)[0] ?? [createUnitRow(true)]),
+            },
+          },
     );
     selectList(id);
   };
@@ -66,7 +88,27 @@ export function useStockEditor(
   // ---- Birim satırları (aktif fiyat listesi) -----------------------------------------
   const rows = draft.units[activeList] ?? [];
   const setRows = (listId: string, next: UnitRow[]) =>
-    setDraft((d) => ({ ...d, units: { ...d.units, [listId]: next } }));
+    setDraft((d) => ({
+      ...d,
+      units: Object.fromEntries(
+        Object.entries(d.units).map(([id, oldRows]) => [
+          id,
+          id === listId
+            ? next
+            : next.map((row, index) => {
+                const old =
+                  oldRows.find((item) => item.id === row.id) ??
+                  (oldRows[index]?.unit === row.unit ? oldRows[index] : undefined);
+                const empty = createUnitRow(row.isMain, row.unit);
+                return {
+                  ...structuredClone(row),
+                  purchase: old?.purchase ?? empty.purchase,
+                  sale: old?.sale ?? empty.sale,
+                };
+              }),
+        ]),
+      ),
+    }));
 
   const updateRow = (rowId: string, patch: Partial<UnitRow>) => {
     if (patch.isMain === true) {
@@ -132,7 +174,13 @@ export function useStockEditor(
       setDraft((d) =>
         d.units[created.value]
           ? d
-          : { ...d, units: { ...d.units, [created.value]: [createUnitRow(true)] } },
+          : {
+              ...d,
+              units: {
+                ...d.units,
+                [created.value]: forPriceList(Object.values(d.units)[0] ?? [createUnitRow(true)]),
+              },
+            },
       );
       setActiveList(created.value);
     } catch {

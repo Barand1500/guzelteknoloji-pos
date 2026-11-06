@@ -2,7 +2,7 @@
 import { stockLookupsMock } from '../../../mocks/stock.mock';
 import { demoBrandService } from '../../brands/services/brand.demo';
 import { draftFromProduct, patchFromDraft } from '../../products/product.draft';
-import { productService } from '../../products/services/product.service';
+import { demoProductService as productService } from '../../products/services/product.demo';
 import type { OptionListKey, StockCardDraft, StockLookups } from '../types';
 import type { StockService } from './stock.service';
 

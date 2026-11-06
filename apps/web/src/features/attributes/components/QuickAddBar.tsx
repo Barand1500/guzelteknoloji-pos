@@ -5,7 +5,7 @@ import type { ValueKind } from '../types';
 interface QuickAddBarProps {
   kind: ValueKind;
   /** Yazıyı ekler; hata varsa (aynı ad vb.) mesaj döndürür. */
-  onAdd: (name: string, color: string | null) => string | null;
+  onAdd: (name: string, color: string | null) => Promise<string | null>;
   /** Resimli gruplarda hızlı giriş yoktur; resim yüklemek için form açılır. */
   onOpenForm: () => void;
 }
@@ -18,6 +18,7 @@ export function QuickAddBar({ kind, onAdd, onOpenForm }: QuickAddBarProps) {
   const [text, setText] = useState('');
   const [color, setColor] = useState('#4f5380');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   if (kind === 'image') {
     return (
@@ -32,14 +33,17 @@ export function QuickAddBar({ kind, onAdd, onOpenForm }: QuickAddBarProps) {
     );
   }
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (busy) return;
     const name = text.trim();
     if (name === '') {
       setError('Önce özelliğin adını yazın.');
       return;
     }
-    const problem = onAdd(name, kind === 'color' ? color : null);
+    setBusy(true);
+    const problem = await onAdd(name, kind === 'color' ? color : null);
+    setBusy(false);
     if (problem) {
       setError(problem);
       return;
@@ -74,6 +78,7 @@ export function QuickAddBar({ kind, onAdd, onOpenForm }: QuickAddBarProps) {
         />
         <button
           type="submit"
+          disabled={busy}
           className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-brand-700 px-4 text-sm font-bold text-white transition-colors hover:bg-brand-800 active:bg-brand-900"
         >
           <Plus className="size-4" aria-hidden="true" />

@@ -14,6 +14,7 @@ interface TemplateFormSheetProps {
   template: AttrTemplate | null;
   categories: Category[];
   onSave: (draft: TemplateDraft) => Promise<void>;
+  saveError?: string | null;
   onClose: () => void;
 }
 
@@ -29,6 +30,7 @@ export function TemplateFormSheet({
   template,
   categories,
   onSave,
+  saveError,
   onClose,
 }: TemplateFormSheetProps) {
   const [draft, setDraft] = useState<TemplateDraft>(() =>
@@ -69,6 +71,7 @@ export function TemplateFormSheet({
   return (
     <Sheet open onClose={onClose} title={template ? 'Şablonu Düzenle' : 'Şablon Ekle'} size="lg">
       <div className="flex flex-col gap-5">
+        {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <TextField
           label="Şablon Adı"
           value={draft.name}

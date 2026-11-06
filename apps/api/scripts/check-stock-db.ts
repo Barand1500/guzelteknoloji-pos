@@ -19,6 +19,7 @@ import { PrismaAuthRepository } from '../src/modules/auth/auth.repository';
 import { PrismaStockRepository } from '../src/modules/stock/stock.repository';
 import { InMemoryEmailCodeStore } from '../src/tests/in-memory-email-code.store';
 import { stockFixture } from '../src/tests/stock.fixture';
+import { checkCatalog } from './check-catalog';
 
 const raw = process.env.DB_MIGRATION_TEST_URL;
 if (!raw) throw new Error('DB_MIGRATION_TEST_URL gerekli.');
@@ -913,6 +914,14 @@ try {
     } finally {
       await connection.query('DROP TRIGGER reject_stock_price');
     }
+    await checkCatalog(
+      app,
+      prisma,
+      [cookie(), cookie(1)],
+      env.APP_URL,
+      cardNumber,
+      brandDraft.logoUrl,
+    );
     if (process.env.STOCK_BROWSER_TEST === '1') {
       const server = app.listen(0, '127.0.0.1');
       await once(server, 'listening');
@@ -929,6 +938,7 @@ try {
               'test',
               'stock.persistence.spec.ts',
               'brands.persistence.spec.ts',
+              'catalog.persistence.spec.ts',
               '--workers=2',
             ],
             {
@@ -959,7 +969,7 @@ try {
 } finally {
   if (created) await connection.query('DROP DATABASE ' + database);
   await connection.end();
-  for (const folder of ['markalar', 'kategoriler']) {
+  for (const folder of ['markalar', 'kategoriler', 'firsatlar', 'ozellikler']) {
     const logoDir = path.join(testUploads, folder);
     for (const file of await readdir(logoDir).catch(() => []))
       await unlink(path.join(logoDir, file));

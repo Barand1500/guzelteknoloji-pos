@@ -129,9 +129,12 @@ for (const width of [320, 390, 768, 1440]) {
       expect(cardResponse.status()).toBe(201);
       const newCard = (await cardResponse.json()) as { id: string };
       const readCard = await request.get(api + '/api/stok/kartlar/' + newCard.id, { headers });
-      const card = (await readCard.json()) as { brandId: string; brand: { label: string } };
-      expect(card.brandId).toBe(brand.id);
-      expect(card.brand.label).toBe(name);
+      const card = (await readCard.json()) as { brand: string };
+      expect(card.brand).toBe(brand.id);
+      const lookups = await request.get(api + '/api/stok/secenekler', { headers });
+      expect(
+        (await lookups.json()).brands.find((b: { value: string }) => b.value === card.brand)?.label,
+      ).toBe(name);
       expect(
         (await request.post(api + '/api/markalar/' + brand.id + '/sil', { headers })).status(),
       ).toBe(204);

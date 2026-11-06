@@ -53,16 +53,18 @@ for (const width of [320, 390, 768, 1440]) {
         return (await result.json()) as {
           code: string;
           name: string;
-          priceLists: {
-            units: { prices: { side: string; amount: string; includingVat: string }[] }[];
-          }[];
+          units: Record<
+            string,
+            { sale: { amount: string; vatRate: string; vatIncluded: boolean } }[]
+          >;
         };
       }, id);
       expect(card.code).toBe(code);
       expect(card.name).toBe('Tarayıcıdan Kalıcı Ürün');
-      const sale = card.priceLists[0]!.units[0]!.prices.find((price) => price.side === 'satis');
+      const sale = card.units.fiyat![0]!.sale;
       expect(sale?.amount).toBe('120');
-      expect(sale?.includingVat).toBe('144');
+      expect(sale.vatRate).toBe('20');
+      expect(sale.vatIncluded).toBe(false);
     });
   });
 }

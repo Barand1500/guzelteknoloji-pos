@@ -2,6 +2,7 @@ import { FileSpreadsheet, ListChecks, Plus, SlidersHorizontal, Sparkles, X } fro
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
@@ -46,8 +47,7 @@ const PRICE_OPTIONS = [
  * (üç fiyat yan yana). "Ekle" mevcut stok kartı oluşturma ekranını açar.
  */
 export function ProductsView() {
-  const { products, loading, refresh, setStockTracking, setSales, remove } =
-    useProducts();
+  const { products, loading, error, refresh, setStockTracking, setSales, remove } = useProducts();
   const desktop = useMediaQuery('(min-width: 64rem)');
   const navigate = useNavigate();
 
@@ -207,6 +207,14 @@ export function ProductsView() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      {error ? (
+        <Alert tone="error">
+          {error}
+          <button type="button" className="ml-3 underline" onClick={() => void refresh()}>
+            Tekrar Dene
+          </button>
+        </Alert>
+      ) : null}
       <div className="flex items-center gap-2.5">
         <div className="min-w-0 flex-1">
           <SearchField
@@ -396,9 +404,11 @@ export function ProductsView() {
       {importOpen ? (
         <ProductImportSheet
           onDone={(r) => {
-            setImportOpen(false);
+            if (!r.errors?.length) setImportOpen(false);
             void refresh();
-            showNotice(`${r.created} ürün eklendi, ${r.updated} ürün güncellendi.`);
+            showNotice(
+              `${r.created} ürün eklendi, ${r.updated} ürün güncellendi.${r.errors?.length ? ` ${r.errors.length} satır kaydedilemedi.` : ''}`,
+            );
           }}
           onClose={() => setImportOpen(false)}
         />
@@ -416,13 +426,15 @@ export function ProductsView() {
       {bulkOpen ? (
         <BulkMenuSheet
           count={selectedIds.length}
-          onStock={(on) => {
-            setStockTracking(selectedIds, on);
-            showNotice(`${selectedIds.length} üründe stok takibi ${on ? 'açıldı' : 'kapatıldı'}.`);
+          onStock={async (on) => {
+            if (await setStockTracking(selectedIds, on))
+              showNotice(
+                `${selectedIds.length} üründe stok takibi ${on ? 'açıldı' : 'kapatıldı'}.`,
+              );
           }}
-          onSales={(on) => {
-            setSales(selectedIds, on);
-            showNotice(`${selectedIds.length} ürün satışa ${on ? 'açıldı' : 'kapatıldı'}.`);
+          onSales={async (on) => {
+            if (await setSales(selectedIds, on))
+              showNotice(`${selectedIds.length} ürün satışa ${on ? 'açıldı' : 'kapatıldı'}.`);
           }}
           onDelete={() => setDeleting({ ids: selectedIds, label: `${selectedIds.length} ürün` })}
           onClose={() => setBulkOpen(false)}
@@ -445,7 +457,7 @@ export function ProductsView() {
         title={deleting ? `${deleting.label} Silinsin Mi?` : ''}
         description="Silinen ürünler geri getirilemez. Geçmiş satış kayıtları korunur."
         confirmLabel="Sil"
-        onConfirm={() => void confirmDelete()}
+        onConfirm={() => void confirmDelete().catch(() => undefined)}
         onClose={() => setDeleting(null)}
       />
     </div>

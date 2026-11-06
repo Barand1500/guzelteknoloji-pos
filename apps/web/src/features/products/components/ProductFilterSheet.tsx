@@ -47,7 +47,17 @@ function distinct(products: ProductItem[], pick: (p: ProductItem) => [string | n
  */
 export function ProductFilterSheet({ products, value, onApply, onClose }: ProductFilterSheetProps) {
   const [draft, setDraft] = useState<ProductFilters>(value);
-  const categories = distinct(products, (p) => [p.categoryId, p.categoryName]);
+  const categories = [
+    ...new Map(
+      products.flatMap((p) =>
+        (p.categoryIds ?? (p.categoryId ? [p.categoryId] : [])).map(
+          (id, i) => [id, p.categoryNames?.[i] ?? p.categoryName] as const,
+        ),
+      ),
+    ),
+  ]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
   const brands = distinct(products, (p) => [p.brandId, p.brandName]);
   const count = products.filter((p) => matchesFilters(p, draft)).length;
 

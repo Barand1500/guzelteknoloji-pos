@@ -1,6 +1,14 @@
 import { Check, Copy, MoreHorizontal, Pencil } from 'lucide-react';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
-import { formatMoney, netOf, withVat, type PriceView, type ProductItem } from '../types';
+import {
+  currencyOf,
+  formatMoney,
+  netOf,
+  vatOf,
+  withVat,
+  type PriceView,
+  type ProductItem,
+} from '../types';
 import { ProductThumb } from './ProductThumb';
 import { StockBadge } from './StockBadge';
 
@@ -46,9 +54,11 @@ export function ProductRow({
   onStockTracking,
   onSales,
 }: ProductRowProps) {
-  const shown = withVat(netOf(product, priceView), product.vatRate);
+  const shown = withVat(netOf(product, priceView), vatOf(product, priceView));
   const margin =
-    product.cost > 0 ? Math.round(((product.prices[0] - product.cost) / product.cost) * 100) : null;
+    product.cost > 0 && currencyOf(product, 'p1') === currencyOf(product, 'cost')
+      ? Math.round(((product.prices[0] - product.cost) / product.cost) * 100)
+      : null;
 
   return (
     <div className={expanded ? 'rounded-3xl ring-2 ring-brand-500/40' : ''}>
@@ -103,7 +113,7 @@ export function ProductRow({
           </span>
           <span className="shrink-0 text-right">
             <span className="block text-sm font-extrabold">
-              {formatMoney(shown, product.currency)}
+              {formatMoney(shown, currencyOf(product, priceView))}
             </span>
             <span className="block text-[0.6875rem] text-ink-muted">
               {VIEW_NAMES[priceView]} · KDV dahil
@@ -127,15 +137,18 @@ export function ProductRow({
                   {VIEW_NAMES[view]}
                 </dt>
                 <dd className="text-sm font-extrabold">
-                  {formatMoney(withVat(netOf(product, view), product.vatRate), product.currency)}
+                  {formatMoney(
+                    withVat(netOf(product, view), vatOf(product, view)),
+                    currencyOf(product, view),
+                  )}
                 </dd>
               </div>
             ))}
           </dl>
           <p className="px-1 text-xs text-ink-muted">
-            KDV %{product.vatRate} dahil
+            KDV %{vatOf(product, priceView)} dahil
             {product.cost > 0
-              ? ` · Alış ${formatMoney(product.cost, product.currency)}${margin !== null ? ` · Kâr %${margin}` : ''}`
+              ? ` · Alış ${formatMoney(product.cost, currencyOf(product, 'cost'))}${margin !== null ? ` · Kâr %${margin}` : ''}`
               : ''}
           </p>
           <div className="flex flex-wrap items-center justify-between gap-x-4">

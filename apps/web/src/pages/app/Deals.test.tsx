@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { dealService } from '../../features/deals/services/deal.service';
+import { demoDealService as dealService } from '../../features/deals/services/deal.demo';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
 
 const ids = () =>
@@ -57,7 +57,9 @@ describe('Fırsat Yönetimi ekranı', () => {
   it('anahtar fırsatı pasife alır', async () => {
     const user = await openDeals();
     await user.click(screen.getByRole('switch', { name: 'Yeni Ürünler aktif' }));
-    expect(screen.getByRole('switch', { name: 'Yeni Ürünler aktif' })).not.toBeChecked();
+    await waitFor(() =>
+      expect(screen.getByRole('switch', { name: 'Yeni Ürünler aktif' })).not.toBeChecked(),
+    );
     await waitFor(async () =>
       expect((await dealService.list()).find((d) => d.id === 'yeni')?.active).toBe(false),
     );
@@ -79,7 +81,7 @@ describe('Fırsat Yönetimi ekranı', () => {
     expect(screen.getByText('Kampanya eklendi.')).toBeInTheDocument();
     const added = (await dealService.list()).find((d) => d.id === 'yeni-1');
     expect(added).toMatchObject({ position: 'br', size: 'large', showOnImage: true });
-    expect(added?.iconUrl).toBe('blob:rozet');
+    expect(added?.iconUrl).toBe('data:image/svg+xml;base64,PHN2Zy8+');
     expect(screen.getByText(/Alt Sağ · Büyük/)).toBeInTheDocument();
   });
 

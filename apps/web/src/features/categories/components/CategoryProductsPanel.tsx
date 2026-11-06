@@ -2,7 +2,9 @@ import { Check, Minus, PackageOpen, Undo2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { SearchField } from '../../../components/ui/SearchField';
-import { categoryService } from '../services/category.service';
+import { useCategoryService } from '../services/category.service';
+import { Alert } from '../../../components/ui/Alert';
+import { dataError } from '../../../lib/catalog-data';
 import type { Category, CategoryProductRef } from '../types';
 import { BrandLogo } from '../../brands/components/BrandLogo';
 
@@ -21,6 +23,7 @@ type Filter = 'free' | 'other' | 'all';
 const fold = (s: string) => s.toLocaleLowerCase('tr');
 const FRESH_MS = 2200;
 const UNDO_MS = 6000;
+const idsOf = (p: CategoryProductRef) => p.categoryIds ?? (p.categoryId ? [p.categoryId] : []);
 
 /**
  * Kategorinin ürünleri paneli. İki sekme:
@@ -35,6 +38,9 @@ export function CategoryProductsPanel({
   onAssign,
   onUnassign,
 }: CategoryProductsPanelProps) {
+  const categoryService = useCategoryService();
+  const [error, setError] = useState<string | null>(null);
+  const saving = useRef(false);
   const [products, setProducts] = useState<CategoryProductRef[] | null>(null);
   const [tab, setTab] = useState<Tab>('in');
   const [query, setQuery] = useState('');
@@ -46,25 +52,33 @@ export function CategoryProductsPanel({
 
   useEffect(() => {
     let active = true;
-    void categoryService.listProducts().then((list) => active && setProducts(list));
+    void categoryService
+      .listProducts()
+      .then((list) => active && setProducts(list))
+      .catch((error) => {
+        if (active) {
+          setError(dataError(error));
+          setProducts([]);
+        }
+      });
     const pending = timers.current;
     return () => {
       active = false;
       pending.forEach((t) => window.clearTimeout(t));
     };
-  }, []);
+  }, [categoryService]);
 
   const mine = useMemo(
-    () => (products ?? []).filter((p) => p.categoryId === category.id),
+    () => (products ?? []).filter((p) => idsOf(p).includes(category.id)),
     [products, category.id],
   );
   const others = useMemo(
-    () => (products ?? []).filter((p) => p.categoryId !== category.id),
+    () => (products ?? []).filter((p) => !idsOf(p).includes(category.id)),
     [products, category.id],
   );
   const counts = {
-    free: others.filter((p) => p.categoryId === null).length,
-    other: others.filter((p) => p.categoryId !== null).length,
+    free: others.filter((p) => idsOf(p).length === 0).length,
+    other: others.filter((p) => idsOf(p).length > 0).length,
     all: others.length,
   };
 
@@ -75,7 +89,7 @@ export function CategoryProductsPanel({
   const listIn = mine.filter(matches);
   const candidates = others.filter(
     (p) =>
-      (filter === 'all' || (filter === 'free' ? p.categoryId === null : p.categoryId !== null)) &&
+      (filter === 'all' || (filter === 'free' ? idsOf(p).length === 0 : idsOf(p).length > 0)) &&
       matches(p),
   );
   const allPicked = candidates.length > 0 && candidates.every((p) => picked.has(p.id));
@@ -85,13 +99,35 @@ export function CategoryProductsPanel({
   };
 
   // Anında uygula: ekran hemen güncellenir, kayıt arkadan yapılır.
-  const apply = (ids: string[], toCategory: boolean) => {
+  const apply = async (ids: string[], toCategory: boolean) => {
+    if (saving.current) return false;
+    saving.current = true;
+    setError(null);
+    const previous = products;
     setProducts((list) =>
       (list ?? []).map((p) =>
-        ids.includes(p.id) ? { ...p, categoryId: toCategory ? category.id : null } : p,
+        ids.includes(p.id)
+          ? (() => {
+              const categoryIds = toCategory
+                ? [...new Set([...idsOf(p), category.id])]
+                : idsOf(p).filter((id) => id !== category.id);
+              return { ...p, categoryIds, categoryId: categoryIds[0] ?? null };
+            })()
+          : p,
       ),
     );
-    void (toCategory ? onAssign(category.id, ids) : onUnassign(category.id, ids));
+    try {
+      await (toCategory ? onAssign(category.id, ids) : onUnassign(category.id, ids));
+      return true;
+    } catch (error) {
+      setProducts(previous);
+      setUndo(null);
+      setFresh(new Set());
+      setError(dataError(error));
+      return false;
+    } finally {
+      saving.current = false;
+    }
   };
 
   const togglePick = (id: string) =>
@@ -112,10 +148,10 @@ export function CategoryProductsPanel({
       return next;
     });
 
-  const addPicked = () => {
+  const addPicked = async () => {
     const ids = [...picked];
     if (ids.length === 0) return;
-    apply(ids, true);
+    if (!(await apply(ids, true))) return;
     setPicked(new Set());
     setQuery('');
     setUndo(null);
@@ -125,15 +161,15 @@ export function CategoryProductsPanel({
     setTab('in');
   };
 
-  const removeOne = (p: CategoryProductRef) => {
-    apply([p.id], false);
+  const removeOne = async (p: CategoryProductRef) => {
+    if (!(await apply([p.id], false))) return;
     setUndo({ ids: [p.id], label: p.name });
     later(() => setUndo((u) => (u?.ids[0] === p.id ? null : u)), UNDO_MS);
   };
 
-  const undoRemove = () => {
+  const undoRemove = async () => {
     if (!undo) return;
-    apply(undo.ids, true);
+    if (!(await apply(undo.ids, true))) return;
     setFresh(new Set(undo.ids));
     later(() => setFresh(new Set()), FRESH_MS);
     setUndo(null);
@@ -153,6 +189,7 @@ export function CategoryProductsPanel({
 
   return (
     <div className="flex min-h-full flex-col gap-4">
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <div
         role="tablist"
         aria-label="Ürün işlemleri"
@@ -291,8 +328,10 @@ export function CategoryProductsPanel({
                         product={p}
                         selected={on}
                         note={
-                          p.categoryId
-                            ? `Şu an: ${categoryNames[p.categoryId] ?? 'Başka kategori'} · taşınır`
+                          idsOf(p).length
+                            ? `Diğer kategoriler: ${idsOf(p)
+                                .map((id) => categoryNames[id] ?? 'Başka kategori')
+                                .join(', ')}`
                             : undefined
                         }
                         onSelect={() => togglePick(p.id)}

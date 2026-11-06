@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
 import { Segmented } from '../../../components/ui/Segmented';
 import { SelectField, type SelectOption } from '../../../components/ui/SelectField';
 import { Sheet } from '../../../components/ui/Sheet';
@@ -22,6 +23,7 @@ interface GroupFormSheetProps {
   defaultTemplateId: string | null;
   templates: AttrTemplate[];
   onSave: (draft: GroupDraft) => Promise<void>;
+  saveError?: string | null;
   onClose: () => void;
 }
 
@@ -58,6 +60,7 @@ export function GroupFormSheet({
   defaultTemplateId,
   templates,
   onSave,
+  saveError,
   onClose,
 }: GroupFormSheetProps) {
   const [draft, setDraft] = useState<GroupDraft>(() => {
@@ -99,6 +102,7 @@ export function GroupFormSheet({
   return (
     <Sheet open onClose={onClose} title={group ? 'Grubu Düzenle' : 'Grup Ekle'} size="lg">
       <div className="flex flex-col gap-5">
+        {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <SelectField
           label="Şablon"
           options={options}

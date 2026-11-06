@@ -1,6 +1,8 @@
 import { ChevronRight, FolderInput, Home } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../../../components/ui/Button';
+import { Alert } from '../../../components/ui/Alert';
+import { dataError } from '../../../lib/catalog-data';
 import { branchOf, pathTo } from '../tree';
 import type { Category } from '../types';
 import { CategoryImage } from './CategoryImage';
@@ -20,6 +22,7 @@ interface CategoryMovePanelProps {
 export function CategoryMovePanel({ category, categories, onMove }: CategoryMovePanelProps) {
   const [browseId, setBrowseId] = useState<string | null>(category.parentId);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const blocked = branchOf(categories, category.id);
   const byId = new Map(categories.map((c) => [c.id, c]));
@@ -33,8 +36,11 @@ export function CategoryMovePanel({ category, categories, onMove }: CategoryMove
 
   const move = async () => {
     setBusy(true);
+    setError(null);
     try {
       await onMove(browseId);
+    } catch (error) {
+      setError(dataError(error));
     } finally {
       setBusy(false);
     }
@@ -42,6 +48,7 @@ export function CategoryMovePanel({ category, categories, onMove }: CategoryMove
 
   return (
     <div className="flex min-h-full flex-col gap-4">
+      {error ? <Alert tone="error">{error}</Alert> : null}
       <p className="rounded-2xl bg-surface-muted px-4 py-3 text-sm text-ink-muted">
         <b className="text-ink">{category.name}</b> şu an <b className="text-ink">{currentPlace}</b>{' '}
         içinde. Gitmesini istediğin yere dokunarak gir, sonra alttaki düğmeye bas.

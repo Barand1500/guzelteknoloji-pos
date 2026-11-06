@@ -36,6 +36,7 @@ export interface CategoryProductRef {
   name: string;
   barcode: string;
   categoryId: string | null;
+  categoryIds?: string[];
 }
 
 export const emptyCategoryDraft = (parentId: string | null = null): CategoryDraft => ({

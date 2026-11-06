@@ -1,5 +1,5 @@
 import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import { Alert } from '../../../components/ui/Alert';
 import { DealBadge } from './DealBadge';
 
@@ -15,22 +15,18 @@ interface DealIconPickerProps {
 /**
  * İkon yükleme alanı: dokunarak seç ya da (masaüstünde) dosyayı sürükleyip bırak. Seçilen dosya
  * hemen önizlenir. İkon, rozetin kendisidir (kare, 400×400 önerilir); yalnızca görsel dosyaları
- * ve en çok 2 MB kabul edilir. Gerçek yükleme API'ye bağlanınca sunucuda yapılır.
+ * ve en çok 2 MB kabul edilir. İçerik Base64 ile gönderilir, özgün dosya sunucuda korunur.
  */
 export function DealIconPicker({ value, onChange, error }: DealIconPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const created = useRef<string[]>([]);
+  const sequence = useRef(0);
   const [problem, setProblem] = useState<string | null>(null);
   const [over, setOver] = useState(false);
 
-  useEffect(() => {
-    const urls = created.current;
-    return () => urls.forEach((url) => URL.revokeObjectURL?.(url));
-  }, []);
-
   const take = (file: File | undefined) => {
+    const current = ++sequence.current;
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
+    if (!ACCEPT.split(',').includes(file.type)) {
       setProblem('Yalnızca görsel dosyaları (PNG, JPG, WebP, SVG) yükleyebilirsiniz.');
       return;
     }
@@ -39,11 +35,15 @@ export function DealIconPicker({ value, onChange, error }: DealIconPickerProps) 
       return;
     }
     setProblem(null);
-    const url = URL.createObjectURL?.(file) ?? '';
-    if (url) {
-      created.current.push(url);
-      onChange(url);
-    }
+    const reader = new FileReader();
+    reader.onerror = () => {
+      if (sequence.current === current) setProblem('İkon okunamadı. Tekrar seçin.');
+    };
+    reader.onload = () => {
+      if (sequence.current === current && typeof reader.result === 'string')
+        onChange(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const onDrop = (event: DragEvent) => {
@@ -109,7 +109,10 @@ export function DealIconPicker({ value, onChange, error }: DealIconPickerProps) 
               </button>
               <button
                 type="button"
-                onClick={() => onChange(null)}
+                onClick={() => {
+                  sequence.current++;
+                  onChange(null);
+                }}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-field-border px-4 text-sm font-semibold text-danger transition-colors hover:bg-danger-soft"
               >
                 <Trash2 className="size-4" aria-hidden="true" />
