@@ -45,8 +45,10 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
 
     await user.type(await screen.findByLabelText('Stok Kodu'), 'A-1');
     await user.type(screen.getByLabelText('Stok Adı'), 'Deneme Ürünü');
-    // Canlı önizleme yazdıkça güncellenir.
+    // Canlı önizleme (sağ kenardaki Özet sekmesi) yazdıkça güncellenir.
+    await user.click(screen.getByRole('tab', { name: 'Özet' }));
     expect(screen.getByLabelText('Kart önizlemesi')).toHaveTextContent('Deneme Ürünü');
+    await user.click(screen.getByRole('button', { name: 'Paneli kapat' }));
 
     // Özel açılır liste: aç, seç.
     await user.click(screen.getByRole('combobox', { name: 'Marka' }));

@@ -16,7 +16,7 @@ import type { UnitRow } from '../types';
 import { BasicInfoSection } from './BasicInfoSection';
 import { KasaPriceEditor } from './KasaPriceEditor';
 import { PriceTabs } from './PriceTabs';
-import { StockSidePanel, type SideBoxId } from './StockSidePanel';
+import { StockSidePanel, useSidePanel, type SideBoxId } from './StockSidePanel';
 import {
   UnitBarcodeField,
   UnitHeaderFields,
@@ -48,6 +48,7 @@ export function MobileStockLayout({
   initialBox: SideBoxId | null;
 }) {
   const [tab, setTab] = useState<TabId>('urun');
+  const panel = useSidePanel(initialBox);
   const [activeUnit, setActiveUnit] = useState(0);
   const { rows, lists, lookups, errors } = editor;
   const unitIndex = Math.min(activeUnit, rows.length - 1);
@@ -148,13 +149,9 @@ export function MobileStockLayout({
         className="flex flex-col gap-4"
       >
         {tab === 'urun' ? (
-          <>
-            {/* Özet yukarıdaki şerittir; burada yalnızca Kategori ve Fırsat kutuları (kapalı tek satır). */}
-            <StockSidePanel editor={editor} initialBox={initialBox} showSummary={false} />
-            <section aria-label="Ürün Bilgisi" className={`${slideClass} animate-rise-in`}>
-              <BasicInfoSection editor={editor} />
-            </section>
-          </>
+          <section aria-label="Ürün Bilgisi" className={`${slideClass} animate-rise-in`}>
+            <BasicInfoSection editor={editor} />
+          </section>
         ) : null}
 
         {tab === 'fiyat' ? (
@@ -271,8 +268,11 @@ export function MobileStockLayout({
           : null}
       </div>
 
+      {/* Sağ kenar sekmeleri; panel açıkken Kaydet panelin içindedir */}
+      <StockSidePanel editor={editor} panel={panel} onInvalid={() => setTab('urun')} />
+
       {/* Yüzen Kaydet düğmesi (alt çubuğun üstünde); Fiyat sekmesinde tuş takımındaki Kaydet kullanılır */}
-      {tab !== 'fiyat' ? (
+      {tab !== 'fiyat' && panel.openId === null ? (
         <button
           type="button"
           onClick={() => void editor.save(() => setTab('urun'))}

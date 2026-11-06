@@ -64,6 +64,7 @@
   --animate-pop: pop 480ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-in-from-top: in-from-top 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-in-from-bottom: in-from-bottom 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-slide-in-right: slide-in-right 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-out-down: out-down 200ms ease-in both;
   --animate-out-up: out-up 200ms ease-in both;
 
@@ -102,6 +103,16 @@
     }
     to {
       transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(32px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
       opacity: 1;
     }
   }

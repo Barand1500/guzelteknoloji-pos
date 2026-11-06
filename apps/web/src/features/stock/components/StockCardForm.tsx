@@ -171,7 +171,7 @@ function StockCardEditor({
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4 pr-10 sm:pr-12">
       {mode === 'create' ? null : (
         <div className="flex flex-wrap items-center gap-3">
           <Link
@@ -206,8 +206,7 @@ function StockCardEditor({
         aria-busy={editor.saving}
       >
         {wide ? (
-          // Masaüstünde sağda Özet açık başlar; telefonda Özet ayrı şerittir, kutular kapalı başlar.
-          <DesktopStockLayout editor={editor} initialBox={initialBox ?? 'ozet'} />
+          <DesktopStockLayout editor={editor} initialBox={initialBox ?? null} />
         ) : (
           <MobileStockLayout editor={editor} initialBox={initialBox ?? null} />
         )}
