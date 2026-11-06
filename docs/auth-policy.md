@@ -90,10 +90,10 @@ Kod doğrulanınca: hesap yoksa oluşturulur (`emailVerifiedAt` dolu), varsa o h
 
 **Kod güvenliği**
 
-- Kriptografik rastgele (`crypto.randomInt`) 6 hane; MySQL'e yazılmaz. Yalnızca Redis'te `HMAC-SHA256(COOKIE_SECRET, "e-posta:kod")` hash'i tutulur. Redis anahtarında e-posta yerine anahtarlı hash kullanılır; IP ve açık e-posta saklanmaz. Karşılaştırma hash'in tüm baytları üzerinde yapılır.
-- Kod kaydı Redis TTL ile 10 dakikada otomatik silinir. Doğru doğrulamada ve 5. yanlış denemede hemen silinir. Yeniden gönderim önceki kodu geçersiz kılar. Doğrulama/deneme sayımı/silme ile gönderim kotası Lua scriptleriyle atomiktir; eşzamanlı istekler aynı kodla iki kez oturum açamaz.
-- Saatlik gönderim kotasında yalnızca rastgele istek kimliği ve zaman tutulur (kod/hash içermez); son gönderimden bir saat sonra otomatik silinir. SMTP hatasında yalnızca başarısız gönderimin kodu ve beklemesi silinir, kota korunur. Böylece SMTP hataları kota aşımına izin vermez.
-- Redis bağlantısı zorunludur (`REDIS_URL`); kesintide `503 EMAIL_UNAVAILABLE` döner, MySQL veya süreç belleğine geri dönüş yapılmaz. Redis ayrı instance olarak, RDB/AOF kalıcılığı kapalı (`save ""`, `appendonly no`) ve yerel arayüze bağlı çalıştırılır. Sağlık kontrolü Redis'i de denetler.
+- Kriptografik rastgele (`crypto.randomInt`) 6 hane; MySQL'de (`eposta_giris_kodlari`) yalnızca `HMAC-SHA256(COOKIE_SECRET, "e-posta:kod")` hash'i ve e-postanın HMAC hash'i tutulur. Düz e-posta, düz kod ve IP saklanmaz. Karşılaştırma hash'in tüm baytları üzerinde yapılır.
+- Kod 10 dakika geçerlidir; doğru doğrulamada ve 5. yanlış denemede hemen geçersiz olur. Yeniden gönderim önceki kodu geçersiz kılar. Doğrulama, deneme sayımı ve gönderim kotası e-postaya özel MySQL kilidi altında yapılır; eşzamanlı istekler aynı kodla iki kez oturum açamaz.
+- Saatlik gönderim kotası, son bir saatteki kod satırları sayılarak uygulanır; bir saatten eski satırlar silinir. SMTP hatasında yalnızca başarısız gönderimin satırı silinir.
+- Veritabanı veya kilit alınamazsa `503 EMAIL_UNAVAILABLE` döner.
 - Ömür 10 dakika; tek kullanımlık; en fazla 5 yanlış deneme (sonra kod ölür); 60 sn'de bir yeniden gönderim; e-posta başına saatte en fazla 5 kod.
 - Hız sınırı: `/email/start` IP başına 15 dk'da 30, (IP + e-posta) başına 8; `/email/verify` (IP + e-posta) başına 12.
 - Hata mesajı tek tiptir: "Kod hatalı ya da süresi dolmuş" (yanlış, süresi dolmuş, kullanılmış ve deneme hakkı bitmiş aynı yanıtı verir).

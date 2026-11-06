@@ -68,23 +68,9 @@ nano .env
 
 `VITE_SUPPORT_FORM_URL` (destek formu) derleme sırasında gömülür: `.env` build'den **önce** hazır olmalı. API de aynı değişkenden CSP `frame-src` üretir, bu yüzden değiştirince hem `npm run build` hem `pm2 restart guzel-auth --update-env` gerekir. Build sırasında çıkan "NODE_ENV=production is not supported in the .env file" uyarısı zararsızdır.
 
-## 3.1 Doğrulama kodları için Redis (güncellemeden önce)
+## 3.1 Doğrulama kodları
 
-Kodlar MySQL'de tutulmaz. Redis yalnızca geçici kodlar ve süreli gönderim sayacı içindir; ayrı 6380 portunda disk kalıcılığı kapalı çalışır. Sunucuda yönetici hesabıyla, proje kökünden:
-
-```bash
-sudo apt-get install redis-server redis-tools
-sudo install -m 644 deploy/redis-auth.conf /etc/redis/gt-auth.conf
-sudo install -m 644 deploy/redis-auth.service /etc/systemd/system/gt-auth-redis.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now gt-auth-redis
-redis-cli -h 127.0.0.1 -p 6380 ping
-redis-cli -h 127.0.0.1 -p 6380 CONFIG GET save appendonly
-```
-
-`PING` → `PONG`, `save` → boş, `appendonly` → `no` olmalı. Bu port internete açılmaz. `maxmemory-policy noeviction`, bellek dolunca deneme/kota kayıtlarının erkenden atılmasını önler; kod gönderimi hata verir. Redis servisi mevcut 6379 instance'ından bağımsızdır.
-
-Uygulamanın `.env` dosyasına `REDIS_URL=redis://127.0.0.1:6380/0` ekleyin. API, Redis bağlantısı kurulmadan başlamaz; sağlık kontrolü MySQL ve Redis'i birlikte denetler. Redis yeniden başlarsa bekleyen kodlar kaybolur, kullanıcı yeni kod ister. Veri tabanı migration'ı eski `eposta_giris_kodlari` tablosunu kaldırır; eski kodlar taşınmaz.
+Kodlar ek servis gerektirmeden MySQL'de (`eposta_giris_kodlari`) tutulur; yalnızca HMAC hash saklanır. Ek kurulum yoktur, `sudo` gerekmez. Eski kod tablosu geçiş migration'ında kaldırılıp yeniden oluşturulur; bekleyen kodlar geçersiz olur, kullanıcı yeni kod ister.
 
 ## 4. Kurulum ve ilk başlatma
 
@@ -118,7 +104,7 @@ bash deploy/update.sh
 
 Bu komut `git pull`, `npm ci`, derleme, veritabanı migration'ı, PM2 yeniden başlatma ve sağlık kontrolünü sırayla yapar. `.env` Git'te olmadığı için korunur.
 
-Servis durdurulmadan önce MySQL, kalıcılığı kapalı Redis ve yazılabilir `UPLOADS_DIR` denetlenir; ön kontrol başarısızsa çalışan API durdurulmaz. Bu kontrol yedek almaz: özellikle sayısal ID geçişinden önce MySQL ve uploads yedeği alındığını doğrulayın.
+Servis durdurulmadan önce MySQL ve yazılabilir `UPLOADS_DIR` denetlenir; ön kontrol başarısızsa çalışan API durdurulmaz. Bu kontrol yedek almaz: özellikle sayısal ID geçişinden önce MySQL ve uploads yedeği alındığını doğrulayın.
 
 ## 6. E-posta (giriş kodu) için SMTP sertifikası
 

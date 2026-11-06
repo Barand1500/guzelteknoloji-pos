@@ -1,4 +1,4 @@
-/** Kod kayıtları MySQL'e yazılmaz. Üretim uygulaması Redis kullanır. */
+/** Giriş kodu deposu. Üretimde MySQL (mysql-email-code.store.ts), testlerde bellek kullanılır. */
 export interface CodePolicy {
   ttlSeconds: number;
   resendSeconds: number;

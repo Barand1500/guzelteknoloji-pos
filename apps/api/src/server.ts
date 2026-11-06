@@ -8,7 +8,7 @@ import { PrismaAuthRepository } from './modules/auth/auth.repository';
 import { createGoogleOidcClient } from './modules/auth/google.client';
 import { PrismaStockRepository } from './modules/stock/stock.repository';
 import { PrismaBrandRepository } from './modules/brands/brand.repository';
-import { createCodeRedisClient, RedisEmailCodeStore } from './modules/auth/redis-email-code.store';
+import { MysqlEmailCodeStore } from './modules/auth/mysql-email-code.store';
 
 let env;
 try {
@@ -22,16 +22,10 @@ try {
 const logger = createLogger(env.LOG_LEVEL);
 const prisma = createPrismaClient(env.DATABASE_URL);
 const brandRepo = new PrismaBrandRepository(prisma, env.UPLOADS_DIR);
-const redis = createCodeRedisClient(env.REDIS_URL, logger);
-// Redis hazır olmadan kod gönderimi kabul edilmez; eski MySQL tablosuna geri dönüş yoktur.
 try {
-  await redis.connect();
   await brandRepo.migrateLegacyLogos();
 } catch {
-  logger.fatal(
-    'Redis bağlantısı veya eski logoların dosyaya taşınması başarısız. Yapılandırmayı kontrol edin.',
-  );
-  if (redis.isOpen) redis.destroy();
+  logger.fatal('Eski logoların dosyaya taşınması başarısız. Yapılandırmayı kontrol edin.');
   await prisma.$disconnect();
   process.exit(1);
 }
@@ -54,7 +48,7 @@ const app = createApp({
   env,
   logger,
   repo: new PrismaAuthRepository(prisma),
-  codes: new RedisEmailCodeStore(redis, env.COOKIE_SECRET),
+  codes: new MysqlEmailCodeStore(prisma, env.COOKIE_SECRET),
   stockRepo: new PrismaStockRepository(prisma),
   brandRepo,
   hasher: argon2Hasher,
@@ -62,7 +56,6 @@ const app = createApp({
   google: env.google ? createGoogleOidcClient(env.google) : null,
   checkDatabase: async () => {
     await prisma.$queryRaw`SELECT 1`;
-    await redis.withCommandOptions({ timeout: 5000 }).ping();
   },
 });
 
@@ -73,10 +66,7 @@ const server = app.listen(env.PORT, () => {
 const shutdown = (signal: string) => {
   logger.info(`${signal} alındı, kapanıyor`);
   server.close(() => {
-    void Promise.allSettled([
-      redis.isOpen ? redis.close() : Promise.resolve(),
-      prisma.$disconnect(),
-    ]).finally(() => process.exit(0));
+    void prisma.$disconnect().finally(() => process.exit(0));
   });
 };
 process.on('SIGTERM', () => shutdown('SIGTERM'));

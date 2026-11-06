@@ -28,9 +28,6 @@ const envSchema = z
       .refine((v) => v.startsWith('mysql://') || v.startsWith('mariadb://'), {
         message: 'DATABASE_URL mysql:// ile başlamalıdır.',
       }),
-    REDIS_URL: z.url().refine((value) => ['redis:', 'rediss:'].includes(new URL(value).protocol), {
-      message: 'REDIS_URL redis:// veya rediss:// ile başlamalıdır.',
-    }),
     /** Kalıcı görseller için dizin; production ortamında mutlak yol önerilir. */
     UPLOADS_DIR: z.string().trim().min(1).default('../../uploads'),
 

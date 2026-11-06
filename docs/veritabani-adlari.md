@@ -24,7 +24,7 @@ Yalnızca Prisma adlarının Türkçeleştirilmesi yeni migration gerektirmez. Y
 
 Bu geçiş tablo kopyaları oluşturur ve MySQL DDL transaction ile geri alınamadığından sunucu kapalıyken uygulanmalıdır. Migration öncesi doğrulanmış yedek alın ve yeterli boş disk alanı sağlayın. Herhangi bir aşama başarısız olursa API'yi başlatmadan yeni/eski tabloların ve `__gt_id_map` eşleştirmesinin durumunu inceleyin. Özel trigger veya dış sistemlerde saklanan eski ID bağlantıları varsa ayrıca uyarlama gerekir.
 
-`20261106150000_eposta_kodlari_redis`, artık kullanılmayan `eposta_giris_kodlari` tablosunu kaldırır. Kodlar yeni API'de yalnızca Redis'te süreli tutulur. Bu geçişte bekleyen eski kodlar geçersiz olur; kullanıcı yeni kod ister. Migration öncesinde kalıcılığı kapalı Redis kurulmalı ve `REDIS_URL` tanımlanmalıdır. Eski migration'lar tarihsel tablo adlarını korur.
+`20261106150000_eposta_kodlari_redis` eski `eposta_giris_kodlari` tablosunu kaldırır; `20261106180000_eposta_kodlari_mysql` aynı adlı tabloyu `eposta_hash`/`kod_hash` alanlarıyla yeniden oluşturur (Redis kullanılmaz). Bekleyen eski kodlar geçersiz olur; kullanıcı yeni kod ister. Eski migration'lar tarihsel tablo adlarını korur.
 
 `20261106140000_hash_alan_adlari`, hash alanlarını veri değiştirmeden yeniden adlandırır: `sifre_hash`, `oturum_anahtari_hash`, `kod_hash`, `ad_hash`, `logo_hash`, `kayit_istegi_hash`. Prisma alanları da `sifreHash`, `oturumAnahtariHash`, `kodHash`, `adHash`, `logoHash`, `kayitIstegiHash` biçimindedir. Önceki migration dosyalarındaki eski adlar tarihsel olarak korunur. API durdurularak migration uygulanır ve yeni kod başlatılır.
 

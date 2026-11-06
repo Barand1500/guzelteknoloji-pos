@@ -94,6 +94,24 @@ model Oturum {
   @@map("oturumlar")
 }
 
+/// E-postaya gönderilen tek kullanımlık giriş kodları. Kullanıcıya bağlı DEĞİLDİR (hesap kod
+/// doğrulanınca oluşur). Düz e-posta ve düz kod saklanmaz: ikisi de HMAC hash'tir.
+model EpostaGirisKodu {
+  kimlik                Int      @id @default(autoincrement()) @map("kimlik")
+  /// HMAC-SHA256(gizli anahtar, e-posta) hex.
+  epostaHash            String   @map("eposta_hash") @db.Char(64)
+  /// HMAC-SHA256(gizli anahtar, "e-posta:kod") hex.
+  kodHash               String   @map("kod_hash") @db.Char(64)
+  gecerlilikBitisZamani DateTime @map("gecerlilik_bitis_zamani")
+  /// Yanlış deneme sayısı; sınır aşılınca kod geçersiz olur.
+  denemeSayisi          Int      @default(0) @map("deneme_sayisi")
+  olusturmaZamani       DateTime @default(now()) @map("olusturma_zamani")
+
+  @@index([epostaHash, olusturmaZamani], map: "eposta_kodlari_eposta_olusturma_indeks")
+  @@index([olusturmaZamani], map: "eposta_kodlari_olusturma_indeks")
+  @@map("eposta_giris_kodlari")
+}
+
 /// Kullanıcıya ait sabit/özel seçimler. Kullanılmış seçenekler silinmez, pasifleştirilir.
 model StokSecenegi {
   kimlik            Int                @id @default(autoincrement()) @map("kimlik")

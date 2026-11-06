@@ -188,7 +188,6 @@ try {
       APP_URL: 'http://localhost:5175',
       COOKIE_SECRET: 'local-test-secret-long-enough-123456',
       DATABASE_URL: url.href,
-      REDIS_URL: 'redis://localhost:6379',
       LOG_LEVEL: 'silent',
     });
     const repo = new PrismaAuthRepository(prisma);

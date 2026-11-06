@@ -22,7 +22,7 @@ echo "▶ Derleme"
 npm run build
 
 echo "▶ Veritabanı migration"
-# Yeni API'nin zorunlu Redis ve uploads ayarları eksikse çalışan servis durdurulmaz.
+# Yeni API'nin zorunlu uploads ayarları eksikse çalışan servis durdurulmaz.
 npm run deploy:preflight --workspace @gt/api
 # Tablo/sutun adlari degisirken eski API sorgu yapmamalidir.
 # Migration basarisiz olursa set -e sayesinde API kapali kalir.

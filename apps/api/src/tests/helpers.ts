@@ -27,7 +27,6 @@ export function testEnv(overrides: Record<string, string | undefined> = {}) {
     NODE_ENV: 'test',
     APP_URL,
     DATABASE_URL: 'mysql://user:pass@localhost:3306/test',
-    REDIS_URL: 'redis://localhost:6379',
     COOKIE_SECRET: 'test-cookie-secret-that-is-long-enough-123',
     LOG_LEVEL: 'silent',
     ...overrides,
