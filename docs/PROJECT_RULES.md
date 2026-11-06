@@ -222,3 +222,14 @@ Uzayabilecek her liste sayfalıdır: `lib/usePagination` + `components/ui/Pagina
 ### 8.17 Alt menü kayan vurgu
 
 Alt menüde seçili sayfanın arkasındaki yumuşak kutu, başka sekmeye geçince yeni yerine **kayarak** gider (`Dock`: konum doğrudan DOM'a yazılır, `transition` ile yay efekti; ilk yerleşimde animasyon yoktur, pencere boyutu değişince yeniden hesaplanır). Seçiliyken ikon/yazı turuncuya yumuşakça döner. **Alttaki nokta vurgusu YOKTUR** (kaldırıldı). "+" (yeni stok kartı) seçiliyken kutu gizlenir.
+
+### 8.18 Kategoriler (ağaç gezinme) ve kutucuk ızgarası
+
+- **Ağaç, klasör gibi gezilir:** bir kategoriye dokununca/tıklayınca **içine girilir**; üstte "Tümü › Ana › Alt" yolu (her halka o seviyeye döner) ve "bir üst kategoriye çık" düğmesi vardır. İçinde bulunulan kategori adreste `?k=<kimlik>` olarak tutulur (telefonun geri hareketi bir üst seviyeye çıkar, bağlantı paylaşılabilir; silinmiş kimlik kökte açılır). Alt kategori sayısı sınırsızdır.
+- **İki görünüm:** **Kutucuk** (varsayılan; görsel büyük, rozetle alt kategori sayısı, ⋮ işlem menüsü) ve **Liste** (Markalar'daki satır düzeni). Seçim `localStorage` (`gt-kategori-gorunum`) ile hatırlanır. Aynı veri, aynı işlemler; yalnızca sunum farklıdır.
+- **Sıralama (`SortableGrid`, `SortableList`):** kardeş kategorilerin sırası mağaza sırasıdır. Kutucukta: telefonda **basılı tutup** sürükle, fareyle **tutup çek** (kısa tık açar; sürükleme sonrası gelen tık yutulur), klavyede **Alt + ok tuşları**. Diğer kutucuklar kayarak yer açar. Listede Markalar'daki kural (⠿ tutamağı / uzun basma / ↑↓). Arama sırasında sıralama kapalıdır; sayfalama kuralı (8.15) geçerlidir, sürükleme geçerli sayfa içindedir.
+- **Arama tüm ağaçta çalışır;** sonuçlarda kategorinin yolu ("Tümü › OT/VT Ürünleri") görünür, dokununca o kategoriye girilir.
+- **Masaüstü satırında düzenle (kalem) düğmesi VARDIR** (8.16'dan fark): çünkü tek tıklama gezinmeye ayrıldı, çift tıklama kullanılmaz. Kutucukta işlemler ⋮ menüsündedir (Düzenle, Alt Kategori Ekle, Ürünlere Tanımla, Pasife Al/Aktif Yap, Sil; telefonda alttan açılır).
+- **Form:** gerekli tek alan ad. Üst kategori listesi girintili ağaçtır ve kategorinin **kendi dalını içermez** (kendi altına taşınamaz); üst değişirse kategori yeni üstünün sonuna gider. "Aktif" ve "Mağazada Gizle" ayrı anahtarlardır (gizli kategori yönetimde görünür, kutuda göz-kapalı simgesi çıkar). Açıklama ve SEO "Gelişmiş" altındadır; rakipteki zengin metin editörü bilerek YOKTUR. Ürünler yan paneli Markalar'daki ile aynı mantıktır (`CategoryProductsPanel`; "Kategorisiz / Başka Kategori / Tümü").
+- **Silme:** alt kategorisi varsa uyarı metni dalın silineceğini söyler; ürünler silinmez, kategorisiz kalır. İçinde bulunulan dal silinirse bir üst kategoriye çıkılır. "Sıfırla" düğmesi YOKTUR.
+- Veri şimdilik bellekte (`category.service.ts`, `mocks/category.mock.ts`); gerçek API gelince yalnızca servis dosyası değişir.

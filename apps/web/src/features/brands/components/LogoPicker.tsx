@@ -10,6 +10,10 @@ interface LogoPickerProps {
   /** Önizleme/alt metin için marka adı. */
   name: string;
   onChange: (url: string | null) => void;
+  /** Metinlerde geçen ad: "Logo" (marka) ya da "Görsel" (kategori). */
+  noun?: string;
+  /** Boş alandaki ipucu (önerilen oran). */
+  hint?: string;
 }
 
 /**
@@ -17,7 +21,13 @@ interface LogoPickerProps {
  * önizlenir. Yalnızca görsel dosyalar ve en çok 2 MB kabul edilir. Tarayıcı belleğindeki geçici
  * adresler (blob) bileşen kapanınca serbest bırakılır; gerçek yükleme API'ye bağlanınca yapılır.
  */
-export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
+export function LogoPicker({
+  value,
+  name,
+  onChange,
+  noun = 'Logo',
+  hint = '800×230 oranı önerilir',
+}: LogoPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const created = useRef<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +45,7 @@ export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
       return;
     }
     if (file.size > MAX_BYTES) {
-      setError('Logo en çok 2 MB olabilir.');
+      setError(`${noun} en çok 2 MB olabilir.`);
       return;
     }
     setError(null);
@@ -57,7 +67,7 @@ export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
         type="file"
         accept={ACCEPT}
         className="sr-only"
-        aria-label="Logo dosyası seç"
+        aria-label={`${noun} dosyası seç`}
         onChange={(e) => {
           take(e.target.files?.[0]);
           e.target.value = '';
@@ -81,7 +91,7 @@ export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
           <span className="flex size-full items-center justify-center bg-white p-4">
             <img
               src={value}
-              alt={`${name || 'Marka'} logosu`}
+              alt={noun === 'Logo' ? `${name || 'Marka'} logosu` : `${name || 'Kategori'} görseli`}
               className="max-h-full max-w-full object-contain"
             />
           </span>
@@ -94,9 +104,9 @@ export function LogoPicker({ value, name, onChange }: LogoPickerProps) {
             <span className="flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-ink">
               <ImagePlus className="size-6" aria-hidden="true" />
             </span>
-            <span className="text-base font-semibold">Logo Ekle</span>
+            <span className="text-base font-semibold">{noun} Ekle</span>
             <span className="px-3 text-center text-xs">
-              Dokun ya da buraya sürükle · 800×230 oranı önerilir
+              Dokun ya da buraya sürükle · {hint}
             </span>
           </button>
         )}
