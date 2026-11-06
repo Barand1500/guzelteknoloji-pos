@@ -18,7 +18,7 @@ const withCounts = (row: Row): Category => ({
 });
 
 /** Bir kategori ve tüm alt dalları. */
-function branchIds(id: string): Set<string> {
+function branchOf(id: string): Set<string> {
   const ids = new Set([id]);
   let grew = true;
   while (grew) {
@@ -58,7 +58,7 @@ export const categoryService = {
     await wait(0);
     const current = rows.find((r) => r.id === id);
     if (!current) throw new Error('Kategori bulunamadı.');
-    if (draft.parentId && branchIds(id).has(draft.parentId))
+    if (draft.parentId && branchOf(id).has(draft.parentId))
       throw new Error('Kategori kendi alt kategorisine taşınamaz.');
     const moved = current.parentId !== draft.parentId;
     const next: Row = { ...current, ...draft };
@@ -66,6 +66,17 @@ export const categoryService = {
       ? [...rows.filter((r) => r.id !== id), next]
       : rows.map((r) => (r.id === id ? next : r));
     return withCounts(next);
+  },
+
+  /** Kategoriyi (alt dallarıyla birlikte) başka bir üst kategorinin altına, sonuna taşır. */
+  async move(id: string, parentId: string | null): Promise<void> {
+    await wait(0);
+    const current = rows.find((r) => r.id === id);
+    if (!current) throw new Error('Kategori bulunamadı.');
+    if (parentId && branchOf(id).has(parentId))
+      throw new Error('Kategori kendi alt kategorisine taşınamaz.');
+    if (current.parentId === parentId) return;
+    rows = [...rows.filter((r) => r.id !== id), { ...current, parentId }];
   },
 
   async setActive(id: string, active: boolean): Promise<void> {
@@ -76,7 +87,7 @@ export const categoryService = {
   /** Kategoriyi ve tüm alt kategorilerini siler; bu dalın ürünlerinin kategorisi boş kalır. */
   async remove(id: string): Promise<void> {
     await wait(0);
-    const gone = branchIds(id);
+    const gone = branchOf(id);
     rows = rows.filter((r) => !gone.has(r.id));
     products = products.map((p) =>
       p.categoryId && gone.has(p.categoryId) ? { ...p, categoryId: null } : p,

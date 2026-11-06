@@ -1,4 +1,4 @@
-import { Boxes, FolderPlus, Pencil, Power, Trash2 } from 'lucide-react';
+import { Boxes, FolderInput, FolderPlus, Pencil, Power, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Sheet } from '../../../components/ui/Sheet';
 import type { Category } from '../types';
@@ -10,6 +10,7 @@ interface CategoryActionsSheetProps {
   onEdit: () => void;
   onAddChild: () => void;
   onAssign: () => void;
+  onMove: () => void;
   onToggle: (active: boolean) => void;
   onDelete: () => void;
 }
@@ -21,6 +22,7 @@ export function CategoryActionsSheet({
   onEdit,
   onAddChild,
   onAssign,
+  onMove,
   onToggle,
   onDelete,
 }: CategoryActionsSheetProps) {
@@ -49,6 +51,7 @@ export function CategoryActionsSheet({
           'Alt Kategori Ekle',
           onAddChild,
         )}
+        {item(<FolderInput className="size-5" aria-hidden="true" />, 'Taşı', onMove)}
         {item(<Boxes className="size-5" aria-hidden="true" />, 'Ürünlere Tanımla', onAssign)}
         {item(
           <Power className="size-5" aria-hidden="true" />,

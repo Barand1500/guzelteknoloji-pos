@@ -51,6 +51,12 @@ export function useCategories() {
     return saved;
   };
 
+  /** Kategoriyi başka bir üst kategorinin altına taşır (null: ana kategori olur). */
+  const move = async (id: string, parentId: string | null) => {
+    await categoryService.move(id, parentId);
+    await refresh();
+  };
+
   const remove = async (id: string) => {
     await categoryService.remove(id);
     await refresh();
@@ -66,5 +72,5 @@ export function useCategories() {
     await refresh();
   };
 
-  return { categories, byId, loading, toggleActive, reorder, save, remove, assign, unassign };
+  return { categories, byId, loading, toggleActive, reorder, save, move, remove, assign, unassign };
 }

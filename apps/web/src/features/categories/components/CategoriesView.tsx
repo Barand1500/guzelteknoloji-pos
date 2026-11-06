@@ -15,6 +15,7 @@ import { pathTo } from '../tree';
 import type { Category, CategoryDraft } from '../types';
 import { CategoryActionsSheet } from './CategoryActionsSheet';
 import { CategoryFormSheet } from './CategoryFormSheet';
+import { CategoryMoveSheet } from './CategoryMoveSheet';
 import { CategoryProductsSheet } from './CategoryProductsSheet';
 import { CategoryRow } from './CategoryRow';
 import { CategoryTile } from './CategoryTile';
@@ -81,6 +82,7 @@ export function CategoriesView() {
   const [form, setForm] = useState<FormState>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [productsFor, setProductsFor] = useState<string | null>(null);
+  const [moveFor, setMoveFor] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Category | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number>(undefined);
@@ -115,6 +117,7 @@ export function CategoriesView() {
 
   const editing = form?.categoryId ? (byId.get(form.categoryId) ?? null) : null;
   const productsCategory = productsFor ? (byId.get(productsFor) ?? null) : null;
+  const moveCategory = moveFor ? (byId.get(moveFor) ?? null) : null;
   const menuCategory = menuFor ? (byId.get(menuFor) ?? null) : null;
 
   const saveCategory = async (draft: CategoryDraft) => {
@@ -151,6 +154,20 @@ export function CategoriesView() {
   const openEdit = (c: Category) => {
     setSwipeOpenId(null);
     setForm({ categoryId: c.id, parentId: c.parentId });
+  };
+  const openMove = (c: Category) => {
+    setSwipeOpenId(null);
+    setMoveFor(c.id);
+  };
+  const moveTo = async (c: Category, parentId: string | null) => {
+    try {
+      await cats.move(c.id, parentId);
+      setMoveFor(null);
+      const target = parentId ? (byId.get(parentId)?.name ?? '') : 'Ana Kategoriler';
+      showNotice(`${c.name}, ${target} içine taşındı.`);
+    } catch (error) {
+      showNotice(error instanceof Error ? error.message : 'Taşınamadı.');
+    }
   };
   const openProducts = (c: Category) => {
     setSwipeOpenId(null);
@@ -237,6 +254,7 @@ export function CategoriesView() {
             onSwipeOpenChange={(open) => setSwipeOpenId(open ? c.id : null)}
             onEdit={() => openEdit(c)}
             onAssign={() => openProducts(c)}
+            onMove={() => openMove(c)}
             onDelete={() => setDeleting(c)}
             onToggle={(active) => cats.toggleActive(c.id, active)}
           />
@@ -316,7 +334,7 @@ export function CategoriesView() {
             <b className="block truncate text-base">{current.name}</b>
             {current.productCount} ürün · {current.childCount} alt kategori
           </p>
-          <div className="grid shrink-0 grid-cols-2 gap-2">
+          <div className="grid shrink-0 grid-cols-3 gap-2">
             <Button
               fullWidth={false}
               flow={false}
@@ -324,6 +342,14 @@ export function CategoriesView() {
               onClick={() => openProducts(current)}
             >
               Ürünler
+            </Button>
+            <Button
+              fullWidth={false}
+              flow={false}
+              variant="outline"
+              onClick={() => openMove(current)}
+            >
+              Taşı
             </Button>
             <Button
               fullWidth={false}
@@ -398,6 +424,7 @@ export function CategoriesView() {
           onEdit={() => openEdit(menuCategory)}
           onAddChild={() => setForm({ categoryId: null, parentId: menuCategory.id })}
           onAssign={() => openProducts(menuCategory)}
+          onMove={() => openMove(menuCategory)}
           onToggle={(active) => cats.toggleActive(menuCategory.id, active)}
           onDelete={() => setDeleting(menuCategory)}
         />
@@ -412,6 +439,7 @@ export function CategoriesView() {
           onSave={saveCategory}
           onAssign={cats.assign}
           onUnassign={cats.unassign}
+          onMove={(id, parentId) => cats.move(id, parentId)}
           onClose={() => setForm(null)}
         />
       ) : null}
@@ -423,6 +451,15 @@ export function CategoriesView() {
           onAssign={cats.assign}
           onUnassign={cats.unassign}
           onClose={() => setProductsFor(null)}
+        />
+      ) : null}
+      {moveCategory ? (
+        <CategoryMoveSheet
+          key={moveCategory.id}
+          category={moveCategory}
+          categories={categories}
+          onMove={(parentId) => moveTo(moveCategory, parentId)}
+          onClose={() => setMoveFor(null)}
         />
       ) : null}
       <ConfirmSheet

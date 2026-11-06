@@ -1,4 +1,4 @@
-import { Boxes, ChevronDown, ChevronRight } from 'lucide-react';
+import { Boxes, ChevronDown, ChevronRight, FolderInput } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { SelectField, type SelectOption } from '../../../components/ui/SelectField';
@@ -9,6 +9,7 @@ import { TextField } from '../../../components/ui/TextField';
 import { LogoPicker } from '../../brands/components/LogoPicker';
 import { branchOf, flattenTree } from '../tree';
 import { emptyCategoryDraft, type Category, type CategoryDraft } from '../types';
+import { CategoryMovePanel } from './CategoryMovePanel';
 import { CategoryProductsPanel } from './CategoryProductsPanel';
 
 interface CategoryFormSheetProps {
@@ -21,6 +22,8 @@ interface CategoryFormSheetProps {
   onSave: (draft: CategoryDraft) => Promise<void>;
   onAssign: (categoryId: string, productIds: string[]) => Promise<void>;
   onUnassign: (categoryId: string, productIds: string[]) => Promise<void>;
+  /** Mevcut kategoriyi hemen taşır (Kaydet'ten bağımsız). */
+  onMove: (categoryId: string, parentId: string | null) => Promise<void>;
   onClose: () => void;
 }
 
@@ -40,10 +43,13 @@ export function CategoryFormSheet({
   onSave,
   onAssign,
   onUnassign,
+  onMove,
   onClose,
 }: CategoryFormSheetProps) {
-  const [panelOpen, setPanelOpen] = useState(false);
+  // Yan panel: ürünler ya da taşıma (aynı anda biri açılır).
+  const [panel, setPanel] = useState<'products' | 'move' | null>(null);
   const productsButton = useRef<HTMLButtonElement>(null);
+  const moveButton = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState<CategoryDraft>(() =>
     category
       ? {
@@ -97,22 +103,38 @@ export function CategoryFormSheet({
       aside={
         category
           ? {
-              title: `${category.name} · Ürünler`,
-              subtitle: `${category.productCount} ürün bu kategoride`,
-              open: panelOpen,
+              title: panel === 'move' ? `${category.name} · Taşı` : `${category.name} · Ürünler`,
+              subtitle:
+                panel === 'move'
+                  ? 'Nereye taşınsın?'
+                  : `${category.productCount} ürün bu kategoride`,
+              open: panel !== null,
               side: 'right',
               onClose: () => {
-                setPanelOpen(false);
-                productsButton.current?.focus();
+                const opener = panel === 'move' ? moveButton : productsButton;
+                setPanel(null);
+                opener.current?.focus();
               },
-              children: (
-                <CategoryProductsPanel
-                  category={category}
-                  categoryNames={categoryNames}
-                  onAssign={onAssign}
-                  onUnassign={onUnassign}
-                />
-              ),
+              children:
+                panel === 'move' ? (
+                  <CategoryMovePanel
+                    category={category}
+                    categories={categories}
+                    onMove={async (parentId) => {
+                      await onMove(category.id, parentId);
+                      set('parentId', parentId);
+                      setPanel(null);
+                      moveButton.current?.focus();
+                    }}
+                  />
+                ) : (
+                  <CategoryProductsPanel
+                    category={category}
+                    categoryNames={categoryNames}
+                    onAssign={onAssign}
+                    onUnassign={onUnassign}
+                  />
+                ),
             }
           : undefined
       }
@@ -136,12 +158,42 @@ export function CategoryFormSheet({
                 setNameError(undefined);
               }}
             />
-            <SelectField
-              label="Üst Kategori"
-              options={parentOptions}
-              value={draft.parentId ?? ROOT}
-              onChange={(v) => set('parentId', v === ROOT ? null : v)}
-            />
+            {category ? (
+              // Mevcut kategori: yeri bir seçim kutusuyla değil, "Taşı" paneliyle değiştirilir.
+              <button
+                ref={moveButton}
+                type="button"
+                onClick={() => setPanel((p) => (p === 'move' ? null : 'move'))}
+                aria-expanded={panel === 'move'}
+                className={[
+                  'flex min-h-14 items-center gap-3 rounded-control border px-4 text-left transition-colors',
+                  panel === 'move'
+                    ? 'border-brand-600 bg-brand-50 text-brand-ink'
+                    : 'border-field-border hover:border-brand-500',
+                ].join(' ')}
+              >
+                <FolderInput className="size-5 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs text-ink-muted">Konum · Taşı</span>
+                  <span className="block truncate font-semibold">
+                    {category.parentId
+                      ? (categoryNames[category.parentId] ?? 'Ana Kategori')
+                      : 'Ana Kategori'}
+                  </span>
+                </span>
+                <ChevronRight
+                  className={`size-5 shrink-0 transition-transform ${panel === 'move' ? 'rotate-180' : ''}`}
+                  aria-hidden="true"
+                />
+              </button>
+            ) : (
+              <SelectField
+                label="Üst Kategori"
+                options={parentOptions}
+                value={draft.parentId ?? ROOT}
+                onChange={(v) => set('parentId', v === ROOT ? null : v)}
+              />
+            )}
             <Switch label="Aktif" checked={draft.active} onChange={(v) => set('active', v)} />
             <Switch
               label="Mağazada Gizle"
@@ -152,11 +204,11 @@ export function CategoryFormSheet({
               <button
                 ref={productsButton}
                 type="button"
-                onClick={() => setPanelOpen((v) => !v)}
-                aria-expanded={panelOpen}
+                onClick={() => setPanel((p) => (p === 'products' ? null : 'products'))}
+                aria-expanded={panel === 'products'}
                 className={[
                   'flex min-h-14 items-center gap-3 rounded-control border px-4 text-left transition-colors',
-                  panelOpen
+                  panel === 'products'
                     ? 'border-brand-600 bg-brand-50 text-brand-ink'
                     : 'border-field-border hover:border-brand-500',
                 ].join(' ')}
@@ -169,7 +221,7 @@ export function CategoryFormSheet({
                   </span>
                 </span>
                 <ChevronRight
-                  className={`size-5 shrink-0 transition-transform ${panelOpen ? 'rotate-180' : ''}`}
+                  className={`size-5 shrink-0 transition-transform ${panel === 'products' ? 'rotate-180' : ''}`}
                   aria-hidden="true"
                 />
               </button>

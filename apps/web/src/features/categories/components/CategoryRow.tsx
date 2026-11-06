@@ -1,4 +1,12 @@
-import { Boxes, ChevronRight, EyeOff, GripVertical, Pencil, Trash2 } from 'lucide-react';
+import {
+  Boxes,
+  ChevronRight,
+  EyeOff,
+  FolderInput,
+  GripVertical,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import type { SortableRowContext } from '../../../components/ui/SortableList';
 import { SwipeRow } from '../../../components/ui/SwipeRow';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
@@ -19,6 +27,7 @@ interface CategoryRowProps {
   onOpen: () => void;
   onEdit: () => void;
   onAssign: () => void;
+  onMove: () => void;
   onDelete: () => void;
   onToggle: (active: boolean) => void;
 }
@@ -26,8 +35,17 @@ interface CategoryRowProps {
 const ACTION_WIDTH = 68;
 
 function PhoneRow(props: CategoryRowProps) {
-  const { category, pathText, swipeOpen, onSwipeOpenChange, onOpen, onEdit, onAssign, onDelete } =
-    props;
+  const {
+    category,
+    pathText,
+    swipeOpen,
+    onSwipeOpenChange,
+    onOpen,
+    onEdit,
+    onAssign,
+    onMove,
+    onDelete,
+  } = props;
   const actionClass =
     'flex w-17 flex-col items-center justify-center gap-1 text-[0.6875rem] font-bold';
   return (
@@ -35,7 +53,7 @@ function PhoneRow(props: CategoryRowProps) {
       <SwipeRow
         open={swipeOpen}
         onOpenChange={onSwipeOpenChange}
-        actionsWidth={ACTION_WIDTH * 3}
+        actionsWidth={ACTION_WIDTH * 4}
         actions={
           <>
             <button
@@ -53,6 +71,14 @@ function PhoneRow(props: CategoryRowProps) {
             >
               <Boxes className="size-5" aria-hidden="true" />
               Ürünler
+            </button>
+            <button
+              type="button"
+              onClick={onMove}
+              className={`${actionClass} bg-brand-900 text-white`}
+            >
+              <FolderInput className="size-5" aria-hidden="true" />
+              Taşı
             </button>
             <button
               type="button"
@@ -113,8 +139,17 @@ function PhoneRow(props: CategoryRowProps) {
  * kategorinin içine girer (gezinme), bu yüzden düzenleme için kalem düğmesi vardır.
  */
 function WideRow(props: CategoryRowProps) {
-  const { category, pathText, sortable, sortingDisabled, onOpen, onEdit, onAssign, onDelete } =
-    props;
+  const {
+    category,
+    pathText,
+    sortable,
+    sortingDisabled,
+    onOpen,
+    onEdit,
+    onAssign,
+    onMove,
+    onDelete,
+  } = props;
   const iconButton =
     'inline-flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-ink focus-visible:bg-brand-50';
   return (
@@ -188,6 +223,15 @@ function WideRow(props: CategoryRowProps) {
           className={iconButton}
         >
           <Boxes className="size-5" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={onMove}
+          aria-label={`${category.name} kategorisini taşı`}
+          title="Taşı"
+          className={iconButton}
+        >
+          <FolderInput className="size-5" aria-hidden="true" />
         </button>
         <button
           type="button"

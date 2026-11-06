@@ -117,14 +117,55 @@ describe('Kategoriler ekranı', () => {
     expect(left.some((c) => c.id === 'terazi')).toBe(false);
   });
 
-  it('kategori kendi alt kategorisine taşınamaz (üst kategori listesinde yok)', async () => {
+  it('Taşı: istenen kategoriye gezip "Buraya Taşı" ile taşır', async () => {
+    const user = await openCategories('/uygulama/kategoriler?k=otvt');
+    await user.click(screen.getByRole('button', { name: 'Dokunmatik POS işlemleri' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Taşı' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Dokunmatik POS · Taşı' });
+    // Başlangıçta şu anki yerinde: taşıma kapalı.
+    expect(within(dialog).getByRole('button', { name: 'Zaten Burada' })).toBeDisabled();
+    await user.click(within(dialog).getByRole('button', { name: 'Ana Kategoriler' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Tartım ve Paketleme içine gir' }));
+    expect(within(dialog).getByText('Hedef:')).toHaveTextContent('Tartım ve Paketleme');
+    await user.click(within(dialog).getByRole('button', { name: 'Buraya Taşı' }));
+    await waitFor(() => expect(ids()).not.toContain('pos'));
+    expect(
+      screen.getByText('Dokunmatik POS, Tartım ve Paketleme içine taşındı.'),
+    ).toBeInTheDocument();
+    const moved = (await categoryService.list()).find((c) => c.id === 'pos');
+    expect(moved?.parentId).toBe('tartim');
+  });
+
+  it('Taşı: kategori kendi dalına taşınamaz (kendisi ve altları listede yok)', async () => {
     const user = await openCategories();
     await user.click(screen.getByRole('button', { name: 'OT/VT Ürünleri işlemleri' }));
-    await user.click(await screen.findByRole('button', { name: 'Düzenle' }));
+    await user.click(await screen.findByRole('button', { name: 'Taşı' }));
+    const dialog = await screen.findByRole('dialog', { name: 'OT/VT Ürünleri · Taşı' });
+    expect(
+      within(dialog).queryByRole('button', { name: 'OT/VT Ürünleri içine gir' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: 'Tartım ve Paketleme içine gir' }),
+    ).toBeInTheDocument();
+  });
+
+  it('düzenleme penceresinde Konum düğmesi yan taşıma panelini açar ve hemen taşır', async () => {
+    const user = await openCategories('/uygulama/kategoriler?k=otvt');
+    await user.click(screen.getByRole('button', { name: 'Fiyatgör ve Kiosk işlemleri' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Düzenle' }),
+    );
     const dialog = await screen.findByRole('dialog', { name: 'Kategoriyi Düzenle' });
-    await user.click(within(dialog).getByRole('combobox', { name: /Üst Kategori/ }));
-    const list = await screen.findByRole('listbox');
-    expect(within(list).queryByRole('option', { name: /Dokunmatik POS/ })).not.toBeInTheDocument();
-    expect(within(list).getByRole('option', { name: /Tartım ve Paketleme/ })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /Konum · Taşı/ }));
+    await user.click(await screen.findByRole('button', { name: 'Ana Kategoriler' }));
+    await user.click(screen.getByRole('button', { name: 'Buraya Taşı' }));
+    await waitFor(async () =>
+      expect((await categoryService.list()).find((c) => c.id === 'kiosk')?.parentId).toBeNull(),
+    );
+    expect(within(dialog).getByRole('button', { name: /Konum · Taşı/ })).toHaveTextContent(
+      'Ana Kategori',
+    );
   });
 });
