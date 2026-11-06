@@ -1,5 +1,6 @@
 import { Check, Copy, Ruler, Scale, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { Segmented } from '../../../components/ui/Segmented';
 import { sanitizeNumeric } from '../../../lib/numeric';
 import {
@@ -19,6 +20,7 @@ type Mode = 'weight' | 'volume';
 
 interface MeasureCalculatorProps {
   mode: Mode;
+  anchor?: RefObject<HTMLDivElement | null>;
   /** Hesaplanan değer forma yazılır: ağırlıkta g (1000 g ve üzeri kg), hacimde desi. */
   onApply: (value: string, unit?: WeightUnit) => void;
   onClose: () => void;
@@ -44,7 +46,7 @@ const REGIONS = [
  * - Desi = (En × Boy × Yükseklik) ÷ bölen. Yurt içi kargoda bölen 3000, yurt dışı
  *   (DHL/UPS/FedEx gibi uluslararası taşıyıcılar) 5000'dir.
  */
-export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorProps) {
+export function MeasureCalculator({ mode, anchor, onApply, onClose }: MeasureCalculatorProps) {
   const [shape, setShape] = useState<Shape>('prizma');
   const [region, setRegion] = useState<DesiRegion>('yurtici');
   const [dims, setDims] = useState({ a: '', b: '', c: '' });
@@ -53,21 +55,39 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
   const firstRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Masaüstünde pencere alanın sağ kenarına hizalı açılır; soldaki alanlarda ekranın solundan taşarsa
-  // sola hizalanır (ya da tersi). Konum doğrudan DOM'a yazılır, görünürken zıplama olmaz.
+  // Portal kaydırmalı birim kartının kırpmasını önler. Alanın üstünde yer yoksa alta açılır.
   useLayoutEffect(() => {
     const el = dialogRef.current;
-    if (!el || !window.matchMedia?.('(min-width: 48rem)').matches) return;
-    const rect = el.getBoundingClientRect();
-    const margin = 12;
-    if (rect.left < margin) {
-      el.style.left = '0';
+    if (!el) return;
+    const place = () => {
+      if (!window.matchMedia?.('(min-width: 48rem)').matches) {
+        el.style.left = '';
+        el.style.top = '';
+        el.style.bottom = '';
+        el.style.right = '';
+        return;
+      }
+      const rect = anchor?.current?.getBoundingClientRect();
+      if (!rect) return;
+      const margin = 12;
+      const height = el.offsetHeight;
+      const above = rect.top - height - margin;
+      el.style.left = `${Math.max(margin, Math.min(rect.right - el.offsetWidth, window.innerWidth - el.offsetWidth - margin))}px`;
+      el.style.top = `${Math.max(margin, above >= margin ? above : Math.min(rect.bottom + margin, window.innerHeight - height - margin))}px`;
+      el.style.bottom = 'auto';
       el.style.right = 'auto';
-    } else if (rect.right > window.innerWidth - margin) {
-      el.style.right = '0';
-      el.style.left = 'auto';
-    }
-  }, []);
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
+    observer?.observe(el);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+      observer?.disconnect();
+    };
+  }, [anchor]);
 
   useEffect(() => {
     firstRef.current?.focus();
@@ -124,7 +144,7 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
   const title = isWeight ? 'Ağırlık Hesapla' : 'Desi Hesapla';
   const Icon = isWeight ? Scale : Ruler;
 
-  return (
+  return createPortal(
     <>
       {/* Telefonda arka plan kararır (kapanma yalnızca Esc/X/Uygula ile; modal kuralı) */}
       <div aria-hidden="true" className="fixed inset-0 z-40 animate-fade-in bg-ink/40 md:hidden" />
@@ -135,7 +155,7 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
         className={[
           // Telefon: ALTTAN açılan sheet. Geniş ekran: alanın üstünde, sağa hizalı açılır pencere.
           'fixed inset-x-0 bottom-0 z-50 max-h-[92dvh] animate-sheet-in overflow-y-auto rounded-t-[1.75rem] pb-[env(safe-area-inset-bottom)]',
-          'md:absolute md:inset-x-auto md:right-0 md:bottom-full md:mb-3 md:max-h-none md:w-[26rem] md:animate-rise-in md:overflow-visible md:rounded-[1.75rem] md:pb-0',
+          'md:inset-x-auto md:max-h-[calc(100dvh-1.5rem)] md:w-[26rem] md:animate-rise-in md:rounded-[1.75rem] md:pb-0',
           'border border-line bg-surface-raised shadow-card',
         ].join(' ')}
       >
@@ -262,6 +282,7 @@ export function MeasureCalculator({ mode, onApply, onClose }: MeasureCalculatorP
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

@@ -1,5 +1,5 @@
 import { Calculator, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import { ToggleChip } from '../../../components/ui/ToggleChip';
@@ -151,9 +151,11 @@ export function UnitBarcodeField({ row, lookups, onChange }: UnitPartProps) {
 export function UnitMeasureFields({ row, onChange }: Pick<UnitPartProps, 'row' | 'onChange'>) {
   // Hangi hesaplayıcı açık: ağırlık / hacim (aynı anda biri).
   const [calc, setCalc] = useState<'weight' | 'volume' | null>(null);
+  const weightAnchor = useRef<HTMLDivElement>(null);
+  const volumeAnchor = useRef<HTMLDivElement>(null);
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <div className="relative">
+      <div ref={weightAnchor} className="relative">
         <TextField
           label="Ağırlık"
           numeric="decimal"
@@ -173,12 +175,13 @@ export function UnitMeasureFields({ row, onChange }: Pick<UnitPartProps, 'row' |
         {calc === 'weight' ? (
           <MeasureCalculator
             mode="weight"
+            anchor={weightAnchor}
             onApply={(weight, unit) => onChange(unit ? { weight, weightUnit: unit } : { weight })}
             onClose={() => setCalc(null)}
           />
         ) : null}
       </div>
-      <div className="relative">
+      <div ref={volumeAnchor} className="relative">
         <TextField
           label="Hacim"
           numeric="decimal"
@@ -195,6 +198,7 @@ export function UnitMeasureFields({ row, onChange }: Pick<UnitPartProps, 'row' |
         {calc === 'volume' ? (
           <MeasureCalculator
             mode="volume"
+            anchor={volumeAnchor}
             onApply={(volume) => onChange({ volume })}
             onClose={() => setCalc(null)}
           />
