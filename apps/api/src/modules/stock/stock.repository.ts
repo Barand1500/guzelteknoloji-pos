@@ -437,6 +437,8 @@ export class PrismaStockRepository implements StockRepository {
               kdvDepartmaniKimligi: optionId('vatDepartments', d.vatDepartment, true),
               digerVergiKimligi: optionId('otherTaxes', d.otherTax, true),
               envanterTakibi: d.inventoryTracking,
+              // Adet yalnızca "Normal" takipte girilir; diğer takip türlerinde kayıtlı adet korunur.
+              ...(normal ? { stokMiktari: decimal(d.stockQuantity) ?? new Prisma.Decimal(0) } : {}),
               altLimit: normal ? decimal(d.lowerLimit) : null,
               ustLimit: normal ? decimal(d.upperLimit) : null,
               seriNoZorunlu: serial && d.serialRequired,
@@ -623,6 +625,7 @@ export class PrismaStockRepository implements StockRepository {
       vatDepartment: card.kdvDepartmani?.secenekKodu ?? '',
       stockKind: card.stokNevi.secenekKodu,
       inventoryTracking: card.envanterTakibi,
+      stockQuantity: card.envanterTakibi === 'normal' ? str(card.stokMiktari) : '',
       lowerLimit: str(card.altLimit),
       upperLimit: str(card.ustLimit),
       serialRequired: card.seriNoZorunlu,

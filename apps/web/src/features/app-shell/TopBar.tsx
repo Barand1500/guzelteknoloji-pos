@@ -4,18 +4,32 @@ import { brandConfig } from '../../config/brand.config';
 import { pageTitle } from '../../config/navigation';
 import { LOGIN_PATH } from '../../pages/auth/LoginPage';
 import { useSession } from '../auth/hooks/session-context';
-import { revokeDevAccess } from '../dev-login/devAccess';
+import { hasDevAccess, revokeDevAccess } from '../dev-login/devAccess';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useTheme } from '../theme/ThemeProvider';
+import { Greeting } from './Greeting';
+import { firstNameOf } from './greeting-text';
 
 const iconButton =
   'inline-flex size-11 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink';
 
-/** İnce üst çubuk: marka, sayfa başlığı, gece/gündüz anahtarı ve çıkış. */
+/**
+ * İnce üst çubuk: marka, sayfa başlığı; sağda sırayla gece/gündüz anahtarı, selamlama ("Günaydın
+ * Baran") ve çıkış. Telefonda yer dar olduğu için selamlama başlığın altına küçük yazılır.
+ */
 export function TopBar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { session, logout } = useSession();
   const { mode, toggle } = useTheme();
+  const wide = useMediaQuery('(min-width: 40rem)');
+  // Geçici test girişinde (kimlik yok) "Test Kullanıcısı" selamlanır.
+  const name =
+    session.status === 'authenticated'
+      ? firstNameOf(session.user)
+      : hasDevAccess()
+        ? 'Test Kullanıcısı'
+        : null;
 
   const signOut = async () => {
     revokeDevAccess(); // GEÇİCİ test girişi (features/dev-login)
@@ -31,9 +45,12 @@ export function TopBar() {
       >
         {brandConfig.monogram}
       </span>
-      <h1 className="min-w-0 flex-1 truncate text-xl font-extrabold tracking-tight text-ink">
-        {pageTitle(pathname) ?? brandConfig.name}
-      </h1>
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-xl font-extrabold tracking-tight text-ink">
+          {pageTitle(pathname) ?? brandConfig.name}
+        </h1>
+        {wide ? null : <Greeting name={name} className="text-xs" />}
+      </div>
       <button
         type="button"
         onClick={toggle}
@@ -46,6 +63,7 @@ export function TopBar() {
           <Moon className="size-5" aria-hidden="true" />
         )}
       </button>
+      {wide ? <Greeting name={name} className="max-w-[16rem] px-1 text-sm" /> : null}
       <button type="button" onClick={signOut} aria-label="Çıkış Yap" className={iconButton}>
         <LogOut className="size-5" aria-hidden="true" />
       </button>

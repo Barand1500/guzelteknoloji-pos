@@ -1,14 +1,4 @@
-import {
-  Check,
-  Copy,
-  Pencil,
-  ShoppingBag,
-  Store,
-  Trash2,
-  UploadCloud,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+import { Check, Copy, Pencil, Trash2, X, type LucideIcon } from 'lucide-react';
 import { Sheet } from '../../../components/ui/Sheet';
 
 interface MenuItem {
@@ -63,17 +53,15 @@ interface ProductMenuSheetProps {
   name: string;
   onEdit: () => void;
   onDuplicate: () => void;
-  onMarketplace: (marketplace: string) => void;
   onDelete: () => void;
   onClose: () => void;
 }
 
-/** Tek ürünün işlem menüsü (⋮). Pazaryerleri doğrudan görünür. */
+/** Tek ürünün işlem menüsü (⋮): Düzenle, Kopya Oluştur, Sil. */
 export function ProductMenuSheet({
   name,
   onEdit,
   onDuplicate,
-  onMarketplace,
   onDelete,
   onClose,
 }: ProductMenuSheetProps) {
@@ -85,15 +73,6 @@ export function ProductMenuSheet({
         [
           { label: 'Düzenle', icon: Pencil, onSelect: onEdit },
           { label: 'Kopya Oluştur', icon: Copy, onSelect: onDuplicate },
-        ],
-        [
-          {
-            label: 'Hepsiburada',
-            icon: ShoppingBag,
-            onSelect: () => onMarketplace('Hepsiburada'),
-          },
-          { label: 'Trendyol', icon: UploadCloud, onSelect: () => onMarketplace('Trendyol') },
-          { label: 'N11', icon: Store, onSelect: () => onMarketplace('N11') },
         ],
         [{ label: 'Sil', icon: Trash2, onSelect: onDelete, danger: true }],
       ]}

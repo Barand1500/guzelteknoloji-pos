@@ -1,4 +1,12 @@
-import { FileSpreadsheet, ListChecks, Plus, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import {
+  FileSpreadsheet,
+  Images,
+  ListChecks,
+  Plus,
+  SlidersHorizontal,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../../../components/ui/Button';
@@ -9,6 +17,7 @@ import { SearchField } from '../../../components/ui/SearchField';
 import { Segmented } from '../../../components/ui/Segmented';
 import { Sheet } from '../../../components/ui/Sheet';
 import {
+  BULK_IMAGES_PATH,
   DEALS_PATH,
   STOCK_CREATE_PATH,
   stockCopyPath,
@@ -303,6 +312,13 @@ export function ProductsView() {
           <Sparkles className="size-4" aria-hidden="true" />
           Fırsatlar
         </Link>
+        <Link
+          to={BULK_IMAGES_PATH}
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-field-border px-3.5 text-sm font-semibold text-ink-muted transition-colors hover:border-brand-500 hover:text-ink"
+        >
+          <Images className="size-4" aria-hidden="true" />
+          Toplu Görsel
+        </Link>
         {filterCount > 0 ? (
           <button
             type="button"
@@ -418,7 +434,6 @@ export function ProductsView() {
           name={menuProduct.name}
           onEdit={() => edit(menuProduct)}
           onDuplicate={() => copy(menuProduct)}
-          onMarketplace={(m) => showNotice(`${m} bağlantısı henüz kurulmadı; ürün gönderilmedi.`)}
           onDelete={() => setDeleting({ ids: [menuProduct.id], label: menuProduct.name })}
           onClose={() => setMenuFor(null)}
         />

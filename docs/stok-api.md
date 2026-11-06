@@ -90,3 +90,7 @@ CategoryDraft: `{parentId, name, description, imageUrl, active, hidden, seoTitle
 ## Bekleyen logo temizliği
 
 `markalar.logo_verisi` bu değişiklikte kaldırılmaz. Sunucudaki tüm eski logoların dosyaya taşındığı ve yedeğinin alındığı doğrulandıktan sonra ayrı migration ile kaldırılabilir. Bu bilgisayardaki çalışma sunucu veritabanını doğrulamaz veya değiştirmez.
+
+## Stok miktarı (`draft.stockQuantity`)
+
+2026-11-06: stok kartı formuna "Stok Miktarı" alanı eklendi. `draft.stockQuantity` ondalık metindir (diğer limit alanları gibi); gönderilmezse boş sayılır (eski istemci uyumu). Yalnızca `envanterTakibi = normal` iken `stok_kartlari.stok_miktari` alanına yazılır (boş = 0); diğer takip türlerinde kayıtlı miktar korunur. `GET /kartlar/:id` taslakta `normal` takipte miktarı, diğerlerinde boş metin döndürür. Liste yanıtındaki `stock` zaten bu sütundur.

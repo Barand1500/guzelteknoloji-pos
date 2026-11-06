@@ -124,21 +124,16 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     expect((await productService.list()).some((p) => p.id === 'p1')).toBe(false);
   });
 
-  it('⋮ menüsünde Düzenle, Kopya Oluştur ve pazaryerleri doğrudan görünür (etiketsiz)', async () => {
+  it('⋮ menüsünde yalnızca Düzenle, Kopya Oluştur ve Sil vardır (pazaryeri satırı yok)', async () => {
     const user = await openProducts();
     await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
     const menu = await screen.findByRole('dialog', { name: NAME_1 });
-    for (const m of ['Düzenle', 'Kopya Oluştur', 'Hepsiburada', 'Trendyol', 'N11'])
-      expect(within(menu).getByRole('button', { name: m })).toBeInTheDocument();
-    expect(within(menu).queryByText(/yakında/i)).not.toBeInTheDocument();
-  });
-
-  it('pazaryeri seçilince henüz bağlı olmadığı dürüstçe söylenir', async () => {
-    const user = await openProducts();
-    await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
-    const menu = await screen.findByRole('dialog', { name: NAME_1 });
-    await user.click(within(menu).getByRole('button', { name: 'Trendyol' }));
-    expect(await screen.findByText(/Trendyol bağlantısı henüz kurulmadı/)).toBeInTheDocument();
+    expect(
+      within(menu)
+        .getAllByRole('button')
+        .map((b) => b.textContent?.trim())
+        .filter((t) => t !== ''),
+    ).toEqual(['Düzenle', 'Kopya Oluştur', 'Sil']);
   });
 });
 

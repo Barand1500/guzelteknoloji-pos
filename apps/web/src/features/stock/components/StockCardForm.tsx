@@ -7,6 +7,7 @@ import { Alert } from '../../../components/ui/Alert';
 import { useSession } from '../../auth/hooks/session-context';
 import { hasDevAccess } from '../../dev-login/devAccess';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
+import { NextProductBar } from '../../products/components/NextProductBar';
 import { useStockEditor } from '../hooks/useStockEditor';
 import { stockService, stockErrorMessage, type StockService } from '../services/stock.service';
 import { demoStockService } from '../services/stock.demo';
@@ -183,6 +184,12 @@ function StockCardEditor({
               {editor.draft.name || editor.draft.code}
             </span>
           </p>
+          {/* Sağdaki boşluk: sıradaki ürüne geçiş (yalnızca düzenlemede). */}
+          {mode === 'edit' && cardId ? (
+            <div className="w-full sm:ml-auto sm:w-auto">
+              <NextProductBar currentId={cardId} dirty={editor.dirty} />
+            </div>
+          ) : null}
         </div>
       )}
       {demo ? (

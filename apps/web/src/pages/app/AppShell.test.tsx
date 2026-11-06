@@ -269,7 +269,7 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     expect(screen.getByLabelText('Satış Fiyatı')).toHaveValue('45,0');
   });
 
-  it('envanter satırındaki kutular boşluk bırakmaz: Yok 3, Normal/Seri No 5, LOT/Ömür 4+2 sütun', async () => {
+  it('envanter satırındaki kutular boşluk bırakmaz: Yok 3, Seri No 5, Normal/LOT/Ömür 4+2 sütun', async () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
     renderApp();
@@ -287,7 +287,7 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
       await user.click(screen.getByRole('option', { name }));
     };
 
-    expect(cols()).toEqual(['5']); // Normal: Envanter + Alt + Üst + Menşei + Diğer Vergi
+    expect(cols()).toEqual(['4', '2']); // Normal: Envanter + Miktar + Alt + Üst | Menşei + Diğer Vergi
     await pick('Yok');
     expect(cols()).toEqual(['3']);
     await pick('Seri No');

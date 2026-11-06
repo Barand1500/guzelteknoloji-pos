@@ -43,6 +43,7 @@ const categoryName = (id: string): string => categorySeeds.find((c) => c.id === 
 
 export const productItemSeeds: ProductItem[] = productSeeds.map((seed, i) => {
   const row = sheet[i % sheet.length]!;
+  const image = device(i % 2 === 0 ? '#1d232b' : '#16324f');
   const categoryId = categoryProductSeeds.find((c) => c.id === seed.id)?.categoryId ?? null;
   return {
     id: seed.id,
@@ -53,7 +54,9 @@ export const productItemSeeds: ProductItem[] = productSeeds.map((seed, i) => {
     brandName: brandName(seed.brandId),
     categoryIds: categoryId ? [categoryId] : [],
     categoryNames: categoryId ? [categoryName(categoryId)] : [],
-    imageUrl: device(i % 2 === 0 ? '#1d232b' : '#16324f'),
+    imageUrl: image,
+    imageUrls: [image],
+    barcode: seed.barcode,
     currency: i < 6 ? '$' : '₺',
     vatRate: 20,
     prices: [...row.p],

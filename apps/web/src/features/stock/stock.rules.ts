@@ -85,6 +85,7 @@ export function createEmptyDraft(firstPriceListId: string): StockCardDraft {
     vatDepartment: '',
     stockKind: 'resmi',
     inventoryTracking: 'normal',
+    stockQuantity: '',
     lowerLimit: '',
     upperLimit: '',
     serialRequired: false,
@@ -147,13 +148,20 @@ export type InventoryField =
   | {
       kind: 'decimal' | 'integer' | 'text';
       key:
-        'lowerLimit' | 'upperLimit' | 'serialPrefix' | 'lotPrefix' | 'shelfLifeDays' | 'riskDays';
+        | 'stockQuantity'
+        | 'lowerLimit'
+        | 'upperLimit'
+        | 'serialPrefix'
+        | 'lotPrefix'
+        | 'shelfLifeDays'
+        | 'riskDays';
       label: string;
     };
 
 export const INVENTORY_FIELDS: Record<string, InventoryField[]> = {
   yok: [],
   normal: [
+    { kind: 'decimal', key: 'stockQuantity', label: 'Stok Miktarı' },
     { kind: 'decimal', key: 'lowerLimit', label: 'Alt Limit' },
     { kind: 'decimal', key: 'upperLimit', label: 'Üst Limit' },
   ],

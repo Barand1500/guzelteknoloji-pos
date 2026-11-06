@@ -50,7 +50,7 @@ export function useStockEditor(
   const saveLock = useRef(false);
 
   const firstListId = priceLists.options[0]?.value ?? 'fiyat';
-  const [draft, setDraft] = useState<StockCardDraft>(() => {
+  const [initialDraft] = useState<StockCardDraft>(() => {
     const start = options.initialDraft ?? createEmptyDraft(firstListId);
     // Aktif fiyat listesinin birim satırı yoksa (eski kart) boş bir ana birim eklenir.
     const base = start.units[firstListId]
@@ -66,6 +66,7 @@ export function useStockEditor(
       ),
     };
   });
+  const [draft, setDraft] = useState<StockCardDraft>(initialDraft);
   const [activeList, selectList] = useState(firstListId);
   const setActiveList = (id: string) => {
     // Yeni açılan listenin birim yapısı ortak yapıdan gelir; yalnızca fiyatları boştur.
@@ -74,7 +75,12 @@ export function useStockEditor(
     );
     selectList(id);
   };
-  const [extras, setExtras] = useState<StockExtras>(() => options.initialExtras ?? emptyExtras());
+  const [initialExtras] = useState<StockExtras>(() => options.initialExtras ?? emptyExtras());
+  const [extras, setExtras] = useState<StockExtras>(initialExtras);
+  // Kaydedilmemiş değişiklik var mı: başka ürüne geçerken uyarmak için (kayıttan sonra sıfırlanır).
+  const [baseline, setBaseline] = useState(() =>
+    JSON.stringify({ draft: initialDraft, extras: initialExtras }),
+  );
   const extraOptions = options.extraOptions ?? null;
   const toggleExtra = (key: keyof StockExtras, id: string) =>
     setExtras((e) => ({
@@ -208,6 +214,7 @@ export function useStockEditor(
       const result = options.cardId
         ? await service.update(options.cardId, parsed.data, request.current.id, sent)
         : await service.save(parsed.data, request.current.id, sent);
+      setBaseline(JSON.stringify({ draft, extras }));
       setSavedId(result.id);
       setSaved(true);
     } catch (error) {
@@ -248,6 +255,7 @@ export function useStockEditor(
     extraOptions,
     toggleCategory: (id: string) => toggleExtra('categoryIds', id),
     toggleDeal: (id: string) => toggleExtra('dealIds', id),
+    dirty: JSON.stringify({ draft, extras }) !== baseline,
     saved,
     savedId,
     keepEditing: () => setSaved(false),

@@ -12,6 +12,8 @@ export const stockCopyPath = (id: string) => `${STOCK_CREATE_PATH}?kopya=${encod
 export const PRODUCTS_PATH = `${APP_BASE}/urunler`;
 /** Alt sayfa: Ürünler sekmesinin altında olduğu için alt menüde Ürünler seçili kalır. */
 export const DEALS_PATH = `${PRODUCTS_PATH}/firsatlar`;
+/** Alt sayfa: Toplu Görsel Yükleme (Fırsatlar gibi Ürünler altındadır). */
+export const BULK_IMAGES_PATH = `${PRODUCTS_PATH}/toplu-gorsel`;
 /** Girişten sonra açılan ilk ekran: yeni stok kartı. */
 export const APP_HOME_PATH = STOCK_CREATE_PATH;
 
@@ -49,5 +51,6 @@ export function pageTitle(pathname: string): string | undefined {
 export const PAGE_TITLES: Record<string, string> = {
   [STOCK_CREATE_PATH]: 'Yeni Stok Kartı',
   [DEALS_PATH]: 'Fırsatlar',
+  [BULK_IMAGES_PATH]: 'Toplu Görsel',
   ...Object.fromEntries([...navLeft, ...navRight].map((i) => [i.path, i.label])),
 };

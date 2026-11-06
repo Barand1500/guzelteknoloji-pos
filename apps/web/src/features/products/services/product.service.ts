@@ -10,6 +10,14 @@ interface Page {
 }
 /** Ekranın yerel süzgeç ve sayfalaması için tüm kayıtlar sayfalı API'den yüklenir. */
 export const productService = {
+  /** Sunucuda ürün görseli tablosu ve yükleme ucu henüz yok: Toplu Görsel gerçek hesapta kapalıdır. */
+  supportsImages: false,
+  applyImages: async (
+    _entries: { productId: string; urls: string[] }[],
+    _replace: boolean,
+  ): Promise<number> => {
+    throw new Error('Ürün görseli sunucuda henüz desteklenmiyor.');
+  },
   list: async (): Promise<ProductItem[]> => {
     const rows: ProductItem[] = [];
     let page = 1;

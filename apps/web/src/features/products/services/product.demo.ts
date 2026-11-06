@@ -69,6 +69,29 @@ function check(raw: RawImportRow): { row: ImportRow; product?: Partial<ProductIt
 }
 
 export const demoProductService = {
+  /** Toplu Görsel: deneme verisinde görseller bellekte tutulur. */
+  supportsImages: true,
+
+  /**
+   * Toplu Görsel: ürünlere görselleri yazar. `replace` açıksa ürünün mevcut görselleri silinip yenileri
+   * konur, kapalıysa yenileri sona eklenir. İlk görsel vitrin resmi olur. Eklenen toplam görsel sayısı döner.
+   */
+  async applyImages(
+    entries: { productId: string; urls: string[] }[],
+    replace: boolean,
+  ): Promise<number> {
+    await wait(0);
+    let added = 0;
+    items = items.map((p) => {
+      const entry = entries.find((e) => e.productId === p.id);
+      if (!entry || entry.urls.length === 0) return p;
+      added += entry.urls.length;
+      const imageUrls = replace ? [...entry.urls] : [...p.imageUrls, ...entry.urls];
+      return { ...p, imageUrls, imageUrl: imageUrls[0] ?? null };
+    });
+    return added;
+  },
+
   /** Yalnızca testler için: sahte veriyi başlangıç haline döndürür. */
   reset(): void {
     items = productItemSeeds.map((p) => ({ ...p, dealIds: [...p.dealIds] }));

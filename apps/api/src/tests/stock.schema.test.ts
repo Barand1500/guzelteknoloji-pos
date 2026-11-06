@@ -8,6 +8,7 @@ describe('Stok doğrulama', () => {
     d.units.fiyat![0]!.barcodes[0]!.code = '00123456';
     const parsed = stockDraftSchema.parse(d);
     expect(parsed.lowerLimit).toBe('1.25');
+    expect(parsed.stockQuantity).toBe('5.5');
     expect(parsed.units.fiyat![0]!.purchase.amount).toBe('100.125');
     expect(parsed.units.fiyat![0]!.sale.discount).toBe('');
     expect(parsed.units.fiyat![0]!.barcodes[0]!.code).toBe('00123456');

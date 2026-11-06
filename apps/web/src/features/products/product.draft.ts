@@ -54,6 +54,8 @@ export function draftFromProduct(p: ProductItem): StockCardDraft {
     brand: p.brandId ?? '',
     vatDepartment: VAT_DEPARTMENT[p.vatRate] ?? 'genel',
     inventoryTracking: p.stockTracking ? 'normal' : 'yok',
+    // Adet yalnızca takip açıkken anlamlıdır ("Normal" takip).
+    stockQuantity: p.stockTracking ? text(p.stock) : '',
     units,
   };
 }
@@ -78,5 +80,7 @@ export function patchFromDraft(draft: StockCardDraft, lookups: StockLookups): Pa
     cost: first && first.purchase.amount !== '' ? num(first.purchase.amount) : 0,
     currency: CURRENCY_SYMBOL[first?.sale.currency ?? 'TRY'] ?? '₺',
     stockTracking: draft.inventoryTracking !== 'yok',
+    // Adet girilmemişse ya da takip "Normal" değilse mevcut adet korunur.
+    ...(draft.inventoryTracking === 'normal' ? { stock: num(draft.stockQuantity) } : {}),
   };
 }

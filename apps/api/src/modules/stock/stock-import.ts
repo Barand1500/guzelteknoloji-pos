@@ -61,6 +61,7 @@ function emptyDraft(): StockCardDraft {
     vatDepartment: 'genel',
     stockKind: 'resmi',
     inventoryTracking: 'yok',
+    stockQuantity: '',
     lowerLimit: '',
     upperLimit: '',
     serialRequired: false,
@@ -239,6 +240,10 @@ export class StockImport {
         if (raw.vat !== '' || !row.id)
           primary.purchase.vatRate = raw.vat === '' ? '20' : numberText(raw.vat);
         if (raw.stock !== '' && d.inventoryTracking === 'yok') d.inventoryTracking = 'normal';
+        // Dosyadaki adet kartın miktar alanına da yazılır ("Normal" takipte kart bu alanı esas alır).
+        // Eksi adet şemadan geçmez; o durumda yalnızca aşağıdaki metadata.stock yolu uygulanır.
+        if (raw.stock !== '' && !numberText(raw.stock, true).startsWith('-'))
+          d.stockQuantity = numberText(raw.stock, true);
         const input = createStockSchema.parse({ requestId: randomUUID(), draft: d });
         await this.repo.saveImported(userId, input, row.id, {
           ...(raw.stock !== '' ? { stock: numberText(raw.stock, true) } : {}),

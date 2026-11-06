@@ -78,6 +78,8 @@ export interface StockCardDraft {
   inventoryTracking: string;
   // Gelişmiş (varsayılan kapalı)
   // Envanter takibine göre görünen alanlar (yalnızca seçili takip türünün alanları gösterilir)
+  /** Eldeki adet (yalnızca "Normal" envanter takibinde girilir; boş = 0). */
+  stockQuantity: string; // Normal
   lowerLimit: string; // Normal
   upperLimit: string; // Normal
   serialRequired: boolean; // Seri No
@@ -165,6 +167,8 @@ export const stockDraftSchema = z
     vatDepartment: text(100),
     stockKind: text(100).min(1),
     inventoryTracking: z.enum(['yok', 'normal', 'seri', 'lot', 'omur']),
+    // Eski istemciler göndermezse boş sayılır.
+    stockQuantity: decimal.default(''),
     lowerLimit: decimal,
     upperLimit: decimal,
     serialRequired: z.boolean(),

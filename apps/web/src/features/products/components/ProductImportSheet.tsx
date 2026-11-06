@@ -1,4 +1,4 @@
-import { Check, Download, FileSpreadsheet } from 'lucide-react';
+import { Download, FileSpreadsheet } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
@@ -6,6 +6,7 @@ import { Sheet } from '../../../components/ui/Sheet';
 import { IMPORT_COLUMNS, sampleImportCsv } from '../import.csv';
 import { useProductService } from '../services/product.service';
 import { dataError } from '../../../lib/catalog-data';
+import { WizardSteps } from './WizardSteps';
 import type { ImportPreview, ImportRow } from '../types';
 
 interface ProductImportSheetProps {
@@ -122,34 +123,7 @@ export function ProductImportSheet({ onDone, onClose }: ProductImportSheetProps)
   return (
     <Sheet open onClose={onClose} title="Excel ile Ürün Yükle" size="lg">
       <div className="flex flex-col gap-5">
-        <ol aria-label="Adımlar" className="flex items-center gap-2 text-sm font-bold">
-          {STEPS.map((name, i) => {
-            const n = (i + 1) as Step;
-            const done = step > n;
-            return (
-              <li
-                key={name}
-                aria-current={step === n ? 'step' : undefined}
-                className="flex flex-1 items-center gap-2"
-              >
-                <span
-                  className={[
-                    'flex size-7 shrink-0 items-center justify-center rounded-full text-xs',
-                    step === n
-                      ? 'bg-brand-600 text-white'
-                      : done
-                        ? 'bg-success-soft text-success'
-                        : 'bg-surface-muted text-ink-muted',
-                  ].join(' ')}
-                >
-                  {done ? <Check className="size-4" aria-hidden="true" /> : n}
-                </span>
-                <span className={step === n ? 'text-ink' : 'text-ink-muted'}>{name}</span>
-                {i < STEPS.length - 1 ? <span className="h-0.5 flex-1 bg-line" /> : null}
-              </li>
-            );
-          })}
-        </ol>
+        <WizardSteps steps={STEPS} current={step} />
 
         {error ? <Alert tone="error">{error}</Alert> : null}
 

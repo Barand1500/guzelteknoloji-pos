@@ -39,6 +39,7 @@ export function stockFixture(): StockCardDraft {
     vatDepartment: 'genel',
     stockKind: 'resmi',
     inventoryTracking: 'normal',
+    stockQuantity: '5,5',
     lowerLimit: '1,25',
     upperLimit: '20',
     serialRequired: false,
