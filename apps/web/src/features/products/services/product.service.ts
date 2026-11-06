@@ -53,8 +53,8 @@ function check(raw: RawImportRow): { row: ImportRow; product?: Partial<ProductIt
     vatRate: vat,
     brandId: brand?.id ?? null,
     brandName: brand?.name ?? '',
-    categoryId: category?.id ?? null,
-    categoryName: category?.name ?? 'Kategorisiz',
+    categoryIds: category ? [category.id] : [],
+    categoryNames: category ? [category.name] : [],
     stockTracking: Number.isFinite(stock),
     stock: Number.isFinite(stock) ? stock : 0,
   };
@@ -98,6 +98,25 @@ export const productService = {
     return found ? { ...found, dealIds: [...found.dealIds] } : null;
   },
 
+  /** Stok kartındaki kategori ve fırsat seçimlerini ürüne yazar. */
+  async applyExtras(
+    id: string,
+    extras: { categoryIds: string[]; dealIds: string[] },
+  ): Promise<void> {
+    await wait(0);
+    const names = extras.categoryIds.map((c) => categorySeeds.find((x) => x.id === c)?.name ?? c);
+    items = items.map((p) =>
+      p.id === id
+        ? {
+            ...p,
+            categoryIds: [...extras.categoryIds],
+            categoryNames: names,
+            dealIds: [...extras.dealIds],
+          }
+        : p,
+    );
+  },
+
   /** Stok kartı formundan gelen alanları ürüne yansıtır (id yoksa yeni ürün ekler). */
   async applyCard(id: string | null, patch: Partial<ProductItem>): Promise<string> {
     await wait(0);
@@ -108,8 +127,8 @@ export const productService = {
     const created = {
       id: `yeni-${++seq}`,
       stockType: 'Basit Ürün',
-      categoryId: null,
-      categoryName: 'Kategorisiz',
+      categoryIds: [],
+      categoryNames: [],
       imageUrl: null,
       stock: 0,
       salesOpen: true,

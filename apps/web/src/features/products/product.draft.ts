@@ -11,7 +11,12 @@ const PRICE_LISTS = ['fiyat', 'perakende', 'toptan'] as const;
 const CURRENCY: Record<string, string> = { $: 'USD', '₺': 'TRY', '€': 'EUR' };
 const CURRENCY_SYMBOL: Record<string, string> = { USD: '$', TRY: '₺', EUR: '€' };
 /** KDV yüzdesi ↔ KDV departmanı. */
-const VAT_DEPARTMENT: Record<number, string> = { 20: 'genel', 10: 'gida', 1: 'temel-gida', 0: 'kitap' };
+const VAT_DEPARTMENT: Record<number, string> = {
+  20: 'genel',
+  10: 'gida',
+  1: 'temel-gida',
+  0: 'kitap',
+};
 const DEPARTMENT_VAT: Record<string, number> = { genel: 20, gida: 10, 'temel-gida': 1, kitap: 0 };
 
 const text = (n: number) => String(n).replace('.', ',');
@@ -27,7 +32,12 @@ export function draftFromProduct(p: ProductItem): StockCardDraft {
   const units: StockCardDraft['units'] = {};
   PRICE_LISTS.forEach((list, i) => {
     const row = createUnitRow(true);
-    row.purchase = { ...row.purchase, amount: p.cost ? text(p.cost) : '', currency, vatRate: String(p.vatRate) };
+    row.purchase = {
+      ...row.purchase,
+      amount: p.cost ? text(p.cost) : '',
+      currency,
+      vatRate: String(p.vatRate),
+    };
     row.sale = {
       ...row.sale,
       amount: text(p.prices[i] ?? 0),

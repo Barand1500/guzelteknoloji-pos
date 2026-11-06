@@ -16,6 +16,7 @@ import type { UnitRow } from '../types';
 import { BasicInfoSection } from './BasicInfoSection';
 import { KasaPriceEditor } from './KasaPriceEditor';
 import { PriceTabs } from './PriceTabs';
+import { StockSidePanel, type SideBoxId } from './StockSidePanel';
 import {
   UnitBarcodeField,
   UnitHeaderFields,
@@ -39,7 +40,13 @@ const slideClass = 'rounded-3xl border border-line bg-surface-raised p-4 shadow-
  * Telefon / tablet düzeni: üstte Ürün · Fiyat · Barkod · Ölçü sekmeleri, birimler yana
  * kaydırılan kartlar, sağ altta yüzen Kaydet. Seçili birim sekmeler arasında korunur.
  */
-export function MobileStockLayout({ editor }: { editor: StockEditor }) {
+export function MobileStockLayout({
+  editor,
+  initialBox,
+}: {
+  editor: StockEditor;
+  initialBox: SideBoxId | null;
+}) {
   const [tab, setTab] = useState<TabId>('urun');
   const [activeUnit, setActiveUnit] = useState(0);
   const { rows, lists, lookups, errors } = editor;
@@ -141,9 +148,13 @@ export function MobileStockLayout({ editor }: { editor: StockEditor }) {
         className="flex flex-col gap-4"
       >
         {tab === 'urun' ? (
-          <section aria-label="Ürün Bilgisi" className={`${slideClass} animate-rise-in`}>
-            <BasicInfoSection editor={editor} />
-          </section>
+          <>
+            {/* Özet yukarıdaki şerittir; burada yalnızca Kategori ve Fırsat kutuları (kapalı tek satır). */}
+            <StockSidePanel editor={editor} initialBox={initialBox} showSummary={false} />
+            <section aria-label="Ürün Bilgisi" className={`${slideClass} animate-rise-in`}>
+              <BasicInfoSection editor={editor} />
+            </section>
+          </>
         ) : null}
 
         {tab === 'fiyat' ? (

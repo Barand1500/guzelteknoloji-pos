@@ -29,13 +29,13 @@ const DEAL_OPTIONS = [
   ['without', 'Fırsatsız'],
 ] as const;
 
-/** Listede gerçekten bulunan kategori ve markalar, tekrarsız. */
-function distinct(products: ProductItem[], pick: (p: ProductItem) => [string | null, string]) {
+/** Listede gerçekten bulunan kategori ve markalar, tekrarsız. Bir ürün birden çok kategoride olabilir. */
+function distinct(
+  products: ProductItem[],
+  pick: (p: ProductItem) => (readonly [string, string])[],
+) {
   const map = new Map<string, string>();
-  for (const p of products) {
-    const [id, name] = pick(p);
-    if (id) map.set(id, name);
-  }
+  for (const p of products) for (const [id, name] of pick(p)) map.set(id, name);
   return [...map]
     .map(([id, name]) => ({ id, name }))
     .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
@@ -47,8 +47,10 @@ function distinct(products: ProductItem[], pick: (p: ProductItem) => [string | n
  */
 export function ProductFilterSheet({ products, value, onApply, onClose }: ProductFilterSheetProps) {
   const [draft, setDraft] = useState<ProductFilters>(value);
-  const categories = distinct(products, (p) => [p.categoryId, p.categoryName]);
-  const brands = distinct(products, (p) => [p.brandId, p.brandName]);
+  const categories = distinct(products, (p) =>
+    p.categoryIds.map((id, i) => [id, p.categoryNames[i] ?? id] as const),
+  );
+  const brands = distinct(products, (p) => (p.brandId ? [[p.brandId, p.brandName]] : []));
   const count = products.filter((p) => matchesFilters(p, draft)).length;
 
   const toggle = (key: 'categoryIds' | 'brandIds', id: string) =>

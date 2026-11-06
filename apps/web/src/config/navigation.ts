@@ -5,7 +5,8 @@ export const APP_BASE = '/uygulama';
 export const STOCK_BASE = `${APP_BASE}/stok-karti`;
 export const STOCK_CREATE_PATH = `${STOCK_BASE}/yeni`;
 /** Aynı stok kartı ekranı: ürün dolu gelir (düzenleme). */
-export const stockEditPath = (id: string) => `${STOCK_BASE}/${encodeURIComponent(id)}`;
+export const stockEditPath = (id: string, openBox?: string) =>
+  `${STOCK_BASE}/${encodeURIComponent(id)}${openBox ? `?ac=${openBox}` : ''}`;
 /** Aynı ekran: ürün dolu ama YENİ kayıt olarak açılır (kopya). */
 export const stockCopyPath = (id: string) => `${STOCK_CREATE_PATH}?kopya=${encodeURIComponent(id)}`;
 export const PRODUCTS_PATH = `${APP_BASE}/urunler`;

@@ -10,8 +10,9 @@ export interface ProductItem {
   stockType: string;
   brandId: string | null;
   brandName: string;
-  categoryId: string | null;
-  categoryName: string;
+  /** Ürün birden çok kategoride olabilir (sunucu sözleşmesi: categoryIds / categoryNames). */
+  categoryIds: string[];
+  categoryNames: string[];
   imageUrl: string | null;
   /** Para birimi simgesi (ör. "$", "₺"). */
   currency: string;
@@ -85,7 +86,7 @@ export function stockLabel(p: ProductItem): { text: string; tone: 'ok' | 'none' 
 
 /** Süzgeçleri bir ürüne uygular. */
 export function matchesFilters(p: ProductItem, f: ProductFilters): boolean {
-  if (f.categoryIds.length > 0 && !(p.categoryId && f.categoryIds.includes(p.categoryId)))
+  if (f.categoryIds.length > 0 && !p.categoryIds.some((id) => f.categoryIds.includes(id)))
     return false;
   if (f.brandIds.length > 0 && !(p.brandId && f.brandIds.includes(p.brandId))) return false;
   if (f.stock === 'in' && !(p.stockTracking && p.stock > 0)) return false;

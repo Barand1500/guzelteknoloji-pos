@@ -1,11 +1,9 @@
 import { Coins, Plus, Tag, type LucideIcon } from 'lucide-react';
-import { useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { BasicInfoSection } from './BasicInfoSection';
-import { CollapsedSummary } from './CollapsedSummary';
 import { PriceTabs } from './PriceTabs';
-import { StockPreview } from './StockPreview';
+import { StockSidePanel, type SideBoxId } from './StockSidePanel';
 import { UnitCard } from './UnitCard';
 
 /** Bölüm kartı görünümü (iki kartta ortak). */
@@ -13,12 +11,17 @@ const cardClass =
   'relative animate-rise-in rounded-[1.75rem] border border-line bg-surface-raised p-5 shadow-soft focus-within:z-20 tablet:p-7';
 
 /**
- * Geniş ekran düzeni (xl+): solda "Ürün Bilgisi" ve "Fiyat ve Birimler" kartları, sağda ok ile
- * kapanıp açılan yapışkan özet. Telefon/tablet düzeni: MobileStockLayout.
+ * Geniş ekran düzeni (xl+): solda "Ürün Bilgisi" ve "Fiyat ve Birimler" kartları, sağda yapışkan
+ * yan kutular (Özet, Kategori, Fırsat Yönetimi) ve Kaydet. Telefon/tablet düzeni: MobileStockLayout.
  */
-export function DesktopStockLayout({ editor }: { editor: StockEditor }) {
-  const [previewOpen, setPreviewOpen] = useState(true);
-  const { rows, lists, lookups, draft, saving } = editor;
+export function DesktopStockLayout({
+  editor,
+  initialBox,
+}: {
+  editor: StockEditor;
+  initialBox: SideBoxId | null;
+}) {
+  const { rows, lists, lookups, saving } = editor;
 
   const saveButton = (
     <Button onClick={() => void editor.save()} loading={saving} loadingLabel="Kaydediliyor…">
@@ -27,14 +30,7 @@ export function DesktopStockLayout({ editor }: { editor: StockEditor }) {
   );
 
   return (
-    <div
-      className={[
-        'grid items-start gap-6 transition-[grid-template-columns] duration-300',
-        previewOpen
-          ? 'xl:grid-cols-[minmax(0,1fr)_25rem] 2xl:grid-cols-[minmax(0,1fr)_28rem]'
-          : 'xl:grid-cols-[minmax(0,1fr)_3.5rem]',
-      ].join(' ')}
-    >
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_25rem]">
       <div className="flex min-w-0 flex-col gap-6">
         {/* ---- 1. Ürün bilgisi ---- */}
         <section aria-label="Temel Bilgi" className={cardClass}>
@@ -80,30 +76,9 @@ export function DesktopStockLayout({ editor }: { editor: StockEditor }) {
         </section>
       </div>
 
-      {/* ---- 3. Canlı özet (sağda yapışkan; ok ile kapanır) ---- */}
-      <div className="xl:sticky xl:top-6">
-        {previewOpen ? (
-          <StockPreview
-            draft={draft}
-            lookups={{
-              ...lookups,
-              units: lists.units.options,
-              stockTypes: lists.stockTypes.options,
-              vatDepartments: lists.vatDepartments.options,
-            }}
-            rows={rows}
-            priceListLabel={editor.activeListLabel}
-            footer={saveButton}
-            onCollapse={() => setPreviewOpen(false)}
-          />
-        ) : (
-          <CollapsedSummary
-            draft={draft}
-            saving={saving}
-            onOpen={() => setPreviewOpen(true)}
-            onSave={() => void editor.save()}
-          />
-        )}
+      {/* ---- 3. Yan kutular (sağda yapışkan) ---- */}
+      <div className="xl:sticky xl:top-6 xl:max-h-[calc(100dvh-3rem)] xl:overflow-y-auto">
+        <StockSidePanel editor={editor} initialBox={initialBox} showSummary footer={saveButton} />
       </div>
     </div>
   );

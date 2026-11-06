@@ -46,8 +46,7 @@ const PRICE_OPTIONS = [
  * (üç fiyat yan yana). "Ekle" mevcut stok kartı oluşturma ekranını açar.
  */
 export function ProductsView() {
-  const { products, loading, refresh, setStockTracking, setSales, remove } =
-    useProducts();
+  const { products, loading, refresh, setStockTracking, setSales, remove } = useProducts();
   const desktop = useMediaQuery('(min-width: 64rem)');
   const navigate = useNavigate();
 
