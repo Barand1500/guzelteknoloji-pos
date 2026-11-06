@@ -1,8 +1,3 @@
-/** Hazır rozet şekilleri (renkli ikonlar); isteyen kendi görselini de yükleyebilir. */
-export type DealIconKey = 'yeni' | 'cok-satan' | 'indirim' | 'firsat' | 'yildiz';
-
-export type DealIcon = { type: 'preset'; key: DealIconKey } | { type: 'image'; url: string };
-
 /** Rozetin ürün resmindeki yeri: üst/alt × sol/orta/sağ. */
 export type DealPosition = 'tl' | 'tc' | 'tr' | 'bl' | 'bc' | 'br';
 
@@ -11,9 +6,8 @@ export type DealSize = 'small' | 'medium' | 'large';
 export interface Deal {
   id: string;
   name: string;
-  icon: DealIcon;
-  /** Rozetin üzerinde yazan kısa yazı (ör. "YENİ", "%10"). */
-  badgeText: string;
+  /** Yüklenen ikonun (rozetin) adresi; yoksa ürün resminde rozet çıkmaz. */
+  iconUrl: string | null;
   active: boolean;
   /** Kapalıysa fırsat yalnızca etiket olarak kullanılır; ürün resminin üstünde rozet çıkmaz. */
   showOnImage: boolean;
@@ -37,14 +31,6 @@ export interface DealProductRef {
   dealIds: string[];
 }
 
-export const PRESETS: { key: DealIconKey; label: string; text: string }[] = [
-  { key: 'yeni', label: 'Yeni', text: 'YENİ' },
-  { key: 'cok-satan', label: 'Çok Satan', text: 'ÇOK SATAN' },
-  { key: 'indirim', label: 'İndirim', text: '%' },
-  { key: 'firsat', label: 'Fırsat', text: 'FIRSAT' },
-  { key: 'yildiz', label: 'Yıldız', text: '★' },
-];
-
 export const POSITIONS: { value: DealPosition; label: string }[] = [
   { value: 'tl', label: 'Üst Sol' },
   { value: 'tc', label: 'Üst Orta' },
@@ -65,8 +51,7 @@ export const sizeLabel = (s: DealSize) => SIZES.find((x) => x.value === s)?.labe
 
 export const emptyDealDraft = (): DealDraft => ({
   name: '',
-  icon: { type: 'preset', key: 'yeni' },
-  badgeText: 'YENİ',
+  iconUrl: null,
   active: true,
   showOnImage: true,
   position: 'tl',

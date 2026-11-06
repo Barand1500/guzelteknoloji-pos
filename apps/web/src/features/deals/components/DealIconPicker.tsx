@@ -1,26 +1,27 @@
-import { ImagePlus, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { Alert } from '../../../components/ui/Alert';
-import { PRESETS, type DealIcon, type DealIconKey } from '../types';
 import { DealBadge } from './DealBadge';
 
 const MAX_BYTES = 2 * 1024 * 1024;
+const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
 
 interface DealIconPickerProps {
-  icon: DealIcon;
-  /** Hazır şekil seçilince; rozet yazısı o şeklin varsayılanına döner. */
-  onPreset: (key: DealIconKey) => void;
-  onImage: (url: string) => void;
+  value: string | null;
+  onChange: (url: string | null) => void;
+  error?: string | undefined;
 }
 
 /**
- * Rozet seçici: hazır renkli şekillerden biri ya da kendi görselin. Seçili olan çerçeveli görünür.
- * Kendi görselin kare (400×400) olmalı; yalnızca görsel dosyaları ve en çok 2 MB kabul edilir.
+ * İkon yükleme alanı: dokunarak seç ya da (masaüstünde) dosyayı sürükleyip bırak. Seçilen dosya
+ * hemen önizlenir. İkon, rozetin kendisidir (kare, 400×400 önerilir); yalnızca görsel dosyaları
+ * ve en çok 2 MB kabul edilir. Gerçek yükleme API'ye bağlanınca sunucuda yapılır.
  */
-export function DealIconPicker({ icon, onPreset, onImage }: DealIconPickerProps) {
+export function DealIconPicker({ value, onChange, error }: DealIconPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const created = useRef<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [over, setOver] = useState(false);
 
   useEffect(() => {
     const urls = created.current;
@@ -30,89 +31,99 @@ export function DealIconPicker({ icon, onPreset, onImage }: DealIconPickerProps)
   const take = (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setError('Yalnızca görsel dosyaları (PNG, JPG, WebP, SVG) yükleyebilirsiniz.');
+      setProblem('Yalnızca görsel dosyaları (PNG, JPG, WebP, SVG) yükleyebilirsiniz.');
       return;
     }
     if (file.size > MAX_BYTES) {
-      setError('Görsel en çok 2 MB olabilir.');
+      setProblem('İkon en çok 2 MB olabilir.');
       return;
     }
-    setError(null);
+    setProblem(null);
     const url = URL.createObjectURL?.(file) ?? '';
     if (url) {
       created.current.push(url);
-      onImage(url);
+      onChange(url);
     }
   };
 
-  const tile = (on: boolean) =>
-    [
-      'flex size-16 items-center justify-center rounded-2xl border-2 transition-all duration-200',
-      on
-        ? 'border-brand-600 bg-brand-50 shadow-soft'
-        : 'border-line bg-surface hover:border-brand-500',
-    ].join(' ');
+  const onDrop = (event: DragEvent) => {
+    event.preventDefault();
+    setOver(false);
+    take(event.dataTransfer.files[0]);
+  };
+
+  const shown = problem ?? error;
 
   return (
     <div className="flex flex-col gap-2">
       <input
         ref={inputRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        accept={ACCEPT}
         className="sr-only"
-        aria-label="Rozet görseli seç"
+        aria-label="İkon dosyası seç"
         onChange={(e) => {
           take(e.target.files?.[0]);
           e.target.value = '';
         }}
       />
-      <div role="radiogroup" aria-label="Rozet şekli" className="flex flex-wrap gap-2">
-        {PRESETS.map((p) => {
-          const on = icon.type === 'preset' && icon.key === p.key;
-          return (
-            <button
-              key={p.key}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              aria-label={p.label}
-              title={p.label}
-              onClick={() => onPreset(p.key)}
-              className={tile(on)}
-            >
-              <DealBadge icon={{ type: 'preset', key: p.key }} text={p.text} className="size-11" />
-            </button>
-          );
-        })}
-        {icon.type === 'image' ? (
-          <span className="relative">
-            <span className={tile(true)}>
-              <DealBadge icon={icon} text="" className="size-11" />
-            </span>
+      <div className="flex items-center gap-4">
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setOver(true);
+          }}
+          onDragLeave={() => setOver(false)}
+          onDrop={onDrop}
+          className={[
+            'flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-3xl border-2 transition-colors',
+            value ? 'border-line bg-surface-muted' : 'border-dashed',
+            over ? 'border-brand-600 bg-brand-50' : value ? '' : 'border-field-border bg-surface',
+          ].join(' ')}
+        >
+          {value ? (
+            <DealBadge url={value} className="size-20" />
+          ) : (
             <button
               type="button"
-              onClick={() => onPreset('yeni')}
-              aria-label="Yüklenen görseli kaldır"
-              title="Kaldır"
-              className="absolute -top-1.5 -right-1.5 inline-flex size-7 items-center justify-center rounded-full bg-danger text-surface shadow-soft"
+              onClick={() => inputRef.current?.click()}
+              className="flex size-full flex-col items-center justify-center gap-1.5 text-ink-muted transition-colors hover:text-brand-ink"
             >
-              <Trash2 className="size-3.5" aria-hidden="true" />
+              <span className="flex size-10 items-center justify-center rounded-full bg-brand-50 text-brand-ink">
+                <ImagePlus className="size-5" aria-hidden="true" />
+              </span>
+              <span className="text-sm font-semibold">İkon Ekle</span>
             </button>
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            aria-label="Kendi görselimi yükle"
-            title="Kendi görselimi yükle"
-            className="flex size-16 flex-col items-center justify-center gap-0.5 rounded-2xl border-2 border-dashed border-field-border text-ink-muted transition-colors hover:border-brand-500 hover:text-brand-ink"
-          >
-            <ImagePlus className="size-5" aria-hidden="true" />
-            <span className="text-[0.625rem] font-bold">Yükle</span>
-          </button>
-        )}
+          )}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {value ? (
+            <>
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-field-border px-4 text-sm font-semibold transition-colors hover:border-brand-500"
+              >
+                <RefreshCw className="size-4" aria-hidden="true" />
+                Değiştir
+              </button>
+              <button
+                type="button"
+                onClick={() => onChange(null)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control border border-field-border px-4 text-sm font-semibold text-danger transition-colors hover:bg-danger-soft"
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+                Kaldır
+              </button>
+            </>
+          ) : (
+            <p className="text-sm text-ink-muted">
+              Rozet olarak kullanılacak görseli yükleyin. Kare, 400×400 oranı önerilir.
+            </p>
+          )}
+        </div>
       </div>
-      {error ? <Alert tone="error">{error}</Alert> : null}
+      {shown ? <Alert tone="error">{shown}</Alert> : null}
     </div>
   );
 }

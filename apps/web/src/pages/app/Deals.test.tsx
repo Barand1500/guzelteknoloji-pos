@@ -18,7 +18,10 @@ async function openDeals() {
   return user;
 }
 
-beforeEach(() => dealService.reset());
+beforeEach(() => {
+  dealService.reset();
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:rozet' }));
+});
 afterEach(() => {
   vi.unstubAllGlobals();
   sessionStorage.clear();
@@ -65,8 +68,10 @@ describe('Fırsat Yönetimi ekranı', () => {
     await user.click(screen.getAllByRole('button', { name: 'Fırsat Ekle' })[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Fırsat Ekle' });
     await user.type(within(dialog).getByLabelText('Fırsat Adı'), 'Kampanya');
-    await user.click(within(dialog).getByRole('radio', { name: 'İndirim' }));
-    expect(within(dialog).getByLabelText('Rozet Yazısı')).toHaveValue('%');
+    // Hazır rozet YOK: ikon yüklenir.
+    expect(within(dialog).queryByRole('radio', { name: 'İndirim' })).not.toBeInTheDocument();
+    const file = new File(['<svg/>'], 'rozet.svg', { type: 'image/svg+xml' });
+    await user.upload(within(dialog).getByLabelText('İkon dosyası seç'), file);
     await user.click(within(dialog).getByRole('radio', { name: 'Alt Sağ' }));
     await user.click(within(dialog).getByRole('radio', { name: 'Büyük' }));
     await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
@@ -74,6 +79,7 @@ describe('Fırsat Yönetimi ekranı', () => {
     expect(screen.getByText('Kampanya eklendi.')).toBeInTheDocument();
     const added = (await dealService.list()).find((d) => d.id === 'yeni-1');
     expect(added).toMatchObject({ position: 'br', size: 'large', showOnImage: true });
+    expect(added?.iconUrl).toBe('blob:rozet');
     expect(screen.getByText(/Alt Sağ · Büyük/)).toBeInTheDocument();
   });
 
@@ -87,6 +93,21 @@ describe('Fırsat Yönetimi ekranı', () => {
       within(dialog).queryByRole('radiogroup', { name: 'Rozetin yeri' }),
     ).not.toBeInTheDocument();
     expect(within(dialog).getByText(/yalnızca etiket olarak kullanılır/)).toBeInTheDocument();
+  });
+
+  it('ürün resminde gösterilecekse ikon yüklemeden kaydetmez', async () => {
+    const user = await openDeals();
+    await user.click(screen.getAllByRole('button', { name: 'Fırsat Ekle' })[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Fırsat Ekle' });
+    await user.type(within(dialog).getByLabelText('Fırsat Adı'), 'Kampanya');
+    await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
+    expect(
+      within(dialog).getByText('Rozet olarak kullanılacak bir ikon yükleyin.'),
+    ).toBeInTheDocument();
+    // Resimde gösterilmeyecekse ikon şart değil.
+    await user.click(within(dialog).getByRole('switch', { name: 'Ürün Resminin Üzerinde Göster' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
+    await waitFor(() => expect(ids()).toHaveLength(7));
   });
 
   it('boş adla kaydetmeyi engeller', async () => {

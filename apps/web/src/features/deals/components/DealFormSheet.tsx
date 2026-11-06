@@ -5,7 +5,7 @@ import { Sheet } from '../../../components/ui/Sheet';
 import { Switch } from '../../../components/ui/Switch';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
 import { TextField } from '../../../components/ui/TextField';
-import { emptyDealDraft, PRESETS, type Deal, type DealDraft } from '../types';
+import { emptyDealDraft, type Deal, type DealDraft } from '../types';
 import { DealIconPicker } from './DealIconPicker';
 import { DealPlacePicker } from './DealPlacePicker';
 import { DealProductsPanel } from './DealProductsPanel';
@@ -20,7 +20,7 @@ interface DealFormSheetProps {
 }
 
 const NAME_REQUIRED = 'Fırsat adı gerekli.';
-const BADGE_TEXT_MAX = 12;
+const ICON_REQUIRED = 'Rozet olarak kullanılacak bir ikon yükleyin.';
 
 /**
  * Fırsat ekleme/düzenleme paneli (telefonda alttan açılır). Gerekli tek alan ad. Rozet şekli,
@@ -38,6 +38,7 @@ export function DealFormSheet({ deal, onSave, onAssign, onUnassign, onClose }: D
     return rest;
   });
   const [nameError, setNameError] = useState<string | undefined>();
+  const [iconError, setIconError] = useState<string | undefined>();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -45,12 +46,14 @@ export function DealFormSheet({ deal, onSave, onAssign, onUnassign, onClose }: D
     setDraft((d) => ({ ...d, [key]: value }));
 
   const submit = async () => {
-    if (draft.name.trim() === '') {
-      setNameError(NAME_REQUIRED);
-      return;
-    }
+    const missingName = draft.name.trim() === '';
+    // Ürün resminde gösterilecekse rozetin görseli (ikon) şarttır.
+    const missingIcon = draft.showOnImage && !draft.iconUrl;
+    if (missingName) setNameError(NAME_REQUIRED);
+    if (missingIcon) setIconError(ICON_REQUIRED);
+    if (missingName || missingIcon) return;
     setSaving(true);
-    await onSave({ ...draft, name: draft.name.trim(), badgeText: draft.badgeText.trim() });
+    await onSave({ ...draft, name: draft.name.trim() });
     setSaving(false);
   };
 
@@ -90,29 +93,18 @@ export function DealFormSheet({ deal, onSave, onAssign, onUnassign, onClose }: D
         />
 
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-semibold">Rozet</p>
+          <p className="text-sm font-semibold">İkon</p>
           <DealIconPicker
-            icon={draft.icon}
-            onPreset={(key) =>
-              setDraft((d) => ({
-                ...d,
-                icon: { type: 'preset', key },
-                badgeText: PRESETS.find((p) => p.key === key)?.text ?? d.badgeText,
-              }))
-            }
-            onImage={(url) => set('icon', { type: 'image', url })}
+            value={draft.iconUrl}
+            error={iconError}
+            onChange={(url) => {
+              set('iconUrl', url);
+              setIconError(undefined);
+            }}
           />
-          {draft.icon.type === 'preset' ? (
-            <TextField
-              label="Rozet Yazısı"
-              value={draft.badgeText}
-              maxLength={BADGE_TEXT_MAX}
-              onChange={(e) => set('badgeText', e.target.value)}
-            />
-          ) : null}
         </div>
 
-        <div className="flex flex-col gap-4 rounded-3xl bg-surface-muted/60 p-4">
+        <div className="flex flex-col gap-4 rounded-3xl border border-line bg-surface-muted/50 p-4 sm:p-5">
           <Switch
             label="Ürün Resminin Üzerinde Göster"
             checked={draft.showOnImage}
