@@ -14,15 +14,16 @@ const dto = (p: ProductItem): ProductItem => ({
   imageUrl: imageAddress(p.imageUrl),
   imageUrls: (p.imageUrls ?? []).map((url) => imageAddress(url)!),
 });
-async function imageData(url: string): Promise<string> {
-  if (url.startsWith('data:image/')) return url;
-  if (!url.startsWith('blob:')) throw new Error('Görseli bilgisayarınızdan yeniden seçin.');
-  const blob = await (await fetch(url)).blob();
+async function imageData(url: string, file?: File): Promise<string> {
+  if (!file) {
+    if (url.startsWith('data:image/')) return url;
+    throw new Error('Görseli bilgisayarınızdan yeniden seçin.');
+  }
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result ?? ''));
     reader.onerror = () => reject(new Error('Görsel okunamadı. Yeniden seçin.'));
-    reader.readAsDataURL(blob);
+    reader.readAsDataURL(file);
   });
 }
 /** Ekranın yerel süzgeç ve sayfalaması için tüm kayıtlar sayfalı API'den yüklenir. */
@@ -30,7 +31,7 @@ export const productService = {
   isDemo: false,
   supportsImages: true,
   applyImages: async (
-    entries: { productId: string; urls: string[] }[],
+    entries: { productId: string; urls: string[]; files?: (File | undefined)[] }[],
     replace: boolean,
   ): Promise<number> => {
     for (const [url, saved] of tickets) if (saved.expires < Date.now()) tickets.delete(url);
@@ -38,12 +39,12 @@ export const productService = {
     // 300 adet 5 MB görseli tek gövdede tutmak yerine dosyalar sırayla hazırlanır.
     for (const entry of entries) {
       const batch: string[] = [];
-      for (const url of entry.urls) {
+      for (const [index, url] of entry.urls.entries()) {
         let saved = tickets.get(url);
         if (!saved) {
           const result = await apiRequest<{ ticket: string }>('/api/stok/gorseller/yukle', {
             method: 'POST',
-            body: { dataUrl: await imageData(url) },
+            body: { dataUrl: await imageData(url, entry.files?.[index]) },
             timeoutMs: 120000,
           });
           saved = { ticket: result.ticket, expires: Date.now() + 39600000 };

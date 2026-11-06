@@ -55,7 +55,7 @@ export function createApp(deps: AppDeps): Express {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          imgSrc: ["'self'", 'data:', 'https://*.googleusercontent.com'],
+          imgSrc: ["'self'", 'data:', 'blob:', 'https://*.googleusercontent.com'],
           styleSrc: ["'self'"],
           // React'in satır içi style= nitelikleri (ör. hata kutusu oku) için; <style> blokları yine yasak.
           styleSrcAttr: ["'unsafe-inline'"],

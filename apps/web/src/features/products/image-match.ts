@@ -9,8 +9,9 @@ export interface PickedImage {
   /** Ekranda anahtar olarak kullanılan, sunucuya gitmeyen kimlik. */
   id: string;
   name: string;
-  /** Önizleme ve (şimdilik) kayıt için kullanılan adres. */
+  /** Yalnızca önizleme adresi; yüklemede özgün dosya okunur. */
   url: string;
+  file?: File;
 }
 
 const fold = (s: string) => s.toLocaleLowerCase('tr').trim();

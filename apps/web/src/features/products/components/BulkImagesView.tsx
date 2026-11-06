@@ -86,7 +86,7 @@ export function BulkImagesView() {
       try {
         const url = await toUrl(file);
         if (url.startsWith('blob:')) createdUrls.current.add(url);
-        accepted.push({ id: `g${++seq}`, name: file.name, url });
+        accepted.push({ id: `g${++seq}`, name: file.name, url, file });
       } catch {
         refused.push({ name: file.name, reason: 'Dosya okunamadı. Yeniden seçin.' });
       }
@@ -137,6 +137,7 @@ export function BulkImagesView() {
     const entries = match.groups.map((g) => ({
       productId: g.product.id,
       urls: g.images.map((i) => i.url),
+      files: g.images.map((i) => i.file),
     }));
     try {
       const count = await service.applyImages(entries, replace);
