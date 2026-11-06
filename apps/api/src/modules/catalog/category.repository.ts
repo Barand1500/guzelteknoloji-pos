@@ -72,6 +72,26 @@ export class CategoryRepository {
     return (max._max.sira ?? -1) + 1;
   }
 
+  private async checkName(
+    tx: Prisma.TransactionClient,
+    user: number,
+    parentId: number | null,
+    name: string,
+    exceptId?: number,
+  ) {
+    const peers = await tx.kategori.findMany({
+      where: {
+        kullaniciId: user,
+        ustId: parentId,
+        ...(exceptId === undefined ? {} : { id: { not: exceptId } }),
+      },
+      select: { ad: true },
+    });
+    const fold = (s: string) => s.normalize('NFC').trim().toLocaleLowerCase('tr-TR');
+    if (peers.some((p) => fold(p.ad) === fold(name)))
+      throw new HttpError(409, 'CONFLICT', 'Bu üst kategoride aynı adlı kategori var.');
+  }
+
   async list(user: number) {
     return (
       await this.db.kategori.findMany({
@@ -91,17 +111,7 @@ export class CategoryRepository {
     const result = await this.write(user, async (tx) => {
       const old = id === undefined ? null : await this.find(tx, user, id);
       await this.parent(tx, user, draft.parentId, id);
-      const peers = await tx.kategori.findMany({
-        where: {
-          kullaniciId: user,
-          ustId: draft.parentId,
-          ...(id === undefined ? {} : { id: { not: id } }),
-        },
-        select: { ad: true },
-      });
-      const fold = (s: string) => s.normalize('NFC').trim().toLocaleLowerCase('tr-TR');
-      if (peers.some((p) => fold(p.ad) === fold(draft.name)))
-        throw new HttpError(409, 'CONFLICT', 'Bu üst kategoride aynı adlı kategori var.');
+      await this.checkName(tx, user, draft.parentId, draft.name, id);
       if (
         draft.imageUrl !== null &&
         !image &&
@@ -129,6 +139,12 @@ export class CategoryRepository {
         ? await tx.kategori.update({ where: { id: old.id }, data, include: selection })
         : await tx.kategori.create({ data: { ...data, kullaniciId: user }, include: selection });
       return dto(saved);
+    }).catch(async (error: unknown) => {
+      // Bilinen doğrulama/yetki hatasında transaction geri alınmıştır; yeni dosya kullanılmaz.
+      // Belirsiz veritabanı/commit hatasında olası geçerli kaydın dosyasını silmeyiz.
+      if (newFile && error instanceof HttpError)
+        await this.storage.remove(newFile).catch(() => undefined);
+      throw error;
     });
     if (previousFile) await this.storage.remove(previousFile).catch(() => undefined);
     return result;
@@ -138,6 +154,7 @@ export class CategoryRepository {
     await this.write(user, async (tx) => {
       const old = await this.find(tx, user, id);
       await this.parent(tx, user, parentId, id);
+      await this.checkName(tx, user, parentId, old.ad, id);
       if (old.ustId !== parentId)
         await tx.kategori.update({
           where: { id },

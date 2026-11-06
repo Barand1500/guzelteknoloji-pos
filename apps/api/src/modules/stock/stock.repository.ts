@@ -61,7 +61,7 @@ function commonUnits(draft: CreateStockInput['draft']) {
       );
   }
   const barcodes = first.flatMap((row) => row.barcodes.map((b) => b.code));
-  if (new Set(barcodes).size !== barcodes.length)
+  if (new Set(barcodes.map((code) => code.toLocaleLowerCase('en-US'))).size !== barcodes.length)
     throw new HttpError(
       400,
       'VALIDATION_ERROR',

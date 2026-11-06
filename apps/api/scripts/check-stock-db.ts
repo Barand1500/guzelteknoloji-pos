@@ -88,6 +88,25 @@ try {
         'INSERT INTO stok_barkodlari (kimlik, stok_birimi_kimligi, barkod_turu, barkod) VALUES (?, ?, ?, ?)',
         [randomUUID(), unitId, 'EAN13', '8690000000001'],
       );
+      const secondListOption = randomUUID();
+      const secondListId = randomUUID();
+      const secondUnitId = randomUUID();
+      await connection.query(
+        'INSERT INTO stok_secenekleri (kimlik, kullanici_kimligi, liste_turu, secenek_kodu, secenek_adi, ad_hash) VALUES (?, ?, ?, ?, ?, ?)',
+        [secondListOption, legacyUserId, 'priceLists', 'eski2', 'Eski 2', 'd'.repeat(64)],
+      );
+      await connection.query(
+        'INSERT INTO stok_fiyat_listeleri (kimlik, stok_karti_kimligi, fiyat_listesi_kimligi, sira) VALUES (?, ?, ?, 1)',
+        [secondListId, legacyCardId, secondListOption],
+      );
+      await connection.query(
+        'INSERT INTO stok_birimleri (kimlik, stok_fiyat_listesi_kimligi, birim_kimligi, sira, carpan, ana_birim, varsayilan_birim, agirlik_birimi) VALUES (?, ?, ?, 0, 1, 1, 1, ?)',
+        [secondUnitId, secondListId, unitOption, 'kg'],
+      );
+      await connection.query(
+        'INSERT INTO stok_fiyatlari (kimlik, stok_birimi_kimligi, fiyat_yonu, girilen_fiyat, para_birimi, kdv_dahil_girildi) VALUES (?, ?, ?, ?, ?, 0)',
+        [randomUUID(), secondUnitId, 'satis', '45.250000', 'TRY'],
+      );
     }
     if (folder.name === '20261105190000_markalar') {
       await connection.query(
@@ -157,8 +176,16 @@ try {
       include: { barkodlar: true, fiyatlar: { include: { ekFiyatlar: true } } },
     });
     assert.equal(migratedUnit.barkodlar[0]?.barkod, '8690000000001');
-    assert.equal(migratedUnit.fiyatlar[0]?.girilenFiyat?.toString(), '25.5');
-    assert.equal(migratedUnit.fiyatlar[0]?.ekFiyatlar[0]?.tutar?.toString(), '5');
+    const firstLegacyPrice = migratedUnit.fiyatlar.find(
+      (p) => p.girilenFiyat?.toString() === '25.5',
+    );
+    assert(firstLegacyPrice);
+    assert.equal(firstLegacyPrice.ekFiyatlar[0]?.tutar?.toString(), '5');
+    assert(migratedUnit.fiyatlar.some((p) => p.girilenFiyat?.toString() === '45.25'));
+    assert.equal(
+      await prisma.stokBirimi.count({ where: { stokKartiKimligi: migratedCard.kimlik } }),
+      1,
+    );
     const legacyBrand = (await brandRepo.list(String(migratedUser.kimlik)))[0]!;
     assert.equal(legacyBrand.id, String(migratedBrand.kimlik));
     assert.equal(legacyBrand.name, 'Eski Marka');
@@ -393,6 +420,18 @@ try {
       barcodes: [{ id: 'second-barcode', type: 'EAN13', code: '8690000000002' }],
     });
     draft.units.perakende = structuredClone(draft.units.fiyat!);
+    const duplicateBarcodeDraft = structuredClone(draft);
+    duplicateBarcodeDraft.code = 'CASE-DUPLICATE';
+    for (const rows of Object.values(duplicateBarcodeDraft.units)) {
+      rows[0]!.barcodes = [{ id: 'case-1', type: 'CODE128', code: 'BarcodeABC' }];
+      rows[1]!.barcodes = [{ id: 'case-2', type: 'CODE128', code: 'barcodeabc' }];
+    }
+    const countBeforeDuplicate = await prisma.stokKarti.count();
+    assert.equal(
+      (await post('/kartlar', { requestId: randomUUID(), draft: duplicateBarcodeDraft })).status,
+      400,
+    );
+    assert.equal(await prisma.stokKarti.count(), countBeforeDuplicate);
     const payload = { requestId: randomUUID(), draft };
     const response = await post('/kartlar', payload);
     assert.equal(response.status, 201, JSON.stringify(response.body));
@@ -689,6 +728,25 @@ try {
       name: 'Diğer',
     });
     assert.equal(otherCategory.status, 201);
+    const duplicateChild = await categoryPost('', {
+      ...categoryDraft,
+      imageUrl: null,
+      name: 'Diğer',
+      parentId: rootCategory.body.id,
+    });
+    assert.equal(duplicateChild.status, 201);
+    assert.equal(
+      (await categoryPost('/' + duplicateChild.body.id + '/tasi', { parentId: null })).status,
+      409,
+    );
+    assert.equal(
+      (await prisma.kategori.findUniqueOrThrow({ where: { id: Number(duplicateChild.body.id) } }))
+        .ustId,
+      Number(rootCategory.body.id),
+    );
+    const categoryFileCount = (await readdir(path.join(testUploads, 'kategoriler'))).length;
+    assert.equal((await categoryPost('', categoryDraft)).status, 409);
+    assert.equal((await readdir(path.join(testUploads, 'kategoriler'))).length, categoryFileCount);
     assert.equal(
       (
         await categoryPost('/' + rootCategory.body.id + '/tasi', {
@@ -833,6 +891,25 @@ try {
         },
         beforeFailure,
       );
+      const beforeUpdateFailure = await request(app)
+        .get('/api/stok/kartlar/' + saved.body.id)
+        .set('Cookie', cookie());
+      assert.equal(beforeUpdateFailure.status, 200);
+      const rejectedUpdate = structuredClone(beforeUpdateFailure.body);
+      rejectedUpdate.name = 'Bu değişiklik geri alınmalı';
+      assert.equal(
+        (
+          await post('/kartlar/' + saved.body.id + '/guncelle', {
+            requestId: randomUUID(),
+            draft: rejectedUpdate,
+          })
+        ).status,
+        500,
+      );
+      const afterUpdateFailure = await request(app)
+        .get('/api/stok/kartlar/' + saved.body.id)
+        .set('Cookie', cookie());
+      assert.deepEqual(afterUpdateFailure.body, beforeUpdateFailure.body);
     } finally {
       await connection.query('DROP TRIGGER reject_stock_price');
     }
