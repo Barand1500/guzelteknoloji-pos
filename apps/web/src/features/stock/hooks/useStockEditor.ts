@@ -55,6 +55,7 @@ export function useStockEditor(
   const [errors, setErrors] = useState<DraftErrors>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   // ---- Temel alanlar ---------------------------------------------------------------
   const set = <K extends keyof StockCardDraft>(key: K, value: StockCardDraft[K]) => {
@@ -172,8 +173,10 @@ export function useStockEditor(
     try {
       const body = JSON.stringify(parsed.data);
       if (request.current?.body !== body) request.current = { body, id: crypto.randomUUID() };
-      if (options.cardId) await service.update(options.cardId, parsed.data, request.current.id);
-      else await service.save(parsed.data, request.current.id);
+      const result = options.cardId
+        ? await service.update(options.cardId, parsed.data, request.current.id)
+        : await service.save(parsed.data, request.current.id);
+      setSavedId(result.id);
       setSaved(true);
     } catch (error) {
       onError(error);
@@ -209,6 +212,8 @@ export function useStockEditor(
     saving,
     saveError,
     saved,
+    savedId,
+    keepEditing: () => setSaved(false),
     save,
     startOver,
   };

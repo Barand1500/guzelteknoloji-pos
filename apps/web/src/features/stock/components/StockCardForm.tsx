@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { PRODUCTS_PATH } from '../../../config/navigation';
@@ -13,6 +13,7 @@ import { demoStockService } from '../services/stock.demo';
 import type { StockCardDraft, StockLookups } from '../types';
 import { DesktopStockLayout } from './DesktopStockLayout';
 import { MobileStockLayout } from './MobileStockLayout';
+import { StockSavedScreen } from './StockSavedScreen';
 
 interface StockCardFormProps {
   /** Verilirse bu kayıtlı kart dolu gelir ve Kaydet onu günceller (düzenleme). */
@@ -129,33 +130,16 @@ function StockCardEditor({
 
   if (editor.saved) {
     return (
-      <div className="mx-auto flex max-w-xl animate-pop flex-col items-center gap-4 rounded-[1.75rem] bg-surface-raised px-6 py-16 text-center shadow-soft">
-        <CheckCircle2 className="size-14 text-success" aria-hidden="true" />
-        <p className="text-2xl font-extrabold">
-          {demo
-            ? 'Deneme tamamlandı!'
-            : mode === 'edit'
-              ? 'Stok kartı güncellendi!'
-              : 'Stok kartı kaydedildi!'}
-        </p>
-        {demo ? (
-          <p className="text-sm text-ink-muted">Deneme verisi veritabanına kaydedilmedi.</p>
-        ) : null}
-        <p className="text-ink-muted">{editor.draft.name || editor.draft.code || 'Yeni ürün'}</p>
-        <div className="mt-2 flex flex-wrap justify-center gap-3">
-          <Link
-            to={PRODUCTS_PATH}
-            className="inline-flex min-h-12 items-center rounded-full border border-field-border px-6 font-semibold transition-colors hover:border-brand-500"
-          >
-            Ürünlere Dön
-          </Link>
-          {mode === 'edit' ? null : (
-            <Button fullWidth={false} onClick={editor.startOver}>
-              Yeni Stok Kartı
-            </Button>
-          )}
-        </div>
-      </div>
+      <StockSavedScreen
+        mode={mode}
+        demo={demo}
+        name={editor.draft.name}
+        code={editor.draft.code}
+        brand={editor.lookups.brands.find((b) => b.value === editor.draft.brand)?.label ?? ''}
+        savedId={editor.savedId}
+        onNew={editor.startOver}
+        onKeepEditing={editor.keepEditing}
+      />
     );
   }
 
