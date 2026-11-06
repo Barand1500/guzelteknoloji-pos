@@ -108,11 +108,11 @@
   }
   @keyframes slide-in-right {
     from {
-      transform: translateX(32px);
+      transform: translateX(24px) scale(0.94);
       opacity: 0;
     }
     to {
-      transform: translateX(0);
+      transform: translateX(0) scale(1);
       opacity: 1;
     }
   }

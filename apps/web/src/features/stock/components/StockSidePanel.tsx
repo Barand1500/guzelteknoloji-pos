@@ -2,7 +2,6 @@ import { FolderTree, LayoutList, Sparkles, X, type LucideIcon } from 'lucide-rea
 import { useEffect, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import type { StockEditor } from '../hooks/useStockEditor';
-import { getCompletion } from '../stock.calc';
 import { CategoryBox } from './CategoryBox';
 import { DealBox } from './DealBox';
 import { StockPreview } from './StockPreview';
@@ -72,15 +71,13 @@ export function StockSidePanel({ editor, panel, onInvalid }: StockSidePanelProps
     return () => document.removeEventListener('keydown', onKey);
   }, [openId, close]);
 
-  const checks = getCompletion(draft);
-  const done = checks.filter((c) => c.ok).length;
   const counts: Record<SideBoxId, number> = {
     ozet: 0,
     kategori: extras.categoryIds.length,
     firsat: extras.dealIds.length,
   };
   const pill: Record<SideBoxId, string> = {
-    ozet: `${done}/${checks.length}`,
+    ozet: '', // Özet içeriğinde doluluk zaten yazılı
     kategori: counts.kategori > 0 ? `${counts.kategori} seçili` : '',
     firsat: counts.firsat > 0 ? `${counts.firsat} açık` : '',
   };
@@ -91,7 +88,7 @@ export function StockSidePanel({ editor, panel, onInvalid }: StockSidePanelProps
         role="tablist"
         aria-orientation="vertical"
         aria-label="Yan sekmeler"
-        className="fixed top-24 right-0 z-30 flex flex-col gap-2"
+        className="fixed top-24 right-2 z-30 flex flex-col gap-2"
       >
         {TABS.map((tab) => {
           const locked = tab.id !== 'ozet' && extraOptions === null;
@@ -108,10 +105,10 @@ export function StockSidePanel({ editor, panel, onInvalid }: StockSidePanelProps
               title={locked ? LOCKED : undefined}
               onClick={() => toggle(tab.id)}
               className={[
-                'relative flex w-9 flex-col items-center gap-2 rounded-l-2xl border border-r-0 py-3 shadow-soft transition-colors sm:w-11',
+                'relative flex w-10 flex-col items-center gap-2 rounded-2xl border py-3 shadow-soft transition-colors sm:w-11',
                 open
-                  ? 'border-brand-700 bg-brand-700 text-white'
-                  : 'border-line bg-surface-raised text-ink-muted hover:text-ink',
+                  ? 'border-brand-600 bg-brand-50 text-brand-ink'
+                  : 'border-line bg-surface-raised text-ink-muted hover:border-brand-500 hover:text-ink',
                 locked ? 'cursor-not-allowed opacity-50' : '',
               ].join(' ')}
             >
@@ -126,8 +123,7 @@ export function StockSidePanel({ editor, panel, onInvalid }: StockSidePanelProps
                 <span
                   aria-hidden="true"
                   className={[
-                    'flex min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-bold',
-                    open ? 'bg-white text-brand-ink' : 'bg-brand-700 text-white',
+                    'flex min-w-4 items-center justify-center rounded-full bg-brand-700 px-1 text-[0.625rem] font-bold text-white',
                   ].join(' ')}
                 >
                   {counts[tab.id]}
@@ -143,7 +139,7 @@ export function StockSidePanel({ editor, panel, onInvalid }: StockSidePanelProps
           id={PANEL_ID}
           role="tabpanel"
           aria-labelledby={`yan-sekme-${active.id}`}
-          className="fixed top-20 right-9 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 flex w-[min(22rem,calc(100vw-3.5rem))] animate-slide-in-right flex-col gap-3 rounded-l-[1.75rem] border border-r-0 border-line bg-surface-raised p-4 shadow-card sm:right-11 md:bottom-6"
+          className="fixed top-24 right-14 z-30 flex max-h-[calc(100dvh-13rem)] w-[min(22rem,calc(100vw-4.5rem))] origin-top-right animate-slide-in-right flex-col gap-4 rounded-[1.75rem] border border-line bg-surface-raised p-5 shadow-card sm:right-16 md:max-h-[calc(100dvh-8rem)]"
         >
           <header className="flex items-center gap-3">
             <span
