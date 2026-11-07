@@ -7,6 +7,95 @@ import { anonymousRoutes, jsonResponse, mockFetch, renderApp } from '../../test/
 
 const NAME_1 = 'FLEXYPOS FP-503 İ3-15.6" Dokunmatik POS';
 
+it('ana Kaydet varyant değişikliklerini kaybetmez; stok toplamı salt okunur ve ayrılırken uyarılır', async () => {
+  const item = { ...(await productService.list())[0]!, id: '123' };
+  const draft = draftFromProduct(item);
+  draft.inventoryTracking = 'normal';
+  const variant = { code: 'V-1', barcode: '00123', price: '10', quantity: '5', valueIds: ['1'] };
+  let revision = 'a'.repeat(64);
+  const fetch = mockFetch({
+    ...anonymousRoutes,
+    'GET /api/auth/me': () =>
+      jsonResponse(200, {
+        user: { id: 'u1', email: 'a@b.com', displayName: null, avatarUrl: null },
+      }),
+    'GET /api/stok/kartlar': () =>
+      jsonResponse(200, { items: [item], total: 1, page: 1, pageSize: 200 }),
+    'GET /api/stok/kartlar/123': () => jsonResponse(200, draft),
+    'GET /api/stok/kartlar/123/ekler': () =>
+      jsonResponse(200, { categoryIds: [], dealIds: [], attributeValueIds: ['1'] }),
+    'GET /api/ozellikler': () =>
+      jsonResponse(200, {
+        templates: [{ id: '1', name: 'Şablon', allProducts: true, categoryIds: [], groupCount: 1 }],
+        groups: [
+          {
+            id: '10',
+            templateId: '1',
+            name: 'Renk',
+            kind: 'color',
+            filter: false,
+            multiple: true,
+            variant: true,
+            showOnImage: false,
+            position: 'tl',
+            size: 'medium',
+            valueCount: 1,
+          },
+        ],
+        values: [
+          {
+            id: '1',
+            groupId: '10',
+            code: 'siyah',
+            name: 'Siyah',
+            color: '#000000',
+            imageUrl: null,
+          },
+        ],
+      }),
+    'GET /api/stok/kartlar/123/varyantlar': () =>
+      jsonResponse(200, { variants: [variant], revision }),
+    'POST /api/stok/kartlar/123/guncelle': () => {
+      revision = 'b'.repeat(64);
+      return jsonResponse(200, { id: '123' });
+    },
+    'POST /api/stok/kartlar/123/varyantlar': () =>
+      jsonResponse(200, { variants: [{ ...variant, price: '25' }], revision: 'c'.repeat(64) }),
+  });
+  const user = userEvent.setup();
+  renderApp('/uygulama/stok-karti/123');
+  const price = await screen.findByLabelText('Fiyat');
+  await waitFor(() => expect(price).toBeEnabled());
+  expect(screen.getByLabelText('Stok Miktarı')).toHaveValue('5.000000');
+  expect(screen.getByLabelText('Stok Miktarı')).toHaveAttribute('readonly');
+  await user.clear(price);
+  await user.type(price, '25');
+  const unload = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(unload);
+  expect(unload.defaultPrevented).toBe(true);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  await user.click(screen.getByRole('link', { name: 'Ürünlere dön' }));
+  expect(confirm).toHaveBeenCalled();
+  confirm.mockRestore();
+  await user.type(screen.getByLabelText('Stok Adı'), ' değişti');
+  await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+  await screen.findByText(
+    'Stok kartı kaydedildi. Varyant değişiklikleri için “Varyantları kaydet” düğmesine basın.',
+  );
+  await waitFor(() => expect(price).toBeEnabled());
+  expect(price).toHaveValue('25');
+  expect(price).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Varyantları kaydet' }));
+  await screen.findByText('Varyantlar kaydedildi.');
+  const call = fetch.mock.calls.find(
+    ([url, init]) => String(url).endsWith('/varyantlar') && init?.method === 'POST',
+  )!;
+  expect(JSON.parse(String(call[1]?.body))).toMatchObject({
+    revision: 'b'.repeat(64),
+    variants: [{ price: '25' }],
+  });
+});
+
 async function openList() {
   sessionStorage.setItem('gt-dev-access', '1'); // geçici test girişi
   mockFetch(anonymousRoutes);
@@ -132,7 +221,8 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
       'GET /api/stok/kartlar/123': () => jsonResponse(200, draft),
       'GET /api/stok/kartlar/123/ekler': () => jsonResponse(200, { categoryIds: [], dealIds: [] }),
       'GET /api/ozellikler': () => jsonResponse(200, { templates: [], groups: [], values: [] }),
-      'GET /api/stok/kartlar/123/varyantlar': () => jsonResponse(200, []),
+      'GET /api/stok/kartlar/123/varyantlar': () =>
+        jsonResponse(200, { variants: [], revision: 'a'.repeat(64) }),
     });
     const user = userEvent.setup();
     renderApp('/uygulama/urunler');

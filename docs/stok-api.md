@@ -73,8 +73,12 @@ Arayüz XLSX ve CSV kabul eder. XLSX'in ilk çalışma sayfası tarayıcıda CSV
 ## Ürün özellikleri ve varyantlar
 
 - Stok kartı kaydındaki `extras.attributeValueIds` ürünün seçili özellik değerleridir. Şablonun kullanıcıya ve seçilen kategoriye uygunluğu, tekli gruplar ve varyantta kullanılan değerler sunucuda denetlenir.
-- `GET /api/stok/kartlar/:id/varyantlar` ürünün varyantlarını döndürür.
-- `POST /api/stok/kartlar/:id/varyantlar` tüm varyant listesini `{variants:[{code,barcode,price,quantity,valueIds}]}` biçiminde kaydeder. Fiyat KDV hariçtir; miktar ve fiyat ondalık metindir. Her varyant için seçili varyant gruplarından birer değer gerekir.
+- `GET /api/stok/kartlar/:id/varyantlar` `{variants, revision}` döndürür. `revision`, varyantlar ve ürünün özellik seçimlerinden hesaplanan güncellik bilgisidir.
+- `POST /api/stok/kartlar/:id/varyantlar` tüm varyant listesini `{revision, variants:[{code,barcode,price,quantity,valueIds}]}` biçiminde kaydeder ve güncel `{variants, revision}` döndürür. Eski sürümle kayıt 409 verir; başka sekmenin yeni verileri ezilmez. Fiyat KDV hariçtir. Ondalık metinlerde virgül veya nokta kabul edilir; fiyat negatif olamaz, stok miktarı negatif olabilir. Her varyant için seçili varyant gruplarından birer değer gerekir.
+- Varyantlı ürünlerde liste, stok süzgeci ve kart miktarı varyant miktarlarının toplamını kullanır. Ana miktar alanı salt okunurdur. Varyant kodu/barkodu ürün aramasına, varyant barkodları toplu görsel eşleştirmeye dahildir. Takip kapalıysa ürün yine sınırsız görünür.
+- Varyant kaydında toplam ayrıca `stok_kartlari.stok_miktari` alanına yazılır. Bütün varyantlar silinirse toplam sıfırlanır ve ana miktar yeniden düzenlenebilir. Dosyadan varyantlı ürünün toplam miktarını değiştirme girişimi önizlemede ve kayıt işleminde reddedilir; dosyadaki stok alanı boş bırakılarak diğer bilgiler güncellenebilir.
+- Varyant kaydı ayrıdır. Kaydedilmemiş varyantlar varken ana kart kaydı düzenleyiciyi kapatmaz; girilen değerler korunur. Sonraki ürüne geçiş, bağlantıyla ayrılma ve sayfa yenilemede kaydedilmemiş varyantlar için uyarılır.
+- Yeni özellik boyutu eklenip birleşimler oluşturulduğunda mevcut satırın kod/barkod/fiyat/miktarı bir uyumlu birleşimde korunur. Yeni satırlara aynı kod/barkod/miktar kopyalanmaz. Seçimler satırdaki grup alanlarından düzeltilebilir; hiçbir eski satır sessizce silinmez.
 - Veriler `stok_ozellik_degerleri`, `stok_varyantlari` ve `stok_varyant_degerleri` tablolarında tutulur.
 
 - `POST /api/stok/aktarim/onizle`: `{text}` → `{rows, missingColumns, newCount, updateCount, errorCount}`.

@@ -91,7 +91,7 @@ export class StockImport {
     const [cards, brands, categories] = await Promise.all([
       this.db.stokKarti.findMany({
         where: { kullaniciKimligi: user },
-        select: { kimlik: true, stokKodu: true },
+        select: { kimlik: true, stokKodu: true, _count: { select: { varyantlar: true } } },
       }),
       this.db.marka.findMany({
         where: { kullaniciKimligi: user, etkin: true },
@@ -142,6 +142,10 @@ export class StockImport {
             if (raw.vat !== '' && Number(numberText(raw.vat)) > 100)
               throw new Error('KDV 0–100 arasında olmalı.');
             if (raw.stock !== '') numberText(raw.stock, true);
+            if (raw.stock !== '' && old?._count.varyantlar)
+              throw new Error(
+                'Varyantlı ürünün miktarını varyantlar bölümünden değiştirin; dosyadaki stok alanını boş bırakın.',
+              );
             if (raw.brand !== '') {
               const found = brands.find((b) => fold(b.markaAdi) === fold(raw.brand));
               if (!found) throw new Error('Marka bulunamadı: ' + raw.brand);
@@ -241,9 +245,7 @@ export class StockImport {
           primary.purchase.vatRate = raw.vat === '' ? '20' : numberText(raw.vat);
         if (raw.stock !== '' && d.inventoryTracking === 'yok') d.inventoryTracking = 'normal';
         // Dosyadaki adet kartın miktar alanına da yazılır ("Normal" takipte kart bu alanı esas alır).
-        // Eksi adet şemadan geçmez; o durumda yalnızca aşağıdaki metadata.stock yolu uygulanır.
-        if (raw.stock !== '' && !numberText(raw.stock, true).startsWith('-'))
-          d.stockQuantity = numberText(raw.stock, true);
+        if (raw.stock !== '') d.stockQuantity = numberText(raw.stock, true);
         const input = createStockSchema.parse({ requestId: randomUUID(), draft: d });
         await this.repo.saveImported(userId, input, row.id, {
           ...(raw.stock !== '' ? { stock: numberText(raw.stock, true) } : {}),

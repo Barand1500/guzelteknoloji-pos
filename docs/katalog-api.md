@@ -36,10 +36,10 @@ Temel yol `/api/ozellikler`:
 - `POST /gruplar`, `POST /gruplar/:id`: `{templateId, name, kind, filter, multiple, variant, showOnImage, position, size}`.
 - `POST /gruplar/:id/degerler`, `POST /degerler/:id`: `{code, name, color, imageUrl}`.
 - `POST /sablonlar/sirala`: `{ids}`; `POST /gruplar/sirala`: `{templateId, ids}`; `POST /degerler/sirala`: `{groupId, ids}`. Her seviye için tam kardeş sırası zorunlu.
-- `POST /sablonlar/:id/sil`, `/gruplar/:id/sil`, `/degerler/:id/sil`: alt kayıtlarıyla siler.
+- `POST /sablonlar/:id/sil`, `/gruplar/:id/sil`, `/degerler/:id/sil`: kullanılmayan tanımları alt kayıtlarıyla siler. Ürüne veya varyanta bağlı değer varsa 409 ve açıklayıcı uyarı verir; ürün bağlantıları sessizce silinmez.
 - `GET /degerler/:id/gorsel`: oturum sahibinin değer görseli.
 
-Grup türü `text|color|image` tek seçimdir. Renkli değer `#rrggbb` renk, resimli değer görsel gerektirir. Değeri olan grubun türünü değiştirmek 409 verir; farklı biçimdeki değerler sessizce bozulmaz. Grup başka bir şablona taşınabilir. Adlar şablon/kardeş grup/değer kapsamında tekrarlanamaz. Filtre, çoklu ve varyant bayrakları tanım olarak saklanır; ürün üzerinde özellik seçimi veya otomatik varyant üretimi bu yönetim ekranlarının kapsamında değildir.
+Grup türü `text|color|image` tek seçimdir. Renkli değer `#rrggbb` renk, resimli değer görsel gerektirir. Değeri olan grubun türünü değiştirmek 409 verir; farklı biçimdeki değerler sessizce bozulmaz. Ürün veya varyantlarda kullanılan grubun şablon, çoklu seçim ve varyant ayarları bağlantılar kaldırılmadan değiştirilemez. Şablonun kategori kapsamı, o şablonu kullanan ürünleri dışarıda bırakacak şekilde daraltılamaz. Adlar şablon/kardeş grup/değer kapsamında tekrarlanamaz. Ürün üzerindeki özellik seçimi ve varyant kayıtları `docs/stok-api.md` içinde açıklanır.
 
 ## Dosyalar ve veri bütünlüğü
 

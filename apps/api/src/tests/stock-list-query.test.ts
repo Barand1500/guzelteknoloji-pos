@@ -9,7 +9,11 @@ let db: DatabaseSync;
 beforeEach(() => {
   db = new DatabaseSync(':memory:');
   // SQLite rounds binary floats; production MySQL rounds DECIMAL values. Emulate that numeric operation here.
-  db.function('ROUND', (value, places) => value === null ? null : new Prisma.Decimal(String(value)).toDecimalPlaces(Number(places)).toNumber());
+  db.function('ROUND', (value, places) =>
+    value === null
+      ? null
+      : new Prisma.Decimal(String(value)).toDecimalPlaces(Number(places)).toNumber(),
+  );
   db.function(
     'LOCATE',
     (needle, value) =>
@@ -22,6 +26,7 @@ beforeEach(() => {
     CREATE TABLE stok_firsatlari (stok_karti_id INTEGER, firsat_id INTEGER);
     CREATE TABLE stok_birimleri (id INTEGER PRIMARY KEY, stok_karti_id INTEGER, ana_birim INTEGER);
     CREATE TABLE stok_barkodlari (stok_birimi_id INTEGER, barkod TEXT);
+    CREATE TABLE stok_varyantlari (stok_karti_id INTEGER, kod TEXT, barkod TEXT, miktar NUMERIC);
     CREATE TABLE stok_fiyatlari (stok_birimi_id INTEGER, fiyat_listesi_id INTEGER, fiyat_yonu TEXT, girilen_fiyat NUMERIC, iskonto_orani NUMERIC, kdv_orani NUMERIC, kdv_dahil_girildi INTEGER);
     INSERT INTO markalar VALUES (11, 'Marka A'), (12, 'Marka B');
     INSERT INTO stok_kartlari VALUES
@@ -63,6 +68,18 @@ function query(raw: Record<string, unknown> = {}, firstListId: number | undefine
 }
 
 describe('Ürün listesi sunucu süzgeçleri', () => {
+  it('varyantların miktar toplamını ve kod/barkodunu kullanır; başka hesaba taşmaz', () => {
+    db.exec(
+      `INSERT INTO stok_varyantlari VALUES (2,'B-SIYAH','000987',10),(2,'B-BEYAZ',NULL,-2),(4,'OTHER-VARIANT','999987',100);`,
+    );
+    expect(query({ stok: 'in', satis: 'closed' })).toEqual([2]);
+    expect(query({ stok: 'out', satis: 'closed' })).toEqual([]);
+    expect(query({ arama: 'B-SIYAH' })).toEqual([2]);
+    expect(query({ arama: '000987' })).toEqual([2]);
+    expect(query({ arama: '999987' })).toEqual([]);
+    db.exec('UPDATE stok_varyantlari SET miktar=0 WHERE stok_karti_id=2');
+    expect(query({ stok: 'out', satis: 'closed' })).toEqual([2]);
+  });
   it('aynı gruptaki seçimleri VEYA, farklı grupları VE ile birleştirir; satır çoğaltmaz', () => {
     expect(query({ kategoriler: '21,22', markalar: '11,12' })).toEqual([1, 2]);
     expect(query({ kategoriler: '21,22', markalar: '12' })).toEqual([2]);

@@ -22,6 +22,7 @@ export function stockListWhere(userId: number, query: StockListQuery, firstPrice
       LOCATE(${text}, COALESCE(k.stok_kodu, '')) > 0 OR LOCATE(${text}, COALESCE(k.stok_adi, '')) > 0
       OR EXISTS (SELECT 1 FROM markalar m WHERE m.id = k.marka_id AND LOCATE(${text}, m.marka_adi) > 0)
       OR EXISTS (SELECT 1 FROM stok_birimleri sb JOIN stok_barkodlari bk ON bk.stok_birimi_id = sb.id WHERE sb.stok_karti_id = k.id AND LOCATE(${text}, bk.barkod) > 0)
+      OR EXISTS (SELECT 1 FROM stok_varyantlari sv WHERE sv.stok_karti_id = k.id AND (LOCATE(${text}, sv.kod) > 0 OR LOCATE(${text}, COALESCE(sv.barkod, '')) > 0))
     )`);
   }
   if (query.firsat === 'with')
@@ -34,9 +35,13 @@ export function stockListWhere(userId: number, query: StockListQuery, firstPrice
     );
   if (query.stok === 'unlimited') clauses.push(Prisma.sql`k.envanter_takibi = 'yok'`);
   if (query.stok === 'in')
-    clauses.push(Prisma.sql`k.envanter_takibi <> 'yok' AND k.stok_miktari > 0`);
+    clauses.push(
+      Prisma.sql`k.envanter_takibi <> 'yok' AND COALESCE((SELECT SUM(sv.miktar) FROM stok_varyantlari sv WHERE sv.stok_karti_id = k.id), k.stok_miktari) > 0`,
+    );
   if (query.stok === 'out')
-    clauses.push(Prisma.sql`k.envanter_takibi <> 'yok' AND k.stok_miktari <= 0`);
+    clauses.push(
+      Prisma.sql`k.envanter_takibi <> 'yok' AND COALESCE((SELECT SUM(sv.miktar) FROM stok_varyantlari sv WHERE sv.stok_karti_id = k.id), k.stok_miktari) <= 0`,
+    );
   if (query.satis === 'open') clauses.push(Prisma.sql`k.satisa_acik = TRUE`);
   if (query.satis === 'closed') clauses.push(Prisma.sql`k.satisa_acik = FALSE`);
   if (query.en_az || query.en_cok) {

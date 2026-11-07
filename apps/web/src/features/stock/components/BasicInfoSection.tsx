@@ -82,10 +82,26 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
         ) : (
           <TextField
             label={field.label}
-            value={draft[field.key]}
+            value={
+              field.key === 'stockQuantity' && editor.variantStock !== undefined
+                ? editor.variantStock
+                : draft[field.key]
+            }
+            readOnly={field.key === 'stockQuantity' && editor.variantStock !== undefined}
+            hint={
+              field.key === 'stockQuantity' && editor.variantStock !== undefined
+                ? 'Varyant miktarlarının toplamı. Varyantlar bölümünden değiştirilir.'
+                : undefined
+            }
             error={errors[field.key]}
             // Sayı alanlarına yalnızca rakam girilir; "Önek" alanları serbest metindir.
-            numeric={field.kind === 'text' ? undefined : field.kind}
+            numeric={
+              field.key === 'stockQuantity'
+                ? 'signed-decimal'
+                : field.kind === 'text'
+                  ? undefined
+                  : field.kind
+            }
             onChange={(e) => set(field.key, e.target.value)}
           />
         )}

@@ -24,6 +24,9 @@ import { useOptionList } from './useOptionList';
  * yalnızca görünümdür; ikisi de aynı `editor` nesnesini kullanır (veri mantığı tekrarlanmaz).
  */
 export interface StockEditorOptions {
+  /** Varyantlı kartlarda miktar, kaydedilen varyantlardan hesaplanır. */
+  variantStock?: string;
+  stayOnSave?: boolean;
   /** Dolu başlangıç kartı (düzenleme ya da kopya); yoksa boş kart. */
   initialDraft?: StockCardDraft;
   /** Verilirse kayıt, yeni kart eklemek yerine bu kartı günceller. */
@@ -40,6 +43,7 @@ export function useStockEditor(
   options: StockEditorOptions = {},
 ) {
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState('');
   const onError = useCallback((error: unknown) => setSaveError(stockErrorMessage(error)), []);
   const stockTypes = useOptionList('stockTypes', lookups.stockTypes, service, onError);
   const vatDepartments = useOptionList('vatDepartments', lookups.vatDepartments, service, onError);
@@ -81,6 +85,13 @@ export function useStockEditor(
   const [baseline, setBaseline] = useState(() =>
     JSON.stringify({ draft: initialDraft, extras: initialExtras }),
   );
+  const syncVariantQuantity = useCallback((quantity: string) => {
+    setDraft((d) => ({ ...d, stockQuantity: quantity }));
+    setBaseline((value) => {
+      const saved = JSON.parse(value) as { draft: StockCardDraft; extras: StockExtras };
+      return JSON.stringify({ ...saved, draft: { ...saved.draft, stockQuantity: quantity } });
+    });
+  }, []);
   const extraOptions = options.extraOptions ?? null;
   const toggleExtra = (key: 'categoryIds' | 'dealIds', id: string) =>
     setExtras((e) => ({
@@ -193,6 +204,7 @@ export function useStockEditor(
       return;
     }
     setSaveError(null);
+    setSaveNotice('');
     const found = validateRequired(draft);
     setErrors(found);
     if (Object.keys(found).length > 0) {
@@ -216,7 +228,11 @@ export function useStockEditor(
         : await service.save(parsed.data, request.current.id, sent);
       setBaseline(JSON.stringify({ draft, extras }));
       setSavedId(result.id);
-      setSaved(true);
+      setSaved(!options.stayOnSave);
+      if (options.stayOnSave)
+        setSaveNotice(
+          'Stok kartı kaydedildi. Varyant değişiklikleri için “Varyantları kaydet” düğmesine basın.',
+        );
     } catch (error) {
       onError(error);
     } finally {
@@ -236,6 +252,8 @@ export function useStockEditor(
 
   return {
     lookups,
+    variantStock: options.variantStock,
+    syncVariantQuantity,
     lists: { stockTypes, vatDepartments, stockKinds, units, priceLists },
     draft,
     set,
@@ -251,6 +269,7 @@ export function useStockEditor(
     removePriceList,
     saving,
     saveError,
+    saveNotice,
     extras,
     extraOptions,
     toggleCategory: (id: string) => toggleExtra('categoryIds', id),

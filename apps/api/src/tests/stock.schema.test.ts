@@ -3,6 +3,13 @@ import { stockDraftSchema } from '@gt/shared';
 import { stockFixture } from './stock.fixture';
 
 describe('Stok doğrulama', () => {
+  it('eksi stok miktarını kabul eder ve virgülü dönüştürür; fiyatı negatif yapmaz', () => {
+    const draft = stockFixture();
+    draft.stockQuantity = '-5,25';
+    expect(stockDraftSchema.parse(draft).stockQuantity).toBe('-5.25');
+    draft.units.fiyat![0]!.sale.amount = '-5';
+    expect(stockDraftSchema.safeParse(draft).success).toBe(false);
+  });
   it('virgülleri dönüştürür, baştaki barkod sıfırlarını ve boş tutarları korur', () => {
     const d = stockFixture();
     d.units.fiyat![0]!.barcodes[0]!.code = '00123456';

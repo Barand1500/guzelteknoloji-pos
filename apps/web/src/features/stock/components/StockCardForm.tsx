@@ -1,5 +1,5 @@
 import { ChevronLeft } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { PRODUCTS_PATH } from '../../../config/navigation';
 import { Button } from '../../../components/ui/Button';
@@ -138,91 +138,150 @@ function StockCardEditor({
   initialBox?: SideBoxId;
   mode: 'create' | 'edit' | 'copy';
 }) {
+  const [variantState, setVariantState] = useState({
+    dirty: false,
+    busy: false,
+    count: 0,
+    quantity: '0',
+  });
   const editor = useStockEditor(loaded.lookups, service, {
     ...(loaded.draft ? { initialDraft: loaded.draft } : {}),
     ...(loaded.extras ? { initialExtras: loaded.extras } : {}),
     ...(cardId ? { cardId } : {}),
     extraOptions: loaded.extraOptions,
+    stayOnSave: variantState.dirty,
+    ...(variantState.count ? { variantStock: variantState.quantity } : {}),
   });
   const wide = useMediaQuery('(min-width: 80rem)');
+  const previousVariantCount = useRef(0);
+  const syncVariantQuantity = editor.syncVariantQuantity;
+  const onVariantStateChange = useCallback(
+    (state: typeof variantState) => {
+      if (state.count || previousVariantCount.current) syncVariantQuantity(state.quantity);
+      previousVariantCount.current = state.count;
+      setVariantState(state);
+    },
+    [syncVariantQuantity],
+  );
   const errorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (editor.saveError)
       errorRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
   }, [editor.saveError]);
+  useEffect(() => {
+    if (!variantState.dirty && !variantState.busy) return;
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    const click = (event: MouseEvent) => {
+      const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      if (!anchor || anchor.getAttribute('href')?.startsWith('#')) return;
+      if (
+        variantState.busy ||
+        !window.confirm(
+          'Kaydedilmemiş varyant değişiklikleri var. Sayfadan ayrılırsanız kaybolur. Yine de ayrılsın mı?',
+        )
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener('beforeunload', unload);
+    document.addEventListener('click', click, true);
+    return () => {
+      window.removeEventListener('beforeunload', unload);
+      document.removeEventListener('click', click, true);
+    };
+  }, [variantState.dirty, variantState.busy]);
 
-  if (editor.saved) {
-    return (
-      <StockSavedScreen
-        mode={mode}
-        demo={demo}
-        name={editor.draft.name}
-        code={editor.draft.code}
-        brand={editor.lookups.brands.find((b) => b.value === editor.draft.brand)?.label ?? ''}
-        savedId={editor.savedId}
-        extras={editor.extras}
-        extraOptions={editor.extraOptions}
-        onNew={editor.startOver}
-        onKeepEditing={editor.keepEditing}
-      />
-    );
-  }
+  const savedScreen = editor.saved ? (
+    <StockSavedScreen
+      mode={mode}
+      demo={demo}
+      name={editor.draft.name}
+      code={editor.draft.code}
+      brand={editor.lookups.brands.find((b) => b.value === editor.draft.brand)?.label ?? ''}
+      savedId={editor.savedId}
+      extras={editor.extras}
+      extraOptions={editor.extraOptions}
+      onNew={editor.startOver}
+      onKeepEditing={editor.keepEditing}
+    />
+  ) : null;
 
   return (
-    <div className="flex min-w-0 flex-col gap-4 pr-10 sm:pr-12">
-      {mode === 'create' ? null : (
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            to={PRODUCTS_PATH}
-            aria-label="Ürünlere dön"
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-muted transition-colors hover:bg-brand-50 hover:text-brand-ink"
-          >
-            <ChevronLeft className="size-5" aria-hidden="true" />
-          </Link>
-          <p className="min-w-0 flex-1 text-sm font-bold text-ink-muted">
-            {mode === 'copy' ? 'Kopya · kaydedene kadar yeni ürün oluşmaz' : 'Düzenleniyor'}
-            <span className="block truncate text-base text-ink">
-              {editor.draft.name || editor.draft.code}
-            </span>
-          </p>
-          {/* Sağdaki boşluk: sıradaki ürüne geçiş (yalnızca düzenlemede). */}
-          {mode === 'edit' && cardId ? (
-            <div className="w-full sm:ml-auto sm:w-auto">
-              <NextProductBar currentId={cardId} dirty={editor.dirty} />
-            </div>
-          ) : null}
-        </div>
+    <>
+      {savedScreen}
+      {editor.saved && variantState.dirty && (
+        <Alert tone="info">
+          Stok kartı kaydedildi. Varyant değişiklikleri henüz kaydedilmedi; düzenlemeye devam ederek
+          “Varyantları kaydet” düğmesine basın.
+        </Alert>
       )}
-      {demo ? (
-        <p className="text-sm text-ink-muted">
-          {devUser ? 'Test Kullanıcısı · ' : 'Deneme ürünü · '}Deneme verileriyle çalışıyorsunuz;
-          değişiklikler veritabanına kaydedilmez.
-        </p>
-      ) : null}
-      {editor.saveError ? (
-        <div ref={errorRef}>
-          <Alert tone="error">{editor.saveError}</Alert>
-        </div>
-      ) : null}
-      <fieldset
-        disabled={editor.saving}
-        className="m-0 min-w-0 border-0 p-0"
-        aria-busy={editor.saving}
+      <div
+        hidden={editor.saved}
+        className={editor.saved ? 'hidden' : 'flex min-w-0 flex-col gap-4 pr-10 sm:pr-12'}
       >
-        {wide ? (
-          <DesktopStockLayout editor={editor} initialBox={initialBox ?? null} />
-        ) : (
-          <MobileStockLayout editor={editor} initialBox={initialBox ?? null} />
+        {mode === 'create' ? null : (
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to={PRODUCTS_PATH}
+              aria-label="Ürünlere dön"
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-muted transition-colors hover:bg-brand-50 hover:text-brand-ink"
+            >
+              <ChevronLeft className="size-5" aria-hidden="true" />
+            </Link>
+            <p className="min-w-0 flex-1 text-sm font-bold text-ink-muted">
+              {mode === 'copy' ? 'Kopya · kaydedene kadar yeni ürün oluşmaz' : 'Düzenleniyor'}
+              <span className="block truncate text-base text-ink">
+                {editor.draft.name || editor.draft.code}
+              </span>
+            </p>
+            {/* Sağdaki boşluk: sıradaki ürüne geçiş (yalnızca düzenlemede). */}
+            {mode === 'edit' && cardId ? (
+              <div className="w-full sm:ml-auto sm:w-auto">
+                <NextProductBar
+                  currentId={cardId}
+                  dirty={editor.dirty || variantState.dirty || variantState.busy}
+                />
+              </div>
+            ) : null}
+          </div>
         )}
-        {cardId && !demo && loaded.extraOptions?.attributes ? (
-          <VariantEditor
-            cardId={cardId}
-            attributes={loaded.extraOptions.attributes}
-            selectedIds={editor.extras.attributeValueIds ?? []}
-            disabled={editor.dirty}
-          />
+        {demo ? (
+          <p className="text-sm text-ink-muted">
+            {devUser ? 'Test Kullanıcısı · ' : 'Deneme ürünü · '}Deneme verileriyle çalışıyorsunuz;
+            değişiklikler veritabanına kaydedilmez.
+          </p>
         ) : null}
-      </fieldset>
-    </div>
+        {editor.saveError ? (
+          <div ref={errorRef}>
+            <Alert tone="error">{editor.saveError}</Alert>
+          </div>
+        ) : null}
+        {editor.saveNotice && <Alert tone="info">{editor.saveNotice}</Alert>}
+        <fieldset
+          disabled={editor.saving || variantState.busy}
+          className="m-0 min-w-0 border-0 p-0"
+          aria-busy={editor.saving}
+        >
+          {wide ? (
+            <DesktopStockLayout editor={editor} initialBox={initialBox ?? null} />
+          ) : (
+            <MobileStockLayout editor={editor} initialBox={initialBox ?? null} />
+          )}
+          {cardId && !demo && loaded.extraOptions?.attributes ? (
+            <VariantEditor
+              cardId={cardId}
+              attributes={loaded.extraOptions.attributes}
+              selectedIds={editor.extras.attributeValueIds ?? []}
+              disabled={editor.dirty}
+              onStateChange={onVariantStateChange}
+            />
+          ) : null}
+        </fieldset>
+      </div>
+    </>
   );
 }

@@ -282,7 +282,10 @@ export class PrismaStockRepository implements StockRepository {
                 ? null
                 : await tx.stokKarti.findFirst({
                     where: { kimlik: cardId, kullaniciKimligi: Number(userId) },
-                    include: { birimler: { include: { fiyatlar: true } } },
+                    include: {
+                      birimler: { include: { fiyatlar: true } },
+                      _count: { select: { varyantlar: true } },
+                    },
                   });
             if (cardId !== undefined && !current)
               throw new HttpError(404, 'NOT_FOUND', 'Stok kartı bulunamadı.');
@@ -476,6 +479,13 @@ export class PrismaStockRepository implements StockRepository {
                 'Bu barkod başka bir stok kartında kullanılıyor.',
               );
             const normal = d.inventoryTracking === 'normal';
+            const hasVariants = (current?._count.varyantlar ?? 0) > 0;
+            if (hasVariants && metadata?.stock !== undefined)
+              throw new HttpError(
+                409,
+                'CONFLICT',
+                'Varyantlı ürünün miktarını dosyadan değiştiremezsiniz. Miktarları varyantlar bölümünden güncelleyin.',
+              );
             const serial = d.inventoryTracking === 'seri';
             const lot = d.inventoryTracking === 'lot';
             const expiry = d.inventoryTracking === 'omur';
@@ -491,7 +501,9 @@ export class PrismaStockRepository implements StockRepository {
               digerVergiKimligi: optionId('otherTaxes', d.otherTax, true),
               envanterTakibi: d.inventoryTracking,
               // Adet yalnızca "Normal" takipte girilir; diğer takip türlerinde kayıtlı adet korunur.
-              ...(normal ? { stokMiktari: decimal(d.stockQuantity) ?? new Prisma.Decimal(0) } : {}),
+              ...(normal && !hasVariants
+                ? { stokMiktari: decimal(d.stockQuantity) ?? new Prisma.Decimal(0) }
+                : {}),
               altLimit: normal ? decimal(d.lowerLimit) : null,
               ustLimit: normal ? decimal(d.upperLimit) : null,
               seriNoZorunlu: serial && d.serialRequired,
@@ -619,6 +631,7 @@ export class PrismaStockRepository implements StockRepository {
         marka: true,
         kdvDepartmani: true,
         digerVergi: true,
+        varyantlar: { select: { miktar: true } },
         kategoriler: { include: { kategori: true }, orderBy: { kategoriId: 'asc' } },
         birimler: {
           orderBy: [{ sira: 'asc' }, { kimlik: 'asc' }],
@@ -699,7 +712,14 @@ export class PrismaStockRepository implements StockRepository {
       vatDepartment: card.kdvDepartmani?.secenekKodu ?? '',
       stockKind: card.stokNevi.secenekKodu,
       inventoryTracking: card.envanterTakibi,
-      stockQuantity: card.envanterTakibi === 'normal' ? str(card.stokMiktari) : '',
+      stockQuantity:
+        card.envanterTakibi === 'normal'
+          ? str(
+              card.varyantlar.length
+                ? card.varyantlar.reduce((sum, v) => sum.plus(v.miktar), new Prisma.Decimal(0))
+                : card.stokMiktari,
+            )
+          : '',
       lowerLimit: str(card.altLimit),
       upperLimit: str(card.ustLimit),
       serialRequired: card.seriNoZorunlu,
@@ -741,6 +761,7 @@ export class PrismaStockRepository implements StockRepository {
           include: {
             firsatlar: true,
             _count: { select: { varyantlar: true } },
+            varyantlar: { select: { miktar: true, barkod: true } },
             gorseller: { orderBy: [{ sira: 'asc' }, { id: 'asc' }] },
             marka: true,
             stokTipi: true,
@@ -783,14 +804,21 @@ export class PrismaStockRepository implements StockRepository {
             imageUrls: card.gorseller.map(stockImageUrl),
             variantCount: card._count.varyantlar,
             barcode: card.birimler.flatMap((unit) => unit.barkodlar.map((b) => b.barkod))[0] ?? '',
-            barcodes: card.birimler.flatMap((unit) => unit.barkodlar.map((b) => b.barkod)),
+            barcodes: [
+              ...card.birimler.flatMap((unit) => unit.barkodlar.map((b) => b.barkod)),
+              ...card.varyantlar.flatMap((v) => (v.barkod ? [v.barkod] : [])),
+            ],
             currency: symbols[first?.paraBirimi ?? 'TRY'] ?? first?.paraBirimi ?? '₺',
             vatRate: Number(first?.kdvOrani ?? 0),
             prices: [excludingVat(sales[0]), excludingVat(sales[1]), excludingVat(sales[2])],
             cost: excludingVat(purchase),
             costVatRate: Number(purchase?.kdvOrani ?? 0),
             costCurrency: purchase?.paraBirimi ?? 'TRY',
-            stock: Number(card.stokMiktari),
+            stock: Number(
+              card.varyantlar.length
+                ? card.varyantlar.reduce((sum, v) => sum.plus(v.miktar), new Prisma.Decimal(0))
+                : card.stokMiktari,
+            ),
             stockTracking: card.envanterTakibi !== 'yok',
             salesOpen: card.satisAcik,
             dealIds: card.firsatlar.map((f) => String(f.firsatId)),

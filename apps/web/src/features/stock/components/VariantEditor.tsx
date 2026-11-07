@@ -1,43 +1,73 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { Layers3, Plus, Trash2 } from 'lucide-react';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import { TextField } from '../../../components/ui/TextField';
+import { SelectField } from '../../../components/ui/SelectField';
+import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { apiRequest } from '../../../lib/http';
 import { dataError } from '../../../lib/catalog-data';
 import type { AttributeSnapshot } from '../../attributes/services/attribute.demo';
+import { reconcileVariants, type Variant, type VariantSnapshot } from '../variant.rules';
 
-interface Variant {
-  code: string;
-  barcode: string;
-  price: string;
-  quantity: string;
-  valueIds: string[];
-}
 export function VariantEditor({
   cardId,
   attributes,
   selectedIds,
   disabled,
+  onStateChange,
 }: {
   cardId: string;
   attributes: AttributeSnapshot;
   selectedIds: string[];
   disabled: boolean;
+  onStateChange: (state: {
+    dirty: boolean;
+    busy: boolean;
+    count: number;
+    quantity: string;
+  }) => void;
 }) {
   const [rows, setRows] = useState<Variant[]>([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const path = `/api/stok/kartlar/${encodeURIComponent(cardId)}/varyantlar`;
+  const [loaded, setLoaded] = useState('');
+  const [baseline, setBaseline] = useState('[]');
+  const [revision, setRevision] = useState('');
+  const [reload, setReload] = useState(0);
+  const [confirmReload, setConfirmReload] = useState(false);
+  const [persisted, setPersisted] = useState({ count: 0, quantity: '0' });
+  const dirty = JSON.stringify(rows) !== baseline;
   useEffect(() => {
+    onStateChange({ dirty, busy, ...persisted });
+  }, [dirty, busy, persisted, onStateChange]);
+  const path = `/api/stok/kartlar/${encodeURIComponent(cardId)}/varyantlar`;
+  const selectionKey = [...selectedIds].sort().join(',');
+  const loadKey = `${path}:${selectionKey}:${reload}`;
+  const receiveSnapshot = useEffectEvent((data: VariantSnapshot) => {
+    if (dirty && JSON.stringify(data.variants) !== baseline) {
+      setError(
+        'Sunucudaki varyantlar değişti. Girdiğiniz bilgiler korunuyor; kaydetmeden önce güncel kaydı kontrol edin.',
+      );
+    } else {
+      if (!dirty) {
+        setRows(data.variants);
+        setBaseline(JSON.stringify(data.variants));
+      }
+      setRevision(data.revision);
+      setError('');
+    }
+    setPersisted({ count: data.variants.length, quantity: sumQuantity(data.variants) });
+    setLoaded(loadKey);
+  });
+  useEffect(() => {
+    if (disabled) return;
     let active = true;
-    void apiRequest<Variant[]>(path)
+    void apiRequest<VariantSnapshot>(path)
       .then((data) => {
         if (active) {
-          setRows(data);
-          setLoaded(true);
+          receiveSnapshot(data);
         }
       })
       .catch((e) => {
@@ -46,7 +76,7 @@ export function VariantEditor({
     return () => {
       active = false;
     };
-  }, [path]);
+  }, [path, reload, disabled, selectionKey]);
   const groups = attributes.groups.filter(
     (g) =>
       g.variant && attributes.values.some((v) => v.groupId === g.id && selectedIds.includes(v.id)),
@@ -64,14 +94,18 @@ export function VariantEditor({
         return;
       }
     }
-    const key = (ids: string[]) => [...ids].sort().join(',');
-    const existing = new Set(rows.map((r) => key(r.valueIds)));
-    setRows([
-      ...rows,
-      ...combinations
-        .filter((c) => c.length && !existing.has(key(c)))
-        .map((valueIds) => ({ code: '', barcode: '', price: '0', quantity: '0', valueIds })),
-    ]);
+    const next = reconcileVariants(
+      rows,
+      combinations.filter((c) => c.length),
+    );
+    if (next.length > 200) {
+      setError('En fazla 200 varyant oluşturulabilir.');
+      return;
+    }
+    setRows(next);
+    setMessage(
+      'Birleşimler güncellendi. Mevcut kod, barkod, fiyat ve miktarlar korundu; renk/beden seçimlerini kontrol edip kaydedin.',
+    );
     setError('');
   };
   const update = (index: number, patch: Partial<Variant>) =>
@@ -81,7 +115,14 @@ export function VariantEditor({
     setError('');
     setMessage('');
     try {
-      await apiRequest(path, { method: 'POST', body: { variants: rows } });
+      const data = await apiRequest<VariantSnapshot>(path, {
+        method: 'POST',
+        body: { variants: rows, revision },
+      });
+      setRows(data.variants);
+      setBaseline(JSON.stringify(data.variants));
+      setRevision(data.revision);
+      setPersisted({ count: data.variants.length, quantity: sumQuantity(data.variants) });
       setMessage('Varyantlar kaydedildi.');
     } catch (e) {
       setError(dataError(e));
@@ -121,8 +162,16 @@ export function VariantEditor({
           </p>
         )}
         {disabled && <Alert tone="info">Önce stok kartındaki değişiklikleri kaydedin.</Alert>}
+        {dirty && (
+          <p className="text-sm text-ink-muted">
+            Varyant değişiklikleri ayrıca “Varyantları kaydet” düğmesiyle kaydedilir.
+          </p>
+        )}
       </div>
-      <fieldset disabled={busy || disabled || !loaded} className="m-0 min-w-0 border-0 p-0">
+      <fieldset
+        disabled={busy || disabled || loaded !== loadKey}
+        className="m-0 min-w-0 border-0 p-0"
+      >
         <div className="mb-5 mt-5">
           <Button
             variant="outline"
@@ -155,6 +204,33 @@ export function VariantEditor({
                 </button>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {groups.map((group) => (
+                  <SelectField
+                    key={group.id}
+                    label={group.name}
+                    value={
+                      row.valueIds.find((id) =>
+                        attributes.values.some((v) => v.id === id && v.groupId === group.id),
+                      ) ?? ''
+                    }
+                    options={attributes.values
+                      .filter((v) => v.groupId === group.id && selectedIds.includes(v.id))
+                      .map((v) => ({ value: v.id, label: v.name }))}
+                    onChange={(id) =>
+                      update(index, {
+                        valueIds: [
+                          ...row.valueIds.filter(
+                            (valueId) =>
+                              !attributes.values.some(
+                                (v) => v.id === valueId && v.groupId === group.id,
+                              ),
+                          ),
+                          id,
+                        ],
+                      })
+                    }
+                  />
+                ))}
                 {(
                   [
                     ['code', 'Stok kodu'],
@@ -167,7 +243,13 @@ export function VariantEditor({
                     key={field}
                     label={label}
                     value={row[field]}
-                    inputMode={field === 'price' || field === 'quantity' ? 'decimal' : undefined}
+                    numeric={
+                      field === 'price'
+                        ? 'decimal'
+                        : field === 'quantity'
+                          ? 'signed-decimal'
+                          : undefined
+                    }
                     onChange={(e) => update(index, { [field]: e.target.value })}
                   />
                 ))}
@@ -175,7 +257,7 @@ export function VariantEditor({
             </div>
           ))}
         </div>
-        <div className="mt-5 flex justify-end">
+        <div className="mt-5 flex flex-wrap justify-end gap-3">
           <Button
             fullWidth={false}
             flow={false}
@@ -187,6 +269,42 @@ export function VariantEditor({
           </Button>
         </div>
       </fieldset>
+      <div className="mt-3 flex justify-end">
+        <Button
+          variant="outline"
+          fullWidth={false}
+          flow={false}
+          disabled={busy || disabled}
+          onClick={() => setConfirmReload(true)}
+        >
+          Sunucudaki kaydı yeniden yükle
+        </Button>
+      </div>
+      <ConfirmSheet
+        open={confirmReload}
+        title="Sunucudaki kayıt yüklensin mi?"
+        description="Kaydedilmemiş varyant değişiklikleri kaldırılır ve güncel kayıt yüklenir."
+        confirmLabel="Yeniden yükle"
+        onClose={() => setConfirmReload(false)}
+        onConfirm={() => {
+          setConfirmReload(false);
+          setRows([]);
+          setBaseline('[]');
+          setLoaded('');
+          setReload((v) => v + 1);
+        }}
+      />
     </section>
   );
+}
+
+// Six decimal stock precision without binary floating point rounding.
+function sumQuantity(rows: Variant[]) {
+  const sum = rows.reduce((total, row) => {
+    const [whole = '0', fraction = ''] = row.quantity.replace(',', '.').replace('-', '').split('.');
+    const amount = BigInt(whole) * 1000000n + BigInt(fraction.padEnd(6, '0'));
+    return total + (row.quantity.startsWith('-') ? -amount : amount);
+  }, 0n);
+  const abs = sum < 0n ? -sum : sum;
+  return `${sum < 0n ? '-' : ''}${abs / 1000000n}.${String(abs % 1000000n).padStart(6, '0')}`;
 }

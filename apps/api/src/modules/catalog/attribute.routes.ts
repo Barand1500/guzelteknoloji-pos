@@ -128,6 +128,21 @@ export function createAttributeRouter(env: Env, auth: AuthService, db: PrismaCli
         const old = id === undefined ? null : await template(tx, user, id);
         const ids = draft.allProducts ? [] : draft.categoryIds;
         if (
+          old &&
+          !draft.allProducts &&
+          (await tx.stokOzellikDegeri.findFirst({
+            where: {
+              deger: { grup: { sablonId: old.id } },
+              stokKarti: { kategoriler: { none: { kategoriId: { in: ids } } } },
+            },
+          }))
+        )
+          throw new HttpError(
+            409,
+            'CONFLICT',
+            'Bu şablon seçtiğiniz kategorilerin dışındaki ürünlerde kullanılıyor. Önce bu ürünlerin özellik seçimlerini düzenleyin.',
+          );
+        if (
           (await tx.kategori.count({ where: { kullaniciId: user, id: { in: ids } } })) !==
           ids.length
         )
@@ -175,6 +190,23 @@ export function createAttributeRouter(env: Env, auth: AuthService, db: PrismaCli
       const saved = await catalogWrite(db, user, async (tx) => {
         const old = id === undefined ? null : await group(tx, user, id);
         await template(tx, user, draft.templateId);
+        if (
+          old &&
+          (old.varyant !== draft.variant ||
+            old.coklu !== draft.multiple ||
+            old.sablonId !== draft.templateId) &&
+          (await tx.ozellikDegeri.findFirst({
+            where: {
+              grupId: old.id,
+              OR: [{ stokKartlari: { some: {} } }, { varyantlar: { some: {} } }],
+            },
+          }))
+        )
+          throw new HttpError(
+            409,
+            'CONFLICT',
+            'Bu grup ürünlerde kullanılıyor. Şablon, çoklu seçim veya varyant ayarını değiştirmeden önce ürünlerdeki bağlantılarını kaldırın.',
+          );
         if (
           old &&
           old.tur !== draft.kind &&
@@ -373,6 +405,26 @@ export function createAttributeRouter(env: Env, auth: AuthService, db: PrismaCli
       const user = res.locals.catalogUserId as number;
       const id = categoryKey.parse(req.params.id);
       const files = await catalogWrite(db, user, async (tx) => {
+        // Check ownership before revealing whether a definition is in use.
+        if (kind === 'sablonlar') await template(tx, user, id);
+        else if (kind === 'gruplar') await group(tx, user, id);
+        else await value(tx, user, id);
+        const scope =
+          kind === 'sablonlar'
+            ? { grup: { sablonId: id } }
+            : kind === 'gruplar'
+              ? { grupId: id }
+              : { id };
+        if (
+          await tx.ozellikDegeri.findFirst({
+            where: { ...scope, OR: [{ stokKartlari: { some: {} } }, { varyantlar: { some: {} } }] },
+          })
+        )
+          throw new HttpError(
+            409,
+            'CONFLICT',
+            'Bu özellik ürünlerde veya varyantlarda kullanılıyor. Silmeden önce ürünlerdeki bağlantılarını kaldırın.',
+          );
         if (kind === 'sablonlar') {
           await template(tx, user, id);
           const values = await tx.ozellikDegeri.findMany({

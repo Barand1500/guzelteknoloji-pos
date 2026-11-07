@@ -168,7 +168,15 @@ export const stockDraftSchema = z
     stockKind: text(100).min(1),
     inventoryTracking: z.enum(['yok', 'normal', 'seri', 'lot', 'omur']),
     // Eski istemciler göndermezse boş sayılır.
-    stockQuantity: decimal.default(''),
+    stockQuantity: z
+      .string()
+      .trim()
+      .transform((v) => v.replace(',', '.'))
+      .refine(
+        (v) => v === '' || /^-?\d{1,12}(\.\d{1,6})?$/.test(v),
+        'Geçerli bir stok miktarı girin; en fazla 12 tam ve 6 ondalık basamak kullanılabilir.',
+      )
+      .default(''),
     lowerLimit: decimal,
     upperLimit: decimal,
     serialRequired: z.boolean(),
