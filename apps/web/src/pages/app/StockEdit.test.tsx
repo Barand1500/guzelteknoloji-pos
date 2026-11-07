@@ -131,6 +131,8 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
         jsonResponse(200, { items: [item], total: 1, page: 1, pageSize: 200 }),
       'GET /api/stok/kartlar/123': () => jsonResponse(200, draft),
       'GET /api/stok/kartlar/123/ekler': () => jsonResponse(200, { categoryIds: [], dealIds: [] }),
+      'GET /api/ozellikler': () => jsonResponse(200, { templates: [], groups: [], values: [] }),
+      'GET /api/stok/kartlar/123/varyantlar': () => jsonResponse(200, []),
     });
     const user = userEvent.setup();
     renderApp('/uygulama/urunler');
