@@ -5,17 +5,17 @@ interface HoverZoomImageProps {
   className: string;
 }
 
-/** Küçük resim; üzerine gelince (ya da odaklanınca) büyük hali altında belirir. Dokunmatikte etkisizdir. */
+/** Küçük resim; üzerine gelince büyük hali yanında belirir (ürün listesindeki gibi). Dokunmatikte etkisizdir. */
 export function HoverZoomImage({ src, alt, className }: HoverZoomImageProps) {
   return (
     <span className="group/zoom relative inline-block shrink-0">
       <img src={src} alt={alt} className={className} />
-      <img
-        src={src}
-        alt=""
+      <span
         aria-hidden="true"
-        className="pointer-events-none absolute top-full left-0 z-40 mt-2 hidden size-52 rounded-3xl border border-line bg-surface-raised object-cover shadow-card group-hover/zoom:block"
-      />
+        className="pointer-events-none absolute top-1/2 left-full z-30 ml-3 hidden size-52 -translate-y-1/2 overflow-hidden rounded-3xl border border-line bg-surface-raised shadow-card group-hover/zoom:block"
+      >
+        <img src={src} alt="" className="size-full object-cover" />
+      </span>
     </span>
   );
 }
