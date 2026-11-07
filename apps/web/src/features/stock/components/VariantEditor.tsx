@@ -1,4 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Layers3, Plus, Trash2 } from 'lucide-react';
+import { Alert } from '../../../components/ui/Alert';
+import { Button } from '../../../components/ui/Button';
+import { TextField } from '../../../components/ui/TextField';
 import { apiRequest } from '../../../lib/http';
 import { dataError } from '../../../lib/catalog-data';
 import type { AttributeSnapshot } from '../../attributes/services/attribute.demo';
@@ -86,40 +90,71 @@ export function VariantEditor({
     }
   };
   return (
-    <section className="rounded-3xl border border-line bg-surface-raised p-5">
-      <h2 className="text-lg font-extrabold">Varyantlar</h2>
-      <p className="my-2 text-sm text-ink-muted">
-        Özellikleri kaydettikten sonra varyantları oluşturup ayrı stok kodu, barkod, fiyat ve miktar
-        girebilirsin. Fiyat KDV hariçtir.
-      </p>
-      {error && (
-        <p role="alert" className="text-danger">
-          {error}
-        </p>
-      )}
-      {message && <p className="text-success">{message}</p>}
-      {disabled && (
-        <p className="text-sm text-ink-muted">Önce stok kartındaki değişiklikleri kaydedin.</p>
-      )}
-      <fieldset disabled={busy || disabled || !loaded}>
-        <button
-          type="button"
-          onClick={generate}
-          disabled={!groups.length}
-          className="my-3 rounded-xl border border-line px-4 py-2"
-        >
-          Seçili özelliklerden varyant oluştur
-        </button>
-        <div className="flex flex-col gap-3">
+    <section className="mt-6 rounded-[1.75rem] border border-line bg-surface-raised p-5 shadow-soft tablet:p-7">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-3 text-lg font-extrabold tracking-tight">
+            <span
+              aria-hidden="true"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-ink"
+            >
+              <Layers3 className="size-5" />
+            </span>
+            Varyantlar
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+            Her varyant için ayrı stok kodu, barkod, fiyat ve miktar belirleyebilirsin. Fiyat KDV
+            hariçtir.
+          </p>
+        </div>
+        {rows.length > 0 && (
+          <span className="w-fit shrink-0 rounded-full bg-surface-muted px-3 py-1.5 text-xs font-bold text-ink-muted">
+            {rows.length} varyant
+          </span>
+        )}
+      </div>
+      <div className="mt-5 flex flex-col gap-3">
+        {error && <Alert>{error}</Alert>}
+        {message && (
+          <p role="status" className="text-sm font-semibold text-success">
+            {message}
+          </p>
+        )}
+        {disabled && <Alert tone="info">Önce stok kartındaki değişiklikleri kaydedin.</Alert>}
+      </div>
+      <fieldset disabled={busy || disabled || !loaded} className="m-0 min-w-0 border-0 p-0">
+        <div className="mb-5 mt-5">
+          <Button
+            variant="outline"
+            flow={false}
+            fullWidth={false}
+            onClick={generate}
+            disabled={!groups.length}
+            leadingIcon={<Plus className="size-5" aria-hidden="true" />}
+          >
+            Seçili özelliklerden varyant oluştur
+          </Button>
+        </div>
+        <div className="flex flex-col gap-4">
           {rows.map((row, index) => (
-            <div key={index} className="rounded-xl border border-line p-3">
-              <div className="flex justify-between gap-2">
-                <strong>{row.valueIds.map(valueName).join(' / ')}</strong>
-                <button type="button" onClick={() => setRows(rows.filter((_, i) => i !== index))}>
-                  Sil
+            <div
+              key={index}
+              className="min-w-0 rounded-3xl border border-line bg-surface p-4 sm:p-5"
+            >
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <strong className="min-w-0 break-words text-sm sm:text-base">
+                  {row.valueIds.map(valueName).join(' / ')}
+                </strong>
+                <button
+                  type="button"
+                  onClick={() => setRows(rows.filter((_, i) => i !== index))}
+                  aria-label={`${row.valueIds.map(valueName).join(' / ')} varyantını sil`}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                >
+                  <Trash2 className="size-4" aria-hidden="true" /> Sil
                 </button>
               </div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {(
                   [
                     ['code', 'Stok kodu'],
@@ -128,27 +163,29 @@ export function VariantEditor({
                     ['quantity', 'Stok miktarı'],
                   ] as const
                 ).map(([field, label]) => (
-                  <label key={field} className="text-sm">
-                    {label}
-                    <input
-                      className="block w-full rounded-lg border border-line bg-surface p-2"
-                      value={row[field]}
-                      onChange={(e) => update(index, { [field]: e.target.value })}
-                    />
-                  </label>
+                  <TextField
+                    key={field}
+                    label={label}
+                    value={row[field]}
+                    inputMode={field === 'price' || field === 'quantity' ? 'decimal' : undefined}
+                    onChange={(e) => update(index, { [field]: e.target.value })}
+                  />
                 ))}
               </div>
             </div>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => void save()}
-          disabled={busy}
-          className="mt-3 rounded-xl bg-brand-700 px-4 py-2 font-bold text-white"
-        >
-          Varyantları kaydet
-        </button>
+        <div className="mt-5 flex justify-end">
+          <Button
+            fullWidth={false}
+            flow={false}
+            onClick={() => void save()}
+            loading={busy}
+            loadingLabel="Kaydediliyor…"
+          >
+            Varyantları kaydet
+          </Button>
+        </div>
       </fieldset>
     </section>
   );
