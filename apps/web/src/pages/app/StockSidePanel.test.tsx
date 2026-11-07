@@ -39,14 +39,14 @@ afterEach(() => {
 });
 
 describe('Stok kartı yan sekmeleri (masaüstü)', () => {
-  it('açılışta panel kapalıdır; sağ kenarda Özet, Kategori ve Fırsat sekmeleri durur', async () => {
+  it('açılışta panel kapalıdır; sağ kenarda Özet, Kategori, Fırsat ve Özellik sekmeleri durur', async () => {
     await openNew();
     const rail = screen.getByRole('tablist', { name: 'Yan sekmeler' });
     expect(
       within(rail)
         .getAllByRole('tab')
         .map((t) => t.textContent),
-    ).toEqual(['Özet', 'Kategori', 'Fırsat']);
+    ).toEqual(['Özet', 'Kategori', 'Fırsat', 'Özellik']);
     expect(panel()).not.toBeInTheDocument();
     expect(tab('Özet')).toHaveAttribute('aria-selected', 'false');
     // Kaydet formun altındadır.

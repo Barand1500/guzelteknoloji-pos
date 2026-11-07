@@ -4,6 +4,7 @@ import { dataError } from '../../../lib/catalog-data';
 import { Link } from 'react-router';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
+import { HoverZoomImage } from './HoverZoomImage';
 import { SelectField } from '../../../components/ui/SelectField';
 import { Switch } from '../../../components/ui/Switch';
 import { PRODUCTS_PATH } from '../../../config/navigation';
@@ -341,7 +342,7 @@ export function BulkImagesView() {
                       >
                         {!replace && product.imageUrls[0] ? (
                           <li className="relative">
-                            <img
+                            <HoverZoomImage
                               src={product.imageUrls[0]}
                               alt="Mevcut vitrin görseli"
                               className="size-16 rounded-2xl border border-line bg-surface-muted object-cover"
@@ -353,7 +354,7 @@ export function BulkImagesView() {
                         ) : null}
                         {group.map((image, index) => (
                           <li key={image.id} className="relative">
-                            <img
+                            <HoverZoomImage
                               src={image.url}
                               alt={image.name}
                               className="size-16 rounded-2xl border border-line bg-surface-muted object-cover"
@@ -391,7 +392,7 @@ export function BulkImagesView() {
                         className="flex flex-col gap-3 rounded-3xl border border-danger/30 bg-danger-soft p-3 sm:flex-row sm:items-center"
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-3">
-                          <img
+                          <HoverZoomImage
                             src={image.url}
                             alt=""
                             className="size-14 shrink-0 rounded-2xl border border-line bg-surface-muted object-cover"
