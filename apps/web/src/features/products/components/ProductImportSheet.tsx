@@ -28,6 +28,29 @@ const readText = (file: File): Promise<string> =>
     reader.readAsText(file, 'utf-8');
   });
 
+async function readImportFile(file: File): Promise<string> {
+  if (file.size > 5 * 1024 * 1024) throw new Error('Dosya en fazla 5 MB olabilir.');
+  if (/\.csv$/i.test(file.name)) return readText(file);
+  if (!/\.xlsx$/i.test(file.name)) throw new Error('CSV veya XLSX dosyası seçin.');
+  const ExcelJS = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(await file.arrayBuffer());
+  const sheet = workbook.worksheets[0];
+  if (!sheet) throw new Error('Dosyada çalışma sayfası bulunamadı.');
+  if (sheet.rowCount > 1001 || sheet.columnCount > 100)
+    throw new Error('Dosyada en fazla 1000 ürün ve 100 sütun olabilir.');
+  const rows: string[] = [];
+  for (let row = 1; row <= sheet.rowCount; row++) {
+    const cells: string[] = [];
+    for (let column = 1; column <= sheet.columnCount; column++) {
+      const value = sheet.getRow(row).getCell(column).text;
+      cells.push('"' + value.replace(/"/g, '""') + '"');
+    }
+    rows.push(cells.join(';'));
+  }
+  return rows.join('\n');
+}
+
 const STATUS_STYLE: Record<ImportRow['status'], { label: string; cls: string }> = {
   new: { label: 'Yeni', cls: 'bg-success-soft text-success' },
   update: { label: 'Güncelle', cls: 'bg-accent-soft text-ink' },
@@ -63,12 +86,10 @@ export function ProductImportSheet({ onDone, onClose }: ProductImportSheetProps)
   const pick = async (file: File | undefined) => {
     if (!file) return;
     setError(null);
-    if (!/\.csv$/i.test(file.name)) {
-      setError('Dosya CSV olmalı. Excel\'de "Farklı Kaydet → CSV" ile kaydedin.');
-      return;
-    }
+    setText('');
+    setFileName('');
     try {
-      setText(await readText(file));
+      setText(await readImportFile(file));
       setFileName(file.name);
     } catch (error) {
       setError(dataError(error));
@@ -133,7 +154,7 @@ export function ProductImportSheet({ onDone, onClose }: ProductImportSheetProps)
               <p className="font-bold">Örnek dosyayı indir</p>
               <p className="text-sm text-ink-muted">
                 Dosyayı kendi ürünlerinle doldur, ilk satırdaki (başlık) satırı silme. Excel&apos;de
-                &quot;Farklı Kaydet → CSV&quot; ile kaydet.
+                XLSX veya CSV olarak kaydet.
               </p>
               <Button
                 variant="outline"
@@ -178,16 +199,16 @@ export function ProductImportSheet({ onDone, onClose }: ProductImportSheetProps)
               className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-field-border bg-surface-raised p-6 text-center transition-colors hover:border-brand-500"
             >
               <FileSpreadsheet className="size-8 text-brand-ink" aria-hidden="true" />
-              <span className="font-bold">{fileName || 'CSV dosyasını seç'}</span>
+              <span className="font-bold">{fileName || 'Excel veya CSV dosyasını seç'}</span>
               <span className="text-sm text-ink-muted">
-                {fileName ? 'Başka dosya seçmek için dokun' : 'Dokunup dosyayı seç (.csv)'}
+                {fileName ? 'Başka dosya seçmek için dokun' : 'Dokunup dosyayı seç (.xlsx, .csv)'}
               </span>
             </button>
             <input
               ref={input}
               type="file"
-              accept=".csv,text/csv"
-              aria-label="CSV dosyası seç"
+              accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              aria-label="Excel veya CSV dosyası seç"
               className="sr-only"
               onChange={(e) => void pick(e.target.files?.[0])}
             />

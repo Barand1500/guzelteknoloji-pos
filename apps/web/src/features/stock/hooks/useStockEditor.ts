@@ -82,7 +82,7 @@ export function useStockEditor(
     JSON.stringify({ draft: initialDraft, extras: initialExtras }),
   );
   const extraOptions = options.extraOptions ?? null;
-  const toggleExtra = (key: keyof StockExtras, id: string) =>
+  const toggleExtra = (key: 'categoryIds' | 'dealIds', id: string) =>
     setExtras((e) => ({
       ...e,
       [key]: e[key].includes(id) ? e[key].filter((x) => x !== id) : [...e[key], id],
@@ -255,6 +255,17 @@ export function useStockEditor(
     extraOptions,
     toggleCategory: (id: string) => toggleExtra('categoryIds', id),
     toggleDeal: (id: string) => toggleExtra('dealIds', id),
+    toggleAttribute: (id: string, groupId: string, multiple: boolean) =>
+      setExtras((e) => {
+        const ids = e.attributeValueIds ?? [];
+        const groupValues =
+          extraOptions?.attributes?.values.filter((v) => v.groupId === groupId).map((v) => v.id) ??
+          [];
+        const next = ids.includes(id)
+          ? ids.filter((x) => x !== id)
+          : [...(multiple ? ids : ids.filter((x) => !groupValues.includes(x))), id];
+        return { ...e, attributeValueIds: next };
+      }),
     dirty: JSON.stringify({ draft, extras }) !== baseline,
     saved,
     savedId,

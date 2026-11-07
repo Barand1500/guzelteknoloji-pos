@@ -12,6 +12,7 @@ import { stockBulkSchema, stockListQuery, stockSaveSchema, recordKey } from './s
 import type { PrismaClient } from '../../lib/prisma';
 import { importSchema, StockImport } from './stock-import';
 import { createStockImages } from './stock-images';
+import { Prisma } from '../../generated/prisma/client';
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
@@ -105,8 +106,141 @@ export function createStockRouter(
     );
     const card = result.items[0];
     if (!card) throw new HttpError(404, 'NOT_FOUND', 'Stok kartı bulunamadı.');
-    res.json({ categoryIds: card.categoryIds, dealIds: card.dealIds });
+    const attributes = db
+      ? await db.stokOzellikDegeri.findMany({
+          where: { stokKartiId: Number(id) },
+          select: { degerId: true },
+        })
+      : [];
+    res.json({
+      categoryIds: card.categoryIds,
+      dealIds: card.dealIds,
+      attributeValueIds: attributes.map((x) => String(x.degerId)),
+    });
   });
+  if (db) {
+    const variantSchema = z.strictObject({
+      code: z.string().trim().min(1).max(100),
+      barcode: z.string().trim().max(100),
+      price: z.string().regex(/^\d{1,12}(\.\d{1,6})?$/),
+      quantity: z.string().regex(/^\d{1,12}(\.\d{1,6})?$/),
+      valueIds: z
+        .array(z.string().regex(/^[1-9][0-9]{0,9}$/))
+        .min(1)
+        .max(30),
+    });
+    router.get('/kartlar/:id/varyantlar', async (req, res) => {
+      const id = Number(parse(recordKey, req.params.id));
+      const card = await db.stokKarti.findFirst({
+        where: { kimlik: id, kullaniciKimligi: Number(res.locals.stockUserId) },
+      });
+      if (!card) throw new HttpError(404, 'NOT_FOUND', 'Ürün bulunamadı.');
+      const rows = await db.stokVaryanti.findMany({
+        where: { stokKartiId: id },
+        include: { degerler: true },
+        orderBy: { id: 'asc' },
+      });
+      res.json(
+        rows.map((v) => ({
+          code: v.kod,
+          barcode: v.barkod ?? '',
+          price: v.fiyat.toString(),
+          quantity: v.miktar.toString(),
+          valueIds: v.degerler.map((d) => String(d.degerId)),
+        })),
+      );
+    });
+    router.post('/kartlar/:id/varyantlar', async (req, res) => {
+      const id = Number(parse(recordKey, req.params.id));
+      const { variants } = z
+        .strictObject({ variants: z.array(variantSchema).max(200) })
+        .parse(req.body);
+      const user = Number(res.locals.stockUserId);
+      await db.$transaction(async (tx) => {
+        await tx.$queryRaw(Prisma.sql`SELECT id FROM kullanicilar WHERE id = ${user} FOR UPDATE`);
+        const card = await tx.stokKarti.findFirst({
+          where: { kimlik: id, kullaniciKimligi: user },
+        });
+        if (!card) throw new HttpError(404, 'NOT_FOUND', 'Ürün bulunamadı.');
+        const selected = await tx.stokOzellikDegeri.findMany({
+          where: { stokKartiId: id },
+          include: { deger: { include: { grup: true } } },
+        });
+        const valid = selected.filter((x) => x.deger.grup.varyant);
+        const groupIds = new Set(valid.map((x) => x.deger.grupId));
+        const codes = new Set<string>(),
+          barcodes = new Set<string>(),
+          combinations = new Set<string>();
+        for (const variant of variants) {
+          const ids = variant.valueIds.map(Number);
+          const chosen = valid.filter((x) => ids.includes(x.degerId));
+          const combination = [...ids].sort((a, b) => a - b).join(',');
+          if (
+            new Set(ids).size !== ids.length ||
+            chosen.length !== ids.length ||
+            new Set(chosen.map((x) => x.deger.grupId)).size !== groupIds.size ||
+            ids.length !== groupIds.size
+          )
+            throw new HttpError(
+              400,
+              'VALIDATION_ERROR',
+              'Her varyant grubu için bir özellik seçin.',
+            );
+          const code = variant.code.toLocaleLowerCase('tr-TR');
+          if (
+            codes.has(code) ||
+            combinations.has(combination) ||
+            (variant.barcode && barcodes.has(variant.barcode))
+          )
+            throw new HttpError(
+              409,
+              'CONFLICT',
+              'Varyant kodu, barkodu veya özellik birleşimi tekrar ediyor.',
+            );
+          codes.add(code);
+          combinations.add(combination);
+          if (variant.barcode) barcodes.add(variant.barcode);
+        }
+        const conflicts = await tx.stokVaryanti.findMany({
+          where: {
+            stokKartiId: { not: id },
+            stokKarti: { kullaniciKimligi: user },
+            OR: [{ kod: { in: variants.map((v) => v.code) } }, { barkod: { in: [...barcodes] } }],
+          },
+        });
+        if (
+          conflicts.length ||
+          (await tx.stokKarti.findFirst({
+            where: { kullaniciKimligi: user, stokKodu: { in: variants.map((v) => v.code) } },
+          })) ||
+          (await tx.stokBarkodu.findFirst({
+            where: {
+              barkod: { in: [...barcodes] },
+              stokBirimi: { stokKarti: { kullaniciKimligi: user } },
+            },
+          }))
+        )
+          throw new HttpError(
+            409,
+            'CONFLICT',
+            'Varyant kodu veya barkodu başka bir üründe kullanılıyor.',
+          );
+        await tx.stokVaryanti.deleteMany({ where: { stokKartiId: id } });
+        for (const v of variants)
+          await tx.stokVaryanti.create({
+            data: {
+              stokKartiId: id,
+              kod: v.code,
+              barkod: v.barcode || null,
+              fiyat: v.price,
+              miktar: v.quantity,
+              degerler: { create: v.valueIds.map((degerId) => ({ degerId: Number(degerId) })) },
+            },
+          });
+      });
+      res.status(204).end();
+    });
+  }
   router.get('/kartlar/:id', async (req, res) => {
     const id = parse(
       z

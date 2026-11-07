@@ -1,5 +1,6 @@
 import type { Category } from '../categories/types';
 import type { Deal } from '../deals/types';
+import type { AttributeSnapshot } from '../attributes/services/attribute.demo';
 export type {
   OptionListKey,
   StockLookups,
@@ -15,12 +16,18 @@ export type {
 export interface StockExtras {
   categoryIds: string[];
   dealIds: string[];
+  attributeValueIds?: string[];
 }
 
-export const emptyExtras = (): StockExtras => ({ categoryIds: [], dealIds: [] });
+export const emptyExtras = (): StockExtras => ({
+  categoryIds: [],
+  dealIds: [],
+  attributeValueIds: [],
+});
 
 /** Kategori ve fırsat kutularının seçenekleri. */
 export interface StockExtraOptions {
   categories: Category[];
   deals: Deal[];
+  attributes?: AttributeSnapshot;
 }

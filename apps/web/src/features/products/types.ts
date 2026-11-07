@@ -18,6 +18,7 @@ export interface ProductItem {
   imageUrl: string | null;
   /** Tüm görseller, sıralı; ilki vitrin resmidir. */
   imageUrls: string[];
+  variantCount?: number;
   /** Barkod (Toplu Görsel dosya adıyla eşleştirmek için); sunucu listesi henüz vermiyorsa yoktur. */
   barcode?: string;
   barcodes?: string[];

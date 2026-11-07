@@ -15,6 +15,7 @@ import type { StockCardDraft, StockExtraOptions, StockExtras, StockLookups } fro
 import { DesktopStockLayout } from './DesktopStockLayout';
 import { MobileStockLayout } from './MobileStockLayout';
 import { StockSavedScreen } from './StockSavedScreen';
+import { VariantEditor } from './VariantEditor';
 import type { SideBoxId } from './StockSidePanel';
 
 interface StockCardFormProps {
@@ -213,6 +214,14 @@ function StockCardEditor({
         ) : (
           <MobileStockLayout editor={editor} initialBox={initialBox ?? null} />
         )}
+        {cardId && !demo && loaded.extraOptions?.attributes ? (
+          <VariantEditor
+            cardId={cardId}
+            attributes={loaded.extraOptions.attributes}
+            selectedIds={editor.extras.attributeValueIds ?? []}
+            disabled={editor.dirty}
+          />
+        ) : null}
       </fieldset>
     </div>
   );

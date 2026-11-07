@@ -204,6 +204,8 @@ model StokKarti {
   kategoriler          StokKartiKategori[]
   firsatlar            StokFirsati[]
   gorseller            StokGorseli[]
+  ozellikDegerleri     StokOzellikDegeri[]
+  varyantlar           StokVaryanti[]
 
   @@unique([kullaniciKimligi, stokKodu], map: "stok_kartlari_kullanici_kod_tekil")
   @@unique([kullaniciKimligi, kayitIstegiKimligi], map: "stok_kartlari_kayit_istegi_tekil")
@@ -328,9 +330,43 @@ model OzellikDegeri {
   gorselDosyasi String? @map("gorsel_dosyasi") @db.VarChar(255)
   sira Int @default(0)
   grup OzellikGrubu @relation(fields: [grupId], references: [id], onDelete: Cascade)
+  stokKartlari StokOzellikDegeri[]
+  varyantlar StokVaryantDegeri[]
   @@unique([grupId, kod])
   @@index([grupId, sira])
   @@map("ozellik_degerleri")
+}
+
+model StokOzellikDegeri {
+  stokKartiId Int @map("stok_karti_id")
+  degerId Int @map("deger_id")
+  stokKarti StokKarti @relation(fields: [stokKartiId], references: [kimlik], onDelete: Cascade)
+  deger OzellikDegeri @relation(fields: [degerId], references: [id], onDelete: Cascade)
+  @@id([stokKartiId, degerId])
+  @@map("stok_ozellik_degerleri")
+}
+
+model StokVaryanti {
+  id Int @id @default(autoincrement())
+  stokKartiId Int @map("stok_karti_id")
+  kod String @db.VarChar(100)
+  barkod String? @db.VarChar(100)
+  fiyat Decimal @db.Decimal(18, 6)
+  miktar Decimal @db.Decimal(18, 6)
+  stokKarti StokKarti @relation(fields: [stokKartiId], references: [kimlik], onDelete: Cascade)
+  degerler StokVaryantDegeri[]
+  @@unique([stokKartiId, kod])
+  @@index([stokKartiId])
+  @@map("stok_varyantlari")
+}
+
+model StokVaryantDegeri {
+  varyantId Int @map("varyant_id")
+  degerId Int @map("deger_id")
+  varyant StokVaryanti @relation(fields: [varyantId], references: [id], onDelete: Cascade)
+  deger OzellikDegeri @relation(fields: [degerId], references: [id], onDelete: Restrict)
+  @@id([varyantId, degerId])
+  @@map("stok_varyant_degerleri")
 }
 
 model StokBirimi {

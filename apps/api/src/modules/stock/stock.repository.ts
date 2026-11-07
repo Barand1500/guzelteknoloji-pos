@@ -299,6 +299,39 @@ export class PrismaStockRepository implements StockRepository {
                   'NOT_FOUND',
                   'Seçilen kategori veya fırsat bulunamadı. İşlem yapılmadı.',
                 );
+              if (input.extras.attributeValueIds) {
+                const values = await tx.ozellikDegeri.findMany({
+                  where: {
+                    id: { in: input.extras.attributeValueIds },
+                    grup: { sablon: { kullaniciId: user } },
+                  },
+                  include: { grup: { include: { sablon: { include: { kategoriler: true } } } } },
+                });
+                if (
+                  values.length !== input.extras.attributeValueIds.length ||
+                  values.some(
+                    (v) =>
+                      !v.grup.sablon.tumUrunler &&
+                      !v.grup.sablon.kategoriler.some((k) => categoryIds.includes(k.kategoriId)),
+                  )
+                )
+                  throw new HttpError(
+                    400,
+                    'VALIDATION_ERROR',
+                    'Seçilen özellikler ürünün kategorisine uygun değil.',
+                  );
+                for (const value of values)
+                  if (
+                    !value.grup.coklu &&
+                    !value.grup.varyant &&
+                    values.filter((v) => v.grupId === value.grupId).length > 1
+                  )
+                    throw new HttpError(
+                      400,
+                      'VALIDATION_ERROR',
+                      'Bu özellik grubunda yalnızca bir değer seçilebilir.',
+                    );
+              }
             }
             if (
               metadata?.categoryId !== undefined &&
@@ -405,6 +438,23 @@ export class PrismaStockRepository implements StockRepository {
                 'Bu stok koduyla bir kart zaten var. Farklı bir stok kodu girin.',
               );
             if (
+              d.code &&
+              (await tx.stokVaryanti.findFirst({
+                where: { kod: d.code, stokKarti: { kullaniciKimligi: Number(userId) } },
+              }))
+            )
+              throw new HttpError(409, 'CONFLICT', 'Bu stok kodu bir varyantta kullanılıyor.');
+            if (
+              common.barcodes.length &&
+              (await tx.stokVaryanti.findFirst({
+                where: {
+                  barkod: { in: common.barcodes },
+                  stokKarti: { kullaniciKimligi: Number(userId) },
+                },
+              }))
+            )
+              throw new HttpError(409, 'CONFLICT', 'Bu barkod bir varyantta kullanılıyor.');
+            if (
               common.barcodes.length &&
               (await tx.stokBarkodu.findFirst({
                 where: {
@@ -482,6 +532,27 @@ export class PrismaStockRepository implements StockRepository {
             // Kart numarası, satış durumu, stok miktarı ve kategoriler güncellemede korunur.
             const finish = async (id: number) => {
               if (input.extras) {
+                if (input.extras.attributeValueIds) {
+                  const used = await tx.stokVaryantDegeri.findFirst({
+                    where: {
+                      varyant: { stokKartiId: id },
+                      degerId: { notIn: input.extras.attributeValueIds },
+                    },
+                  });
+                  if (used)
+                    throw new HttpError(
+                      409,
+                      'CONFLICT',
+                      'Varyantta kullanılan özellik seçimi kaldırılamaz.',
+                    );
+                  await tx.stokOzellikDegeri.deleteMany({ where: { stokKartiId: id } });
+                  await tx.stokOzellikDegeri.createMany({
+                    data: input.extras.attributeValueIds.map((degerId) => ({
+                      stokKartiId: id,
+                      degerId,
+                    })),
+                  });
+                }
                 await tx.stokKartiKategori.deleteMany({ where: { stokKartiId: id } });
                 await tx.stokFirsati.deleteMany({ where: { stokKartiId: id } });
                 if (input.extras.categoryIds.length)
@@ -673,6 +744,7 @@ export class PrismaStockRepository implements StockRepository {
           take: query.boyut,
           include: {
             firsatlar: true,
+            _count: { select: { varyantlar: true } },
             gorseller: { orderBy: [{ sira: 'asc' }, { id: 'asc' }] },
             marka: true,
             stokTipi: true,
@@ -712,6 +784,7 @@ export class PrismaStockRepository implements StockRepository {
             categoryNames: categories.map((c) => c.ad),
             imageUrl: card.gorseller[0] ? stockImageUrl(card.gorseller[0]) : null,
             imageUrls: card.gorseller.map(stockImageUrl),
+            variantCount: card._count.varyantlar,
             barcode: card.birimler.flatMap((unit) => unit.barkodlar.map((b) => b.barkod))[0] ?? '',
             barcodes: card.birimler.flatMap((unit) => unit.barkodlar.map((b) => b.barkod)),
             currency: symbols[first?.paraBirimi ?? 'TRY'] ?? first?.paraBirimi ?? '₺',

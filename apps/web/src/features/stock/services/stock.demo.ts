@@ -5,6 +5,7 @@ import { draftFromProduct, patchFromDraft } from '../../products/product.draft';
 import { demoProductService as productService } from '../../products/services/product.demo';
 import { demoCategoryService as categoryService } from '../../categories/services/category.demo';
 import { demoDealService as dealService } from '../../deals/services/deal.demo';
+import { demoAttributeService } from '../../attributes/services/attribute.demo';
 import type {
   OptionListKey,
   StockCardDraft,
@@ -71,8 +72,12 @@ export const demoStockService: StockService = {
   },
 
   async getExtraOptions(): Promise<StockExtraOptions | null> {
-    const [categories, deals] = await Promise.all([categoryService.list(), dealService.list()]);
-    return { categories, deals };
+    const [categories, deals, attributes] = await Promise.all([
+      categoryService.list(),
+      dealService.list(),
+      demoAttributeService.snapshot(),
+    ]);
+    return { categories, deals, attributes };
   },
 
   async getExtras(id: string): Promise<StockExtras> {

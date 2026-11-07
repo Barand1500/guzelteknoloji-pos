@@ -1,7 +1,5 @@
 /**
- * Excel ile ürün yükleme için dosya okuma. Dosya CSV'dir (Excel'de "Farklı Kaydet → CSV" ile
- * oluşur; Türkçe Excel noktalı virgül `;` kullanır, ayraç kendiliğinden bulunur). Gerçek .xlsx
- * okuma, sunucu hazır olunca sunucu tarafında yapılır.
+ * Ürün aktarımı için CSV sütunları ve ayrıştırma. XLSX dosyaları ekranda aynı metin biçimine çevrilir.
  */
 export const IMPORT_COLUMNS = [
   { key: 'code', title: 'Stok Kodu', required: true },

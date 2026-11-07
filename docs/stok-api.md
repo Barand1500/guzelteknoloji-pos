@@ -62,6 +62,15 @@ Migration: `20261106230000_stok_gorselleri`. Tek yeni tablo `stok_gorselleri`: s
 
 ## CSV ürün aktarımı
 
+Arayüz XLSX ve CSV kabul eder. XLSX'in ilk çalışma sayfası tarayıcıda CSV metnine çevrilerek aynı uçlara gönderilir.
+
+## Ürün özellikleri ve varyantlar
+
+- Stok kartı kaydındaki `extras.attributeValueIds` ürünün seçili özellik değerleridir. Şablonun kullanıcıya ve seçilen kategoriye uygunluğu, tekli gruplar ve varyantta kullanılan değerler sunucuda denetlenir.
+- `GET /api/stok/kartlar/:id/varyantlar` ürünün varyantlarını döndürür.
+- `POST /api/stok/kartlar/:id/varyantlar` tüm varyant listesini `{variants:[{code,barcode,price,quantity,valueIds}]}` biçiminde kaydeder. Fiyat KDV hariçtir; miktar ve fiyat ondalık metindir. Her varyant için seçili varyant gruplarından birer değer gerekir.
+- Veriler `stok_ozellik_degerleri`, `stok_varyantlari` ve `stok_varyant_degerleri` tablolarında tutulur.
+
 - `POST /api/stok/aktarim/onizle`: `{text}` → `{rows, missingColumns, newCount, updateCount, errorCount}`.
 - `POST /api/stok/aktarim/kaydet`: `{text}` → `{created, updated, errors: string[]}`.
 - UTF-8 CSV, en fazla 400.000 karakter ve 1000 satır. Zorunlu sütunlar: Stok Kodu, Ürün Adı, Fiyat 1. Fiyatlar KDV hariçtir; 6 ondalık basamağa kadar kabul edilir.

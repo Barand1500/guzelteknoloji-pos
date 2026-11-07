@@ -2,6 +2,7 @@ import type { SelectOption } from '../../../components/ui/SelectField';
 import { ApiError, apiRequest, NetworkError } from '../../../lib/http';
 import { categoryService } from '../../categories/services/category.service';
 import { dealService } from '../../deals/services/deal.service';
+import { attributeService } from '../../attributes/services/attribute.service';
 import type {
   OptionListKey,
   StockCardDraft,
@@ -48,8 +49,12 @@ export const stockService: StockService = {
       body: { draft, requestId, extras },
     }),
   getExtraOptions: async () => {
-    const [categories, deals] = await Promise.all([categoryService.list(), dealService.list()]);
-    return { categories, deals };
+    const [categories, deals, attributes] = await Promise.all([
+      categoryService.list(),
+      dealService.list(),
+      attributeService.snapshot(),
+    ]);
+    return { categories, deals, attributes };
   },
   getExtras: (id) => apiRequest(`/api/stok/kartlar/${encodeURIComponent(id)}/ekler`),
 };

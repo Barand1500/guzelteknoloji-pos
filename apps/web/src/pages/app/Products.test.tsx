@@ -154,7 +154,7 @@ describe('Excel ile ürün yükleme sihirbazı', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Dosyam Hazır, Devam' }));
 
     const file = new File([csv], 'urunler.csv', { type: 'text/csv' });
-    await user.upload(within(dialog).getByLabelText('CSV dosyası seç'), file);
+    await user.upload(within(dialog).getByLabelText('Excel veya CSV dosyası seç'), file);
     await user.click(await within(dialog).findByRole('button', { name: 'Denetle ve Önizle' }));
 
     expect(await within(dialog).findByText('1 yeni')).toBeInTheDocument();
@@ -177,7 +177,7 @@ describe('Excel ile ürün yükleme sihirbazı', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Excel ile Ürün Yükle' });
     await user.click(within(dialog).getByRole('button', { name: 'Dosyam Hazır, Devam' }));
     await user.upload(
-      within(dialog).getByLabelText('CSV dosyası seç'),
+      within(dialog).getByLabelText('Excel veya CSV dosyası seç'),
       new File(['Ad;Fiyat\r\nx;1'], 'yanlis.csv', { type: 'text/csv' }),
     );
     await user.click(await within(dialog).findByRole('button', { name: 'Denetle ve Önizle' }));

@@ -85,6 +85,15 @@ export function ProductTable({
                       <p className="text-xs font-bold text-ink-muted">{p.brandName}</p>
                     ) : null}
                     <p className="line-clamp-2 font-semibold">{p.name}</p>
+                    {(p.variantCount ?? 0) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => onEdit(p)}
+                        className="text-xs font-semibold text-brand-ink"
+                      >
+                        {p.variantCount} varyant · Düzenle
+                      </button>
+                    )}
                   </div>
                 </div>
               </td>

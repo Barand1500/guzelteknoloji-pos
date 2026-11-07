@@ -12,7 +12,13 @@ const selection = z
   .max(1000)
   .refine((ids) => new Set(ids).size === ids.length, 'Aynı kayıt iki kez seçilemez.');
 export const stockSaveSchema = createStockSchema.extend({
-  extras: z.strictObject({ categoryIds: selection, dealIds: selection }).optional(),
+  extras: z
+    .strictObject({
+      categoryIds: selection,
+      dealIds: selection,
+      attributeValueIds: selection.optional(),
+    })
+    .optional(),
 });
 export type StockSaveInput = z.infer<typeof stockSaveSchema>;
 
@@ -51,6 +57,7 @@ export interface ProductListItem {
   categoryNames: string[];
   imageUrl: string | null;
   imageUrls: string[];
+  variantCount?: number;
   barcode: string;
   barcodes: string[];
   currency: string;

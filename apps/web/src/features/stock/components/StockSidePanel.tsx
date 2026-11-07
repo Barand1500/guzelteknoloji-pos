@@ -1,4 +1,11 @@
-import { FolderTree, LayoutList, Sparkles, X, type LucideIcon } from 'lucide-react';
+import {
+  FolderTree,
+  LayoutList,
+  Sparkles,
+  SlidersHorizontal,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import type { StockEditor } from '../hooks/useStockEditor';
@@ -7,9 +14,9 @@ import { DealBox } from './DealBox';
 import { StockPreview } from './StockPreview';
 
 /** Yan sekmelerin kimlikleri (adres çubuğundaki `?ac=` değeriyle de açılır). */
-export type SideBoxId = 'ozet' | 'kategori' | 'firsat';
+export type SideBoxId = 'ozet' | 'kategori' | 'firsat' | 'ozellik';
 
-export const SIDE_BOX_IDS: readonly SideBoxId[] = ['ozet', 'kategori', 'firsat'];
+export const SIDE_BOX_IDS: readonly SideBoxId[] = ['ozet', 'kategori', 'firsat', 'ozellik'];
 
 interface SideTab {
   id: SideBoxId;
@@ -24,6 +31,7 @@ const TABS: readonly SideTab[] = [
   { id: 'ozet', label: 'Özet', title: 'Özet', icon: LayoutList },
   { id: 'kategori', label: 'Kategori', title: 'Kategori', icon: FolderTree },
   { id: 'firsat', label: 'Fırsat', title: 'Fırsat Yönetimi', icon: Sparkles },
+  { id: 'ozellik', label: 'Özellik', title: 'Ürün Özellikleri', icon: SlidersHorizontal },
 ];
 
 const LOCKED = 'Sunucuya bağlanınca açılır';
@@ -75,11 +83,13 @@ export function StockSidePanel({ editor, panel, onInvalid }: StockSidePanelProps
     ozet: 0,
     kategori: extras.categoryIds.length,
     firsat: extras.dealIds.length,
+    ozellik: extras.attributeValueIds?.length ?? 0,
   };
   const pill: Record<SideBoxId, string> = {
     ozet: '', // Özet içeriğinde doluluk zaten yazılı
     kategori: counts.kategori > 0 ? `${counts.kategori} seçili` : '',
     firsat: counts.firsat > 0 ? `${counts.firsat} açık` : '',
+    ozellik: counts.ozellik > 0 ? `${counts.ozellik} seçili` : '',
   };
 
   return (
@@ -191,6 +201,60 @@ export function StockSidePanel({ editor, panel, onInvalid }: StockSidePanelProps
                 selectedIds={extras.dealIds}
                 onToggle={editor.toggleDeal}
               />
+            ) : null}
+            {active.id === 'ozellik' && extraOptions?.attributes ? (
+              <div className="flex flex-col gap-4">
+                {extraOptions.attributes.templates
+                  .filter(
+                    (t) =>
+                      t.allProducts ||
+                      t.categoryIds.some((id) => extras.categoryIds.includes(id)) ||
+                      extraOptions.attributes!.groups.some(
+                        (g) =>
+                          g.templateId === t.id &&
+                          extraOptions.attributes!.values.some(
+                            (v) =>
+                              v.groupId === g.id && (extras.attributeValueIds ?? []).includes(v.id),
+                          ),
+                      ),
+                  )
+                  .map((template) => (
+                    <section key={template.id}>
+                      <h3 className="font-bold">{template.name}</h3>
+                      {extraOptions
+                        .attributes!.groups.filter((g) => g.templateId === template.id)
+                        .map((group) => (
+                          <fieldset key={group.id} className="mt-3">
+                            <legend className="text-sm font-semibold">{group.name}</legend>
+                            {extraOptions
+                              .attributes!.values.filter((v) => v.groupId === group.id)
+                              .map((value) => (
+                                <label
+                                  key={value.id}
+                                  className="flex items-center gap-2 py-2 text-sm"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={(extras.attributeValueIds ?? []).includes(value.id)}
+                                    onChange={() =>
+                                      editor.toggleAttribute(
+                                        value.id,
+                                        group.id,
+                                        group.multiple || group.variant,
+                                      )
+                                    }
+                                  />
+                                  {value.name}
+                                </label>
+                              ))}
+                          </fieldset>
+                        ))}
+                    </section>
+                  ))}
+                <p className="text-xs text-ink-muted">
+                  Kategoriye uygun şablonlar ve tüm ürünlere açık şablonlar gösterilir.
+                </p>
+              </div>
             ) : null}
           </div>
 

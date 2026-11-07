@@ -101,6 +101,9 @@ export function ProductRow({
         >
           <span className="min-w-0 flex-1">
             <span className="line-clamp-2 text-sm leading-snug font-bold">{product.name}</span>
+            {(product.variantCount ?? 0) > 0 && (
+              <span className="block text-xs text-brand-ink">{product.variantCount} varyant</span>
+            )}
             <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="text-xs text-ink-muted">{product.code}</span>
               <StockBadge product={product} />
