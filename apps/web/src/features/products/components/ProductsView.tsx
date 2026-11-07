@@ -15,6 +15,8 @@ import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
 import { Segmented } from '../../../components/ui/Segmented';
+import { SelectField } from '../../../components/ui/SelectField';
+import { ToggleChip } from '../../../components/ui/ToggleChip';
 import { Sheet } from '../../../components/ui/Sheet';
 import {
   BULK_IMAGES_PATH,
@@ -30,6 +32,8 @@ import {
   activeFilterCount,
   emptyFilters,
   matchesFilters,
+  COST_VIEW,
+  priceListsOf,
   type PriceView,
   type ProductFilters,
   type ProductItem,
@@ -42,18 +46,18 @@ import { ProductTable } from './ProductTable';
 
 const fold = (s: string) => s.toLocaleLowerCase('tr');
 
-const PRICE_OPTIONS = [
-  { value: 'p1', label: 'Fiyat 1' },
-  { value: 'p2', label: 'Fiyat 2' },
-  { value: 'p3', label: 'Fiyat 3' },
-  { value: 'cost', label: 'Alış' },
-] as const;
+/** Masaüstü tabloda varsayılan olarak ilk üç fiyat listesi görünür; fazlası seçiciyle açılır. */
+const DEFAULT_COLUMNS = 3;
+/** Segment seçici en çok 4 seçenek taşır; fazlasında açılır liste kullanılır. */
+const MAX_SEGMENTS = 4;
 
 /**
- * Ürün Liste ekranı. Telefonda sıkı satırlar: dokununca satır açılıp üç fiyat, stok/satış
- * anahtarları ve işlemler görünür; üstteki seçici satırda hangi fiyatın görüneceğini belirler.
- * Seçim modunda kutucuklar çıkar ve alttan toplu işlem çubuğu açılır. Masaüstünde tablodur
- * (üç fiyat yan yana). "Ekle" mevcut stok kartı oluşturma ekranını açar.
+ * Ürün Liste ekranı. Telefonda sıkı satırlar: dokununca satır açılıp tüm fiyat listeleri, stok/satış
+ * anahtarları ve işlemler görünür; üstteki seçici satırda hangi fiyat listesinin (ya da Alış'ın)
+ * görüneceğini belirler. Seçim modunda kutucuklar çıkar ve alttan toplu işlem çubuğu açılır.
+ * Masaüstünde tablodur: sütunlar kullanıcının KENDİ fiyat listeleridir ve kendi adlarını taşır
+ * (sabit "Fiyat 1/2/3" yok); dörtten fazla liste varsa hangilerinin görüneceği seçilir.
+ * "Ekle" mevcut stok kartı oluşturma ekranını açar.
  */
 export function ProductsView() {
   const { products, loading, error, refresh, setStockTracking, setSales, remove } = useProducts();
@@ -62,7 +66,9 @@ export function ProductsView() {
 
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<ProductFilters>(emptyFilters);
-  const [priceView, setPriceView] = useState<PriceView>('p1');
+  const [priceView, setPriceView] = useState<PriceView>('');
+  // null = varsayılan (ilk üç liste); seçilince seçilen sütun kimlikleri.
+  const [shownIds, setShownIds] = useState<string[] | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -81,6 +87,32 @@ export function ProductsView() {
     window.clearTimeout(noticeTimer.current);
     noticeTimer.current = window.setTimeout(() => setNotice(null), 3200);
   };
+
+  const priceLists = useMemo(() => priceListsOf(products), [products]);
+  const viewOptions = useMemo(
+    () => [
+      ...priceLists.map((l) => ({ value: l.id, label: l.name })),
+      { value: COST_VIEW, label: 'Alış' },
+    ],
+    [priceLists],
+  );
+  // Seçili görünüm artık yoksa (liste silindi) ilk listeye dönülür.
+  const activeView = viewOptions.some((o) => o.value === priceView)
+    ? priceView
+    : (viewOptions[0]?.value ?? COST_VIEW);
+  const columnChoices = useMemo(
+    () => [...priceLists, { id: COST_VIEW, name: 'Alış' }],
+    [priceLists],
+  );
+  const columns =
+    shownIds === null
+      ? priceLists.slice(0, DEFAULT_COLUMNS)
+      : columnChoices.filter((c) => shownIds.includes(c.id));
+  const toggleColumn = (id: string) =>
+    setShownIds((current) => {
+      const now = current ?? priceLists.slice(0, DEFAULT_COLUMNS).map((c) => c.id);
+      return now.includes(id) ? now.filter((x) => x !== id) : [...now, id];
+    });
 
   const filterCount = activeFilterCount(filters);
   const visible = useMemo(() => {
@@ -169,6 +201,7 @@ export function ProductsView() {
     content = (
       <ProductTable
         products={paging.pageItems}
+        columns={columns}
         selected={selected}
         onToggleSelect={toggleSelect}
         onToggleAll={(on) =>
@@ -194,7 +227,8 @@ export function ProductsView() {
           <li key={p.id}>
             <ProductRow
               product={p}
-              priceView={priceView}
+              priceView={activeView}
+              viewName={viewOptions.find((o) => o.value === activeView)?.label ?? ''}
               expanded={!selecting && expandedId === p.id}
               selecting={selecting}
               selected={selected.has(p.id)}
@@ -332,14 +366,40 @@ export function ProductsView() {
         ) : null}
       </div>
 
-      {desktop ? null : (
+      {desktop ? null : viewOptions.length <= MAX_SEGMENTS ? (
         <Segmented
           label="Listede gösterilecek fiyat"
-          value={priceView}
-          options={PRICE_OPTIONS}
-          onChange={(v) => setPriceView(v as PriceView)}
+          value={activeView}
+          options={viewOptions}
+          onChange={setPriceView}
+        />
+      ) : (
+        <SelectField
+          label="Listede gösterilecek fiyat"
+          options={viewOptions}
+          value={activeView}
+          onChange={setPriceView}
         />
       )}
+
+      {/* Masaüstü: dörtten fazla fiyat listesi sığmaz; hangi sütunların görüneceği seçilir. */}
+      {desktop && priceLists.length > DEFAULT_COLUMNS ? (
+        <div
+          role="group"
+          aria-label="Gösterilen fiyat sütunları"
+          className="flex flex-wrap items-center gap-2"
+        >
+          <span className="px-1 text-sm font-semibold text-ink-muted">Fiyat sütunları:</span>
+          {columnChoices.map((choice) => (
+            <ToggleChip
+              key={choice.id}
+              label={choice.name}
+              checked={columns.some((c) => c.id === choice.id)}
+              onChange={() => toggleColumn(choice.id)}
+            />
+          ))}
+        </div>
+      ) : null}
 
       {content}
 
@@ -410,6 +470,7 @@ export function ProductsView() {
         <ProductFilterSheet
           products={products}
           value={filters}
+          firstListName={priceLists[0]?.name}
           onApply={(f) => {
             setFilters(f);
             paging.setPage(1);

@@ -50,7 +50,7 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     await openProducts();
     expect(rowCount()).toBe(10);
     const first = document.querySelector('tr[data-product-id="p1"]') as HTMLElement;
-    expect(within(first).getByText('318,00 $')).toBeInTheDocument(); // Fiyat 1, KDV dahil
+    expect(within(first).getByText('318,00 $')).toBeInTheDocument(); // FİYAT listesi, KDV dahil
     expect(within(first).getByText('5 adet')).toBeInTheDocument();
     const sixth = document.querySelector('tr[data-product-id="p6"]') as HTMLElement;
     expect(within(sixth).getByText('Tükendi')).toBeInTheDocument();
@@ -187,11 +187,12 @@ describe('Excel ile ürün yükleme sihirbazı', () => {
 });
 
 describe('Ürün listesi (telefon)', () => {
-  it('satıra dokununca açılır: üç fiyat, anahtarlar ve işlemler görünür', async () => {
+  it('satıra dokununca açılır: tüm fiyat listeleri (kendi adlarıyla), anahtarlar ve işlemler görünür', async () => {
     const user = await openProducts({ phone: true });
     expect(screen.queryByRole('switch', { name: `${NAME_1} satışta` })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: `${NAME_1} ayrıntılarını aç` }));
-    expect(screen.getByText('Fiyat 3', { selector: 'dt' })).toBeInTheDocument();
+    expect(screen.getByText('TOPTAN', { selector: 'dt' })).toBeInTheDocument();
+    expect(screen.queryByText(/Fiyat 3/)).not.toBeInTheDocument();
     expect(screen.getByRole('switch', { name: `${NAME_1} stok takibi` })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Düzenle' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Kopya' })).toBeInTheDocument();
@@ -204,7 +205,7 @@ describe('Ürün listesi (telefon)', () => {
     await user.click(
       within(screen.getByRole('radiogroup', { name: 'Listede gösterilecek fiyat' })).getByRole(
         'radio',
-        { name: 'Fiyat 2' },
+        { name: 'PERAKENDE' },
       ),
     );
     expect(within(row).getByText('330,00 $')).toBeInTheDocument();

@@ -759,6 +759,11 @@ export class PrismaStockRepository implements StockRepository {
           },
         });
         const symbols: Record<string, string> = { TRY: '₺', USD: '$', EUR: '€' };
+        // Kullanıcının fiyat listeleri (sekme adları ve sırası); her ürün hepsi için fiyat taşır.
+        const priceLists = await tx.stokSecenegi.findMany({
+          where: { kullaniciKimligi: Number(userId), listeTuru: 'priceLists', etkin: true },
+          orderBy: [{ sira: 'asc' }, { kimlik: 'asc' }],
+        });
         const items: ProductListItem[] = rows.map((card) => {
           const prices = card.birimler.find((unit) => unit.anaBirim)?.fiyatlar ?? [];
           const saleFor = (key: string) =>
@@ -807,6 +812,23 @@ export class PrismaStockRepository implements StockRepository {
               sales[1]?.paraBirimi ?? 'TRY',
               sales[2]?.paraBirimi ?? 'TRY',
             ],
+            listPrices: priceLists.map((list) => {
+              const sale = prices.find(
+                (p) => p.fiyatYonu === 'satis' && p.fiyatListesi.kimlik === list.kimlik,
+              );
+              return {
+                id: String(list.kimlik),
+                code: list.secenekKodu,
+                name: list.secenekAdi,
+                // Girilmemiş fiyat 0 değil boştur ("—").
+                net:
+                  sale?.girilenFiyat == null
+                    ? null
+                    : Number(calculatedPrices(sale).excludingVat ?? 0),
+                vatRate: Number(sale?.kdvOrani ?? 0),
+                currency: sale?.paraBirimi ?? 'TRY',
+              };
+            }),
           };
         });
         return { items, total, page: query.sayfa, pageSize: query.boyut };

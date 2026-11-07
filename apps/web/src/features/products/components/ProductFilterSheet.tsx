@@ -7,6 +7,8 @@ import { emptyFilters, matchesFilters, type ProductFilters, type ProductItem } f
 
 interface ProductFilterSheetProps {
   products: ProductItem[];
+  /** Fiyat aralığının uygulandığı ilk fiyat listesinin adı. */
+  firstListName?: string | undefined;
   value: ProductFilters;
   onApply: (filters: ProductFilters) => void;
   onClose: () => void;
@@ -45,7 +47,13 @@ function distinct(products: ProductItem[], pick: (p: ProductItem) => [string | n
  * Süzgeç paneli. Seçimler "Uygula" denene kadar listeyi değiştirmez; düğmede kaç ürünün
  * bulunacağı canlı yazar. "Sıfırla" hepsini kapatır.
  */
-export function ProductFilterSheet({ products, value, onApply, onClose }: ProductFilterSheetProps) {
+export function ProductFilterSheet({
+  products,
+  value,
+  firstListName,
+  onApply,
+  onClose,
+}: ProductFilterSheetProps) {
   const [draft, setDraft] = useState<ProductFilters>(value);
   const categories = [
     ...new Map(
@@ -110,7 +118,7 @@ export function ProductFilterSheet({ products, value, onApply, onClose }: Produc
         />
         <div className="flex flex-col gap-2">
           <p className="text-sm font-bold tracking-wide text-ink-muted uppercase">
-            Fiyat 1 aralığı (KDV dahil)
+            {firstListName ?? 'Fiyat'} aralığı (KDV dahil)
           </p>
           <div className="grid grid-cols-2 gap-3">
             <TextField

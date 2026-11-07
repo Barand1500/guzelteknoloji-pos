@@ -3,9 +3,10 @@ import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import {
   currencyOf,
   formatMoney,
-  vatOf,
-  withVat,
-  type PriceView,
+  grossOf,
+  moneyOrDash,
+  netOf,
+  type PriceColumn,
   type ProductItem,
 } from '../types';
 import { ProductThumb } from './ProductThumb';
@@ -13,6 +14,8 @@ import { StockBadge } from './StockBadge';
 
 interface ProductTableProps {
   products: ProductItem[];
+  /** Gösterilecek fiyat sütunları: kullanıcının fiyat listeleri (ve isteğe bağlı Alış), kendi adlarıyla. */
+  columns: PriceColumn[];
   selected: ReadonlySet<string>;
   onToggleSelect: (id: string) => void;
   onToggleAll: (select: boolean) => void;
@@ -22,9 +25,10 @@ interface ProductTableProps {
   onSales: (id: string, on: boolean) => void;
 }
 
-/** Masaüstü tablo görünümü: üç fiyat yan yana, resim üstüne gelince büyük önizleme. */
+/** Masaüstü tablo görünümü: seçilen fiyat listeleri yan yana, resim üstüne gelince büyük önizleme. */
 export function ProductTable({
   products,
+  columns,
   selected,
   onToggleSelect,
   onToggleAll,
@@ -48,9 +52,11 @@ export function ProductTable({
             </th>
             <th className="p-3">Ürün</th>
             <th className="p-3">Kod · Tip</th>
-            <th className="p-3 text-right">Fiyat 1</th>
-            <th className="p-3 text-right">Fiyat 2</th>
-            <th className="p-3 text-right">Fiyat 3</th>
+            {columns.map((column) => (
+              <th key={column.id} className="p-3 text-right">
+                {column.name}
+              </th>
+            ))}
             <th className="p-3">Stok</th>
             <th className="p-3 text-center">Stok Takibi</th>
             <th className="p-3 text-center">Satış</th>
@@ -101,17 +107,20 @@ export function ProductTable({
                 {p.code}
                 <span className="block text-xs text-brand-ink">{p.stockType}</span>
               </td>
-              {p.prices.map((net, i) => (
-                <td key={i} className="p-3 text-right font-bold whitespace-nowrap">
-                  {formatMoney(
-                    withVat(net, vatOf(p, `p${i + 1}` as PriceView)),
-                    currencyOf(p, `p${i + 1}` as PriceView),
-                  )}
-                  <span className="block text-xs font-medium text-ink-muted">
-                    KDV hariç {formatMoney(net, currencyOf(p, `p${i + 1}` as PriceView))}
-                  </span>
-                </td>
-              ))}
+              {columns.map((column) => {
+                const net = netOf(p, column.id);
+                const currency = currencyOf(p, column.id);
+                return (
+                  <td key={column.id} className="p-3 text-right font-bold whitespace-nowrap">
+                    {moneyOrDash(grossOf(p, column.id), currency)}
+                    {net === null ? null : (
+                      <span className="block text-xs font-medium text-ink-muted">
+                        KDV hariç {formatMoney(net, currency)}
+                      </span>
+                    )}
+                  </td>
+                );
+              })}
               <td className="p-3">
                 <StockBadge product={p} />
               </td>
