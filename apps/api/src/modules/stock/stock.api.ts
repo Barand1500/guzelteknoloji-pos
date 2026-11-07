@@ -38,6 +38,22 @@ export const stockBulkSchema = z.strictObject({
 });
 export type StockBulkInput = z.infer<typeof stockBulkSchema>;
 
+/**
+ * Ürünün bir fiyat listesindeki (ör. FİYAT, PERAKENDE, BARAN) ana birim satış fiyatı. `net`: iskonto
+ * uygulanmış KDV HARİÇ tutar; fiyat girilmemişse `null` ("—" gösterilir, 0 değildir).
+ */
+export interface ListPrice {
+  /** Fiyat listesi seçeneğinin kimliği. */
+  id: string;
+  code: string;
+  /** Kullanıcının verdiği ad (sekmedeki ad). */
+  name: string;
+  net: number | null;
+  vatRate: number;
+  /** ISO para birimi kodu (TRY, USD, EUR). */
+  currency: string;
+}
+
 export interface ProductListItem {
   id: string;
   code: string;
@@ -65,6 +81,8 @@ export interface ProductListItem {
   priceCurrencies: [string, string, string];
   costVatRate: number;
   costCurrency: string;
+  /** Kullanıcının TÜM fiyat listeleri, kendi sırasıyla (eski prices/priceVatRates dizilerinin genel hâli). */
+  listPrices: ListPrice[];
 }
 
 export interface ProductListPage {

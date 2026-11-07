@@ -38,6 +38,13 @@ const sheet: { p: [number, number, number]; cost: number; stock: number; sales?:
   { p: [590, 620, 680], cost: 470, stock: 18, sales: false },
 ];
 
+/** Varsayılan fiyat listeleri (formdaki ilk üç sekme). Kimlik = kod. */
+export const DEFAULT_PRICE_LISTS = [
+  { id: 'fiyat', name: 'FİYAT' },
+  { id: 'perakende', name: 'PERAKENDE' },
+  { id: 'toptan', name: 'TOPTAN' },
+] as const;
+
 const brandName = (id: string | null): string => brandSeeds.find((b) => b.id === id)?.name ?? '';
 const categoryName = (id: string): string => categorySeeds.find((c) => c.id === id)?.name ?? '';
 
@@ -60,6 +67,14 @@ export const productItemSeeds: ProductItem[] = productSeeds.map((seed, i) => {
     currency: i < 6 ? '$' : '₺',
     vatRate: 20,
     prices: [...row.p],
+    listPrices: DEFAULT_PRICE_LISTS.map((list, k) => ({
+      id: list.id,
+      code: list.id,
+      name: list.name,
+      net: row.p[k] ?? null,
+      vatRate: 20,
+      currency: i < 6 ? 'USD' : 'TRY',
+    })),
     cost: row.cost,
     stock: Math.max(0, row.stock),
     stockTracking: row.stock !== -1,

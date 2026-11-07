@@ -1,5 +1,23 @@
-/** Fiyat listesi sırası: Fiyat 1/2/3 satış fiyatlarıdır, "cost" alış fiyatıdır. */
-export type PriceView = 'p1' | 'p2' | 'p3' | 'cost';
+/** Alış (maliyet) fiyatı görünümünün kimliği. */
+export const COST_VIEW = 'cost';
+
+/** Fiyat görünümü: `COST_VIEW` (alış) ya da kullanıcının bir fiyat listesinin kimliği. */
+export type PriceView = string;
+
+/**
+ * Ürünün bir fiyat listesindeki (ör. FİYAT, PERAKENDE, BARAN) ana birim satış fiyatı. Listeler
+ * kullanıcının kendi tanımıdır; sütun/sekme adı kullanıcının verdiği `name`dir. `net` KDV HARİÇ,
+ * iskonto uygulanmış tutardır; fiyat girilmemişse `null` ("—" gösterilir, 0 değildir).
+ */
+export interface ListPrice {
+  id: string;
+  code: string;
+  name: string;
+  net: number | null;
+  vatRate: number;
+  /** ISO para birimi kodu (TRY, USD, EUR). */
+  currency: string;
+}
 
 export interface ProductItem {
   id: string;
@@ -25,11 +43,13 @@ export interface ProductItem {
   currency: string;
   /** KDV yüzdesi (ör. 20). */
   vatRate: number;
+  /** Kullanıcının TÜM fiyat listeleri, kendi sırasıyla. Eski sunucu yanıtlarında yoktur (bkz. listPricesOf). */
+  listPrices?: ListPrice[];
   priceVatRates?: [number, number, number];
   priceCurrencies?: [string, string, string];
   costVatRate?: number;
   costCurrency?: string;
-  /** KDV HARİÇ satış fiyatları: Fiyat 1, 2, 3. */
+  /** Eski sabit alan: ilk üç listenin KDV HARİÇ satış fiyatları (yeni kod `listPrices` kullanır). */
   prices: [number, number, number];
   /** KDV hariç alış fiyatı. */
   cost: number;
@@ -50,7 +70,7 @@ export interface ProductFilters {
   stock: 'all' | 'in' | 'out' | 'unlimited';
   sales: 'all' | 'open' | 'closed';
   deal: 'all' | 'with' | 'without';
-  /** Fiyat 1 (KDV dahil) alt ve üst sınırı; boş = sınırsız. */
+  /** İlk fiyat listesinin (KDV dahil) alt ve üst sınırı; boş = sınırsız. */
   minPrice: string;
   maxPrice: string;
 }
@@ -81,16 +101,69 @@ export function activeFilterCount(f: ProductFilters): number {
 export const withVat = (net: number, vatRate: number): number =>
   Math.round(net * (1 + vatRate / 100) * 100) / 100;
 
-/** Seçili fiyat görünümüne göre satırda gösterilecek KDV HARİÇ tutar. */
-export const netOf = (p: ProductItem, view: PriceView): number =>
-  view === 'cost' ? p.cost : p.prices[view === 'p1' ? 0 : view === 'p2' ? 1 : 2];
+const SYMBOL: Record<string, string> = { TRY: '₺', USD: '$', EUR: '€' };
+const CODE_OF: Record<string, string> = { '₺': 'TRY', $: 'USD', '€': 'EUR' };
+const symbol = (code: string) => SYMBOL[code] ?? code;
 
-const priceIndex = (view: PriceView) => (view === 'p1' ? 0 : view === 'p2' ? 1 : 2);
+/** Eski sunucu yanıtındaki sabit üç liste (adlar bilinen varsayılanlardır). */
+const LEGACY_LISTS = [
+  ['fiyat', 'FİYAT'],
+  ['perakende', 'PERAKENDE'],
+  ['toptan', 'TOPTAN'],
+] as const;
+
+/** Ürünün fiyat listeleri; sunucu `listPrices` vermiyorsa eski üç sabit alandan türetilir. */
+export function listPricesOf(p: ProductItem): ListPrice[] {
+  if (p.listPrices) return p.listPrices;
+  return LEGACY_LISTS.map(([code, name], i) => ({
+    id: code,
+    code,
+    name,
+    net: p.prices[i] ?? null,
+    vatRate: p.priceVatRates?.[i] ?? p.vatRate,
+    currency: p.priceCurrencies?.[i] ?? CODE_OF[p.currency] ?? 'TRY',
+  }));
+}
+
+export interface PriceColumn {
+  id: string;
+  name: string;
+}
+
+/** Listedeki ürünlerin fiyat listeleri (tekrarsız, kullanıcının sırasıyla): tablo sütunları ve seçici. */
+export function priceListsOf(products: ProductItem[]): PriceColumn[] {
+  const seen = new Map<string, string>();
+  for (const p of products)
+    for (const list of listPricesOf(p)) if (!seen.has(list.id)) seen.set(list.id, list.name);
+  return [...seen].map(([id, name]) => ({ id, name }));
+}
+
+const listOf = (p: ProductItem, view: PriceView) =>
+  listPricesOf(p).find((list) => list.id === view);
+
+/** Seçili fiyat görünümüne göre KDV HARİÇ tutar; fiyat girilmemişse `null` ("—"). */
+export const netOf = (p: ProductItem, view: PriceView): number | null =>
+  view === COST_VIEW ? (p.cost > 0 ? p.cost : null) : (listOf(p, view)?.net ?? null);
+
 export const vatOf = (p: ProductItem, view: PriceView): number =>
-  (view === 'cost' ? p.costVatRate : p.priceVatRates?.[priceIndex(view)]) ?? p.vatRate;
-const symbol = (code: string) => ({ TRY: '₺', USD: '$', EUR: '€' })[code] ?? code;
+  (view === COST_VIEW ? p.costVatRate : listOf(p, view)?.vatRate) ?? p.vatRate;
+
 export const currencyOf = (p: ProductItem, view: PriceView): string =>
-  symbol((view === 'cost' ? p.costCurrency : p.priceCurrencies?.[priceIndex(view)]) ?? p.currency);
+  symbol(
+    (view === COST_VIEW ? p.costCurrency : listOf(p, view)?.currency) ??
+      CODE_OF[p.currency] ??
+      'TRY',
+  );
+
+/** KDV dahil tutar; fiyat girilmemişse `null`. */
+export function grossOf(p: ProductItem, view: PriceView): number | null {
+  const net = netOf(p, view);
+  return net === null ? null : withVat(net, vatOf(p, view));
+}
+
+/** Para tutarı; `null` ise "—". */
+export const moneyOrDash = (amount: number | null, currency: string): string =>
+  amount === null ? '—' : formatMoney(amount, currency);
 
 export const formatMoney = (amount: number, currency: string): string =>
   `${amount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
@@ -119,11 +192,13 @@ export function matchesFilters(p: ProductItem, f: ProductFilters): boolean {
   if (f.sales === 'closed' && p.salesOpen) return false;
   if (f.deal === 'with' && p.dealIds.length === 0) return false;
   if (f.deal === 'without' && p.dealIds.length > 0) return false;
-  const price = withVat(p.prices[0], vatOf(p, 'p1'));
+  // Fiyat aralığı kullanıcının İLK fiyat listesine (KDV dahil) uygulanır; fiyatı olmayan ürün aralığa girmez.
+  const first = listPricesOf(p)[0];
+  const price = first ? grossOf(p, first.id) : null;
   const min = Number.parseFloat(f.minPrice.replace(',', '.'));
   const max = Number.parseFloat(f.maxPrice.replace(',', '.'));
-  if (Number.isFinite(min) && price < min) return false;
-  if (Number.isFinite(max) && price > max) return false;
+  if (Number.isFinite(min) && (price === null || price < min)) return false;
+  if (Number.isFinite(max) && (price === null || price > max)) return false;
   return true;
 }
 

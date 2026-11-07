@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { stockEditPath } from '../../../config/navigation';
 import { useProductService } from '../services/product.service';
-import { formatMoney, withVat, type ProductItem } from '../types';
+import { currencyOf, grossOf, listPricesOf, moneyOrDash, type ProductItem } from '../types';
 import { ProductThumb } from './ProductThumb';
 import { StockBadge } from './StockBadge';
 
@@ -13,6 +13,13 @@ interface NextProductBarProps {
   currentId: string;
   /** Kaydedilmemiş değişiklik varsa başka ürüne geçmeden önce sorulur. */
   dirty: boolean;
+}
+
+/** Önizlemedeki fiyat: ilk fiyat listesinin KDV dahil tutarı (listenin adıyla); fiyat yoksa "—". */
+function previewPrice(p: ProductItem): string {
+  const first = listPricesOf(p)[0];
+  if (!first) return '—';
+  return `${first.name} ${moneyOrDash(grossOf(p, first.id), currencyOf(p, first.id))}`;
 }
 
 const fold = (s: string) => s.toLocaleLowerCase('tr');
@@ -200,9 +207,7 @@ export function NextProductBar({ currentId, dirty }: NextProductBarProps) {
                 <span className="block text-sm leading-snug font-bold">{target.name}</span>
                 <span className="mt-0.5 block font-mono text-xs text-ink-muted">{target.code}</span>
                 <span className="mt-1.5 flex items-center justify-between gap-2">
-                  <span className="text-sm font-extrabold">
-                    {formatMoney(withVat(target.prices[0], target.vatRate), target.currency)}
-                  </span>
+                  <span className="text-sm font-extrabold">{previewPrice(target)}</span>
                   <StockBadge product={target} />
                 </span>
               </span>

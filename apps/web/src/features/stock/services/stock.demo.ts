@@ -16,6 +16,13 @@ import type { StockService } from './stock.service';
 
 /** GEÇİCİ: yalnızca test kullanıcısının deneme ekranı; gerçek API veya veritabanına yazmaz. */
 
+/** Formda eklenen fiyat listeleri (deneme verisi, sayfa yenilenince sıfırlanır). */
+let customPriceLists: SelectOption[] = [];
+/** Yalnızca testler için. */
+export const resetDemoStock = () => {
+  customPriceLists = [];
+};
+
 const fakeDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const demoStockService: StockService = {
@@ -24,16 +31,30 @@ export const demoStockService: StockService = {
     const brands = (await demoBrandService.list())
       .filter((brand) => brand.active)
       .map((brand) => ({ value: brand.id, label: brand.name }));
-    return { ...stockLookupsMock, brands };
+    return {
+      ...stockLookupsMock,
+      brands,
+      priceLists: [...stockLookupsMock.priceLists, ...customPriceLists],
+    };
   },
 
-  async addOption(_list: OptionListKey, label: string): Promise<SelectOption> {
+  async addOption(list: OptionListKey, label: string): Promise<SelectOption> {
     await fakeDelay(0);
-    return { value: `ozel-${Math.random().toString(36).slice(2, 9)}`, label, removable: true };
+    const option = {
+      value: `ozel-${Math.random().toString(36).slice(2, 9)}`,
+      label,
+      removable: true,
+    };
+    if (list === 'priceLists') customPriceLists = [...customPriceLists, option];
+    return option;
   },
 
-  async removeOption(_list: OptionListKey, _value: string): Promise<void> {
+  async removeOption(list: OptionListKey, value: string): Promise<void> {
     await fakeDelay(0);
+    if (list === 'priceLists') {
+      customPriceLists = customPriceLists.filter((o) => o.value !== value);
+      await productService.removePriceList(value);
+    }
   },
 
   async save(

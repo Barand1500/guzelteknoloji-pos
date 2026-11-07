@@ -64,7 +64,7 @@ Migration: `20261106230000_stok_gorselleri`. Tek yeni tablo `stok_gorselleri`: s
 
 - `POST /api/stok/aktarim/onizle`: `{text}` → `{rows, missingColumns, newCount, updateCount, errorCount}`.
 - `POST /api/stok/aktarim/kaydet`: `{text}` → `{created, updated, errors: string[]}`.
-- UTF-8 CSV, en fazla 400.000 karakter ve 1000 satır. Zorunlu sütunlar: Stok Kodu, Ürün Adı, Fiyat 1. Fiyatlar KDV hariçtir; 6 ondalık basamağa kadar kabul edilir.
+- UTF-8 CSV, en fazla 400.000 karakter ve 1000 satır. Zorunlu sütunlar: Stok Kodu, Ürün Adı, Fiyat 1 (ilk üç varsayılan fiyat listesine yazılır). Ürün listesi yanıtındaki `listPrices` kullanıcının tüm listelerini (ad, sıra, KDV hariç tutar veya null) taşır. Fiyatlar KDV hariçtir; 6 ondalık basamağa kadar kabul edilir.
 - Aynı stok kodu varsa mevcut kart güncellenir. Dosyada tekrarlanan kodun ikinci satırı reddedilir. Boş isteğe bağlı alanlar güncellemede önceki değerleri korur. Stok miktarı verilince kapalı stok takibi açılır. Diğer satış/takip ayarları ve kategori bağları korunur.
 - Marka mevcut aktif marka adıyla eşleşir; aktarım sessizce marka veya kategori oluşturmaz. Kategori adına birden fazla eşleşme varsa `Ana > Alt` tam yolu gerekir; kategori eklemesi mevcut bağları silmez.
 - Önizleme yazma yapmaz. Onayda yeniden doğrulanır. Her geçerli satır, birim/fiyat/stok/kategoriyle tek transaction içinde kaydedilir. Hatalı satırlar atlanır ve nedenleri döner; kısmi hata ekranda gösterilir.

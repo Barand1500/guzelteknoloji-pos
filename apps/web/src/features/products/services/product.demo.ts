@@ -1,8 +1,13 @@
-import { knownBrandNames, knownCategoryNames, productItemSeeds } from '../../../mocks/product.mock';
+import {
+  DEFAULT_PRICE_LISTS,
+  knownBrandNames,
+  knownCategoryNames,
+  productItemSeeds,
+} from '../../../mocks/product.mock';
 import { categorySeeds } from '../../../mocks/category.mock';
 import { brandSeeds } from '../../../mocks/brand.mock';
 import { parseImport, parseNumber, type RawImportRow } from '../import.csv';
-import type { ImportPreview, ImportRow, ProductItem } from '../types';
+import type { ImportPreview, ImportRow, ListPrice, ProductItem } from '../types';
 
 /**
  * Ürün verisine erişimin TEK kapısı. Şimdilik bellekte tutulan sahte veri (sayfa yenilenince
@@ -13,6 +18,26 @@ let seq = 0;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const fold = (s: string) => s.toLocaleLowerCase('tr').trim();
+
+/** Dosyadaki Fiyat 1/2/3 sütunları varsayılan üç listeye (FİYAT, PERAKENDE, TOPTAN) yazılır; diğer listelere dokunulmaz. */
+function withDefaultPrices(
+  current: ListPrice[] | undefined,
+  nets: [number, number, number],
+  vatRate: number,
+): ListPrice[] {
+  const next = [...(current ?? [])];
+  DEFAULT_PRICE_LISTS.forEach((list, k) => {
+    const at = next.findIndex((l) => l.id === list.id);
+    const base: ListPrice =
+      at >= 0
+        ? next[at]!
+        : { id: list.id, code: list.id, name: list.name, net: null, vatRate, currency: 'TRY' };
+    const updated = { ...base, net: nets[k] ?? null, vatRate };
+    if (at >= 0) next[at] = updated;
+    else next.push(updated);
+  });
+  return next;
+}
 
 /** Bir Excel satırını doğrular; geçerliyse ürün bilgisini de döndürür. */
 function check(raw: RawImportRow): { row: ImportRow; product?: Partial<ProductItem> } {
@@ -49,6 +74,7 @@ function check(raw: RawImportRow): { row: ImportRow; product?: Partial<ProductIt
     code: raw.code,
     name: raw.name,
     prices: [price1, price2, price3],
+    listPrices: withDefaultPrices(existing?.listPrices, [price1, price2, price3], vat),
     cost,
     vatRate: vat,
     brandId: brand?.id ?? null,
@@ -70,6 +96,14 @@ function check(raw: RawImportRow): { row: ImportRow; product?: Partial<ProductIt
 
 export const demoProductService = {
   isDemo: true,
+
+  /** Formda bir fiyat listesi silinince ürünlerdeki o liste fiyatı da düşer (deneme verisi). */
+  async removePriceList(listId: string): Promise<void> {
+    await wait(0);
+    items = items.map((p) =>
+      p.listPrices ? { ...p, listPrices: p.listPrices.filter((l) => l.id !== listId) } : p,
+    );
+  },
   /** Toplu Görsel: deneme verisinde görseller bellekte tutulur. */
   supportsImages: true,
 
