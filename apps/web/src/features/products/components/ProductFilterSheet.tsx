@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CircleAlert } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Sheet } from '../../../components/ui/Sheet';
 import { TextField } from '../../../components/ui/TextField';
@@ -11,7 +12,6 @@ import {
   type ProductFilterOptions,
 } from '../types';
 import { useProductService } from '../services/product.service';
-import { Alert } from '../../../components/ui/Alert';
 import { dataError } from '../../../lib/catalog-data';
 
 interface ProductFilterSheetProps {
@@ -188,21 +188,28 @@ export function ProductFilterSheet({
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row-reverse">
-          {invalid || countError ? <Alert>{invalid ?? countError}</Alert> : null}
-          <Button
-            flow={false}
-            disabled={Boolean(invalid)}
-            onClick={() => {
-              onApply(draft);
-              onClose();
-            }}
-          >
-            {count === null ? 'Ürünleri Göster' : `${count} Ürünü Göster`}
-          </Button>
-          <Button variant="outline" flow={false} onClick={() => setDraft(emptyFilters())}>
-            Sıfırla
-          </Button>
+        <div className="flex flex-col gap-3">
+          {invalid || countError ? (
+            <p role="alert" className="flex items-start gap-2 text-sm leading-relaxed text-danger">
+              <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <span>{invalid ?? countError}</span>
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-3 sm:flex-row-reverse">
+            <Button
+              flow={false}
+              disabled={Boolean(invalid)}
+              onClick={() => {
+                onApply(draft);
+                onClose();
+              }}
+            >
+              {count === null ? 'Ürünleri Göster' : `${count} Ürünü Göster`}
+            </Button>
+            <Button variant="outline" flow={false} onClick={() => setDraft(emptyFilters())}>
+              Sıfırla
+            </Button>
+          </div>
         </div>
       </div>
     </Sheet>
