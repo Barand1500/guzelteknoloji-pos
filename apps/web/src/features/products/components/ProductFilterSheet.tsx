@@ -1,12 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { Sheet } from '../../../components/ui/Sheet';
 import { TextField } from '../../../components/ui/TextField';
 import { ToggleChip } from '../../../components/ui/ToggleChip';
-import { emptyFilters, matchesFilters, type ProductFilters, type ProductItem } from '../types';
+import {
+  emptyFilters,
+  matchesFilters,
+  type ProductFilters,
+  type ProductItem,
+  type ProductFilterOptions,
+} from '../types';
+import { useProductService } from '../services/product.service';
+import { Alert } from '../../../components/ui/Alert';
+import { dataError } from '../../../lib/catalog-data';
 
 interface ProductFilterSheetProps {
   products: ProductItem[];
+  options?: ProductFilterOptions;
+  search?: string;
   /** Fiyat aralığının uygulandığı ilk fiyat listesinin adı. */
   firstListName?: string | undefined;
   value: ProductFilters;
@@ -49,25 +60,66 @@ function distinct(products: ProductItem[], pick: (p: ProductItem) => [string | n
  */
 export function ProductFilterSheet({
   products,
+  options,
+  search = '',
   value,
   firstListName,
   onApply,
   onClose,
 }: ProductFilterSheetProps) {
   const [draft, setDraft] = useState<ProductFilters>(value);
-  const categories = [
-    ...new Map(
-      products.flatMap((p) =>
-        (p.categoryIds ?? (p.categoryId ? [p.categoryId] : [])).map(
-          (id, i) => [id, p.categoryNames?.[i] ?? p.categoryName ?? 'Kategorisiz'] as const,
+  const service = useProductService();
+  const categories =
+    options?.categories ??
+    [
+      ...new Map(
+        products.flatMap((p) =>
+          (p.categoryIds ?? (p.categoryId ? [p.categoryId] : [])).map(
+            (id, i) => [id, p.categoryNames?.[i] ?? p.categoryName ?? 'Kategorisiz'] as const,
+          ),
         ),
       ),
-    ),
-  ]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-  const brands = distinct(products, (p) => [p.brandId, p.brandName]);
-  const count = products.filter((p) => matchesFilters(p, draft)).length;
+    ]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+  const brands = options?.brands ?? distinct(products, (p) => [p.brandId, p.brandName]);
+  const draftKey = JSON.stringify({ draft, search });
+  const [countResult, setCountResult] = useState<{ key: string; count: number } | null>(null);
+  const [countError, setCountError] = useState<string | null>(null);
+  const validNumber = (text: string) => text === '' || /^\d{1,12}([.,]\d{1,6})?$/.test(text);
+  const invalid =
+    !validNumber(draft.minPrice) || !validNumber(draft.maxPrice)
+      ? 'Geçerli bir fiyat girin.'
+      : draft.minPrice &&
+          draft.maxPrice &&
+          Number(draft.minPrice.replace(',', '.')) > Number(draft.maxPrice.replace(',', '.'))
+        ? 'En az fiyat, en çok fiyattan büyük olamaz.'
+        : null;
+  useEffect(() => {
+    if (!options || invalid) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setCountError(null);
+      const current = JSON.parse(draftKey) as { draft: ProductFilters; search: string };
+      void service
+        .count({ search: current.search, filters: current.draft, page: 1, pageSize: 1 })
+        .then((count) => {
+          if (active) setCountResult({ key: draftKey, count });
+        })
+        .catch((e) => {
+          if (active) setCountError(dataError(e));
+        });
+    }, 300);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [draftKey, invalid, options, service]);
+  const count = options
+    ? countResult?.key === draftKey
+      ? countResult.count
+      : null
+    : products.filter((p) => matchesFilters(p, draft)).length;
 
   const toggle = (key: 'categoryIds' | 'brandIds', id: string) =>
     setDraft((d) => ({
@@ -137,14 +189,16 @@ export function ProductFilterSheet({
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row-reverse">
+          {invalid || countError ? <Alert>{invalid ?? countError}</Alert> : null}
           <Button
             flow={false}
+            disabled={Boolean(invalid)}
             onClick={() => {
               onApply(draft);
               onClose();
             }}
           >
-            {count} Ürünü Göster
+            {count === null ? 'Ürünleri Göster' : `${count} Ürünü Göster`}
           </Button>
           <Button variant="outline" flow={false} onClick={() => setDraft(emptyFilters())}>
             Sıfırla

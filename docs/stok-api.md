@@ -31,14 +31,20 @@ Shared paket güncellemesi beklenirken mevcut `draft.units` (liste kodu → biri
 
 ## Sayfalı ürün listesi
 
-`GET /api/stok/kartlar?arama=&sayfa=1&boyut=10&kategori=&marka=&stok=all&satis=all`
+`GET /api/stok/kartlar?arama=&sayfa=1&boyut=10&kategoriler=&markalar=&stok=all&satis=all&firsat=all&en_az=&en_cok=`
 
 - `boyut`: 1–200. `sayfa`: 1'den başlar.
-- `kategori`, `marka`: tek sayısal ID; boş değer filtresizdir. Kategori filtresi ürünün herhangi bir eşleşmesine bakar.
+- `kategoriler`, `markalar`: virgülle ayrılmış en fazla 100 farklı sayısal ID. Aynı filtredeki seçimler VEYA, farklı filtreler VE ile birleşir. Eski `kategori`, `marka` tek-ID parametreleri korunur; çoklu parametre doluysa önceliklidir.
 - `stok`: `all`, `in`, `out`, `unlimited`.
 - `satis`: `all`, `open`, `closed`.
+- `firsat`: `all`, `with`, `without`. Ürünün fırsat bağlantısının bulunup bulunmadığına bakar.
+- `en_az`, `en_cok`: isteğe bağlı, negatif olmayan ondalık fiyat sınırları. Virgül ve nokta kabul edilir; alt sınır üst sınırı geçemez. Kullanıcının `(sira,id)` sırasındaki ilk **etkin fiyat listesinin**, **ana birimdeki satış fiyatı** kullanılır. İskonto ve KDV dahil/hariç giriş durumu uygulanır; ekranda gösterilen iki ondalıklı KDV dahil tutar karşılaştırılır. Boş fiyat aralığa girmez; sıfır fiyat geçerli bir fiyattır. Başka listeden/birimden fiyat alınmaz, para birimleri dönüştürülmez.
+- `listPrices[].gross`, sunucunun ondalık aritmetik ile hesapladığı iki ondalıklı KDV dahil tutardır. Ekran bu alan varsa doğrudan kullanır; böylece tarayıcıdaki kayan noktalı yuvarlama fiyat süzgecinden farklı bir tutar göstermez.
 - Arama ürün adı, kod, marka ve barkod üzerinde yapılır.
-- Yanıt: `{items: ProductItem[], total, page, pageSize}`. Toplam ve sayfa aynı veritabanı görünümünden okunur.
+- Yanıt: `{items: ProductItem[], total, page, pageSize, priceLists, filterOptions}`. `priceLists`: tüm etkin fiyat sütunlarının `{id,name}` listesi. `filterOptions.categories/brands`: oturum sahibinin kategori/marka tanımları; geçerli sayfadan ve süzgeç sonucundan bağımsızdır. `secenekler=0` bu iki metadata alanını atlar.
+- `sayim=1`: aynı süzgeçlerin toplamını döndürür; ürün satırları okunmaz (`items: []`). Süzgeç panelinin canlı sayacı bu yolu kullanır.
+- Toplam ve sayfa aynı veritabanı görünümünden okunur. İstenen sayfa silme sonrası sınırı aşarsa son geçerli sayfaya çekilir. Ürün ekranı yalnızca istenen sayfayı getirir; arama 300 ms bekletilir, eski cevaplar yeni sonuçları ezemez.
+- `GET /api/stok/kartlar/secim`: aynı parametrelerle bütün eşleşen ürünlerin yalnızca sayısal ID'lerini `{ids,total}` döndürür. En fazla 1000 kayıt; daha büyük sonuçta filtreyi daraltma hatası verir. Bu sınır mevcut toplu işlem sınırıyla aynıdır. Seçim sayfalar arasında korunur; arama veya süzgeç değişince temizlenir.
 
 Satırda `ProductItem` alanları bulunur: `id`, `code`, `name`, `stockType`, `brandId`, `brandName`, `categoryId`, `categoryName`, `imageUrl`, `currency`, `vatRate`, `prices`, `cost`, `stock`, `stockTracking`, `salesOpen`, `dealIds`.
 

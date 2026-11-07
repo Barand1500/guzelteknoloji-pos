@@ -74,13 +74,15 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     await user.click(screen.getByRole('button', { name: 'Süzgeçler' }));
     const dialog = await screen.findByRole('dialog', { name: 'Süzgeçler' });
     await user.click(within(dialog).getByRole('switch', { name: 'CAS' }));
-    await user.click(within(dialog).getByRole('button', { name: '2 Ürünü Göster' }));
+    await user.click(await within(dialog).findByRole('button', { name: '2 Ürünü Göster' }));
     await waitFor(() => expect(rowCount()).toBe(2));
 
     await user.click(screen.getByRole('button', { name: /Süzgeçler, 1 açık/ }));
     const again = await screen.findByRole('dialog', { name: 'Süzgeçler' });
     await user.click(within(again).getByRole('button', { name: 'Sıfırla' }));
-    await user.click(within(again).getByRole('button', { name: /Ürünü Göster/ }));
+    await user.click(
+      await within(again).findByRole('button', { name: /Ürünü Göster|Ürünleri Göster/ }),
+    );
     await waitFor(() => expect(rowCount()).toBe(10));
   });
 

@@ -1,12 +1,21 @@
 import { apiRequest } from '../../../lib/http';
 import { imageAddress, useDataService } from '../../../lib/catalog-data';
 import { demoProductService } from './product.demo';
-import type { ProductItem, ImportPreview } from '../types';
+import {
+  priceListsOf,
+  type ProductItem,
+  type ImportPreview,
+  type ProductPage,
+  type ProductPageQuery,
+} from '../types';
+import { productFilterOptions, productQueryString } from '../product.query';
 interface Page {
   items: ProductItem[];
   total: number;
   page: number;
   pageSize: number;
+  priceLists?: ProductPage['priceLists'];
+  filterOptions?: ProductPage['filterOptions'];
 }
 const tickets = new Map<string, { ticket: string; expires: number }>();
 const dto = (p: ProductItem): ProductItem => ({
@@ -26,10 +35,29 @@ async function imageData(url: string, file?: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-/** Ekranın yerel süzgeç ve sayfalaması için tüm kayıtlar sayfalı API'den yüklenir. */
+/** Ürün ekranı listPage kullanır. Tam liste yalnızca toplu görsel eşleştirme gibi tüketiciler içindir. */
 export const productService = {
   isDemo: false,
   supportsImages: true,
+  listPage: async (query: ProductPageQuery): Promise<ProductPage> => {
+    const result = await apiRequest<Page>('/api/stok/kartlar?' + productQueryString(query));
+    return {
+      ...result,
+      items: result.items.map(dto),
+      priceLists: result.priceLists ?? priceListsOf(result.items),
+      filterOptions: result.filterOptions ?? productFilterOptions(result.items),
+    };
+  },
+  count: async (query: ProductPageQuery) =>
+    (
+      await apiRequest<Page>(
+        '/api/stok/kartlar?' + productQueryString(query) + '&sayim=1&secenekler=0',
+      )
+    ).total,
+  selectIds: async (query: ProductPageQuery): Promise<string[]> =>
+    (
+      await apiRequest<{ ids: number[] }>('/api/stok/kartlar/secim?' + productQueryString(query))
+    ).ids.map(String),
   applyImages: async (
     entries: { productId: string; urls: string[]; files?: (File | undefined)[] }[],
     replace: boolean,
@@ -68,7 +96,7 @@ export const productService = {
    * Sırayla beklemeye göre birkaç kat hızlıdır; sıra sayfa numarasına göre korunur.
    */
   list: async (): Promise<ProductItem[]> => {
-    const url = (page: number) => '/api/stok/kartlar?boyut=200&sayfa=' + page;
+    const url = (page: number) => '/api/stok/kartlar?secenekler=0&boyut=200&sayfa=' + page;
     const first = await apiRequest<Page>(url(1));
     const pages = Math.ceil(first.total / 200);
     const results: Page[] = [first];
@@ -80,11 +108,14 @@ export const productService = {
       }
     };
     await Promise.all(Array.from({ length: Math.min(4, Math.max(pages - 1, 0)) }, worker));
-    return results.flatMap((r) => r.items.map(dto));
+    // Concurrent deletions can clamp a requested last page; do not duplicate those products.
+    return [
+      ...new Map(results.flatMap((r) => r.items.map(dto)).map((item) => [item.id, item])).values(),
+    ];
   },
   get: async (id: string): Promise<ProductItem | null> => {
     const result = await apiRequest<Page>(
-      '/api/stok/kartlar?kimlik=' + encodeURIComponent(id) + '&boyut=1',
+      '/api/stok/kartlar?kimlik=' + encodeURIComponent(id) + '&boyut=1&secenekler=0',
     );
     return result.items[0] ? dto(result.items[0]) : null;
   },

@@ -7,7 +7,16 @@ import {
 import { categorySeeds } from '../../../mocks/category.mock';
 import { brandSeeds } from '../../../mocks/brand.mock';
 import { parseImport, parseNumber, type RawImportRow } from '../import.csv';
-import type { ImportPreview, ImportRow, ListPrice, ProductItem } from '../types';
+import {
+  priceListsOf,
+  type ImportPreview,
+  type ImportRow,
+  type ListPrice,
+  type ProductItem,
+  type ProductPageQuery,
+  type ProductPage,
+} from '../types';
+import { filterDemoProducts, productFilterOptions } from '../product.query';
 
 /**
  * Ürün verisine erişimin TEK kapısı. Şimdilik bellekte tutulan sahte veri (sayfa yenilenince
@@ -96,6 +105,30 @@ function check(raw: RawImportRow): { row: ImportRow; product?: Partial<ProductIt
 
 export const demoProductService = {
   isDemo: true,
+  async listPage(query: ProductPageQuery): Promise<ProductPage> {
+    await wait(0);
+    const filtered = filterDemoProducts(items, query);
+    const page = Math.min(query.page, Math.max(1, Math.ceil(filtered.length / query.pageSize)));
+    return {
+      items: filtered.slice((page - 1) * query.pageSize, page * query.pageSize),
+      total: filtered.length,
+      page,
+      pageSize: query.pageSize,
+      priceLists: priceListsOf(items),
+      filterOptions: productFilterOptions(items),
+    };
+  },
+  async count(query: ProductPageQuery) {
+    await wait(0);
+    return filterDemoProducts(items, query).length;
+  },
+  async selectIds(query: ProductPageQuery) {
+    await wait(0);
+    const filtered = filterDemoProducts(items, query);
+    if (filtered.length > 1000)
+      throw new Error('Tek seferde en fazla 1000 ürün seçilebilir. Süzgeçleri daraltın.');
+    return filtered.map((p) => p.id);
+  },
 
   /** Formda bir fiyat listesi silinince ürünlerdeki o liste fiyatı da düşer (deneme verisi). */
   async removePriceList(listId: string): Promise<void> {

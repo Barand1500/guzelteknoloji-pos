@@ -11,6 +11,7 @@ import type { StokFiyati } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
 import { stockImageUrl } from './stock-images';
+import { stockListWhere } from './stock-list-query';
 import type {
   StockSaveInput,
   ProductListItem,
@@ -28,6 +29,7 @@ export interface StockRepository {
   get(userId: string, id: string): Promise<unknown>;
   getDraft(userId: string, id: string): Promise<unknown>;
   list(userId: string, query: StockListQuery): Promise<ProductListPage>;
+  selectIds(userId: string, query: StockListQuery): Promise<{ ids: number[]; total: number }>;
   bulk(userId: string, input: StockBulkInput): Promise<{ affected: number }>;
   saveImported(
     userId: string,
@@ -716,32 +718,26 @@ export class PrismaStockRepository implements StockRepository {
   }
 
   async list(userId: string, query: StockListQuery): Promise<ProductListPage> {
-    const where: Prisma.StokKartiWhereInput = { kullaniciKimligi: Number(userId) };
-    if (query.arama)
-      where.OR = [
-        { stokKodu: { contains: query.arama } },
-        { stokAdi: { contains: query.arama } },
-        { marka: { markaAdi: { contains: query.arama } } },
-        { birimler: { some: { barkodlar: { some: { barkod: { contains: query.arama } } } } } },
-      ];
-    if (query.marka) where.markaKimligi = Number(query.marka);
-    if (query.kimlik) where.kimlik = Number(query.kimlik);
-    if (query.kategori) where.kategoriler = { some: { kategoriId: Number(query.kategori) } };
-    if (query.stok === 'unlimited') where.envanterTakibi = 'yok';
-    if (query.stok === 'in' || query.stok === 'out') {
-      where.envanterTakibi = { not: 'yok' };
-      where.stokMiktari = query.stok === 'in' ? { gt: 0 } : { lte: 0 };
-    }
-    if (query.satis === 'open' || query.satis === 'closed')
-      where.satisAcik = query.satis === 'open';
     return this.db.$transaction(
       async (tx) => {
-        const total = await tx.stokKarti.count({ where });
+        const priceLists = await tx.stokSecenegi.findMany({
+          where: { kullaniciKimligi: Number(userId), listeTuru: 'priceLists', etkin: true },
+          orderBy: [{ sira: 'asc' }, { kimlik: 'asc' }],
+        });
+        const where = stockListWhere(Number(userId), query, priceLists[0]?.kimlik);
+        const counts = await tx.$queryRaw<{ total: bigint }[]>(
+          Prisma.sql`SELECT COUNT(*) AS total FROM stok_kartlari k WHERE ${where}`,
+        );
+        const total = Number(counts[0]?.total ?? 0);
+        const page = Math.min(query.sayfa, Math.max(1, Math.ceil(total / query.boyut)));
+        if (query.sayim === '1') return { items: [], total, page, pageSize: query.boyut };
+        const ids = await tx.$queryRaw<
+          { id: number }[]
+        >(Prisma.sql`SELECT k.id FROM stok_kartlari k WHERE ${where}
+          ORDER BY k.olusturma_zamani DESC, k.id DESC LIMIT ${query.boyut} OFFSET ${(page - 1) * query.boyut}`);
         const rows = await tx.stokKarti.findMany({
-          where,
+          where: { kullaniciKimligi: Number(userId), kimlik: { in: ids.map((row) => row.id) } },
           orderBy: [{ olusturmaZamani: 'desc' }, { kimlik: 'desc' }],
-          skip: (query.sayfa - 1) * query.boyut,
-          take: query.boyut,
           include: {
             firsatlar: true,
             _count: { select: { varyantlar: true } },
@@ -760,10 +756,6 @@ export class PrismaStockRepository implements StockRepository {
         });
         const symbols: Record<string, string> = { TRY: '₺', USD: '$', EUR: '€' };
         // Kullanıcının fiyat listeleri (sekme adları ve sırası); her ürün hepsi için fiyat taşır.
-        const priceLists = await tx.stokSecenegi.findMany({
-          where: { kullaniciKimligi: Number(userId), listeTuru: 'priceLists', etkin: true },
-          orderBy: [{ sira: 'asc' }, { kimlik: 'asc' }],
-        });
         const items: ProductListItem[] = rows.map((card) => {
           const prices = card.birimler.find((unit) => unit.anaBirim)?.fiyatlar ?? [];
           const saleFor = (key: string) =>
@@ -816,22 +808,80 @@ export class PrismaStockRepository implements StockRepository {
               const sale = prices.find(
                 (p) => p.fiyatYonu === 'satis' && p.fiyatListesi.kimlik === list.kimlik,
               );
+              const excluding = sale ? calculatedPrices(sale).excludingVat : null;
               return {
                 id: String(list.kimlik),
                 code: list.secenekKodu,
                 name: list.secenekAdi,
                 // Girilmemiş fiyat 0 değil boştur ("—").
-                net:
-                  sale?.girilenFiyat == null
+                net: excluding === null ? null : Number(excluding),
+                gross:
+                  excluding === null
                     ? null
-                    : Number(calculatedPrices(sale).excludingVat ?? 0),
+                    : Number(
+                        new Prisma.Decimal(excluding)
+                          .mul(
+                            new Prisma.Decimal(1).plus(
+                              (sale?.kdvOrani ?? new Prisma.Decimal(0)).div(100),
+                            ),
+                          )
+                          .toDecimalPlaces(2),
+                      ),
                 vatRate: Number(sale?.kdvOrani ?? 0),
                 currency: sale?.paraBirimi ?? 'TRY',
               };
             }),
           };
         });
-        return { items, total, page: query.sayfa, pageSize: query.boyut };
+        const metadata =
+          query.secenekler === '1'
+            ? {
+                priceLists: priceLists.map((list) => ({
+                  id: String(list.kimlik),
+                  name: list.secenekAdi,
+                })),
+                filterOptions: {
+                  categories: (
+                    await tx.kategori.findMany({
+                      where: { kullaniciId: Number(userId) },
+                      orderBy: [{ ad: 'asc' }, { id: 'asc' }],
+                      select: { id: true, ad: true },
+                    })
+                  ).map((c) => ({ id: String(c.id), name: c.ad })),
+                  brands: (
+                    await tx.marka.findMany({
+                      where: { kullaniciKimligi: Number(userId) },
+                      orderBy: [{ markaAdi: 'asc' }, { kimlik: 'asc' }],
+                      select: { kimlik: true, markaAdi: true },
+                    })
+                  ).map((b) => ({ id: String(b.kimlik), name: b.markaAdi })),
+                },
+              }
+            : {};
+        return { items, total, page, pageSize: query.boyut, ...metadata };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
+  async selectIds(userId: string, query: StockListQuery) {
+    return this.db.$transaction(
+      async (tx) => {
+        const first = await tx.stokSecenegi.findFirst({
+          where: { kullaniciKimligi: Number(userId), listeTuru: 'priceLists', etkin: true },
+          orderBy: [{ sira: 'asc' }, { kimlik: 'asc' }],
+        });
+        const where = stockListWhere(Number(userId), query, first?.kimlik);
+        const rows = await tx.$queryRaw<{ id: number }[]>(
+          Prisma.sql`SELECT k.id FROM stok_kartlari k WHERE ${where} ORDER BY k.olusturma_zamani DESC, k.id DESC LIMIT 1001`,
+        );
+        if (rows.length > 1000)
+          throw new HttpError(
+            400,
+            'VALIDATION_ERROR',
+            'Tek seferde en fazla 1000 ürün seçilebilir. Süzgeçleri daraltın.',
+          );
+        return { ids: rows.map((row) => row.id), total: rows.length };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );

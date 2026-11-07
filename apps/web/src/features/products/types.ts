@@ -14,6 +14,7 @@ export interface ListPrice {
   code: string;
   name: string;
   net: number | null;
+  gross?: number | null;
   vatRate: number;
   /** ISO para birimi kodu (TRY, USD, EUR). */
   currency: string;
@@ -74,6 +75,25 @@ export interface ProductFilters {
   /** İlk fiyat listesinin (KDV dahil) alt ve üst sınırı; boş = sınırsız. */
   minPrice: string;
   maxPrice: string;
+}
+
+export interface ProductPageQuery {
+  search: string;
+  filters: ProductFilters;
+  page: number;
+  pageSize: number;
+}
+export interface ProductFilterOptions {
+  categories: { id: string; name: string }[];
+  brands: { id: string; name: string }[];
+}
+export interface ProductPage {
+  items: ProductItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  priceLists: PriceColumn[];
+  filterOptions: ProductFilterOptions;
 }
 
 export const emptyFilters = (): ProductFilters => ({
@@ -158,6 +178,8 @@ export const currencyOf = (p: ProductItem, view: PriceView): string =>
 
 /** KDV dahil tutar; fiyat girilmemişse `null`. */
 export function grossOf(p: ProductItem, view: PriceView): number | null {
+  const list = view === COST_VIEW ? undefined : listOf(p, view);
+  if (list?.gross !== undefined) return list.gross;
   const net = netOf(p, view);
   return net === null ? null : withVat(net, vatOf(p, view));
 }

@@ -72,6 +72,11 @@ export function createStockRouter(
   router.get('/kartlar', async (req, res) => {
     res.json(await repo.list(res.locals.stockUserId as string, parse(stockListQuery, req.query)));
   });
+  router.get('/kartlar/secim', async (req, res) => {
+    res.json(
+      await repo.selectIds(res.locals.stockUserId as string, parse(stockListQuery, req.query)),
+    );
+  });
   router.post('/kartlar/toplu', async (req, res) => {
     const input = parse(stockBulkSchema, req.body);
     const files =

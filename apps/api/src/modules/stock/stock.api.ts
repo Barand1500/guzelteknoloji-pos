@@ -7,6 +7,32 @@ export const recordKey = z
   .regex(/^[1-9][0-9]{0,9}$/)
   .refine((value) => Number(value) <= 2147483647);
 const filterId = z.union([z.literal(''), recordKey]).default('');
+const filterIds = z
+  .string()
+  .default('')
+  .transform((value, ctx) => {
+    if (!value) return [];
+    const parts = value.split(',');
+    if (
+      parts.length > 100 ||
+      parts.some((id) => !recordKey.safeParse(id).success) ||
+      new Set(parts).size !== parts.length
+    ) {
+      ctx.addIssue({ code: 'custom', message: 'Geçersiz filtre seçimi.' });
+      return z.NEVER;
+    }
+    return parts.map(Number);
+  });
+const priceBound = z
+  .string()
+  .default('')
+  .transform((value) => value.replace(',', '.'))
+  .pipe(
+    z.union([
+      z.literal(''),
+      z.string().regex(/^\d{1,12}(\.\d{1,6})?$/, 'Geçerli bir fiyat girin.'),
+    ]),
+  );
 const selection = z
   .array(z.union([recordId, recordKey.transform(Number)]))
   .max(1000)
@@ -22,16 +48,28 @@ export const stockSaveSchema = createStockSchema.extend({
 });
 export type StockSaveInput = z.infer<typeof stockSaveSchema>;
 
-export const stockListQuery = z.object({
-  arama: z.string().trim().max(250).default(''),
-  sayfa: z.coerce.number().int().min(1).max(10000000).default(1),
-  boyut: z.coerce.number().int().min(1).max(200).default(10),
-  kategori: filterId,
-  marka: filterId,
-  kimlik: filterId,
-  stok: z.enum(['', 'all', 'in', 'out', 'unlimited']).default('all'),
-  satis: z.enum(['', 'all', 'open', 'closed']).default('all'),
-});
+export const stockListQuery = z
+  .object({
+    arama: z.string().trim().max(250).default(''),
+    sayfa: z.coerce.number().int().min(1).max(10000000).default(1),
+    boyut: z.coerce.number().int().min(1).max(200).default(10),
+    kategori: filterId,
+    marka: filterId,
+    kategoriler: filterIds,
+    markalar: filterIds,
+    firsat: z.enum(['all', 'with', 'without']).default('all'),
+    en_az: priceBound,
+    en_cok: priceBound,
+    secenekler: z.enum(['0', '1']).default('1'),
+    sayim: z.enum(['0', '1']).default('0'),
+    kimlik: filterId,
+    stok: z.enum(['', 'all', 'in', 'out', 'unlimited']).default('all'),
+    satis: z.enum(['', 'all', 'open', 'closed']).default('all'),
+  })
+  .refine((q) => !q.en_az || !q.en_cok || Number(q.en_az) <= Number(q.en_cok), {
+    message: 'En az fiyat, en çok fiyattan büyük olamaz.',
+    path: ['en_cok'],
+  });
 export type StockListQuery = z.infer<typeof stockListQuery>;
 
 export const stockBulkSchema = z.strictObject({
@@ -55,6 +93,8 @@ export interface ListPrice {
   /** Kullanıcının verdiği ad (sekmedeki ad). */
   name: string;
   net: number | null;
+  /** KDV dahil, ekranda ve fiyat süzgecinde kullanılan iki ondalıklı tutar. */
+  gross?: number | null;
   vatRate: number;
   /** ISO para birimi kodu (TRY, USD, EUR). */
   currency: string;
@@ -97,4 +137,9 @@ export interface ProductListPage {
   total: number;
   page: number;
   pageSize: number;
+  priceLists?: { id: string; name: string }[];
+  filterOptions?: {
+    categories: { id: string; name: string }[];
+    brands: { id: string; name: string }[];
+  };
 }

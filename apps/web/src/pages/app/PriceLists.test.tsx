@@ -56,7 +56,7 @@ async function openProducts(phone = false) {
   const user = userEvent.setup();
   renderApp('/uygulama/urunler');
   await screen.findByRole('searchbox', { name: 'Ürün ara' });
-  await screen.findByRole('button', { name: `${NAME_1} işlemleri` }).catch(() => undefined);
+  await screen.findByText(NAME_1);
   return user;
 }
 
@@ -79,6 +79,14 @@ describe('Fiyat listesi yardımcıları', () => {
     const p = { ...base, cost: 0 } as unknown as ProductItem;
     expect(listPricesOf(p).map((l) => l.name)).toEqual(['FİYAT', 'PERAKENDE', 'TOPTAN']);
     expect(netOf(p, 'perakende')).toBe(2);
+  });
+  it('sunucunun yuvarladığı KDV dahil tutarı fiyat süzgecinde ve görünümde kullanır', () => {
+    const p = {
+      ...base,
+      listPrices: [{ ...price('a', 'A', 1.005), vatRate: 0, gross: 1.01 }],
+    } as unknown as ProductItem;
+    expect(grossOf(p, 'a')).toBe(1.01);
+    expect(matchesFilters(p, { ...emptyFilters(), minPrice: '1.01', maxPrice: '1.01' })).toBe(true);
   });
 
   it('ürünlerdeki listelerin birleşimi tekrarsız ve ilk görülen sırayla çıkar', () => {

@@ -26,14 +26,12 @@ import {
   stockEditPath,
 } from '../../../config/navigation';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
-import { usePagination } from '../../../lib/usePagination';
-import { useProducts } from '../hooks/useProducts';
+import { useProductPage } from '../hooks/useProductPage';
+import { dataError } from '../../../lib/catalog-data';
 import {
   activeFilterCount,
   emptyFilters,
-  matchesFilters,
   COST_VIEW,
-  priceListsOf,
   type PriceView,
   type ProductFilters,
   type ProductItem,
@@ -43,8 +41,6 @@ import { ProductImportSheet } from './ProductImportSheet';
 import { BulkMenuSheet, ProductMenuSheet } from './ProductMenuSheet';
 import { ProductRow } from './ProductRow';
 import { ProductTable } from './ProductTable';
-
-const fold = (s: string) => s.toLocaleLowerCase('tr');
 
 /** Masaüstü tabloda varsayılan olarak ilk üç fiyat listesi görünür; fazlası seçiciyle açılır. */
 const DEFAULT_COLUMNS = 3;
@@ -60,12 +56,30 @@ const MAX_SEGMENTS = 4;
  * "Ekle" mevcut stok kartı oluşturma ekranını açar.
  */
 export function ProductsView() {
-  const { products, loading, error, refresh, setStockTracking, setSales, remove } = useProducts();
   const desktop = useMediaQuery('(min-width: 64rem)');
   const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<ProductFilters>(emptyFilters);
+  const [page, setPage] = useState(1);
+  const [sizeText, setSizeText] = useState('10');
+  const pageSize = Math.min(200, Math.max(1, Number.parseInt(sizeText, 10) || 10));
+  const {
+    products,
+    total,
+    page: currentPage,
+    priceLists,
+    filterOptions,
+    loading,
+    error,
+    refresh,
+    setStockTracking,
+    setSales,
+    remove,
+    selectIds,
+  } = useProductPage({ search: query, filters, page, pageSize });
+  const [selectionBusy, setSelectionBusy] = useState(false);
+  const selectionRevision = useRef(0);
   const [priceView, setPriceView] = useState<PriceView>('');
   // null = varsayılan (ilk üç liste); seçilince seçilen sütun kimlikleri.
   const [shownIds, setShownIds] = useState<string[] | null>(null);
@@ -88,7 +102,6 @@ export function ProductsView() {
     noticeTimer.current = window.setTimeout(() => setNotice(null), 3200);
   };
 
-  const priceLists = useMemo(() => priceListsOf(products), [products]);
   const viewOptions = useMemo(
     () => [
       ...priceLists.map((l) => ({ value: l.id, label: l.name })),
@@ -115,24 +128,29 @@ export function ProductsView() {
     });
 
   const filterCount = activeFilterCount(filters);
-  const visible = useMemo(() => {
-    const q = fold(query.trim());
-    return products.filter(
-      (p) =>
-        matchesFilters(p, filters) &&
-        (q === '' ||
-          fold(p.name).includes(q) ||
-          fold(p.code).includes(q) ||
-          fold(p.brandName).includes(q)),
-    );
-  }, [products, filters, query]);
-  const paging = usePagination(visible, 10);
+  const visible = products;
+  const paging = {
+    pageItems: products,
+    total,
+    page: currentPage,
+    pageCount: Math.max(1, Math.ceil(total / pageSize)),
+    from: total === 0 ? 0 : (currentPage - 1) * pageSize + 1,
+    to: total === 0 ? 0 : (currentPage - 1) * pageSize + products.length,
+    setPage,
+    sizeText,
+  };
+  const changePageSize = (text: string) => {
+    setSizeText(text);
+    setPage(1);
+    setSelected(new Set());
+    selectionRevision.current++;
+  };
 
   const byId = (id: string | null) => products.find((p) => p.id === id) ?? null;
   const menuProduct = byId(menuFor);
   const zoomProduct = byId(zoomFor);
-  // Silinen/süzülen ürünler seçimden düşer.
-  const selectedIds = [...selected].filter((id) => products.some((p) => p.id === id));
+  // Seçimler sayfa değişince korunur; arama ve süzgeç değişince temizlenir.
+  const selectedIds = [...selected];
   const anySelected = selectedIds.length > 0;
 
   // Düzenle ve Kopya, stok kartı ekranını açar (dolu gelir); ayrı bir ürün düzenle ekranı yoktur.
@@ -141,18 +159,38 @@ export function ProductsView() {
   const toggleSelect = (id: string) =>
     setSelected((s) => {
       const next = new Set(s);
-      if (!next.delete(id)) next.add(id);
+      if (!next.delete(id) && next.size < 1000) next.add(id);
       return next;
     });
   const stopSelecting = () => {
+    selectionRevision.current++;
     setSelecting(false);
     setSelected(new Set());
+  };
+  const applyFilters = (next: ProductFilters) => {
+    selectionRevision.current++;
+    setFilters(next);
+    setPage(1);
+    setSelected(new Set());
+    setExpandedId(null);
+  };
+  const selectAll = async () => {
+    const request = ++selectionRevision.current;
+    setSelectionBusy(true);
+    try {
+      const ids = await selectIds();
+      if (request === selectionRevision.current) setSelected(new Set(ids));
+    } catch (e) {
+      showNotice(dataError(e));
+    } finally {
+      setSelectionBusy(false);
+    }
   };
   const confirmDelete = async () => {
     if (!deleting) return;
     const { ids, label } = deleting;
     setDeleting(null);
-    await remove(ids);
+    if (!(await remove(ids))) return;
     setSelected((s) => new Set([...s].filter((id) => !ids.includes(id))));
     showNotice(`${label} silindi.`);
   };
@@ -166,7 +204,9 @@ export function ProductsView() {
         ))}
       </div>
     );
-  } else if (products.length === 0) {
+  } else if (error && total === 0) {
+    content = null;
+  } else if (total === 0 && !query.trim() && filterCount === 0) {
     content = (
       <EmptyState
         title="Henüz ürün yok"
@@ -189,7 +229,7 @@ export function ProductsView() {
               fullWidth={false}
               flow={false}
               variant="outline"
-              onClick={() => setFilters(emptyFilters())}
+              onClick={() => applyFilters(emptyFilters())}
             >
               Süzgeçleri Sıfırla
             </Button>
@@ -208,8 +248,8 @@ export function ProductsView() {
           setSelected((s) => {
             const next = new Set(s);
             for (const p of paging.pageItems) {
-              if (on) next.add(p.id);
-              else next.delete(p.id);
+              if (on && next.size < 1000) next.add(p.id);
+              else if (!on) next.delete(p.id);
             }
             return next;
           })
@@ -265,6 +305,8 @@ export function ProductsView() {
             onChange={(text) => {
               setQuery(text);
               paging.setPage(1);
+              setSelected(new Set());
+              selectionRevision.current++;
             }}
             label="Ürün ara"
             placeholder="Ürün adı, kod veya marka ara…"
@@ -356,7 +398,7 @@ export function ProductsView() {
         {filterCount > 0 ? (
           <button
             type="button"
-            onClick={() => setFilters(emptyFilters())}
+            onClick={() => applyFilters(emptyFilters())}
             className="inline-flex min-h-10 items-center gap-1 rounded-full bg-brand-50 px-3.5 text-sm font-semibold text-brand-ink"
           >
             {filterCount} süzgeç açık
@@ -416,7 +458,7 @@ export function ProductsView() {
             paging.setPage(p);
           }}
           sizeText={paging.sizeText}
-          onSizeTextChange={paging.setSizeText}
+          onSizeTextChange={changePageSize}
         />
       ) : null}
 
@@ -427,13 +469,14 @@ export function ProductsView() {
           className="fixed inset-x-3 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 flex flex-wrap items-center gap-2 rounded-3xl border border-line bg-surface-raised p-3 text-ink shadow-card lg:inset-x-auto lg:right-8 lg:bottom-8 lg:left-auto lg:min-w-96"
         >
           <span className="px-2 text-sm font-bold">{selectedIds.length} seçili</span>
-          {selectedIds.length < visible.length ? (
+          {selectedIds.length < total ? (
             <button
               type="button"
-              onClick={() => setSelected(new Set(visible.map((p) => p.id)))}
+              onClick={() => void selectAll()}
+              disabled={selectionBusy || loading}
               className="rounded-full bg-surface-muted px-3 py-2 text-sm font-semibold"
             >
-              Tümünü seç ({visible.length})
+              {selectionBusy ? 'Seçiliyor…' : `Tümünü seç (${total})`}
             </button>
           ) : null}
           <span className="flex-1" />
@@ -469,11 +512,12 @@ export function ProductsView() {
       {filterOpen ? (
         <ProductFilterSheet
           products={products}
+          options={filterOptions}
+          search={query}
           value={filters}
           firstListName={priceLists[0]?.name}
           onApply={(f) => {
-            setFilters(f);
-            paging.setPage(1);
+            applyFilters(f);
           }}
           onClose={() => setFilterOpen(false)}
         />
