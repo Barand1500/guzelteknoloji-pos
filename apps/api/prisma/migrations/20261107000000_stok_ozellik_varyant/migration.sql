@@ -1,4 +1,4 @@
-﻿CREATE TABLE `stok_ozellik_degerleri` (
+CREATE TABLE `stok_ozellik_degerleri` (
  `stok_karti_id` INTEGER NOT NULL, `deger_id` INTEGER NOT NULL,
  PRIMARY KEY (`stok_karti_id`, `deger_id`),
  CONSTRAINT `stok_ozellik_degerleri_stok_karti_id_fkey` FOREIGN KEY (`stok_karti_id`) REFERENCES `stok_kartlari`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
