@@ -63,16 +63,24 @@ export const productService = {
     for (const entry of entries) for (const url of entry.urls) tickets.delete(url);
     return result.images;
   },
+  /**
+   * Tüm ürünler: ilk sayfa toplamı öğretir, kalan sayfalar aynı anda (en çok 4 istek) alınır.
+   * Sırayla beklemeye göre birkaç kat hızlıdır; sıra sayfa numarasına göre korunur.
+   */
   list: async (): Promise<ProductItem[]> => {
-    const rows: ProductItem[] = [];
-    let page = 1;
-    for (;;) {
-      const result = await apiRequest<Page>('/api/stok/kartlar?boyut=200&sayfa=' + page);
-      rows.push(...result.items.map(dto));
-      if (rows.length >= result.total || result.items.length === 0) break;
-      page++;
-    }
-    return rows;
+    const url = (page: number) => '/api/stok/kartlar?boyut=200&sayfa=' + page;
+    const first = await apiRequest<Page>(url(1));
+    const pages = Math.ceil(first.total / 200);
+    const results: Page[] = [first];
+    let next = 2;
+    const worker = async () => {
+      while (next <= pages) {
+        const page = next++;
+        results[page - 1] = await apiRequest<Page>(url(page));
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, Math.max(pages - 1, 0)) }, worker));
+    return results.flatMap((r) => r.items.map(dto));
   },
   get: async (id: string): Promise<ProductItem | null> => {
     const result = await apiRequest<Page>(
