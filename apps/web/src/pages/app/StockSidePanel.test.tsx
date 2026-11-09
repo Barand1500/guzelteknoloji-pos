@@ -103,6 +103,9 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
     expect(screen.getByText('2 seçili')).toBeInTheDocument();
     expect(tab('Kategori')).toHaveTextContent('2');
 
+    // Arama kutusu başta gizlidir; düğmeyle açılır.
+    expect(screen.queryByRole('searchbox', { name: 'Kategori ara' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Kategori Ara' }));
     await user.type(screen.getByRole('searchbox', { name: 'Kategori ara' }), 'yazıcı');
     const list = screen.getByRole('list', { name: 'Kategoriler' });
     expect(within(list).getAllByRole('checkbox')).toHaveLength(1);

@@ -9,6 +9,7 @@ import {
 import { useEffect, useState } from 'react';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { CategoryBox } from './CategoryBox';
+import { AttributeGroupFold } from './AttributeGroupFold';
 import { DealBox } from './DealBox';
 import { StockPreview } from './StockPreview';
 
@@ -221,8 +222,17 @@ export function StockSidePanel({ editor, panel }: StockSidePanelProps) {
                       {extraOptions
                         .attributes!.groups.filter((g) => g.templateId === template.id)
                         .map((group) => (
-                          <fieldset key={group.id} className="mt-3">
-                            <legend className="text-sm font-semibold">{group.name}</legend>
+                          <AttributeGroupFold
+                            key={group.id}
+                            name={group.name}
+                            selected={
+                              extraOptions.attributes!.values.filter(
+                                (v) =>
+                                  v.groupId === group.id &&
+                                  (extras.attributeValueIds ?? []).includes(v.id),
+                              ).length
+                            }
+                          >
                             {extraOptions
                               .attributes!.values.filter((v) => v.groupId === group.id)
                               .map((value) => (
@@ -244,7 +254,7 @@ export function StockSidePanel({ editor, panel }: StockSidePanelProps) {
                                   {value.name}
                                 </label>
                               ))}
-                          </fieldset>
+                          </AttributeGroupFold>
                         ))}
                     </section>
                   ))}

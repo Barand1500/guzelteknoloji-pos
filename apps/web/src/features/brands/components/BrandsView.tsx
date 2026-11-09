@@ -19,7 +19,9 @@ const fold = (s: string) => s.toLocaleLowerCase('tr');
  * Marka penceresi durumu: kapalı / yeni marka (brandId yok) / mevcut marka düzenleme. Marka her
  * zaman güncel listeden okunur (ürün ekleyip çıkarınca sayısı canlı değişsin diye).
  */
-type FormState = { brandId: string | null; pickLogo?: boolean } | null;
+type FormState = { brandId: string | null } | null;
+const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 
 /**
  * Markalar ekranı. Telefonda satırlar sola kaydırınca işlem gösterir ve basılı tutup sürükleyerek
@@ -99,10 +101,63 @@ export function BrandsView() {
     }
   };
 
+  // Logoya çift tıklama: pencere açılmadan doğrudan dosya seçici açılır, seçilen görsel kaydedilir.
+  const logoInput = useRef<HTMLInputElement>(null);
+  const logoTarget = useRef<Brand | null>(null);
+  const pickLogoFor = (brand: Brand) => {
+    setSwipeOpenId(null);
+    logoTarget.current = brand;
+    logoInput.current?.click();
+  };
+  const takeLogo = (file: File | undefined) => {
+    const brand = logoTarget.current;
+    logoTarget.current = null;
+    if (!file || !brand) return;
+    if (!LOGO_TYPES.includes(file.type)) {
+      showNotice('Yalnızca görsel dosyaları (PNG, JPG, WebP, SVG) yükleyebilirsiniz.');
+      return;
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      showNotice('Logo en çok 2 MB olabilir.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => showNotice('Logo okunamadı. Tekrar seçin.');
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') return;
+      save(
+        {
+          name: brand.name,
+          description: brand.description,
+          logoUrl: reader.result,
+          active: brand.active,
+          seoTitle: brand.seoTitle,
+          seoDescription: brand.seoDescription,
+        },
+        brand.id,
+      )
+        .then(() => showNotice(`${brand.name} logosu güncellendi.`))
+        .catch((e: unknown) => showNotice(stockErrorMessage(e)));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const openAdd = () => setForm({ brandId: null });
 
   return (
     <div className="flex min-w-0 flex-col gap-4" aria-busy={busy}>
+      <input
+        ref={logoInput}
+        type="file"
+        accept={LOGO_TYPES.join(',')}
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Logo dosyası seç"
+        onChange={(e) => {
+          takeLogo(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
       {error ? (
         <>
           <Alert tone="error">{error}</Alert>
@@ -185,10 +240,7 @@ export function BrandsView() {
                   setSwipeOpenId(null);
                   setForm({ brandId: brand.id });
                 }}
-                onEditLogo={() => {
-                  setSwipeOpenId(null);
-                  setForm({ brandId: brand.id, pickLogo: true });
-                }}
+                onEditLogo={() => pickLogoFor(brand)}
                 onAssign={() => {
                   setSwipeOpenId(null);
                   setProductsFor(brand.id);
@@ -231,7 +283,6 @@ export function BrandsView() {
           brand={editingBrand}
           onSave={saveBrand}
           onClose={() => setForm(null)}
-          pickLogo={form.pickLogo === true}
         />
       ) : null}
       {productsBrand ? (
