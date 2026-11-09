@@ -186,7 +186,7 @@ export function ProductImportSheet({ onDone, onClose }: ProductImportSheetProps)
     : [];
 
   return (
-    <Sheet
+    <Sheet permission="save"
       open
       onClose={onClose}
       size="xl"

@@ -26,6 +26,8 @@ import type { PrismaClient } from './lib/prisma';
 import { createCatalogRouter } from './modules/catalog/catalog.routes';
 import { createDealRouter } from './modules/catalog/deal.routes';
 import { createAttributeRouter } from './modules/catalog/attribute.routes';
+import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
+import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
 
 export interface AppDeps {
   env: Env;
@@ -102,6 +104,10 @@ export function createApp(deps: AppDeps): Express {
     return checkOrigin(req, res, next);
   });
   app.use('/api/health', createHealthRouter(deps.checkDatabase));
+  if (deps.catalogDb) {
+    app.use(workspaceMiddleware(deps.catalogDb, env, service, logger));
+    app.use('/api/hesap', createWorkspaceRouter(deps.catalogDb, env, deps.hasher));
+  }
   app.use(
     '/api/auth',
     createAuthRouter({

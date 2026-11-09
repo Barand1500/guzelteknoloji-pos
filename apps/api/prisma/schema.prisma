@@ -29,6 +29,10 @@ enum GirisYontemi {
 }
 
 model Kullanici {
+  ownedBusiness Isletme? @relation("BusinessOwner")
+  businessMember IsletmeUyesi?
+  activityLogs IslemKaydi[]
+
   kimlik                Int             @id @default(autoincrement()) @map("id")
   /// Normalize edilmiş (trim + küçük harf) e-posta. OAuth-only kullanıcılarda da doldurulur.
   eposta                String?         @unique(map: "kullanicilar_eposta_tekil") @map("eposta") @db.VarChar(254)
@@ -401,6 +405,95 @@ model StokBarkodu {
   @@unique([stokBirimiKimligi, barkod], map: "urun_barkodlari_birim_kod_tekil")
   @@index([barkod], map: "urun_barkodlari_kod_indeks")
   @@map("urun_barkodlari")
+}
+
+model Isletme {
+  id Int @id @default(autoincrement())
+  name String @map("ad") @db.VarChar(120)
+  ownerId Int @unique @map("sahip_id")
+  createdAt DateTime @default(now()) @map("olusturma_zamani")
+  owner Kullanici @relation("BusinessOwner", fields: [ownerId], references: [kimlik], onDelete: Restrict)
+  members IsletmeUyesi[]
+  roles IsletmeRolu[]
+  settings IsletmeAyari[]
+  logs IslemKaydi[]
+  @@map("isletmeler")
+}
+
+model IsletmeUyesi {
+  id Int @id @default(autoincrement())
+  businessId Int @map("isletme_id")
+  userId Int? @unique @map("kullanici_id")
+  email String? @unique @map("eposta") @db.VarChar(254)
+  name String @map("ad") @db.VarChar(120)
+  roleId Int? @map("rol_id")
+  active Boolean @default(true) @map("etkin")
+  createdAt DateTime @default(now()) @map("olusturma_zamani")
+  business Isletme @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user Kullanici? @relation(fields: [userId], references: [kimlik], onDelete: Restrict)
+  role IsletmeRolu? @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  @@index([businessId])
+  @@map("isletme_uyeleri")
+}
+
+model IsletmeRolu {
+  id Int @id @default(autoincrement())
+  businessId Int @map("isletme_id")
+  name String @map("ad") @db.VarChar(120)
+  business Isletme @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  permissions RolYetkisi[]
+  members IsletmeUyesi[]
+  @@unique([businessId, name])
+  @@map("isletme_rolleri")
+}
+
+model RolYetkisi {
+  roleId Int @map("rol_id")
+  resource String @map("bolum") @db.VarChar(30)
+  read Boolean @map("goruntule")
+  save Boolean @map("kaydet")
+  delete Boolean @map("sil")
+  role IsletmeRolu @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([roleId, resource])
+  @@map("rol_yetkileri")
+}
+
+model IsletmeAyari {
+  businessId Int @map("isletme_id")
+  section String @map("bolum") @db.VarChar(30)
+  key String @map("alan") @db.VarChar(80)
+  value String @map("deger") @db.Text
+  business Isletme @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  @@id([businessId, section, key])
+  @@map("isletme_ayarlari")
+}
+
+model IslemKaydi {
+  id Int @id @default(autoincrement())
+  businessId Int @map("isletme_id")
+  userId Int? @map("kullanici_id")
+  userName String @map("kullanici_adi") @db.VarChar(254)
+  section String @map("bolum") @db.VarChar(30)
+  action String @map("islem") @db.VarChar(80)
+  target String? @map("kayit") @db.VarChar(200)
+  status String @map("sonuc") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("olusturma_zamani")
+  business Isletme @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user Kullanici? @relation(fields: [userId], references: [kimlik], onDelete: SetNull)
+  changes IslemDegisikligi[]
+  @@index([businessId, createdAt, id])
+  @@map("islem_kayitlari")
+}
+
+model IslemDegisikligi {
+  id Int @id @default(autoincrement())
+  logId Int @map("kayit_id")
+  field String @map("alan") @db.VarChar(150)
+  before String? @map("eski_deger") @db.Text
+  after String? @map("yeni_deger") @db.Text
+  log IslemKaydi @relation(fields: [logId], references: [id], onDelete: Cascade)
+  @@index([logId])
+  @@map("islem_degisiklikleri")
 }
 
 model UrunVergisi {

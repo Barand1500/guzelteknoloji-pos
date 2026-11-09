@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router';
 import { Spinner } from '../../components/ui/Spinner';
 import { STOCK_CREATE_PATH, navLeft, navRight, type NavItem } from '../../config/navigation';
 import { useActiveSaveAction } from './save-action';
+import { useWorkspace, pageResource } from '../workspace/workspace-context';
 
 function DockLink({ item }: { item: NavItem }) {
   const Icon = item.icon;
@@ -38,6 +39,7 @@ function DockLink({ item }: { item: NavItem }) {
  * kaybolur ve yerini "Kaydet" düğmesi alır; ekrandan çıkınca ya da kaydedilince tekrar "+" olur.
  */
 export function Dock() {
+  const { can } = useWorkspace();
   const { pathname } = useLocation();
   const container = useRef<HTMLDivElement>(null);
   const indicator = useRef<HTMLSpanElement>(null);
@@ -91,11 +93,13 @@ export function Dock() {
           className="pointer-events-none absolute top-0 left-0 rounded-2xl bg-brand-50 opacity-0 transition-[transform,width,height,opacity] duration-500 ease-[cubic-bezier(0.34,1.4,0.64,1)]"
         />
 
-        {navLeft.map((item) => (
-          <DockLink key={item.id} item={item} />
-        ))}
+        {navLeft
+          .filter((item) => can(pageResource(item.path)!))
+          .map((item) => (
+            <DockLink key={item.id} item={item} />
+          ))}
 
-        {save ? (
+        {save && can('products', 'save') ? (
           // Kaydet hali: daire genişleyip hap olur; "+" dönerek solar, onay simgesi ve yazı belirir.
           <button
             type="button"
@@ -113,7 +117,7 @@ export function Dock() {
               </>
             )}
           </button>
-        ) : (
+        ) : can('products', 'save') ? (
           <NavLink
             to={STOCK_CREATE_PATH}
             aria-label="Yeni Stok Kartı"
@@ -121,11 +125,13 @@ export function Dock() {
           >
             <Plus className="size-7" aria-hidden="true" />
           </NavLink>
-        )}
+        ) : null}
 
-        {navRight.map((item) => (
-          <DockLink key={item.id} item={item} />
-        ))}
+        {navRight
+          .filter((item) => can(pageResource(item.path)!))
+          .map((item) => (
+            <DockLink key={item.id} item={item} />
+          ))}
       </div>
     </nav>
   );

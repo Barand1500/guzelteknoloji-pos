@@ -85,7 +85,7 @@ export function ValueFormSheet({
   };
 
   return (
-    <Sheet
+    <Sheet permission="save"
       open
       onClose={onClose}
       title={value ? 'Özelliği Düzenle' : 'Özellik Ekle'}

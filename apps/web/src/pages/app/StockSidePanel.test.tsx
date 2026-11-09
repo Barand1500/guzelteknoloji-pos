@@ -29,6 +29,7 @@ async function openNew(path = '/uygulama/stok-karti/yeni') {
   const user = userEvent.setup();
   renderApp(path);
   await screen.findByLabelText('Ürün Kodu');
+  await screen.findByRole('button', { name: 'Kaydet' });
   return user;
 }
 

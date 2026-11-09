@@ -12,6 +12,14 @@ import { CategoriesPage } from '../pages/app/CategoriesPage';
 import { BrandsPage } from '../pages/app/BrandsPage';
 import { StockCardCreatePage } from '../pages/app/StockCardCreatePage';
 import { EMAIL_LOGIN_PATH, LOGIN_PATH, LoginPage } from '../pages/auth/LoginPage';
+import {
+  ProfilePage,
+  UsersPage,
+  RolesPage,
+  SettingsIndexPage,
+  SettingsPage,
+  LogsPage,
+} from '../features/workspace/WorkspacePages';
 
 /** Giriş ekranları + girişten sonraki uygulama (AppShell içinde). Yeni sayfa: burada yol ekleyin. */
 export function App() {
@@ -40,6 +48,13 @@ export function App() {
             <Route path="kategoriler" element={<CategoriesPage />} />
             <Route path="markalar" element={<BrandsPage />} />
             <Route path="ozellikler" element={<AttributesPage />} />
+            <Route path="profil" element={<ProfilePage />} />
+            <Route path="kullanicilar" element={<UsersPage />} />
+            <Route path="roller" element={<RolesPage />} />
+            <Route path="ayarlar" element={<SettingsIndexPage />} />
+            <Route path="ayarlar/entegrasyonlar" element={<SettingsIndexPage integrations />} />
+            <Route path="ayarlar/:section" element={<SettingsPage />} />
+            <Route path="loglar" element={<LogsPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to={LOGIN_PATH} replace />} />

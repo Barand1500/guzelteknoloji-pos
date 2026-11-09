@@ -95,7 +95,7 @@ export function CategoryFormSheet({
   };
 
   return (
-    <Sheet
+    <Sheet permission="save"
       open
       onClose={onClose}
       title={category ? 'Kategoriyi Düzenle' : 'Kategori Ekle'}

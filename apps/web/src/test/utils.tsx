@@ -3,7 +3,7 @@ import axe from 'axe-core';
 import { MemoryRouter } from 'react-router';
 import { vi } from 'vitest';
 import { App } from '../app/App';
-import { DEFAULT_STOCK_LOOKUPS } from '@gt/shared';
+import { DEFAULT_STOCK_LOOKUPS, WORKSPACE_RESOURCES } from '@gt/shared';
 
 type Handler = (init?: RequestInit) => Response | Promise<Response>;
 
@@ -19,6 +19,18 @@ export function mockFetch(routes: Record<string, Handler>) {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const path = new URL(url, 'http://localhost').pathname;
     const handler = routes[`${init?.method ?? 'GET'} ${path}`];
+    if (!handler && path === '/api/hesap' && (init?.method ?? 'GET') === 'GET')
+      return jsonResponse(200, {
+        business: { id: 1, name: 'Test İşletmesi' },
+        user: { id: 1, name: 'Test Sahibi', email: 'test@example.com' },
+        owner: true,
+        permissions: WORKSPACE_RESOURCES.map((r) => ({
+          resource: r.key,
+          read: true,
+          save: true,
+          delete: true,
+        })),
+      });
     if (!handler) throw new TypeError('Failed to fetch');
     return handler(init);
   });

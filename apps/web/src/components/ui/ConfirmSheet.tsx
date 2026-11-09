@@ -25,7 +25,13 @@ export function ConfirmSheet({
   onClose,
 }: ConfirmSheetProps) {
   return (
-    <Sheet open={open} onClose={onClose} title={title} description={description}>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      description={description}
+      permission={danger ? 'delete' : undefined}
+    >
       <div className="flex flex-col gap-3 sm:flex-row-reverse">
         <Button variant={danger ? 'danger' : 'primary'} flow={false} onClick={onConfirm}>
           {confirmLabel}

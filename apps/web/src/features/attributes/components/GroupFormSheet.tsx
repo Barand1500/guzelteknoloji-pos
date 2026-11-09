@@ -100,7 +100,7 @@ export function GroupFormSheet({
   };
 
   return (
-    <Sheet open onClose={onClose} title={group ? 'Grubu Düzenle' : 'Grup Ekle'} size="lg">
+    <Sheet permission="save" open onClose={onClose} title={group ? 'Grubu Düzenle' : 'Grup Ekle'} size="lg">
       <div className="flex flex-col gap-5">
         {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <SelectField

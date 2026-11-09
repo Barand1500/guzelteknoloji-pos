@@ -18,6 +18,7 @@ import { MobileStockLayout } from './MobileStockLayout';
 import { StockSavedScreen } from './StockSavedScreen';
 import { VariantEditor } from './VariantEditor';
 import type { SideBoxId } from './StockSidePanel';
+import { useWorkspace } from '../../workspace/workspace-context';
 
 interface StockCardFormProps {
   /** Verilirse bu kayıtlı kart dolu gelir ve Kaydet onu günceller (düzenleme). */
@@ -150,6 +151,7 @@ function StockCardEditor({
   initialBox?: SideBoxId;
   mode: 'create' | 'edit' | 'copy';
 }) {
+  const {can}=useWorkspace();
   const [variantState, setVariantState] = useState({
     dirty: false,
     busy: false,
@@ -319,7 +321,7 @@ function StockCardEditor({
         ) : null}
         {editor.saveNotice && <Alert tone="info">{editor.saveNotice}</Alert>}
         <fieldset
-          disabled={editor.saving || variantState.busy}
+          disabled={editor.saving || variantState.busy || !can('products','save')}
           className="m-0 min-w-0 border-0 p-0"
           aria-busy={editor.saving}
         >

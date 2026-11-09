@@ -1,4 +1,5 @@
-import { LogOut, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
+import { ProfileMenu } from '../workspace/ProfileMenu';
 import { useLocation, useNavigate } from 'react-router';
 import { brandConfig } from '../../config/brand.config';
 import { pageTitle } from '../../config/navigation';
@@ -64,9 +65,7 @@ export function TopBar() {
         )}
       </button>
       {wide ? <Greeting name={name} className="max-w-[16rem] px-1 text-sm" /> : null}
-      <button type="button" onClick={signOut} aria-label="Çıkış Yap" className={iconButton}>
-        <LogOut className="size-5" aria-hidden="true" />
-      </button>
+      <ProfileMenu onLogout={signOut} />
     </header>
   );
 }

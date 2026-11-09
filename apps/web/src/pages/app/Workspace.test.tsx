@@ -1,0 +1,162 @@
+import { screen, within, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { WORKSPACE_RESOURCES, type WorkspaceContext } from '@gt/shared';
+import { anonymousRoutes, jsonResponse, mockFetch, renderApp } from '../../test/utils';
+
+const owner: WorkspaceContext = {
+  business: { id: 1, name: 'Güzel İşletme' },
+  user: { id: 1, name: 'Yunus', email: 'yunus@example.com' },
+  owner: true,
+  permissions: WORKSPACE_RESOURCES.map((r) => ({
+    resource: r.key,
+    read: true,
+    save: true,
+    delete: true,
+  })),
+};
+const login = {
+  ...anonymousRoutes,
+  'GET /api/auth/me': () =>
+    jsonResponse(200, {
+      user: { id: '1', displayName: 'Yunus', email: 'yunus@example.com', avatarUrl: null },
+    }),
+  'GET /api/hesap': () => jsonResponse(200, owner),
+};
+beforeEach(() => sessionStorage.clear());
+
+describe('Profil ve işletme ekranları', () => {
+  it('profil menüsü bölümleri açar, çıkış en alttadır', async () => {
+    const user = userEvent.setup();
+    mockFetch(login);
+    renderApp('/uygulama/profil');
+    await screen.findByRole('heading', { name: 'Profil Bilgileri' });
+    await user.click(screen.getByRole('button', { name: 'Profil Menüsü' }));
+    const menu = screen.getByRole('dialog', { name: 'Profil Menüsü' });
+    expect(
+      within(menu)
+        .getAllByRole('link')
+        .map((a) => a.textContent),
+    ).toEqual(['Profil', 'Kullanıcılar', 'Roller', 'Ayarlar', 'Log Kayıtları']);
+    expect(within(menu).getByRole('button', { name: 'Çıkış Yap' })).toBeVisible();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+  it('Kaydet seçilince Görüntüle de açılır; rol izinleri API’ye gider', async () => {
+    const user = userEvent.setup();
+    const fetch = mockFetch({
+      ...login,
+      'GET /api/hesap/roller': () => jsonResponse(200, []),
+      'POST /api/hesap/roller': () => jsonResponse(200, { id: 1 }),
+    });
+    renderApp('/uygulama/roller');
+    await user.click(await screen.findByRole('button', { name: 'Rol Ekle' }));
+    await user.type(screen.getByLabelText('Rol Adı'), 'Kasiyer');
+    await user.click(screen.getByRole('checkbox', { name: 'Ürünler Kaydet' }));
+    expect(screen.getByRole('checkbox', { name: 'Ürünler Görüntüle' })).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const call = fetch.mock.calls.find(
+      ([url, init]) => String(url).endsWith('/hesap/roller') && init?.method === 'POST',
+    )!;
+    expect(JSON.parse(String(call[1]?.body))).toMatchObject({
+      name: 'Kasiyer',
+      permissions: expect.arrayContaining([
+        { resource: 'products', read: true, save: true, delete: false },
+      ]),
+    });
+  });
+  it('kullanıcı eklerken rol ve doğrulanacak e-posta kaydedilir', async () => {
+    const user = userEvent.setup();
+    const fetch = mockFetch({
+      ...login,
+      'GET /api/hesap/kullanicilar': () => jsonResponse(200, []),
+      'GET /api/hesap/roller': () =>
+        jsonResponse(200, [{ id: 2, name: 'Personel', permissions: [], users: 0 }]),
+      'POST /api/hesap/kullanicilar': () => jsonResponse(201, { id: 2 }),
+    });
+    renderApp('/uygulama/kullanicilar');
+    await user.click(await screen.findByRole('button', { name: 'Kullanıcı Ekle' }));
+    await user.type(screen.getByLabelText('Ad Soyad'), 'Ayşe');
+    await user.type(screen.getByLabelText('E-posta'), 'ayse@example.com');
+    await user.click(screen.getByRole('combobox', { name: 'Rol' }));
+    await user.click(await screen.findByRole('option', { name: 'Personel' }));
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const call = fetch.mock.calls.find(
+      ([url, init]) => String(url).endsWith('/hesap/kullanicilar') && init?.method === 'POST',
+    )!;
+    expect(JSON.parse(String(call[1]?.body))).toEqual({
+      name: 'Ayşe',
+      email: 'ayse@example.com',
+      roleId: 2,
+      active: true,
+    });
+  });
+  it('salt görüntüleme rolü yönetim sayfasına erişemez', async () => {
+    mockFetch({
+      ...login,
+      'GET /api/hesap': () =>
+        jsonResponse(200, {
+          ...owner,
+          owner: false,
+          permissions: [{ resource: 'products', read: true, save: false, delete: false }],
+        }),
+    });
+    renderApp('/uygulama/roller');
+    expect(await screen.findByText(/Bu sayfayı görüntüleme yetkiniz yok/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Rol Ekle' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Yeni Stok Kartı' })).not.toBeInTheDocument();
+  });
+  it('SMTP şifresini geri göstermeden ayarları kaydeder', async () => {
+    const user = userEvent.setup();
+    const fetch = mockFetch({
+      ...login,
+      'GET /api/hesap/ayarlar/smtp': () =>
+        jsonResponse(200, {
+          values: { host: 'smtp.example.com', port: '465', secure: 'true', username: 'mail' },
+          configured: ['password'],
+        }),
+      'POST /api/hesap/ayarlar/smtp': () =>
+        jsonResponse(200, { values: {}, configured: ['password'] }),
+    });
+    renderApp('/uygulama/ayarlar/smtp');
+    const host = await screen.findByLabelText('Sunucu');
+    expect(host).toHaveValue('smtp.example.com');
+    expect(screen.getByLabelText('Şifre')).toHaveValue('');
+    await user.type(screen.getByLabelText('Şifre'), 'new-secret');
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await screen.findByText('Ayarlar kaydedildi.');
+    const call = fetch.mock.calls.find(
+      ([url, init]) => String(url).endsWith('/ayarlar/smtp') && init?.method === 'POST',
+    )!;
+    expect(JSON.parse(String(call[1]?.body)).values.password).toBe('new-secret');
+  });
+  it('log ayrıntısında eski ve yeni değeri gösterir', async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      ...login,
+      'GET /api/hesap/loglar': () =>
+        jsonResponse(200, {
+          total: 1,
+          items: [
+            {
+              id: 1,
+              user: 'Yunus',
+              section: 'products',
+              action: 'Kaydet',
+              target: '3',
+              time: new Date().toISOString(),
+              status: 'Başarılı',
+              changes: [{ field: 'Ürün Adı', before: 'Eski Ürün', after: 'Yeni Ürün' }],
+            },
+          ],
+        }),
+    });
+    renderApp('/uygulama/loglar');
+    await user.click(await screen.findByRole('button', { name: 'Kaydet · #3' }));
+    const detail = screen.getByRole('dialog', { name: 'Ürünler · Kaydet' });
+    expect(within(detail).getByText('Eski Ürün')).toBeVisible();
+    expect(within(detail).getByText('Yeni Ürün')).toBeVisible();
+  });
+});

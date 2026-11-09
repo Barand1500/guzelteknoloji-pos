@@ -118,7 +118,7 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
   const current = product.imageUrls ?? [];
 
   return (
-    <Sheet
+    <Sheet permission="save"
       open
       onClose={onClose}
       size="lg"

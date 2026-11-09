@@ -336,6 +336,7 @@ describe('Oturum', () => {
       renderApp(path);
       await screen.findByRole('heading', { name: 'Yeni Stok Kartı' });
       expect(screen.queryByText(/Hesap paneli bir sonraki/)).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Profil Menüsü' }));
       await userEvent.click(screen.getByRole('button', { name: /Çıkış Yap/ }));
       expect(await screen.findByRole('heading', { name: optionsHeading })).toBeInTheDocument();
     },

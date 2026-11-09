@@ -1,6 +1,8 @@
 import { ArrowRight } from 'lucide-react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { Spinner } from './Spinner';
+import { useWorkspacePermission } from '../../features/workspace/workspace-context';
+import type { PermissionAction } from '@gt/shared';
 
 type Variant = 'primary' | 'outline' | 'ghost' | 'danger';
 
@@ -31,6 +33,7 @@ const variants: Record<Variant, VariantStyle> = {
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  permission?: PermissionAction;
   variant?: Variant;
   loading?: boolean;
   loadingLabel?: string;
@@ -59,10 +62,12 @@ export function Button({
   className = '',
   children,
   type = 'button',
+  permission,
   ...rest
 }: ButtonProps) {
   const style = variants[variant];
-  const inactive = Boolean(disabled) || loading;
+  const allowed = useWorkspacePermission(permission ?? 'read');
+  const inactive = Boolean(disabled) || loading || (permission !== undefined && !allowed);
   // Devre dışı/yükleniyor iken animasyon çalışmaz.
   const flowOn = (flow ?? variant !== 'ghost') && !inactive;
 

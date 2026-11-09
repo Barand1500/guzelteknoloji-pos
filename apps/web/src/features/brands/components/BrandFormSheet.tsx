@@ -65,7 +65,7 @@ export function BrandFormSheet({ brand, onSave, onClose, pickLogo = false }: Bra
   };
 
   return (
-    <Sheet open onClose={onClose} title={brand ? 'Markayı Düzenle' : 'Marka Ekle'} size="lg">
+    <Sheet permission="save" open onClose={onClose} title={brand ? 'Markayı Düzenle' : 'Marka Ekle'} size="lg">
       <div className="flex flex-col gap-5">
         {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <div className="grid gap-5 md:grid-cols-[15rem_minmax(0,1fr)]">

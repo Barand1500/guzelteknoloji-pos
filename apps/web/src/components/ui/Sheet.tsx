@@ -1,6 +1,8 @@
 import { X } from 'lucide-react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useWorkspacePermission } from '../../features/workspace/workspace-context';
+import type { PermissionAction } from '@gt/shared';
 
 /** Ana pencerenin yanında açılıp kapanan ikinci panel (masaüstünde yanda; telefonda alttan açılır). */
 export interface SheetAside {
@@ -25,6 +27,7 @@ interface SheetProps {
   /** İsteğe bağlı yan panel (ör. markanın ürünleri). Escape önce yan paneli kapatır. */
   aside?: SheetAside;
   children: ReactNode;
+  permission?: PermissionAction;
 }
 
 const FOCUSABLE =
@@ -46,7 +49,9 @@ export function Sheet({
   flush = false,
   aside,
   children,
+  permission,
 }: SheetProps) {
+  const allowed = useWorkspacePermission(permission ?? 'read');
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -203,7 +208,13 @@ export function Sheet({
                 : 'px-6 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]',
             ].join(' ')}
           >
-            {children}
+            {permission && !allowed ? (
+              <fieldset disabled className="m-0 min-w-0 border-0 p-0">
+                {children}
+              </fieldset>
+            ) : (
+              children
+            )}
           </div>
         </div>
 

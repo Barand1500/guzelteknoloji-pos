@@ -33,7 +33,7 @@ export function createStockRouter(
     const session = token ? await service.getSession(token) : null;
     if (!session)
       throw new HttpError(401, 'UNAUTHENTICATED', 'Stok kaydı için hesabınıza giriş yapın.');
-    res.locals.stockUserId = session.user.id;
+    res.locals.stockUserId = String(res.locals.workspace?.ownerId ?? session.user.id);
     res.set('Cache-Control', 'no-store');
     next();
   });

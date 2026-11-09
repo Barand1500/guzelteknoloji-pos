@@ -1,5 +1,8 @@
 import { useLayoutEffect } from 'react';
-import { Outlet } from 'react-router';
+import { Navigate, Outlet, useLocation } from 'react-router';
+import { WorkspaceProvider, useWorkspace, pageResource } from '../workspace/workspace-context';
+import { Alert } from '../../components/ui/Alert';
+import { Button } from '../../components/ui/Button';
 import { useTheme } from '../theme/ThemeProvider';
 import { Dock } from './Dock';
 import { TopBar } from './TopBar';
@@ -13,7 +16,19 @@ import { TopBar } from './TopBar';
  * (giriş ekranı) nitelik kaldırılır, giriş ekranı her zaman gündüz temasıdır.
  */
 export function AppShell() {
+  return (
+    <WorkspaceProvider>
+      <ShellContent />
+    </WorkspaceProvider>
+  );
+}
+function ShellContent() {
   const { mode } = useTheme();
+  const { data, loading, error, can, refresh } = useWorkspace();
+  const { pathname } = useLocation();
+  const resource = pageResource(pathname);
+  const blocked =
+    resource && !can(resource, pathname.endsWith('/stok-karti/yeni') ? 'save' : 'read');
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -28,7 +43,26 @@ export function AppShell() {
       <TopBar />
       {/* pb-32: alttaki yüzen çubuğun içeriği kapatmaması için boşluk */}
       <main className="mx-auto w-full max-w-[120rem] px-4 pt-5 pb-32 tablet:px-8 2xl:px-12">
-        <Outlet />
+        {!loading && data && pathname.endsWith('/stok-karti/yeni') && !can('products','save') ? <Navigate to={can('products')?'/uygulama/urunler':'/uygulama/profil'} replace /> : loading ? (
+          <p role="status" className="py-12 text-center text-ink-muted">
+            Yükleniyor…
+          </p>
+        ) : error ? (
+          <div className="mx-auto max-w-lg space-y-4">
+            <Alert tone="error">{error}</Alert>
+            <Button variant="outline" onClick={() => void refresh()}>
+              Tekrar Dene
+            </Button>
+          </div>
+        ) : blocked ? (
+          <div className="mx-auto max-w-lg">
+            <Alert tone="info">
+              Bu sayfayı görüntüleme yetkiniz yok. İşletme sahibinden erişim isteyebilirsiniz.
+            </Alert>
+          </div>
+        ) : data ? (
+          <Outlet />
+        ) : null}
       </main>
       <Dock />
     </div>
