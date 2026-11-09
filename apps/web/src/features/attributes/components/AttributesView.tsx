@@ -27,7 +27,7 @@ import { GroupFormSheet } from './GroupFormSheet';
 import { QuickAddBar } from './QuickAddBar';
 import { TemplateFormSheet } from './TemplateFormSheet';
 import { ValueFormSheet } from './ValueFormSheet';
-import { ValueTile } from './ValueTile';
+import { ValueTile, type ValuePatch } from './ValueTile';
 
 const fold = (s: string) => s.toLocaleLowerCase('tr');
 
@@ -56,7 +56,7 @@ function Tag({
 type FormState =
   | { type: 'template'; id: string | null }
   | { type: 'group'; id: string | null }
-  | { type: 'value'; id: string | null; pickImage?: boolean }
+  | { type: 'value'; id: string | null }
   | null;
 
 type Deleting =
@@ -179,6 +179,31 @@ export function AttributesView() {
       showNotice(editing ? `${draft.name} güncellendi.` : `${draft.name} eklendi.`);
     }, 'Kaydedilemedi.');
 
+  /** Çip üzerinde doğrudan değişiklik (ad/renk/resim): pencere açılmadan kaydedilir. */
+  const updateValue = async (v: AttrValue, patch: ValuePatch): Promise<string | null> => {
+    if (!group) return null;
+    if (
+      patch.name !== undefined &&
+      values.some((o) => o.id !== v.id && fold(o.name).trim() === fold(patch.name!).trim())
+    )
+      return 'Bu grupta aynı adda bir özellik zaten var.';
+    try {
+      await attrs.saveValue(
+        group.id,
+        {
+          code: v.code,
+          name: patch.name ?? v.name,
+          color: patch.color !== undefined ? patch.color : v.color,
+          imageUrl: patch.imageUrl !== undefined ? patch.imageUrl : v.imageUrl,
+        },
+        v.id,
+      );
+      return null;
+    } catch (error) {
+      return dataError(error);
+    }
+  };
+
   /** Hızlı giriş: adı yaz, Enter. Hata varsa mesaj döndürülür (kutu açık kalır). */
   const quickAdd = async (name: string, color: string | null): Promise<string | null> => {
     if (!group) return null;
@@ -239,8 +264,6 @@ export function AttributesView() {
     form?.type === 'template' && form.id ? (attrs.templateById.get(form.id) ?? null) : null;
   const editingGroup =
     form?.type === 'group' && form.id ? (attrs.groupById.get(form.id) ?? null) : null;
-  const editingValue =
-    form?.type === 'value' && form.id ? (attrs.values.find((v) => v.id === form.id) ?? null) : null;
 
   const rowCommon = (id: string) => ({
     phone,
@@ -396,8 +419,8 @@ export function AttributesView() {
             value={v}
             kind={group.kind}
             sortable={ctx}
-            onEdit={() => setForm({ type: 'value', id: v.id })}
-            onEditImage={() => setForm({ type: 'value', id: v.id, pickImage: true })}
+            onUpdate={(patch) => updateValue(v, patch)}
+            onDelete={() => setDeleting({ type: 'value', item: v })}
           />
         )}
       />
@@ -408,8 +431,8 @@ export function AttributesView() {
     ? 'Arama sırasında sıralama kapalıdır.'
     : level === 'values'
       ? phone
-        ? 'Dokununca düzenler · basılı tutup sürükleyerek sırala.'
-        : 'Dokununca düzenler · resme çift tıklayınca resim yüklenir · sıralamak için çipi tutup sürükleyin.'
+        ? 'Çift dokununca adı değişir · çöp kutusu siler · basılı tutup sürükleyerek sırala.'
+        : 'Çift tıklayınca ad (renk/resim) yerinde değişir · çöp kutusu siler · sıralamak için çipi tutup sürükleyin.'
       : phone
         ? 'Dokununca içine girilir · basılı tutup sürükleyerek sırala · sola kaydırınca işlemler.'
         : 'Tıklayınca içine girilir · sıralamak için ⠿ tutamağından sürükleyin.';
@@ -577,16 +600,11 @@ export function AttributesView() {
       ) : null}
       {form?.type === 'value' && group ? (
         <ValueFormSheet
-          key={form.id ?? 'yeni-ozellik'}
-          pickImage={form.pickImage === true}
+          key="yeni-ozellik"
           group={group}
-          value={editingValue}
-          takenNames={values.filter((v) => v.id !== editingValue?.id).map((v) => v.name)}
+          takenNames={values.map((v) => v.name)}
           onSave={saveValue}
           saveError={attrs.error}
-          {...(editingValue
-            ? { onDelete: () => setDeleting({ type: 'value', item: editingValue }) }
-            : {})}
           onClose={() => setForm(null)}
         />
       ) : null}
