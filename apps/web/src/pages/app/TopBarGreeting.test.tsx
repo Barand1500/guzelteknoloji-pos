@@ -40,8 +40,8 @@ describe('Üst çubuk selamlaması', () => {
     sessionStorage.setItem('gt-dev-access', '1');
     mockFetch(anonymousRoutes);
     renderApp('/uygulama/stok-karti/yeni');
-    const hello = await screen.findByText('Günaydın');
-    expect(hello).toHaveTextContent('Günaydın Test Kullanıcısı');
+    const hello = await screen.findByText(/^Günaydın/);
+    expect(hello).toHaveTextContent('Günaydın, Test Kullanıcısı');
 
     const theme = screen.getByRole('button', { name: 'Gece Moduna Geç' });
     const logout = screen.getByRole('button', { name: 'Çıkış Yap' });
@@ -54,11 +54,11 @@ describe('Üst çubuk selamlaması', () => {
     [14, 'Tünaydın'],
     [20, 'İyi Akşamlar'],
     [23, 'İyi Geceler'],
-  ])('gerçek hesapta saat %i: "%s Baran" (görünen adın ilk sözcüğü)', async (hour, hello) => {
+  ])('gerçek hesapta saat %i: "%s, Baran" (görünen adın ilk sözcüğü)', async (hour, hello) => {
     atHour(hour);
     mockFetch(loggedIn('Baran Demir'));
     renderApp('/uygulama/stok-karti/yeni');
-    expect(await screen.findByText(hello)).toHaveTextContent(`${hello} Baran`);
+    expect(await screen.findByText(new RegExp(`^${hello}`))).toHaveTextContent(`${hello}, Baran`);
   });
 
   it('görünen ad ve kullanılabilir e-posta adı yoksa yalnızca selamlama yazar', async () => {
@@ -75,7 +75,7 @@ describe('Üst çubuk selamlaması', () => {
     sessionStorage.setItem('gt-dev-access', '1');
     mockFetch(anonymousRoutes);
     renderApp('/uygulama/stok-karti/yeni');
-    const hello = await screen.findByText('Günaydın');
+    const hello = await screen.findByText(/^Günaydın/);
     const title = screen.getByRole('heading', { level: 1 });
     // Başlıkla aynı kapta (sağ kenardaki düğmelerin arasında değil).
     expect(title.parentElement).toContainElement(hello);

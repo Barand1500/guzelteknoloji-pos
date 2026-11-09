@@ -4,11 +4,9 @@ import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import { stockErrorMessage } from '../../stock/services/stock.service';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
-import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
 import { SortableList } from '../../../components/ui/SortableList';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
-import { usePagination } from '../../../lib/usePagination';
 import { useBrands } from '../hooks/useBrands';
 import type { Brand, BrandDraft } from '../types';
 import { BrandFormSheet } from './BrandFormSheet';
@@ -21,11 +19,11 @@ const fold = (s: string) => s.toLocaleLowerCase('tr');
  * Marka penceresi durumu: kapalı / yeni marka (brandId yok) / mevcut marka düzenleme. Marka her
  * zaman güncel listeden okunur (ürün ekleyip çıkarınca sayısı canlı değişsin diye).
  */
-type FormState = { brandId: string | null } | null;
+type FormState = { brandId: string | null; pickLogo?: boolean } | null;
 
 /**
  * Markalar ekranı. Telefonda satırlar sola kaydırınca işlem gösterir ve basılı tutup sürükleyerek
- * sıralanır; masaüstünde satırın içinde düğmeler ve ⠿ tutamağı vardır. Liste sayfalıdır.
+ * sıralanır; masaüstünde satırın içinde düğmeler ve ⠿ tutamağı vardır. Liste sayfalı DEĞİLDİR (tüm markalar tek listede).
  * Sıra, mağazada markaların gösterim sırasıdır (arama sırasında sıralama kapalıdır).
  */
 export function BrandsView() {
@@ -76,8 +74,6 @@ export function BrandsView() {
   const visible = searching
     ? brands.filter((b) => fold(b.name).includes(fold(query.trim())))
     : brands;
-  // Sayfalama: arama sonucu üzerinden; adet kutusundan kullanıcı değiştirir (varsayılan 10).
-  const paging = usePagination(visible, 10);
   const brandNames = Object.fromEntries(brands.map((b) => [b.id, b.name]));
 
   const editingBrand = form?.brandId ? (brands.find((b) => b.id === form.brandId) ?? null) : null;
@@ -120,10 +116,7 @@ export function BrandsView() {
           <div className="min-w-0 flex-1">
             <SearchField
               value={query}
-              onChange={(text) => {
-                setQuery(text);
-                paging.setPage(1);
-              }}
+              onChange={setQuery}
               label="Marka ara"
               placeholder="Marka ara…"
             />
@@ -174,19 +167,12 @@ export function BrandsView() {
         ) : (
           <SortableList
             label="Markalar"
-            items={paging.pageItems}
+            items={visible}
             getId={(b) => b.id}
             getLabel={(b) => b.name}
             disabled={searching || busy}
             onDragStart={() => setSwipeOpenId(null)}
-            // Sürükleme geçerli sayfa içindedir; sıra tüm listeye yansıtılır.
-            onReorder={(nextPage) =>
-              reorder([
-                ...brands.slice(0, paging.start),
-                ...nextPage,
-                ...brands.slice(paging.start + nextPage.length),
-              ])
-            }
+            onReorder={reorder}
             renderItem={(brand, ctx) => (
               <BrandRow
                 brand={brand}
@@ -198,6 +184,10 @@ export function BrandsView() {
                 onEdit={() => {
                   setSwipeOpenId(null);
                   setForm({ brandId: brand.id });
+                }}
+                onEditLogo={() => {
+                  setSwipeOpenId(null);
+                  setForm({ brandId: brand.id, pickLogo: true });
                 }}
                 onAssign={() => {
                   setSwipeOpenId(null);
@@ -212,24 +202,6 @@ export function BrandsView() {
             )}
           />
         )}
-
-        {/* Sayfalama: adedi kullanıcı yazar (varsayılan 10) */}
-        {!loading && visible.length > 0 ? (
-          <PaginationBar
-            noun="marka"
-            total={paging.total}
-            from={paging.from}
-            to={paging.to}
-            page={paging.page}
-            pageCount={paging.pageCount}
-            onPageChange={(p) => {
-              setSwipeOpenId(null);
-              paging.setPage(p);
-            }}
-            sizeText={paging.sizeText}
-            onSizeTextChange={paging.setSizeText}
-          />
-        ) : null}
       </div>
 
       {/* Telefon: yüzen ekleme düğmesi (alt çubuğun üstünde) */}
@@ -257,11 +229,9 @@ export function BrandsView() {
         <BrandFormSheet
           key={form.brandId ?? 'yeni'}
           brand={editingBrand}
-          brandNames={brandNames}
           onSave={saveBrand}
-          onAssign={assign}
-          onUnassign={unassign}
           onClose={() => setForm(null)}
+          pickLogo={form.pickLogo === true}
         />
       ) : null}
       {productsBrand ? (

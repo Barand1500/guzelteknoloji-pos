@@ -1,5 +1,5 @@
 import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
-import { useRef, useState, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { Alert } from '../../../components/ui/Alert';
 
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -14,6 +14,8 @@ interface LogoPickerProps {
   noun?: string;
   /** Boş alandaki ipucu (önerilen oran). */
   hint?: string;
+  /** true: bileşen ilk çizildiğinde dosya seçici hemen açılır. */
+  autoPick?: boolean;
 }
 
 /**
@@ -27,8 +29,21 @@ export function LogoPicker({
   onChange,
   noun = 'Logo',
   hint = '800×230 oranı önerilir',
+  autoPick = false,
 }: LogoPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // Yalnızca bir kez (geliştirme modunda efekt iki kez çalışsa bile tek pencere açılır).
+  const picked = useRef(false);
+  useEffect(() => {
+    if (!autoPick || picked.current) return;
+    picked.current = true;
+    // Tarayıcı kullanıcı etkileşimi dışında seçici açmayı engellerse sessizce vazgeçilir.
+    try {
+      inputRef.current?.click();
+    } catch {
+      /* Kullanıcı "Logo Ekle"ye kendisi basar. */
+    }
+  }, [autoPick]);
   const sequence = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [over, setOver] = useState(false);

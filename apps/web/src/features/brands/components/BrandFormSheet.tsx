@@ -1,43 +1,32 @@
-import { Boxes, ChevronDown, ChevronRight } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import { stockErrorMessage } from '../../stock/services/stock.service';
 import { Sheet } from '../../../components/ui/Sheet';
-import { Switch } from '../../../components/ui/Switch';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
 import { TextField } from '../../../components/ui/TextField';
 import { emptyBrandDraft, type Brand, type BrandDraft } from '../types';
-import { BrandProductsPanel } from './BrandProductsPanel';
 import { LogoPicker } from './LogoPicker';
 
 interface BrandFormSheetProps {
   /** Düzenlenen marka (güncel ürün sayısıyla); yoksa yeni marka eklenir. */
   brand: Brand | null;
-  brandNames: Record<string, string>;
   onSave: (draft: BrandDraft) => Promise<void>;
-  onAssign: (brandId: string, productIds: string[]) => Promise<void>;
-  onUnassign: (brandId: string, productIds: string[]) => Promise<void>;
   onClose: () => void;
+  /** true: pencere açılınca logo dosya seçici hemen açılır (listede logoya çift tıklanınca). */
+  pickLogo?: boolean;
 }
 
 const NAME_REQUIRED = 'Marka adı gerekli.';
 
 /**
  * Marka ekleme/düzenleme paneli (telefonda alttan açılır). Gerekli olan tek alan marka adıdır;
- * açıklama ve SEO "Gelişmiş" altında katlıdır. Her açılışta yeniden kurulur (key ile).
+ * adın altında açıklama durur, SEO "Gelişmiş" altında katlıdır. Aktif/pasif anahtarı ve ürünler
+ * burada yoktur: aktiflik listedeki anahtardan, ürünler satırdaki "Ürünler" işleminden yönetilir.
+ * Her açılışta yeniden kurulur (key ile).
  */
-export function BrandFormSheet({
-  brand,
-  brandNames,
-  onSave,
-  onAssign,
-  onUnassign,
-  onClose,
-}: BrandFormSheetProps) {
-  // Yan panel (markanın ürünleri): yalnızca kayıtlı markalarda vardır; açılıp kapanır.
-  const [panelOpen, setPanelOpen] = useState(false);
-  const productsButton = useRef<HTMLButtonElement>(null);
+export function BrandFormSheet({ brand, onSave, onClose, pickLogo = false }: BrandFormSheetProps) {
   const [draft, setDraft] = useState<BrandDraft>(() =>
     brand
       ? {
@@ -76,34 +65,7 @@ export function BrandFormSheet({
   };
 
   return (
-    <Sheet
-      open
-      onClose={onClose}
-      title={brand ? 'Markayı Düzenle' : 'Marka Ekle'}
-      size="lg"
-      aside={
-        brand
-          ? {
-              title: `${brand.name} · Ürünler`,
-              subtitle: `${brand.productCount} ürün bu markada`,
-              open: panelOpen,
-              side: 'right',
-              onClose: () => {
-                setPanelOpen(false);
-                productsButton.current?.focus();
-              },
-              children: (
-                <BrandProductsPanel
-                  brand={brand}
-                  brandNames={brandNames}
-                  onAssign={onAssign}
-                  onUnassign={onUnassign}
-                />
-              ),
-            }
-          : undefined
-      }
-    >
+    <Sheet open onClose={onClose} title={brand ? 'Markayı Düzenle' : 'Marka Ekle'} size="lg">
       <div className="flex flex-col gap-5">
         {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <div className="grid gap-5 md:grid-cols-[15rem_minmax(0,1fr)]">
@@ -111,6 +73,7 @@ export function BrandFormSheet({
             value={draft.logoUrl}
             name={draft.name}
             onChange={(url) => set('logoUrl', url)}
+            autoPick={pickLogo}
           />
           <div className="flex flex-col gap-4">
             <TextField
@@ -123,33 +86,12 @@ export function BrandFormSheet({
                 setNameError(undefined);
               }}
             />
-            <Switch label="Aktif" checked={draft.active} onChange={(v) => set('active', v)} />
-            {brand ? (
-              <button
-                ref={productsButton}
-                type="button"
-                onClick={() => setPanelOpen((v) => !v)}
-                aria-expanded={panelOpen}
-                className={[
-                  'flex min-h-14 items-center gap-3 rounded-control border px-4 text-left transition-colors',
-                  panelOpen
-                    ? 'border-brand-600 bg-brand-50 text-brand-ink'
-                    : 'border-field-border hover:border-brand-500',
-                ].join(' ')}
-              >
-                <Boxes className="size-5 shrink-0" aria-hidden="true" />
-                <span className="flex-1 font-semibold">
-                  Ürünler
-                  <span className="ml-2 rounded-full bg-surface-muted px-2.5 py-0.5 text-sm text-ink-muted">
-                    {brand.productCount}
-                  </span>
-                </span>
-                <ChevronRight
-                  className={`size-5 shrink-0 transition-transform ${panelOpen ? 'rotate-180' : ''}`}
-                  aria-hidden="true"
-                />
-              </button>
-            ) : null}
+            <TextAreaField
+              label="Açıklama"
+              maxLength={10000}
+              value={draft.description}
+              onChange={(e) => set('description', e.target.value)}
+            />
           </div>
         </div>
 
@@ -159,7 +101,7 @@ export function BrandFormSheet({
           aria-expanded={advancedOpen}
           className="inline-flex min-h-11 items-center gap-2 self-start rounded-full px-1 text-sm font-semibold text-brand-ink"
         >
-          Gelişmiş: Açıklama ve SEO
+          Gelişmiş: SEO
           <ChevronDown
             className={`size-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`}
             aria-hidden="true"
@@ -167,12 +109,6 @@ export function BrandFormSheet({
         </button>
         {advancedOpen ? (
           <div className="flex animate-fade-in flex-col gap-4">
-            <TextAreaField
-              label="Açıklama"
-              maxLength={10000}
-              value={draft.description}
-              onChange={(e) => set('description', e.target.value)}
-            />
             <TextField
               label="SEO Başlığı"
               maxLength={250}

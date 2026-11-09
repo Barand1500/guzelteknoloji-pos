@@ -15,6 +15,8 @@ interface BrandRowProps {
   swipeOpen: boolean;
   onSwipeOpenChange: (open: boolean) => void;
   onEdit: () => void;
+  /** Logoya çift tıklama: düzenleme penceresi logo seçici açık olarak gelir. */
+  onEditLogo: () => void;
   onAssign: () => void;
   onDelete: () => void;
   onToggle: (active: boolean) => void;
@@ -22,7 +24,8 @@ interface BrandRowProps {
 
 const ACTION_WIDTH = 68;
 
-const subtitle = (brand: Brand) => `${brand.productCount} ürün${brand.active ? '' : ' · Pasif'}`;
+/** Alt yazı: ürün sayısı gösterilmez; yalnızca pasif markalar "Pasif" etiketi alır. */
+const subtitle = (brand: Brand) => (brand.active ? '' : 'Pasif');
 
 /** Telefonda bir marka satırı: logo, ad, ürün sayısı, anahtar; sola kaydırınca işlemler. */
 function PhoneRow({
@@ -89,7 +92,9 @@ function PhoneRow({
             <BrandLogo brand={brand} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-base font-bold">{brand.name}</span>
-              <span className="block truncate text-sm text-ink-muted">{subtitle(brand)}</span>
+              {subtitle(brand) ? (
+                <span className="block truncate text-sm text-ink-muted">{subtitle(brand)}</span>
+              ) : null}
             </span>
           </div>
           <ToggleSwitch label={`${brand.name} aktif`} checked={brand.active} onChange={onToggle} />
@@ -105,6 +110,7 @@ function WideRow({
   sortable,
   sortingDisabled,
   onEdit,
+  onEditLogo,
   onAssign,
   onDelete,
   onToggle,
@@ -144,7 +150,17 @@ function WideRow({
         }}
         className={`flex min-w-0 flex-1 cursor-pointer items-center gap-4 rounded-2xl select-none ${brand.active ? '' : 'opacity-50'}`}
       >
-        <BrandLogo brand={brand} size="lg" />
+        {/* Logoya çift tıklama: yalnızca logo yükleme açılır (satırın çift tıklaması düzenlemeyi açar). */}
+        <span
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onEditLogo();
+          }}
+          title="Logoyu değiştirmek için çift tıklayın"
+          className="shrink-0"
+        >
+          <BrandLogo brand={brand} size="lg" />
+        </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-lg font-bold">{brand.name}</p>
           <p className="truncate text-sm text-ink-muted">
@@ -152,9 +168,6 @@ function WideRow({
           </p>
         </div>
       </div>
-      <span className="hidden shrink-0 rounded-full bg-surface-muted px-3 py-1 text-sm font-semibold text-ink-muted sm:inline">
-        {brand.productCount} ürün
-      </span>
       <ToggleSwitch label={`${brand.name} aktif`} checked={brand.active} onChange={onToggle} />
       <div className="flex shrink-0 items-center">
         <button

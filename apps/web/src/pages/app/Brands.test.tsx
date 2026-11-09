@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { demoBrandService as brandService } from '../../features/brands/services/brand.demo';
@@ -25,11 +25,11 @@ afterEach(() => {
 });
 
 describe('Markalar ekranı (masaüstü)', () => {
-  it('markaları sırayla ve ürün sayılarıyla listeler', async () => {
+  it('markaları sırayla listeler; satırda "N ürün" yazısı yoktur', async () => {
     await openBrands();
     expect(names().slice(0, 3)).toEqual(['alatel', 'anypay', 'asys']);
     const row = screen.getByRole('switch', { name: 'ASYS aktif' }).closest('li')!;
-    expect(within(row).getByText('2 ürün')).toBeInTheDocument();
+    expect(within(row).queryByText(/\d+ ürün/)).not.toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'BMX aktif' })).not.toBeChecked();
   });
 
@@ -72,8 +72,6 @@ describe('Markalar ekranı (masaüstü)', () => {
     await user.type(within(dialog).getByLabelText('Marka Adı'), 'Yeni Marka');
     await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('Yeni Marka eklendi.')).toBeInTheDocument();
-    // 11. marka olduğu için 2. sayfadadır.
-    await user.click(screen.getByRole('button', { name: 'Sonraki sayfa' }));
     expect(screen.getByRole('switch', { name: 'Yeni Marka aktif' })).toBeInTheDocument();
     expect(names().at(-1)).toMatch(/^yeni-/);
   });
@@ -125,69 +123,40 @@ describe('Markalar ekranı (masaüstü)', () => {
     expect(await screen.findByRole('dialog', { name: 'Markayı Düzenle' })).toBeInTheDocument();
   });
 
-  it('marka penceresinin yanında Ürünler paneli açılıp kapanır; seçip ekleme, çıkarma ve geri alma', async () => {
+  it('marka formunda Aktif anahtarı ve Ürünler düğmesi yoktur; açıklama adın altındadır, SEO katlıdır', async () => {
     const user = await openBrands();
     await user.dblClick(screen.getByRole('button', { name: 'ANYPAY markasını düzenle' }));
-    const main = await screen.findByRole('dialog', { name: 'Markayı Düzenle' });
-    // Yan panel başta kapalı; düğmede ürün sayısı görünür
-    expect(screen.queryByRole('dialog', { name: 'ANYPAY · Ürünler' })).not.toBeInTheDocument();
-    const toggle = within(main).getByRole('button', { name: /Ürünler/ });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(toggle).toHaveTextContent('0');
-
-    await user.click(toggle);
-    const side = await screen.findByRole('dialog', { name: 'ANYPAY · Ürünler' });
-    // Yan panel ana pencerenin SAĞINDA (DOM'da ondan sonra) açılır
-    expect(main.compareDocumentPosition(side) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    expect(await within(side).findByText('Bu markada henüz ürün yok.')).toBeInTheDocument();
-
-    // Ürün Ekle: varsayılan süzgeç "Markasız" (4 ürün); kartlara dokunarak çoklu seçilir
-    await user.click(within(side).getByRole('tab', { name: 'Ürün Ekle' }));
-    expect(within(side).getByRole('radio', { name: 'Markasız (4)' })).toBeChecked();
-    expect(within(side).queryByRole('button', { name: 'Ekle' })).not.toBeInTheDocument();
-    await user.type(
-      within(side).getByRole('searchbox', { name: 'Eklenecek ürünü ara' }),
-      'standart',
-    );
-    const card = within(side).getByRole('checkbox', {
-      name: 'USB Barkod Okuyucu Standart ürününü seç',
-    });
-    await user.click(card);
-    expect(card).toBeChecked();
-    expect(within(side).getByText('1 ürün seçili')).toBeInTheDocument();
-    // Seçim tek başına eklemez; "Ekle" ile eklenir ve "Bu Markada" sekmesine geçilir
-    await user.click(within(side).getByRole('button', { name: 'Ekle' }));
-    await waitFor(() =>
-      expect(within(side).getByRole('tab', { name: 'Bu Markada (1)' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      ),
-    );
-    // Marka formundaki sayı, liste yenilenince canlı güncellenir.
-    await waitFor(() =>
-      expect(within(main).getByRole('button', { name: /Ürünler/ })).toHaveTextContent('1'),
-    );
-
-    // Çıkar → "Geri Al" çubuğu → geri al
-    await user.click(
-      within(side).getByRole('button', {
-        name: 'USB Barkod Okuyucu Standart ürününü markadan çıkar',
-      }),
-    );
-    expect(within(side).getByText('Bu markada henüz ürün yok.')).toBeInTheDocument();
-    expect(
-      await within(side).findByText('USB Barkod Okuyucu Standart çıkarıldı'),
-    ).toBeInTheDocument();
-    await user.click(within(side).getByRole('button', { name: 'Geri Al' }));
-    expect(within(side).getByRole('tab', { name: 'Bu Markada (1)' })).toBeInTheDocument();
-
-    // Esc önce yan paneli kapatır, sonra pencereyi
+    const dialog = await screen.findByRole('dialog', { name: 'Markayı Düzenle' });
+    expect(within(dialog).queryByRole('switch')).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /Ürünler/ })).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Açıklama')).toBeInTheDocument();
+    // SEO alanları "Gelişmiş: SEO" altında katlıdır.
+    expect(within(dialog).queryByLabelText('SEO Başlığı')).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /Gelişmiş: SEO/ }));
+    expect(within(dialog).getByLabelText('SEO Başlığı')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('SEO Açıklaması')).toBeInTheDocument();
+    // Marka Ekle penceresi de aynı düzendedir.
     await user.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog', { name: 'ANYPAY · Ürünler' })).not.toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: 'Markayı Düzenle' })).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: 'Marka Ekle' })[0]!);
+    const add = await screen.findByRole('dialog', { name: 'Marka Ekle' });
+    expect(within(add).queryByRole('switch')).not.toBeInTheDocument();
+    expect(within(add).getByLabelText('Açıklama')).toBeInTheDocument();
+  });
+
+  it('logoya çift tıklayınca düzenleme açılır ve logo seçici hemen çalışır; satıra çift tıklama yalnızca düzenler', async () => {
+    const click = vi.spyOn(HTMLInputElement.prototype, 'click');
+    const user = await openBrands();
+    const row = screen.getByRole('button', { name: 'ANYPAY markasını düzenle' });
+    // Satıra (ada) çift tıklama: logo seçici açılmaz.
+    await user.dblClick(within(row).getByText('ANYPAY'));
+    await screen.findByRole('dialog', { name: 'Markayı Düzenle' });
+    expect(click).not.toHaveBeenCalled();
     await user.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // Logoya çift tıklama: dosya seçici açılır.
+    await user.dblClick(within(row).getByTitle('Logoyu değiştirmek için çift tıklayın'));
+    await screen.findByRole('dialog', { name: 'Markayı Düzenle' });
+    expect(click).toHaveBeenCalled();
+    click.mockRestore();
   });
 
   it('satırdaki Ürünler düğmesi yalnızca ürünler penceresini açar (düzenleme formu gelmez); toplu ekleme sayıyı günceller', async () => {
@@ -197,7 +166,11 @@ describe('Markalar ekranı (masaüstü)', () => {
     // Düzenleme formu açılmaz
     expect(screen.queryByRole('dialog', { name: 'Markayı Düzenle' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Marka Adı')).not.toBeInTheDocument();
-    await user.click(within(side).getByRole('tab', { name: 'Ürün Ekle' }));
+    // Doğrudan "Ürün Ekle" sekmesinde açılır.
+    expect(within(side).getByRole('tab', { name: 'Ürün Ekle' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     await within(side).findByRole('radio', { name: 'Markasız (4)' });
     // Başka markadaki ürünler "taşınır" notuyla görünür
     await user.click(within(side).getByRole('radio', { name: 'Başka Marka (12)' }));
@@ -210,74 +183,19 @@ describe('Markalar ekranı (masaüstü)', () => {
     expect(within(side).getByRole('tab', { name: 'Bu Markada (4)' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    const row = screen.getByRole('switch', { name: 'ANYPAY aktif' }).closest('li')!;
-    expect(await within(row).findByText('4 ürün')).toBeInTheDocument();
   });
 
-  it('sayfalama: varsayılan 10, kullanıcı adedi yazar; sayfalar arası geçilir', async () => {
-    const user = await openBrands();
-    // Varsayılan 10 → 10 marka tek sayfada, sayfa düğmeleri yok
-    expect(screen.getByLabelText('Sayfada Kaç Marka')).toHaveValue('10');
-    expect(names()).toHaveLength(10);
+  it('sayfalama yoktur: tüm markalar tek listede görünür', async () => {
+    await openBrands();
+    expect(screen.queryByLabelText('Sayfada Kaç Marka')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sonraki sayfa' })).not.toBeInTheDocument();
-
-    const size = screen.getByLabelText('Sayfada Kaç Marka');
-    await user.clear(size);
-    await user.type(size, '4');
-    expect(names()).toEqual(['alatel', 'anypay', 'asys', 'banknotemaster']);
-    expect(screen.getByText('1–4')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Önceki sayfa' })).toBeDisabled();
-
-    await user.click(screen.getByRole('button', { name: 'Sonraki sayfa' }));
-    expect(names()).toEqual(['bmt', 'bmx', 'bng-plus', 'cas']);
-    expect(screen.getByRole('button', { name: 'Sayfa 2' })).toHaveAttribute('aria-current', 'page');
-    await user.click(screen.getByRole('button', { name: 'Sayfa 3' }));
-    expect(names()).toEqual(['flexypos', 'idata']);
-    expect(screen.getByRole('button', { name: 'Sonraki sayfa' })).toBeDisabled();
-
-    // Rakam dışı karakter yazılamaz
-    await user.clear(size);
-    await user.type(size, 'a2b');
-    expect(size).toHaveValue('2');
+    expect(names().length).toBeGreaterThanOrEqual(10);
   });
 
-  it('sayfalarda sürükleme (klavye) tüm listedeki sıraya doğru yansır', async () => {
+  it('arama tüm listede çalışır', async () => {
     const user = await openBrands();
-    const size = screen.getByLabelText('Sayfada Kaç Marka');
-    await user.clear(size);
-    await user.type(size, '3');
-    await user.click(screen.getByRole('button', { name: 'Sonraki sayfa' }));
-    expect(names()).toEqual(['banknotemaster', 'bmt', 'bmx']);
-    screen.getByRole('button', { name: /^BMT sırasını değiştir/ }).focus();
-    await user.keyboard('{ArrowUp}');
-    expect(names()).toEqual(['bmt', 'banknotemaster', 'bmx']);
-    // Adedi artırınca tüm sıra görünür: 1. sayfa bozulmamış, 2. sayfadaki değişiklik kalıcı
-    await user.clear(size);
-    await user.type(size, '10');
-    expect(names()).toEqual([
-      'alatel',
-      'anypay',
-      'asys',
-      'bmt',
-      'banknotemaster',
-      'bmx',
-      'bng-plus',
-      'cas',
-      'flexypos',
-      'idata',
-    ]);
-  });
-
-  it('arama sonuçları da sayfalanır ve aramada ilk sayfaya dönülür', async () => {
-    const user = await openBrands();
-    const size = screen.getByLabelText('Sayfada Kaç Marka');
-    await user.clear(size);
-    await user.type(size, '1');
-    await user.click(screen.getByRole('button', { name: 'Sonraki sayfa' }));
     await user.type(screen.getByRole('searchbox', { name: 'Marka ara' }), 'as');
-    // as → ASYS, BANKNOTEMASTER, CAS (3 sonuç, sayfada 1): ilk sayfa
-    expect(names()).toEqual(['asys']);
-    expect(screen.getByText('1–1')).toBeInTheDocument();
+    expect(names()).toEqual(['asys', 'banknotemaster', 'cas']);
   });
 
   it('pasif yapılan marka stok kartındaki marka listesinde görünmez', async () => {

@@ -29,7 +29,7 @@ export function Greeting({ name, className = '' }: GreetingProps) {
   const Icon = ICONS[period];
   return (
     <p className={`flex min-w-0 items-center gap-1.5 font-semibold text-ink-muted ${className}`}>
-      <Icon className="size-[1.2em] shrink-0 text-accent-ink" aria-hidden="true" />
+      <Icon className="size-[1.2em] shrink-0 text-accent" aria-hidden="true" />
       <span className="min-w-0 truncate">
         {name ? (
           <>
