@@ -27,6 +27,7 @@ interface UnitCardProps extends UnitPartProps {
 /**
  * Bir birim satırı = tek bir kart (masaüstü). Aynı parçalar telefonda ayrı sekmelerde
  * (Fiyat / Barkod / Ölçü) tek tek gösterilir; bu yüzden parçalar ayrı bileşenlerdir.
+ * Masaüstünde barkod (tür + barkod tek bir giriş grubu) birim ve çarpanın yanındaki üst satırdadır.
  */
 export function UnitCard({ onRemove, ...part }: UnitCardProps) {
   return (
@@ -34,29 +35,35 @@ export function UnitCard({ onRemove, ...part }: UnitCardProps) {
       aria-label={`${part.index + 1}. birim`}
       className="relative animate-rise-in rounded-3xl border border-line p-4 focus-within:z-20 tablet:p-5"
     >
-      <UnitHeaderFields {...part} onRemove={onRemove} />
+      <UnitHeaderFields {...part} onRemove={onRemove} withBarcode />
       <div className="mt-4">
         <UnitPriceFields {...part} />
       </div>
-      {/* Barkod kendi satırında; altında ağırlık, desi ve açıklama yan yana (alanlar rahat sığsın diye) */}
-      <div className="mt-4 flex flex-col gap-4">
-        <UnitBarcodeField {...part} />
+      {/* Ağırlık ve hacim yan yana */}
+      <div className="mt-4">
         <UnitMeasureFields {...part} />
       </div>
     </article>
   );
 }
 
-/** Birim, çarpan, Ana/Varsayılan işaretleri ve silme. */
+/**
+ * Birim, çarpan, (isteğe bağlı) barkod giriş grubu, Ana/Varsayılan işaretleri ve silme.
+ * `withBarcode` yalnızca masaüstü kartında açıktır; telefonda barkod kendi sekmesindedir.
+ */
 export function UnitHeaderFields({
   row,
   index,
+  lookups,
   units,
   onChange,
   onRemove,
-}: Pick<UnitPartProps, 'row' | 'index' | 'units' | 'onChange'> & {
-  onRemove?: (() => void) | undefined;
-}) {
+  withBarcode = false,
+}: Pick<UnitPartProps, 'row' | 'index' | 'units' | 'onChange'> &
+  Partial<Pick<UnitPartProps, 'lookups'>> & {
+    onRemove?: (() => void) | undefined;
+    withBarcode?: boolean;
+  }) {
   return (
     <div className="flex flex-wrap items-start gap-3">
       <div className="min-w-0 flex-1 basis-28 sm:max-w-56">
@@ -92,6 +99,18 @@ export function UnitHeaderFields({
           onChange={(e) => onChange({ multiplier: e.target.value })}
         />
       </div>
+
+      {withBarcode && lookups ? (
+        <div className="min-w-72 flex-[3] basis-80">
+          <UnitBarcodeField
+            row={row}
+            index={index}
+            lookups={lookups}
+            units={units}
+            onChange={onChange}
+          />
+        </div>
+      ) : null}
 
       <div className="ml-auto flex flex-wrap items-center gap-2 pt-1.5">
         <ToggleChip
@@ -147,14 +166,14 @@ export function UnitBarcodeField({ row, lookups, onChange }: UnitPartProps) {
   );
 }
 
-/** Ağırlık (kg/g), desi ve açıklama; hesaplayıcılar alanın içindeki ikondan açılır. */
+/** Ağırlık (kg/g) ve hacim (desi); hesaplayıcılar alanın içindeki ikondan açılır. */
 export function UnitMeasureFields({ row, onChange }: Pick<UnitPartProps, 'row' | 'onChange'>) {
   // Hangi hesaplayıcı açık: ağırlık / hacim (aynı anda biri).
   const [calc, setCalc] = useState<'weight' | 'volume' | null>(null);
   const weightAnchor = useRef<HTMLDivElement>(null);
   const volumeAnchor = useRef<HTMLDivElement>(null);
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2">
       <div ref={weightAnchor} className="relative">
         <TextField
           label="Ağırlık"
@@ -203,13 +222,6 @@ export function UnitMeasureFields({ row, onChange }: Pick<UnitPartProps, 'row' |
             onClose={() => setCalc(null)}
           />
         ) : null}
-      </div>
-      <div>
-        <TextField
-          label="Birim Açıklama"
-          value={row.note}
-          onChange={(e) => onChange({ note: e.target.value })}
-        />
       </div>
     </div>
   );

@@ -173,7 +173,7 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
     await screen.findByLabelText('Ürün Adı');
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
 
     const list = await productService.list();
     expect(list).toHaveLength(17);

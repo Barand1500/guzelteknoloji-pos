@@ -19,7 +19,7 @@ interface SheetProps {
   title: string;
   description?: string;
   /** md: dar (iletişim kartları gibi), lg: geniş (gömülü form gibi). */
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'xl';
   /** İçerik alanının dolgusunu kaldırır (iframe gibi kenara dayanan içerik için). */
   flush?: boolean;
   /** İsteğe bağlı yan panel (ör. markanın ürünleri). Escape önce yan paneli kapatır. */
@@ -164,9 +164,11 @@ export function Sheet({
           className={[
             'animate-sheet-in relative flex w-full min-w-0 flex-col overflow-hidden',
             'rounded-t-panel bg-surface-raised shadow-card md:flex-1 md:rounded-panel',
-            size === 'lg'
-              ? 'max-h-[min(94dvh,56rem)] md:max-w-2xl'
-              : 'max-h-[min(90dvh,40rem)] md:max-w-md',
+            size === 'xl'
+              ? 'max-h-[min(94dvh,60rem)] md:max-w-4xl'
+              : size === 'lg'
+                ? 'max-h-[min(94dvh,56rem)] md:max-w-2xl'
+                : 'max-h-[min(90dvh,40rem)] md:max-w-md',
           ].join(' ')}
         >
           <div

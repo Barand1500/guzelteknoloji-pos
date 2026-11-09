@@ -9,6 +9,14 @@ export function greetingFor(hour: number): string {
   return 'İyi Geceler';
 }
 
+/** Gün dilimi (selamlamadaki simgeyi seçer). */
+export function greetingPeriod(hour: number): 'sabah' | 'gunduz' | 'aksam' | 'gece' {
+  if (hour >= 5 && hour < 12) return 'sabah';
+  if (hour >= 12 && hour < 18) return 'gunduz';
+  if (hour >= 18 && hour < 22) return 'aksam';
+  return 'gece';
+}
+
 interface Named {
   displayName?: string | null;
   email?: string | null;

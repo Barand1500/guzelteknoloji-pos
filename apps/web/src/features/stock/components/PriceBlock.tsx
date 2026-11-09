@@ -2,7 +2,6 @@ import { Segmented } from '../../../components/ui/Segmented';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import { blockTotals, formatMoney } from '../stock.calc';
-import { ExtraPrices } from './ExtraPrices';
 import type { PriceBlockData, StockLookups } from '../types';
 
 interface PriceBlockProps {
@@ -32,7 +31,7 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
           {title}
         </p>
         <p className="text-sm text-ink-muted">
-          KDV dahil:{' '}
+          KDV Dahil:{' '}
           <span className="font-bold text-ink">{formatMoney(totals.incl, data.currency)}</span>
         </p>
       </div>
@@ -89,13 +88,6 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
           />
         </div>
       </div>
-      <ExtraPrices
-        title={title}
-        items={data.extras}
-        defaultCurrency={data.currency}
-        currencies={lookups.currencies}
-        onChange={(extras) => onChange({ extras })}
-      />
     </fieldset>
   );
 }

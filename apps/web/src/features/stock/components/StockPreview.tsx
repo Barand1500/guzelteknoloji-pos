@@ -122,7 +122,7 @@ export function StockPreview({ draft, lookups, rows, priceListLabel }: StockPrev
                 <div className="mt-1 flex items-center justify-between text-xs text-ink-muted">
                   <span>
                     Alış {formatMoney(blockTotals(row.purchase).incl, row.purchase.currency)} · KDV
-                    dahil
+                    Dahil
                   </span>
                   {margin !== null ? (
                     <span className="font-semibold text-success">

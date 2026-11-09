@@ -12,7 +12,7 @@ interface BrandProductsSheetProps {
 
 /**
  * Yalnızca markanın ürünleri penceresi (satırdaki "Ürünler" işlemi): düzenleme formu açılmaz.
- * İçerik, marka penceresinin yan panelindekiyle aynıdır (BrandProductsPanel).
+ * Geniş açılır ve doğrudan "Ürün Ekle" sekmesinde başlar (BrandProductsPanel).
  */
 export function BrandProductsSheet({
   brand,
@@ -25,7 +25,7 @@ export function BrandProductsSheet({
     <Sheet
       open
       onClose={onClose}
-      size="lg"
+      size="xl"
       title={`${brand.name} · Ürünler`}
       description={`${brand.productCount} ürün bu markada`}
     >
@@ -34,6 +34,7 @@ export function BrandProductsSheet({
         brandNames={brandNames}
         onAssign={onAssign}
         onUnassign={onUnassign}
+        initialTab="add"
       />
     </Sheet>
   );

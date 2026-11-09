@@ -1,5 +1,5 @@
 import { Coins, Plus, Tag, type LucideIcon } from 'lucide-react';
-import { Button } from '../../../components/ui/Button';
+import { usePublishSaveAction } from '../../app-shell/save-action';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { BasicInfoSection } from './BasicInfoSection';
 import { PriceTabs } from './PriceTabs';
@@ -12,8 +12,9 @@ const cardClass =
 
 /**
  * Geniş ekran düzeni (xl+): "Ürün Bilgisi" ve "Fiyat ve Birimler" kartları tam genişlikte; sağ
- * kenarda dikey sekmeler (Özet, Kategori, Fırsat) tıklanınca sola doğru panel açar. Kaydet formun
- * altındadır (panel açıkken panelin içindedir). Telefon/tablet düzeni: MobileStockLayout.
+ * kenarda dikey sekmeler (Özet, Kategori, Fırsat, Özellik) tıklanınca sola doğru panel açar.
+ * Sayfada Kaydet düğmesi yoktur: alt çubuktaki "+" düğmesi bu ekranda "Kaydet"e dönüşür.
+ * Panellerdeki seçimler (kategori, fırsat, özellik) doğrudan karta eklenir, aynı Kaydet ile kaydedilir. Telefon/tablet düzeni: MobileStockLayout.
  */
 export function DesktopStockLayout({
   editor,
@@ -25,11 +26,8 @@ export function DesktopStockLayout({
   const { rows, lists, lookups, saving } = editor;
   const panel = useSidePanel(initialBox);
 
-  const saveButton = (
-    <Button onClick={() => void editor.save()} loading={saving} loadingLabel="Kaydediliyor…">
-      Kaydet
-    </Button>
-  );
+  // Alt çubuktaki "+" → "Kaydet" (kaydedildi ekranında tekrar "+").
+  usePublishSaveAction(editor.saved ? null : { onSave: () => void editor.save(), saving });
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -75,9 +73,6 @@ export function DesktopStockLayout({
           Birim Ekle
         </button>
       </section>
-
-      {/* ---- 3. Kaydet (panel açıkken Kaydet panelin içindedir) ---- */}
-      {panel.openId === null ? <div className="flex justify-end">{saveButton}</div> : null}
 
       <StockSidePanel editor={editor} panel={panel} />
     </div>

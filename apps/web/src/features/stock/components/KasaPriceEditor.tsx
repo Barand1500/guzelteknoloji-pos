@@ -3,7 +3,6 @@ import { useState, type ReactNode } from 'react';
 import { Segmented } from '../../../components/ui/Segmented';
 import { blockTotals, formatMoney, marginPercent, parseNumber } from '../stock.calc';
 import type { PriceBlockData, StockLookups, UnitRow } from '../types';
-import { ExtraPrices } from './ExtraPrices';
 
 type Side = 'purchase' | 'sale';
 type Target = 'amount' | 'discount';
@@ -14,7 +13,6 @@ interface KasaPriceEditorProps {
   unitLabel: string;
   lookups: Pick<StockLookups, 'currencies' | 'vatRates'>;
   onChange: (patch: Partial<UnitRow>) => void;
-  onSave: () => void;
 }
 
 const SIDES = [
@@ -40,15 +38,9 @@ function groupThousands(raw: string): string {
 /**
  * Telefonda Fiyat sekmesi — "Kasa Modu": fiyat dev rakamla ekranın ortasında, altında tuş takımı.
  * Alış/Satış hızlı geçişi, KDV oranı ve para birimi tek dokunuşluk çipler. Ekran klavyesi açılmaz;
- * kasa tuşlarıyla girilir. Sağ alttaki tuş Alış ↔ Satış arasında geçer, "Kaydet" kartı kaydeder.
+ * kasa tuşlarıyla girilir. Sağdaki uzun tuş Alış ↔ Satış arasında geçer. Kaydet alt çubuktaki "+" düğmesindedir.
  */
-export function KasaPriceEditor({
-  row,
-  unitLabel,
-  lookups,
-  onChange,
-  onSave,
-}: KasaPriceEditorProps) {
+export function KasaPriceEditor({ row, unitLabel, lookups, onChange }: KasaPriceEditorProps) {
   const [side, setSide] = useState<Side>('sale');
   const [target, setTarget] = useState<Target>('amount');
 
@@ -136,7 +128,7 @@ export function KasaPriceEditor({
           </span>
         </output>
         <p className="mt-1 text-sm text-ink-muted">
-          KDV dahil <b className="text-ink">{formatMoney(totals.incl, block.currency)}</b>
+          KDV Dahil <b className="text-ink">{formatMoney(totals.incl, block.currency)}</b>
           {margin !== null ? (
             <span className="font-semibold text-success">
               {' '}
@@ -210,17 +202,6 @@ export function KasaPriceEditor({
           'Sil',
         )}
         {['4', '5', '6'].map((d) => key(d, d, () => press(d)))}
-        <button
-          type="button"
-          onClick={onSave}
-          className="row-span-2 flex items-center justify-center rounded-2xl bg-brand-700 text-lg font-bold text-white transition-transform active:scale-95"
-        >
-          Kaydet
-        </button>
-        {['7', '8', '9'].map((d) => key(d, d, () => press(d)))}
-        {key('comma', ',', () => press(','), 'bg-brand-50 text-brand-ink', 'Virgül')}
-        {key('0', '0', () => press('0'))}
-        {key('00', '00', () => press('00'), 'bg-brand-50 text-brand-ink')}
         {key(
           'side',
           side === 'sale' ? '‹ Alış' : 'Satış ›',
@@ -228,19 +209,14 @@ export function KasaPriceEditor({
             setSide(side === 'sale' ? 'purchase' : 'sale');
             setTarget('amount');
           },
-          'bg-brand-50 text-brand-ink text-base!',
+          'row-span-3 bg-brand-50 text-brand-ink text-base!',
           side === 'sale' ? 'Alış fiyatına geç' : 'Satış fiyatına geç',
         )}
+        {['7', '8', '9'].map((d) => key(d, d, () => press(d)))}
+        {key('comma', ',', () => press(','), 'bg-brand-50 text-brand-ink', 'Virgül')}
+        {key('0', '0', () => press('0'))}
+        {key('00', '00', () => press('00'), 'bg-brand-50 text-brand-ink')}
       </div>
-
-      <ExtraPrices
-        key={side}
-        title={sideLabel}
-        items={block.extras}
-        defaultCurrency={block.currency}
-        currencies={lookups.currencies}
-        onChange={(extras) => patchBlock({ extras })}
-      />
     </section>
   );
 }

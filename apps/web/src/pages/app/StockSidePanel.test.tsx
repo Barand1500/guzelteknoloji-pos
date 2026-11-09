@@ -84,11 +84,12 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
     expect(tab('Fırsat')).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('panel açıkken Kaydet yalnızca panelin içindedir (iki tane görünmez)', async () => {
+  it('panelde Kaydet yoktur; tek Kaydet alt çubuktaki "+" düğmesidir', async () => {
     const user = await openNew();
     await user.click(tab('Kategori'));
+    expect(within(panel()!).queryByRole('button', { name: 'Kaydet' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Kaydet' })).toHaveLength(1);
-    expect(within(panel()!).getByRole('button', { name: 'Kaydet' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Yeni Stok Kartı' })).not.toBeInTheDocument();
   });
 
   it('kategori seçilir, çip olarak görünür, aranır, ✕ ile kaldırılır; sekmede sayı görünür', async () => {
@@ -204,19 +205,19 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
 });
 
 describe('Stok kartı yan sekmeleri (telefon)', () => {
-  it('sağ kenarda sekmeler durur, panel açılınca yüzen Kaydet gizlenir', async () => {
+  it('sağ kenarda sekmeler durur; Kaydet her zaman tek ve alt çubuktadır', async () => {
     stubNarrowScreen();
     const user = await openNew();
     expect(screen.getByRole('tablist', { name: 'Yan sekmeler' })).toBeInTheDocument();
     expect(panel()).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Kaydet' })).toHaveLength(1); // yüzen düğme
+    expect(screen.getAllByRole('button', { name: 'Kaydet' })).toHaveLength(1); // alt çubuk
 
     await user.click(tab('Kategori'));
     await user.click(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' }));
     expect(tab('Kategori')).toHaveTextContent('1');
-    // Panel açıkken tek Kaydet vardır ve panelin içindedir.
+    // Panel açıkken de tek Kaydet vardır (panelin içinde değil).
     expect(screen.getAllByRole('button', { name: 'Kaydet' })).toHaveLength(1);
-    expect(within(panel()!).getByRole('button', { name: 'Kaydet' })).toBeVisible();
+    expect(within(panel()!).queryByRole('button', { name: 'Kaydet' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Paneli kapat' }));
     expect(panel()).not.toBeInTheDocument();

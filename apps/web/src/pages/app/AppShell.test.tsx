@@ -71,7 +71,7 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
   });
 
-  it('ağırlık hesaplayıcı sonucu forma yazar; ek fiyat eklenir', async () => {
+  it('ağırlık hesaplayıcı sonucu forma yazar', async () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
     renderApp();
@@ -90,13 +90,6 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Uygula' }));
     expect(screen.getByLabelText('Ağırlık')).toHaveValue('3');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-
-    // Ek alış fiyatı
-    await user.click(screen.getByRole('button', { name: /Ek Alış Fiyatları/ }));
-    const extraList = screen.getAllByLabelText('Fiyat')[0]!;
-    await user.type(extraList, '80');
-    await user.click(screen.getAllByRole('button', { name: 'Ekle' })[0]!);
-    expect(screen.getByRole('list', { name: 'Ek alış fiyatları' })).toHaveTextContent('80,00');
   });
 
   it('küçük ağırlık gram olarak yazılır (birim otomatik g olur)', async () => {

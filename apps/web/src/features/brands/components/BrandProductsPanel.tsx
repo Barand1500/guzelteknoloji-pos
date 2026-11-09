@@ -14,6 +14,8 @@ interface BrandProductsPanelProps {
   brandNames: Record<string, string>;
   onAssign: (brandId: string, productIds: string[]) => Promise<void>;
   onUnassign: (brandId: string, productIds: string[]) => Promise<void>;
+  /** Açılışta hangi sekme görünsün (varsayılan "Bu Markada"). */
+  initialTab?: Tab;
 }
 
 type Tab = 'in' | 'add';
@@ -36,6 +38,7 @@ export function BrandProductsPanel({
   brandNames,
   onAssign,
   onUnassign,
+  initialTab = 'in',
 }: BrandProductsPanelProps) {
   const brandService = useBrandService();
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +46,7 @@ export function BrandProductsPanel({
   const [retry, setRetry] = useState(0);
   const pending = useRef(false);
   const [products, setProducts] = useState<ProductRef[] | null>(null);
-  const [tab, setTab] = useState<Tab>('in');
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('free');
   const [picked, setPicked] = useState<Set<string>>(new Set());

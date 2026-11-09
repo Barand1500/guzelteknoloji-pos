@@ -7,7 +7,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Button } from '../../../components/ui/Button';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { CategoryBox } from './CategoryBox';
 import { DealBox } from './DealBox';
@@ -53,8 +52,6 @@ export type SidePanelState = ReturnType<typeof useSidePanel>;
 interface StockSidePanelProps {
   editor: StockEditor;
   panel: SidePanelState;
-  /** Panelden Kaydet'e basılıp eksik alan çıkarsa (ör. telefonda ilk sekmeye dönmek için). */
-  onInvalid?: () => void;
 }
 
 /**
@@ -64,7 +61,7 @@ interface StockSidePanelProps {
  * Kategori ve fırsat seçenekleri sunucudan gelmiyorsa (henüz bağlı değil) o sekmeler kilitlidir
  * ve seçim kaydedilmiş gibi davranılmaz.
  */
-export function StockSidePanel({ editor, panel, onInvalid }: StockSidePanelProps) {
+export function StockSidePanel({ editor, panel }: StockSidePanelProps) {
   const { openId, toggle, close } = panel;
   const { draft, lists, lookups, rows, extras, extraOptions } = editor;
   const active = TABS.find((t) => t.id === openId) ?? null;
@@ -257,20 +254,6 @@ export function StockSidePanel({ editor, panel, onInvalid }: StockSidePanelProps
               </div>
             ) : null}
           </div>
-
-          <Button
-            onClick={() =>
-              void editor.save(() => {
-                // Eksik alan varsa panel kapanır ki hatalı alanlar görünsün.
-                close();
-                onInvalid?.();
-              })
-            }
-            loading={editor.saving}
-            loadingLabel="Kaydediliyor…"
-          >
-            Kaydet
-          </Button>
         </section>
       ) : null}
     </>

@@ -12,7 +12,7 @@ interface BarcodeEditorProps {
 }
 
 /**
- * Bir birimin barkodları. Tür seç + barkodu yaz + (+) ile ekle; eklenenler altta etiket olarak
+ * Bir birimin barkodları: tür + barkod + (+) tek giriş grubudur (birim ve çarpanın yanında durur); eklenenler altta etiket olarak
  * görünür ve (×) ile silinir. İlk eklenen ana barkoddur. Ayrı pencere açılmaz.
  */
 export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps) {
@@ -28,28 +28,38 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto]">
-        <div className="col-span-2 md:col-span-1">
-          <SelectField label="Barkod Türü" options={types} value={type} onChange={setType} />
+      {/* Giriş grubu: tür + barkod + (+) tek parça görünür (bitişik, ortak köşeler). */}
+      <div role="group" aria-label="Barkod ekle" className="flex items-start">
+        <div className="w-28 shrink-0 focus-within:z-10 sm:w-36">
+          <SelectField
+            label="Barkod Türü"
+            options={types}
+            value={type}
+            onChange={setType}
+            className="rounded-r-none!"
+          />
         </div>
-        <TextField
-          label="Barkod"
-          inputMode="numeric"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              add();
-            }
-          }}
-        />
+        <div className="relative -ml-px min-w-0 flex-1 focus-within:z-10">
+          <TextField
+            label="Barkod"
+            inputMode="numeric"
+            value={code}
+            className="rounded-none!"
+            onChange={(e) => setCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+        </div>
         <button
           type="button"
           onClick={add}
           disabled={code.trim() === ''}
           aria-label="Barkod Ekle"
-          className="inline-flex size-14 items-center justify-center rounded-control bg-brand-700 text-white transition-opacity disabled:opacity-40"
+          className="-ml-px inline-flex size-14 shrink-0 items-center justify-center rounded-r-control bg-brand-700 text-white transition-opacity disabled:opacity-40"
         >
           <Plus className="size-6" aria-hidden="true" />
         </button>

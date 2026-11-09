@@ -1,15 +1,6 @@
-import {
-  Check,
-  Coins,
-  type LucideIcon,
-  Package,
-  Plus,
-  Ruler,
-  ScanBarcode,
-  Settings2,
-} from 'lucide-react';
+import { Coins, type LucideIcon, Package, Plus, Ruler, ScanBarcode, Settings2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Spinner } from '../../../components/ui/Spinner';
+import { usePublishSaveAction } from '../../app-shell/save-action';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { blockTotals, formatMoney, getCompletion, marginPercent } from '../stock.calc';
 import type { UnitRow } from '../types';
@@ -38,7 +29,7 @@ const slideClass = 'rounded-3xl border border-line bg-surface-raised p-4 shadow-
 
 /**
  * Telefon / tablet düzeni: üstte Ürün · Fiyat · Barkod · Ölçü sekmeleri, birimler yana
- * kaydırılan kartlar, sağ altta yüzen Kaydet. Seçili birim sekmeler arasında korunur.
+ * kaydırılan kartlar, Kaydet alt çubuktaki "+" düğmesidir. Seçili birim sekmeler arasında korunur.
  */
 export function MobileStockLayout({
   editor,
@@ -63,6 +54,13 @@ export function MobileStockLayout({
     units: lists.units,
     onChange: (patch) => editor.updateRow(row.id, patch),
   });
+
+  // Alt çubuktaki "+" → "Kaydet". Eksik alan çıkarsa Ürün sekmesine dönülür ki hatalar görünsün.
+  usePublishSaveAction(
+    editor.saved
+      ? null
+      : { onSave: () => void editor.save(() => setTab('urun')), saving: editor.saving },
+  );
 
   const addUnit = () => {
     editor.addRow();
@@ -237,7 +235,6 @@ export function MobileStockLayout({
                 unitLabel={unitLabel(activeRow)}
                 lookups={lookups}
                 onChange={(patch) => editor.updateRow(activeRow.id, patch)}
-                onSave={() => void editor.save(() => setTab('urun'))}
               />
             ) : null}
           </>
@@ -268,26 +265,8 @@ export function MobileStockLayout({
           : null}
       </div>
 
-      {/* Sağ kenar sekmeleri; panel açıkken Kaydet panelin içindedir */}
-      <StockSidePanel editor={editor} panel={panel} onInvalid={() => setTab('urun')} />
-
-      {/* Yüzen Kaydet düğmesi (alt çubuğun üstünde); Fiyat sekmesinde tuş takımındaki Kaydet kullanılır */}
-      {tab !== 'fiyat' && panel.openId === null ? (
-        <button
-          type="button"
-          onClick={() => void editor.save(() => setTab('urun'))}
-          disabled={editor.saving}
-          aria-label="Kaydet"
-          title="Kaydet"
-          className="fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 flex size-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-card transition-transform active:scale-95 disabled:opacity-70 md:right-8"
-        >
-          {editor.saving ? (
-            <Spinner className="size-6" />
-          ) : (
-            <Check className="size-7" aria-hidden="true" />
-          )}
-        </button>
-      ) : null}
+      {/* Sağ kenar sekmeleri */}
+      <StockSidePanel editor={editor} panel={panel} />
     </div>
   );
 }
@@ -312,7 +291,7 @@ function SummaryStrip({ editor }: { editor: StockEditor }) {
         <p className="truncate text-xs text-ink-muted">
           {row ? (
             <>
-              KDV dahil{' '}
+              KDV Dahil{' '}
               <span className="font-bold text-ink">
                 {formatMoney(blockTotals(row.sale).incl, row.sale.currency)}
               </span>
