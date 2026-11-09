@@ -7,13 +7,15 @@ interface ValueTileProps {
   kind: ValueKind;
   sortable: SortableTileContext;
   onEdit: () => void;
+  /** Resme çift tıklama (resimli gruplar): düzenleme penceresi resim seçici açık olarak gelir. */
+  onEditImage?: (() => void) | undefined;
 }
 
 /**
  * Özellik çipi: renk kutusu / küçük resim / yalnızca yazı. Dokununca (ya da Enter) düzenler.
  * Basılı tutup sürükleyerek (fareyle tutup çekerek, klavyede Alt + ok) sıralanır.
  */
-export function ValueTile({ value, kind, sortable, onEdit }: ValueTileProps) {
+export function ValueTile({ value, kind, sortable, onEdit, onEditImage }: ValueTileProps) {
   return (
     <div
       role="button"
@@ -42,11 +44,23 @@ export function ValueTile({ value, kind, sortable, onEdit }: ValueTileProps) {
       ) : null}
       {kind === 'image' ? (
         value.imageUrl ? (
-          <img
-            src={value.imageUrl}
-            alt=""
-            className="size-9 shrink-0 rounded-xl bg-white object-contain ring-1 ring-line"
-          />
+          // Resme tek tıklama bir şey yapmaz; çift tıklama resim yüklemeyi açar.
+          <span
+            role="presentation"
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onEditImage?.();
+            }}
+            title="Resmi değiştirmek için çift tıklayın"
+            className="shrink-0"
+          >
+            <img
+              src={value.imageUrl}
+              alt=""
+              className="size-9 rounded-xl bg-white object-contain ring-1 ring-line"
+            />
+          </span>
         ) : (
           <span
             aria-hidden="true"

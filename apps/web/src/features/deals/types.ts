@@ -1,5 +1,5 @@
 /** Rozetin ürün resmindeki yeri: üst/alt × sol/orta/sağ. */
-export type DealPosition = 'tl' | 'tc' | 'tr' | 'bl' | 'bc' | 'br';
+export type DealPosition = 'tl' | 'tc' | 'tr' | 'ml' | 'mr' | 'bl' | 'bc' | 'br';
 
 export type DealSize = 'small' | 'medium' | 'large';
 
@@ -35,6 +35,8 @@ export const POSITIONS: { value: DealPosition; label: string }[] = [
   { value: 'tl', label: 'Üst Sol' },
   { value: 'tc', label: 'Üst Orta' },
   { value: 'tr', label: 'Üst Sağ' },
+  { value: 'ml', label: 'Orta Sol' },
+  { value: 'mr', label: 'Orta Sağ' },
   { value: 'bl', label: 'Alt Sol' },
   { value: 'bc', label: 'Alt Orta' },
   { value: 'br', label: 'Alt Sağ' },

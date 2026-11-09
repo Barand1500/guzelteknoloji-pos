@@ -154,3 +154,53 @@ describe('Fırsat Yönetimi ekranı', () => {
     });
   });
 });
+
+describe('Fırsat formu: sadeleşen ikon alanı', () => {
+  it('Aktif sorusu yoktur; yeni fırsat doğrudan aktif eklenir; rozet yeri 8 noktadır', async () => {
+    const user = await openDeals();
+    await user.click(screen.getAllByRole('button', { name: 'Fırsat Ekle' })[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Fırsat Ekle' });
+    expect(within(dialog).queryByRole('switch', { name: 'Aktif' })).not.toBeInTheDocument();
+    const places = within(dialog).getByRole('radiogroup', { name: 'Rozetin yeri' });
+    expect(
+      within(places)
+        .getAllByRole('radio')
+        .map((r) => r.getAttribute('aria-label')),
+    ).toEqual([
+      'Üst Sol',
+      'Üst Orta',
+      'Üst Sağ',
+      'Orta Sol',
+      'Orta Sağ',
+      'Alt Sol',
+      'Alt Orta',
+      'Alt Sağ',
+    ]);
+    await user.type(within(dialog).getByLabelText('Fırsat Adı'), 'Kampanya');
+    await user.click(within(dialog).getByRole('switch', { name: 'Ürün Resminin Üzerinde Göster' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
+    await waitFor(async () =>
+      expect((await dealService.list()).find((d) => d.name === 'Kampanya')?.active).toBe(true),
+    );
+  });
+
+  it('ikon varken Değiştir/Kaldır düğmesi yoktur: küçük ✕ kaldırır, çift tıklama değiştirir', async () => {
+    const user = await openDeals();
+    await user.dblClick(screen.getByRole('button', { name: 'Yeni Ürünler fırsatını düzenle' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Fırsatı Düzenle' });
+    expect(within(dialog).queryByRole('button', { name: 'Değiştir' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Kaldır' })).not.toBeInTheDocument();
+    const click = vi.spyOn(HTMLInputElement.prototype, 'click');
+    await user.dblClick(within(dialog).getByTitle('İkonu değiştirmek için çift tıklayın'));
+    expect(click).toHaveBeenCalled();
+    click.mockRestore();
+    await user.click(within(dialog).getByRole('button', { name: 'İkonu kaldır' }));
+    expect(within(dialog).getByRole('button', { name: 'İkon Ekle' })).toBeInTheDocument();
+  });
+
+  it('listede sayfalama yoktur', async () => {
+    await openDeals();
+    expect(screen.queryByLabelText('Sayfada Kaç Fırsat')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sonraki sayfa' })).not.toBeInTheDocument();
+  });
+});

@@ -23,6 +23,8 @@ interface ValueFormSheetProps {
   saveError?: string | null;
   onDelete?: () => void;
   onClose: () => void;
+  /** true: açılışta resim seçici hemen açılır (listede resme çift tıklanınca). */
+  pickImage?: boolean;
 }
 
 /** Hazır renkler (hızlı seçim); isteyen kendi rengini de seçer. */
@@ -55,6 +57,7 @@ export function ValueFormSheet({
   saveError,
   onDelete,
   onClose,
+  pickImage = false,
 }: ValueFormSheetProps) {
   const [draft, setDraft] = useState<ValueDraft>(() =>
     value
@@ -160,6 +163,7 @@ export function ValueFormSheet({
             onChange={(url) => setDraft((d) => ({ ...d, imageUrl: url }))}
             noun="Resim"
             hint="Kare oran önerilir"
+            autoPick={pickImage}
           />
         ) : null}
 

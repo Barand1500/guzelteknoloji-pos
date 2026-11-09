@@ -121,7 +121,7 @@ export function ProductRow({
             <span className="block text-sm font-extrabold">
               {moneyOrDash(shown, currencyOf(product, priceView))}
             </span>
-            <span className="block text-[0.6875rem] text-ink-muted">{viewName} · KDV dahil</span>
+            <span className="block text-[0.6875rem] text-ink-muted">{viewName} · KDV Dahil</span>
           </span>
         </button>
       </div>

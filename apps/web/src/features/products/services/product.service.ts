@@ -39,6 +39,8 @@ async function imageData(url: string, file?: File): Promise<string> {
 export const productService = {
   isDemo: false,
   supportsImages: true,
+  /** Sunucu henüz MEVCUT görsellerin sırasını değiştirmiyor; yalnızca yeni görseller sıralanır. */
+  supportsImageOrder: false,
   listPage: async (query: ProductPageQuery): Promise<ProductPage> => {
     const result = await apiRequest<Page>('/api/stok/kartlar?' + productQueryString(query));
     return {
@@ -59,7 +61,12 @@ export const productService = {
       await apiRequest<{ ids: number[] }>('/api/stok/kartlar/secim?' + productQueryString(query))
     ).ids.map(String),
   applyImages: async (
-    entries: { productId: string; urls: string[]; files?: (File | undefined)[] }[],
+    entries: {
+      productId: string;
+      urls: string[];
+      files?: (File | undefined)[];
+      finalOrder?: string[];
+    }[],
     replace: boolean,
   ): Promise<number> => {
     for (const [url, saved] of tickets) if (saved.expires < Date.now()) tickets.delete(url);

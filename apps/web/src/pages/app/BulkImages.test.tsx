@@ -80,8 +80,12 @@ describe('Toplu Görsel Yükleme', () => {
     const user = await openBulk();
     await uploadAndMatch(user);
 
-    await user.click(screen.getByRole('combobox', { name: 'Ürün seç' }));
-    await user.click(await screen.findByRole('option', { name: /^3 · FLEXYPOS FP-503M/ }));
+    await user.click(screen.getByRole('button', { name: 'Ürün Seç' }));
+    const picker = await screen.findByRole('dialog', { name: 'Ürün Seç' });
+    await user.type(within(picker).getByRole('searchbox', { name: 'Ürün ara' }), 'FP-503M');
+    await user.click(
+      within(within(picker).getByRole('list', { name: 'Ürünler' })).getAllByRole('button')[0]!,
+    );
     const summary = await screen.findByLabelText('Özet');
     expect(within(summary).getByText('3 ürün eşleşti')).toBeInTheDocument();
     expect(within(summary).getByText('4 görsel')).toBeInTheDocument();
@@ -162,5 +166,52 @@ describe('Toplu Görsel Yükleme', () => {
     await screen.findByText('Görseller yüklendi!');
     await user.click(screen.getByRole('button', { name: 'Yeni Yükleme' }));
     expect(await screen.findByText('Görselleri buraya bırak')).toBeInTheDocument();
+  });
+});
+
+describe('Toplu Görsel: sıralama ve ürün seçme penceresi', () => {
+  it('ürünün tüm görselleri (mevcut + yeni) tek şeritte sürükleyerek/klavyeyle sıralanır; son sıra kaydedilir', async () => {
+    const user = await openBulk();
+    await uploadAndMatch(user);
+    const before = (await productService.list()).find((p) => p.id === 'p1')!;
+    const existing = before.imageUrls[0]!;
+
+    // p1: [mevcut vitrin, FP-503.jpg, FP-503_2.jpg] → mevcut görseli bir sağa taşı.
+    const tile = screen.getAllByRole('button', {
+      name: /Mevcut görsel \(sürükleyerek sırala\)/,
+    })[0]!;
+    tile.focus();
+    await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+    await user.click(screen.getByRole('button', { name: '3 Görseli Yükle' }));
+    await screen.findByText(/ürüne 3 görsel eklendi/);
+
+    const after = (await productService.list()).find((p) => p.id === 'p1')!;
+    expect(after.imageUrls).toHaveLength(3);
+    expect(after.imageUrls[1]).toBe(existing); // mevcut görsel artık 2. sırada
+    expect(after.imageUrl).toBe(after.imageUrls[0]); // yeni vitrin
+  });
+
+  it('ürün seçme penceresi aranır ve sayfalıdır; ürün seçilince pencere kapanır', async () => {
+    const user = await openBulk();
+    await uploadAndMatch(user);
+    await user.click(screen.getByRole('button', { name: 'Ürün Seç' }));
+    const picker = await screen.findByRole('dialog', { name: 'Ürün Seç' });
+    // 16 ürün, sayfada 8: 2 sayfa
+    expect(within(picker).getByText('16 ürün · Sayfa 1/2')).toBeInTheDocument();
+    expect(
+      within(within(picker).getByRole('list', { name: 'Ürünler' })).getAllByRole('button'),
+    ).toHaveLength(8);
+    await user.click(within(picker).getByRole('button', { name: 'Sonraki sayfa' }));
+    expect(within(picker).getByText('16 ürün · Sayfa 2/2')).toBeInTheDocument();
+    await user.type(within(picker).getByRole('searchbox', { name: 'Ürün ara' }), 'yokboyle');
+    expect(within(picker).getByText('Eşleşen ürün yok.')).toBeInTheDocument();
+    await user.clear(within(picker).getByRole('searchbox', { name: 'Ürün ara' }));
+    await user.click(
+      within(within(picker).getByRole('list', { name: 'Ürünler' })).getAllByRole('button')[0]!,
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Ürün Seç' })).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByRole('region', { name: 'Eşleşmeyen dosyalar' })).not.toBeInTheDocument();
   });
 });

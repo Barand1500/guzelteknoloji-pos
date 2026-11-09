@@ -14,6 +14,8 @@ const ZONE_STYLE: Record<DealPosition, string> = {
   tl: 'top-1 left-1',
   tc: 'top-1 left-1/2 -translate-x-1/2',
   tr: 'top-1 right-1',
+  ml: 'top-1/2 left-1 -translate-y-1/2',
+  mr: 'top-1/2 right-1 -translate-y-1/2',
   bl: 'bottom-1 left-1',
   bc: 'bottom-1 left-1/2 -translate-x-1/2',
   br: 'bottom-1 right-1',
@@ -36,7 +38,7 @@ interface DealPlacePickerProps {
 
 /**
  * Rozetin ürün resmindeki yerini ve boyutunu seçtirir. Seçim kutusu YOK: örnek ürün resminin
- * üzerindeki 6 noktadan birine dokunulur, rozet o anda orada belirir (canlı önizleme). Boyut için
+ * çevresindeki 8 noktadan birine (üstte 3, ortada solda ve sağda 1'er, altta 3) dokunulur, rozet o anda orada belirir (canlı önizleme). Boyut için
  * üç büyüklük düğmesi vardır. Seçilen yer ve boyut yazıyla da özetlenir.
  */
 export function DealPlacePicker({

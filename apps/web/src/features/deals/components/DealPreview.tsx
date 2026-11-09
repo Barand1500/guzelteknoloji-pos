@@ -9,6 +9,8 @@ export const POSITION_STYLE: Record<DealPosition, string> = {
   tl: 'top-[5%] left-[5%]',
   tc: 'top-[5%] left-1/2 -translate-x-1/2',
   tr: 'top-[5%] right-[5%]',
+  ml: 'top-1/2 left-[5%] -translate-y-1/2',
+  mr: 'top-1/2 right-[5%] -translate-y-1/2',
   bl: 'bottom-[5%] left-[5%]',
   bc: 'bottom-[5%] left-1/2 -translate-x-1/2',
   br: 'bottom-[5%] right-[5%]',

@@ -27,7 +27,8 @@ const ICON_REQUIRED = 'Rozet olarak kullanılacak bir ikon yükleyin.';
 /**
  * Fırsat ekleme/düzenleme paneli (telefonda alttan açılır). Gerekli tek alan ad. Rozet şekli,
  * yazısı ve ürün resmindeki yeri tek yerde ayarlanır; yer ve boyut ÖRNEK ÜRÜN RESMİ üzerinde
- * canlı görünür. SEO "Gelişmiş" altında katlıdır. Her açılışta yeniden kurulur (key ile).
+ * canlı görünür. "Aktif mi?" sorusu yoktur: yeni fırsat doğrudan aktif eklenir (aktiflik listedeki
+ * anahtardan değişir). SEO "Gelişmiş" altında katlıdır. Her açılışta yeniden kurulur (key ile).
  */
 export function DealFormSheet({
   deal,
@@ -132,8 +133,6 @@ export function DealFormSheet({
             </p>
           )}
         </div>
-
-        <Switch label="Aktif" checked={draft.active} onChange={(v) => set('active', v)} />
 
         {deal ? (
           <button

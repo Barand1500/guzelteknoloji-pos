@@ -15,7 +15,7 @@ import {
   rollbackImage,
 } from './catalog.common';
 
-export const positionSchema = z.enum(['tl', 'tc', 'tr', 'bl', 'bc', 'br']);
+export const positionSchema = z.enum(['tl', 'tc', 'tr', 'ml', 'mr', 'bl', 'bc', 'br']);
 export const sizeSchema = z.enum(['small', 'medium', 'large']);
 const draftSchema = z
   .strictObject({

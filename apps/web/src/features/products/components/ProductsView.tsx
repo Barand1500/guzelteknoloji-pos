@@ -16,7 +16,6 @@ import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
 import { Segmented } from '../../../components/ui/Segmented';
 import { SelectField } from '../../../components/ui/SelectField';
-import { ToggleChip } from '../../../components/ui/ToggleChip';
 import { Sheet } from '../../../components/ui/Sheet';
 import {
   BULK_IMAGES_PATH,
@@ -37,13 +36,12 @@ import {
   type ProductItem,
 } from '../types';
 import { ProductFilterSheet } from './ProductFilterSheet';
+import { ProductImagesSheet } from './ProductImagesSheet';
 import { ProductImportSheet } from './ProductImportSheet';
 import { BulkMenuSheet, ProductMenuSheet } from './ProductMenuSheet';
 import { ProductRow } from './ProductRow';
 import { ProductTable } from './ProductTable';
 
-/** Masaüstü tabloda varsayılan olarak ilk üç fiyat listesi görünür; fazlası seçiciyle açılır. */
-const DEFAULT_COLUMNS = 3;
 /** Segment seçici en çok 4 seçenek taşır; fazlasında açılır liste kullanılır. */
 const MAX_SEGMENTS = 4;
 
@@ -81,13 +79,13 @@ export function ProductsView() {
   const [selectionBusy, setSelectionBusy] = useState(false);
   const selectionRevision = useRef(0);
   const [priceView, setPriceView] = useState<PriceView>('');
-  // null = varsayılan (ilk üç liste); seçilince seçilen sütun kimlikleri.
-  const [shownIds, setShownIds] = useState<string[] | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  // Resme çift tıklanan ürün (görselleri değiştir / daha fazla yükle penceresi).
+  const [imagesFor, setImagesFor] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [zoomFor, setZoomFor] = useState<string | null>(null);
@@ -113,20 +111,6 @@ export function ProductsView() {
   const activeView = viewOptions.some((o) => o.value === priceView)
     ? priceView
     : (viewOptions[0]?.value ?? COST_VIEW);
-  const columnChoices = useMemo(
-    () => [...priceLists, { id: COST_VIEW, name: 'Alış' }],
-    [priceLists],
-  );
-  const columns =
-    shownIds === null
-      ? priceLists.slice(0, DEFAULT_COLUMNS)
-      : columnChoices.filter((c) => shownIds.includes(c.id));
-  const toggleColumn = (id: string) =>
-    setShownIds((current) => {
-      const now = current ?? priceLists.slice(0, DEFAULT_COLUMNS).map((c) => c.id);
-      return now.includes(id) ? now.filter((x) => x !== id) : [...now, id];
-    });
-
   const filterCount = activeFilterCount(filters);
   const visible = products;
   const paging = {
@@ -149,6 +133,7 @@ export function ProductsView() {
   const byId = (id: string | null) => products.find((p) => p.id === id) ?? null;
   const menuProduct = byId(menuFor);
   const zoomProduct = byId(zoomFor);
+  const imagesForProduct = byId(imagesFor);
   // Seçimler sayfa değişince korunur; arama ve süzgeç değişince temizlenir.
   const selectedIds = [...selected];
   const anySelected = selectedIds.length > 0;
@@ -241,7 +226,9 @@ export function ProductsView() {
     content = (
       <ProductTable
         products={paging.pageItems}
-        columns={columns}
+        priceOptions={viewOptions.map((o) => ({ id: o.value, name: o.label }))}
+        priceView={activeView}
+        onPriceView={setPriceView}
         selected={selected}
         onToggleSelect={toggleSelect}
         onToggleAll={(on) =>
@@ -255,7 +242,9 @@ export function ProductsView() {
           })
         }
         onEdit={edit}
-        onMore={(p) => setMenuFor(p.id)}
+        onCopy={copy}
+        onDelete={(p) => setDeleting({ ids: [p.id], label: p.name })}
+        onEditImages={(p) => setImagesFor(p.id)}
         onStockTracking={(id, on) => setStockTracking([id], on)}
         onSales={(id, on) => setSales([id], on)}
       />
@@ -424,25 +413,6 @@ export function ProductsView() {
         />
       )}
 
-      {/* Masaüstü: dörtten fazla fiyat listesi sığmaz; hangi sütunların görüneceği seçilir. */}
-      {desktop && priceLists.length > DEFAULT_COLUMNS ? (
-        <div
-          role="group"
-          aria-label="Gösterilen fiyat sütunları"
-          className="flex flex-wrap items-center gap-2"
-        >
-          <span className="px-1 text-sm font-semibold text-ink-muted">Fiyat sütunları:</span>
-          {columnChoices.map((choice) => (
-            <ToggleChip
-              key={choice.id}
-              label={choice.name}
-              checked={columns.some((c) => c.id === choice.id)}
-              onChange={() => toggleColumn(choice.id)}
-            />
-          ))}
-        </div>
-      ) : null}
-
       {content}
 
       {!loading && visible.length > 0 ? (
@@ -520,6 +490,22 @@ export function ProductsView() {
             applyFilters(f);
           }}
           onClose={() => setFilterOpen(false)}
+        />
+      ) : null}
+      {imagesForProduct ? (
+        <ProductImagesSheet
+          key={imagesForProduct.id}
+          product={imagesForProduct}
+          onClose={() => setImagesFor(null)}
+          onDone={(count, replaced) => {
+            setImagesFor(null);
+            void refresh();
+            showNotice(
+              replaced
+                ? `${imagesForProduct.name} görselleri değiştirildi.`
+                : `${imagesForProduct.name} için ${count} görsel eklendi.`,
+            );
+          }}
         />
       ) : null}
       {importOpen ? (

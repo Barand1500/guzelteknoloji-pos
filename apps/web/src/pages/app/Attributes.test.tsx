@@ -146,11 +146,28 @@ describe('Özellikler ekranı', () => {
     );
     expect(within(dialog).queryByRole('switch', { name: 'Renk' })).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole('radio', { name: 'Resim' }));
-    await user.click(within(dialog).getByRole('switch', { name: 'Ürün Resminin Üzerinde Göster' }));
-    expect(within(dialog).getByRole('radiogroup', { name: 'Rozetin yeri' })).toBeInTheDocument();
+    await user.click(
+      within(dialog).getByRole('switch', { name: 'Ürün Resminin Üzerinde Gösterilsin Mi?' }),
+    );
+    const places = within(dialog).getByRole('radiogroup', { name: 'Rozetin yeri' });
+    // 8 nokta: üstte 3, ortada solda ve sağda 1'er, altta 3.
+    expect(
+      within(places)
+        .getAllByRole('radio')
+        .map((r) => r.getAttribute('aria-label')),
+    ).toEqual([
+      'Üst Sol',
+      'Üst Orta',
+      'Üst Sağ',
+      'Orta Sol',
+      'Orta Sağ',
+      'Alt Sol',
+      'Alt Orta',
+      'Alt Sağ',
+    ]);
     await user.click(within(dialog).getByRole('radio', { name: 'Renk' }));
     expect(
-      within(dialog).queryByRole('switch', { name: 'Ürün Resminin Üzerinde Göster' }),
+      within(dialog).queryByRole('switch', { name: 'Ürün Resminin Üzerinde Gösterilsin Mi?' }),
     ).not.toBeInTheDocument();
   });
 
@@ -161,7 +178,7 @@ describe('Özellikler ekranı', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
     expect(within(dialog).getByText('Grup adı gerekli.')).toBeInTheDocument();
     await user.type(within(dialog).getByLabelText('Grup Adı'), 'Ağ');
-    await user.click(within(dialog).getByRole('switch', { name: 'Mağazada Filtre Olsun' }));
+    await user.click(within(dialog).getByRole('switch', { name: 'Mağazada Filtre Olsun Mu?' }));
     await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
     await waitFor(() => expect(ids('Gruplar')).toHaveLength(6));
     const created = (await attributeService.snapshot()).groups.find((g) => g.name === 'Ağ');

@@ -12,7 +12,6 @@ import { SwipeRow } from '../../../components/ui/SwipeRow';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import type { Category } from '../types';
 import { CategoryImage } from './CategoryImage';
-import { categorySubtitle } from './CategoryTile';
 
 interface CategoryRowProps {
   category: Category;
@@ -22,6 +21,8 @@ interface CategoryRowProps {
   sortingDisabled: boolean;
   /** Arama sonuçlarında "Ana › Alt" yolu gösterilir. */
   pathText?: string | undefined;
+  /** Görsele çift tıklama (masaüstü): düzenleme penceresi görsel seçici açık olarak gelir. */
+  onEditImage?: (() => void) | undefined;
   swipeOpen: boolean;
   onSwipeOpenChange: (open: boolean) => void;
   onOpen: () => void;
@@ -117,9 +118,9 @@ function PhoneRow(props: CategoryRowProps) {
                   />
                 ) : null}
               </span>
-              <span className="block truncate text-sm text-ink-muted">
-                {pathText ?? categorySubtitle(category)}
-              </span>
+              {pathText ? (
+                <span className="block truncate text-sm text-ink-muted">{pathText}</span>
+              ) : null}
             </span>
             <ChevronRight className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
           </div>
@@ -179,7 +180,19 @@ function WideRow(props: CategoryRowProps) {
         }}
         className={`flex min-w-0 flex-1 cursor-pointer items-center gap-4 rounded-2xl ${category.active ? '' : 'opacity-50'}`}
       >
-        <CategoryImage category={category} className="size-14 rounded-2xl text-base" />
+        {/* Görsele tek tıklama bir şey yapmaz (kategoriye girmez); çift tıklama görsel yüklemeyi açar. */}
+        <span
+          role="presentation"
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            props.onEditImage?.();
+          }}
+          title="Görseli değiştirmek için çift tıklayın"
+          className="shrink-0"
+        >
+          <CategoryImage category={category} className="size-14 rounded-2xl text-base" />
+        </span>
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2">
             <span className="truncate text-lg font-bold">{category.name}</span>
@@ -195,9 +208,6 @@ function WideRow(props: CategoryRowProps) {
             {pathText ?? (category.description || 'Açıklama eklenmemiş')}
           </p>
         </div>
-        <span className="hidden shrink-0 rounded-full bg-surface-muted px-3 py-1 text-sm font-semibold text-ink-muted sm:inline">
-          {category.childCount} alt · {category.productCount} ürün
-        </span>
         <ChevronRight className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
       </div>
       <ToggleSwitch

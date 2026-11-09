@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { demoProductService as productService } from '../../features/products/services/product.demo';
@@ -102,7 +102,7 @@ async function openList() {
   const user = userEvent.setup();
   renderApp('/uygulama/urunler');
   await screen.findByRole('searchbox', { name: 'Ürün ara' });
-  await screen.findByRole('button', { name: `${NAME_1} işlemleri` });
+  await screen.findByRole('button', { name: `${NAME_1} ürününü düzenle` });
   return user;
 }
 
@@ -115,9 +115,7 @@ afterEach(() => {
 describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
   it('Düzenle: stok kartı ürünün bilgileriyle dolu açılır, başlık düzenlemeyi söyler', async () => {
     const user = await openList();
-    await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
-    const menu = await screen.findByRole('dialog', { name: NAME_1 });
-    await user.click(within(menu).getByRole('button', { name: 'Düzenle' }));
+    await user.click(screen.getByRole('button', { name: `${NAME_1} ürününü düzenle` }));
 
     expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('FLEXYPOS.FP-503');
     expect(screen.getByLabelText('Ürün Adı')).toHaveValue(NAME_1);
@@ -128,12 +126,7 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
 
   it('Düzenle: kaydedince aynı ürün güncellenir, yeni ürün eklenmez', async () => {
     const user = await openList();
-    await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
-    await user.click(
-      within(await screen.findByRole('dialog', { name: NAME_1 })).getByRole('button', {
-        name: 'Düzenle',
-      }),
-    );
+    await user.click(screen.getByRole('button', { name: `${NAME_1} ürününü düzenle` }));
     const name = await screen.findByLabelText('Ürün Adı');
     await user.clear(name);
     await user.type(name, 'Yeni Ad POS');
@@ -150,12 +143,7 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
 
   it('Kopya Oluştur: dolu ama yeni kayıt olarak açılır; vazgeçilirse hiçbir şey eklenmez', async () => {
     const user = await openList();
-    await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
-    await user.click(
-      within(await screen.findByRole('dialog', { name: NAME_1 })).getByRole('button', {
-        name: 'Kopya Oluştur',
-      }),
-    );
+    await user.click(screen.getByRole('button', { name: `${NAME_1} ürününün kopyasını oluştur` }));
     expect(await screen.findByLabelText('Ürün Adı')).toHaveValue(`${NAME_1} (Kopya)`);
     expect(screen.getByLabelText('Ürün Kodu')).toHaveValue('FLEXYPOS.FP-503-KOPYA');
     expect(screen.getByText(/kaydedene kadar yeni ürün oluşmaz/)).toBeInTheDocument();
@@ -164,12 +152,7 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
 
   it('Kopya: Kaydet ile yeni ürün eklenir, asıl ürün değişmez', async () => {
     const user = await openList();
-    await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
-    await user.click(
-      within(await screen.findByRole('dialog', { name: NAME_1 })).getByRole('button', {
-        name: 'Kopya Oluştur',
-      }),
-    );
+    await user.click(screen.getByRole('button', { name: `${NAME_1} ürününün kopyasını oluştur` }));
     await screen.findByLabelText('Ürün Adı');
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
@@ -237,12 +220,7 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
 
   it('düzenleme kaydından sonra yeni kart önerilmez; düzenlemeye devam edilebilir', async () => {
     const user = await openList();
-    await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
-    await user.click(
-      within(await screen.findByRole('dialog', { name: NAME_1 })).getByRole('button', {
-        name: 'Düzenle',
-      }),
-    );
+    await user.click(screen.getByRole('button', { name: `${NAME_1} ürününü düzenle` }));
     await screen.findByLabelText('Ürün Adı');
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     await screen.findByText('Deneme tamamlandı!');

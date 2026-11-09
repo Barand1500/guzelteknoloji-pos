@@ -127,35 +127,51 @@ describe('Ürün listesinde dinamik fiyat listeleri', () => {
     });
   }
 
-  it('üç liste varken sütunlar listenin adıyla gelir, "Fiyat 1/2/3" yazmaz', async () => {
-    await openProducts();
-    const header = document.querySelector('thead')!;
-    for (const name of ['FİYAT', 'PERAKENDE', 'TOPTAN'])
-      expect(within(header as HTMLElement).getByText(name)).toBeInTheDocument();
-    expect(within(header as HTMLElement).queryByText(/Fiyat \d/)).not.toBeInTheDocument();
+  it('tabloda yalnızca ilk liste (FİYAT) görünür; başlıktaki seçici tüm listeleri kendi adlarıyla sunar', async () => {
+    const user = await openProducts();
+    const header = document.querySelector('thead') as HTMLElement;
+    const picker = within(header).getByRole('button', { name: 'Tabloda gösterilecek fiyat' });
+    expect(picker).toHaveTextContent('FİYAT');
+    expect(within(header).queryByText('PERAKENDE')).not.toBeInTheDocument();
+    expect(within(header).queryByText(/Fiyat \d/)).not.toBeInTheDocument();
     expect(
       screen.queryByRole('group', { name: 'Gösterilen fiyat sütunları' }),
     ).not.toBeInTheDocument();
+    await user.click(picker);
+    const options = within(screen.getByRole('listbox', { name: 'Fiyat listeleri' }))
+      .getAllByRole('option')
+      .map((o) => o.textContent);
+    expect(options).toEqual(['FİYAT', 'PERAKENDE', 'TOPTAN', 'Alış']);
   });
 
-  it('kullanıcı yeni liste (BARAN) açınca tabloda seçilebilir sütun olur; fiyatı olmayana "—" yazar', async () => {
+  it('kullanıcı yeni liste (BARAN) açınca başlıktan seçilir; fiyatı olmayana "—" yazar', async () => {
     await addBaranProduct(450);
     const user = await openProducts();
-    const group = await screen.findByRole('group', { name: 'Gösterilen fiyat sütunları' });
-    // Varsayılan: ilk üç liste; BARAN seçili değil.
     const header = document.querySelector('thead') as HTMLElement;
-    expect(within(header).queryByText('BARAN')).not.toBeInTheDocument();
-    await user.click(within(group).getByRole('switch', { name: 'BARAN' }));
-    expect(within(header).getByText('BARAN')).toBeInTheDocument();
+    await user.click(within(header).getByRole('button', { name: 'Tabloda gösterilecek fiyat' }));
+    await user.click(screen.getByRole('option', { name: 'BARAN' }));
+    expect(
+      within(header).getByRole('button', { name: 'Tabloda gösterilecek fiyat' }),
+    ).toHaveTextContent('BARAN');
 
     // Yeni ürünün BARAN fiyatı 450 + %20 = 540; diğer ürünlerde BARAN fiyatı yok → "—".
+    const old = document.querySelector('tr[data-product-id="p1"]') as HTMLElement;
+    expect(within(old).getByText('—')).toBeInTheDocument();
     await user.type(screen.getByRole('searchbox', { name: 'Ürün ara' }), 'Baran Listeli');
     const added = (await screen.findByText('Baran Listeli Ürün')).closest('tr') as HTMLElement;
     expect(within(added).getByText('540,00 ₺')).toBeInTheDocument();
+    expect(within(added).getByText(/KDV Hariç/)).toBeInTheDocument();
+  });
 
-    // Sütun kapatılınca kaybolur.
-    await user.click(within(group).getByRole('switch', { name: 'BARAN' }));
-    expect(within(header).queryByText('BARAN')).not.toBeInTheDocument();
+  it('fiyatın üzerine gelince ürünün tüm listeleri (BARAN dahil) açılır', async () => {
+    await addBaranProduct(450);
+    const user = await openProducts();
+    await user.type(screen.getByRole('searchbox', { name: 'Ürün ara' }), 'Baran Listeli');
+    const added = (await screen.findByText('Baran Listeli Ürün')).closest('tr') as HTMLElement;
+    await user.hover(within(added).getByRole('button', { name: 'Baran Listeli Ürün fiyatları' }));
+    const card = await screen.findByRole('tooltip');
+    for (const name of ['FİYAT', 'PERAKENDE', 'TOPTAN', 'BARAN'])
+      expect(within(card).getByText(name)).toBeInTheDocument();
   });
 
   it('telefonda dörtten fazla seçenek açılır listeye döner; yeni liste seçilebilir', async () => {
@@ -169,7 +185,7 @@ describe('Ürün listesinde dinamik fiyat listeleri', () => {
     // Eski ürünün BARAN fiyatı yok; satırın sağında "—" ve liste adı görünür.
     const row = screen.getByRole('button', { name: `${NAME_1} ayrıntılarını aç` });
     expect(within(row).getByText('—')).toBeInTheDocument();
-    expect(within(row).getByText('BARAN · KDV dahil')).toBeInTheDocument();
+    expect(within(row).getByText('BARAN · KDV Dahil')).toBeInTheDocument();
   });
 
   it('telefonda açılan satır tüm listeleri kendi adlarıyla gösterir', async () => {

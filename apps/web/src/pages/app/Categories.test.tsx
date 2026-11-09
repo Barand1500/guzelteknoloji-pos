@@ -28,13 +28,14 @@ afterEach(() => {
 });
 
 describe('Kategoriler ekranı', () => {
-  it('ana kategorileri kutucuk olarak sırayla listeler', async () => {
+  it('ana kategorileri liste olarak sırayla listeler; "N alt · N ürün" yazısı yoktur', async () => {
     await openCategories();
     expect(ids()).toEqual(['otvt', 'tartim', 'cagri', 'sarf', 'yazilim']);
-    expect(screen.getByText('8 alt kategori · 0 ürün')).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ alt/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+ ürün/)).not.toBeInTheDocument();
   });
 
-  it('kutucuğa dokununca içine girer, yol görünür ve geri çıkılır', async () => {
+  it('satıra tıklayınca içine girer, yol görünür ve geri çıkılır', async () => {
     const user = await openCategories();
     await user.click(screen.getByRole('button', { name: 'OT/VT Ürünleri kategorisini aç' }));
     await waitFor(() => expect(ids()[0]).toBe('pos'));
@@ -58,11 +59,37 @@ describe('Kategoriler ekranı', () => {
     expect(ids()).toEqual(['yeni-nesil', 'yazarkasa-aks']);
   });
 
-  it('liste görünümüne geçilir ve seçim hatırlanır', async () => {
-    const user = await openCategories();
-    await user.click(screen.getByRole('radio', { name: 'Liste' }));
+  it('yalnızca liste vardır (kutucuk seçici yok) ve sayfalama yoktur', async () => {
+    await openCategories();
+    expect(screen.queryByRole('radio', { name: 'Kutucuk' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Görünüm' })).not.toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'OT/VT Ürünleri aktif' })).toBeChecked();
-    expect(localStorage.getItem('gt-kategori-gorunum')).toBe('list');
+    expect(screen.queryByLabelText('Sayfada Kaç Kategori')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sonraki sayfa' })).not.toBeInTheDocument();
+  });
+
+  it('kategori formunda Aktif, Mağazada Gizle ve Ürünler yok; açıklama adın altındadır', async () => {
+    const user = await openCategories();
+    await user.click(screen.getByRole('button', { name: 'OT/VT Ürünleri kategorisini düzenle' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Kategoriyi Düzenle' });
+    expect(within(dialog).queryByRole('switch')).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /Ürünler/ })).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Açıklama')).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText('SEO Başlığı')).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /Gelişmiş: SEO/ }));
+    expect(within(dialog).getByLabelText('SEO Başlığı')).toBeInTheDocument();
+  });
+
+  it('görsele çift tıklayınca kategoriye girmez; düzenleme açılır ve görsel seçici çalışır', async () => {
+    const click = vi.spyOn(HTMLInputElement.prototype, 'click');
+    const user = await openCategories();
+    await user.dblClick(screen.getAllByTitle('Görseli değiştirmek için çift tıklayın')[0]!);
+    await screen.findByRole('dialog', { name: 'Kategoriyi Düzenle' });
+    expect(click).toHaveBeenCalled();
+    click.mockRestore();
+    // Kategorinin içine girilmedi (yol çubuğunda yalnızca "Tümü").
+    const path = screen.getByRole('navigation', { name: 'Kategori yolu' });
+    expect(within(path).getAllByRole('button')).toHaveLength(1);
   });
 
   it('arama tüm ağaçta çalışır ve yolu gösterir', async () => {
@@ -74,8 +101,8 @@ describe('Kategoriler ekranı', () => {
 
   it('klavyeyle (Alt + ok) sıra değiştirilir', async () => {
     const user = await openCategories();
-    screen.getByRole('button', { name: 'OT/VT Ürünleri kategorisini aç' }).focus();
-    await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+    screen.getByRole('button', { name: /^OT\/VT Ürünleri sırasını değiştir/ }).focus();
+    await user.keyboard('{ArrowDown}');
     await waitFor(() => expect(ids().slice(0, 2)).toEqual(['tartim', 'otvt']));
     const next = await categoryService.list();
     expect(
@@ -106,8 +133,7 @@ describe('Kategoriler ekranı', () => {
 
   it('alt kategorisi olan kategoriyi silerken uyarır ve dalı siler', async () => {
     const user = await openCategories();
-    await user.click(screen.getByRole('button', { name: 'Tartım ve Paketleme işlemleri' }));
-    await user.click(await screen.findByRole('button', { name: 'Sil' }));
+    await user.click(screen.getByRole('button', { name: 'Tartım ve Paketleme kategorisini sil' }));
     expect(
       await screen.findByText(/2 alt kategori \(alt dalları dahil\) silinecek/),
     ).toBeInTheDocument();
@@ -119,10 +145,7 @@ describe('Kategoriler ekranı', () => {
 
   it('Taşı: istenen kategoriye gezip "Buraya Taşı" ile taşır', async () => {
     const user = await openCategories('/uygulama/kategoriler?k=otvt');
-    await user.click(screen.getByRole('button', { name: 'Dokunmatik POS işlemleri' }));
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Taşı' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Dokunmatik POS kategorisini taşı' }));
     const dialog = await screen.findByRole('dialog', { name: 'Dokunmatik POS · Taşı' });
     // Başlangıçta şu anki yerinde: taşıma kapalı.
     expect(within(dialog).getByRole('button', { name: 'Zaten Burada' })).toBeDisabled();
@@ -140,8 +163,7 @@ describe('Kategoriler ekranı', () => {
 
   it('Taşı: kategori kendi dalına taşınamaz (kendisi ve altları listede yok)', async () => {
     const user = await openCategories();
-    await user.click(screen.getByRole('button', { name: 'OT/VT Ürünleri işlemleri' }));
-    await user.click(await screen.findByRole('button', { name: 'Taşı' }));
+    await user.click(screen.getByRole('button', { name: 'OT/VT Ürünleri kategorisini taşı' }));
     const dialog = await screen.findByRole('dialog', { name: 'OT/VT Ürünleri · Taşı' });
     expect(
       within(dialog).queryByRole('button', { name: 'OT/VT Ürünleri içine gir' }),
@@ -153,9 +175,8 @@ describe('Kategoriler ekranı', () => {
 
   it('düzenleme penceresinde Konum düğmesi yan taşıma panelini açar ve hemen taşır', async () => {
     const user = await openCategories('/uygulama/kategoriler?k=otvt');
-    await user.click(screen.getByRole('button', { name: 'Fiyatgör ve Kiosk işlemleri' }));
     await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Düzenle' }),
+      screen.getByRole('button', { name: 'Fiyatgör ve Kiosk kategorisini düzenle' }),
     );
     const dialog = await screen.findByRole('dialog', { name: 'Kategoriyi Düzenle' });
     await user.click(within(dialog).getByRole('button', { name: /Konum · Taşı/ }));

@@ -4,50 +4,32 @@ import { useSearchParams } from 'react-router';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
-import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
-import { Segmented } from '../../../components/ui/Segmented';
-import { SortableGrid } from '../../../components/ui/SortableGrid';
 import { SortableList } from '../../../components/ui/SortableList';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
-import { usePagination } from '../../../lib/usePagination';
 import { useCategories } from '../hooks/useCategories';
 import { pathTo } from '../tree';
 import type { Category, CategoryDraft } from '../types';
-import { CategoryActionsSheet } from './CategoryActionsSheet';
 import { CategoryFormSheet } from './CategoryFormSheet';
 import { CategoryMoveSheet } from './CategoryMoveSheet';
 import { CategoryProductsSheet } from './CategoryProductsSheet';
 import { CategoryRow } from './CategoryRow';
-import { CategoryTile } from './CategoryTile';
 
 const fold = (s: string) => s.toLocaleLowerCase('tr');
-const VIEW_KEY = 'gt-kategori-gorunum';
-type View = 'tiles' | 'list';
-
-const VIEW_OPTIONS = [
-  { value: 'tiles', label: 'Kutucuk' },
-  { value: 'list', label: 'Liste' },
-];
-
-/** Son seçilen görünüm hatırlanır (tarayıcı kapalı/engelliyse varsayılan: kutucuk). */
-function readView(): View {
-  try {
-    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'tiles';
-  } catch {
-    return 'tiles';
-  }
-}
-
 /** Kategori penceresi: kapalı / yeni (categoryId yok, parentId = ekleneceği yer) / düzenleme. */
-type FormState = { categoryId: string | null; parentId: string | null } | null;
+type FormState = {
+  categoryId: string | null;
+  parentId: string | null;
+  /** true: açılışta görsel seçici hemen açılır. */
+  pickImage?: boolean;
+} | null;
 
 /**
  * Kategoriler ekranı. Ağaç, klasör gibi gezilir: bir kategoriye dokununca içine girilir, üstte
  * "Tümü › Ana › Alt" yolu ve geri düğmesi görünür. İçinde bulunulan kategori adres çubuğunda
- * (?k=…) tutulur; telefonun geri hareketi bir üst kategoriye çıkar. İki görünüm vardır:
- * görsel kutucuklar (telefonda varsayılan rahatlık) ve liste. Sıra, kardeş kategorilerin
- * mağazadaki gösterim sırasıdır; basılı tutup (fareyle tutup çekerek) sürüklenir.
+ * (?k=…) tutulur; telefonun geri hareketi bir üst kategoriye çıkar. Görünüm yalnızca listedir
+ * (kutucuk görünümü ve sayfalama yoktur). Sıra, kardeş kategorilerin mağazadaki gösterim
+ * sırasıdır; basılı tutup (fareyle tutup çekerek) sürüklenir.
  */
 export function CategoriesView() {
   const cats = useCategories();
@@ -67,21 +49,9 @@ export function CategoriesView() {
     setSearchParams(id ? { k: id } : {}, { replace: false });
   };
 
-  const [view, setView] = useState<View>(readView);
-  const changeView = (next: string) => {
-    const value: View = next === 'list' ? 'list' : 'tiles';
-    setView(value);
-    try {
-      localStorage.setItem(VIEW_KEY, value);
-    } catch {
-      /* Hatırlanamazsa sorun değil. */
-    }
-  };
-
   const [query, setQuery] = useState('');
   const [swipeOpenId, setSwipeOpenId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(null);
-  const [menuFor, setMenuFor] = useState<string | null>(null);
   const [productsFor, setProductsFor] = useState<string | null>(null);
   const [moveFor, setMoveFor] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Category | null>(null);
@@ -111,7 +81,6 @@ export function CategoriesView() {
   const visible = searching
     ? categories.filter((c) => fold(c.name).includes(fold(query.trim())))
     : siblings;
-  const paging = usePagination(visible, 10);
   const names = Object.fromEntries(categories.map((c) => [c.id, c.name]));
   const pathText = (c: Category) =>
     searching ? ['Tümü', ...pathTo(byId, c.parentId).map((p) => p.name)].join(' › ') : undefined;
@@ -119,7 +88,6 @@ export function CategoriesView() {
   const editing = form?.categoryId ? (byId.get(form.categoryId) ?? null) : null;
   const productsCategory = productsFor ? (byId.get(productsFor) ?? null) : null;
   const moveCategory = moveFor ? (byId.get(moveFor) ?? null) : null;
-  const menuCategory = menuFor ? (byId.get(menuFor) ?? null) : null;
 
   const saveCategory = async (draft: CategoryDraft) => {
     const wasEditing = editing;
@@ -152,9 +120,9 @@ export function CategoriesView() {
     pathText: pathText(c),
     onOpen: () => goTo(c.id),
   });
-  const openEdit = (c: Category) => {
+  const openEdit = (c: Category, pickImage = false) => {
     setSwipeOpenId(null);
-    setForm({ categoryId: c.id, parentId: c.parentId });
+    setForm({ categoryId: c.id, parentId: c.parentId, pickImage });
   };
   const openMove = (c: Category) => {
     setSwipeOpenId(null);
@@ -176,13 +144,7 @@ export function CategoriesView() {
     setProductsFor(c.id);
   };
 
-  // Sürükleme geçerli sayfa içindedir; sıra tüm kardeş listesine yansıtılır.
-  const reorderPage = (nextPage: Category[]) =>
-    cats.reorder(currentId, [
-      ...siblings.slice(0, paging.start),
-      ...nextPage,
-      ...siblings.slice(paging.start + nextPage.length),
-    ]);
+  const reorderList = (next: Category[]) => cats.reorder(currentId, next);
 
   let content: ReactNode;
   if (loading) {
@@ -214,38 +176,16 @@ export function CategoriesView() {
         }
       />
     );
-  } else if (view === 'tiles') {
-    content = (
-      <SortableGrid
-        label="Kategoriler"
-        items={paging.pageItems}
-        getId={(c) => c.id}
-        getLabel={(c) => c.name}
-        disabled={searching}
-        onDragStart={() => setSwipeOpenId(null)}
-        onReorder={reorderPage}
-        className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-        renderItem={(c, ctx) => (
-          <CategoryTile
-            category={c}
-            sortable={ctx}
-            pathText={pathText(c)}
-            onOpen={() => goTo(c.id)}
-            onMenu={() => setMenuFor(c.id)}
-          />
-        )}
-      />
-    );
   } else {
     content = (
       <SortableList
         label="Kategoriler"
-        items={paging.pageItems}
+        items={visible}
         getId={(c) => c.id}
         getLabel={(c) => c.name}
         disabled={searching}
         onDragStart={() => setSwipeOpenId(null)}
-        onReorder={reorderPage}
+        onReorder={reorderList}
         renderItem={(c, ctx) => (
           <CategoryRow
             {...commonRowProps(c)}
@@ -255,6 +195,7 @@ export function CategoriesView() {
             swipeOpen={swipeOpenId === c.id}
             onSwipeOpenChange={(open) => setSwipeOpenId(open ? c.id : null)}
             onEdit={() => openEdit(c)}
+            onEditImage={() => openEdit(c, true)}
             onAssign={() => openProducts(c)}
             onMove={() => openMove(c)}
             onDelete={() => setDeleting(c)}
@@ -279,10 +220,7 @@ export function CategoriesView() {
         <div className="min-w-0 flex-1">
           <SearchField
             value={query}
-            onChange={(text) => {
-              setQuery(text);
-              paging.setPage(1);
-            }}
+            onChange={setQuery}
             label="Kategori ara"
             placeholder="Tüm kategorilerde ara…"
           />
@@ -333,16 +271,12 @@ export function CategoriesView() {
             ))}
           </ol>
         </nav>
-        <div className="w-full shrink-0 md:w-44">
-          <Segmented label="Görünüm" value={view} options={VIEW_OPTIONS} onChange={changeView} />
-        </div>
       </div>
 
       {current && !searching ? (
         <div className="flex flex-col gap-3 rounded-3xl bg-brand-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="min-w-0 text-sm text-brand-ink">
             <b className="block truncate text-base">{current.name}</b>
-            {current.productCount} ürün · {current.childCount} alt kategori
           </p>
           <div className="grid shrink-0 grid-cols-3 gap-2">
             <Button
@@ -376,35 +310,14 @@ export function CategoriesView() {
       <p className="px-2 text-sm text-ink-muted">
         {searching
           ? 'Arama sırasında sıralama kapalıdır. Dokununca o kategorinin içine girilir.'
-          : view === 'tiles'
-            ? phone
-              ? 'Dokununca içine girilir · basılı tutup sürükleyerek sırala.'
-              : 'Dokununca içine girilir · sıralamak için kutucuğu tutup sürükleyin.'
-            : phone
-              ? 'Basılı tutup sürükleyerek sırala · sola kaydırınca işlemler çıkar.'
-              : 'Sıralamak için ⠿ tutamağından sürükleyin.'}
+          : phone
+            ? 'Basılı tutup sürükleyerek sırala · sola kaydırınca işlemler çıkar.'
+            : 'Sıralamak için ⠿ tutamağından sürükleyin · görsele çift tıklayınca görsel yüklenir.'}
       </p>
 
-      <div key={`${currentId ?? 'kok'}-${view}-${searching}`} className="animate-fade-in">
+      <div key={`${currentId ?? 'kok'}-${searching}`} className="animate-fade-in">
         {content}
       </div>
-
-      {!loading && visible.length > 0 ? (
-        <PaginationBar
-          noun="kategori"
-          total={paging.total}
-          from={paging.from}
-          to={paging.to}
-          page={paging.page}
-          pageCount={paging.pageCount}
-          onPageChange={(p) => {
-            setSwipeOpenId(null);
-            paging.setPage(p);
-          }}
-          sizeText={paging.sizeText}
-          onSizeTextChange={paging.setSizeText}
-        />
-      ) : null}
 
       {/* Telefon: yüzen ekleme düğmesi (alt çubuğun üstünde) */}
       <button
@@ -427,18 +340,6 @@ export function CategoriesView() {
         </div>
       ) : null}
 
-      {menuCategory ? (
-        <CategoryActionsSheet
-          category={menuCategory}
-          onClose={() => setMenuFor(null)}
-          onEdit={() => openEdit(menuCategory)}
-          onAddChild={() => setForm({ categoryId: null, parentId: menuCategory.id })}
-          onAssign={() => openProducts(menuCategory)}
-          onMove={() => openMove(menuCategory)}
-          onToggle={(active) => cats.toggleActive(menuCategory.id, active)}
-          onDelete={() => setDeleting(menuCategory)}
-        />
-      ) : null}
       {form ? (
         <CategoryFormSheet
           key={form.categoryId ?? `yeni-${form.parentId ?? 'kok'}`}
@@ -448,10 +349,9 @@ export function CategoriesView() {
           categoryNames={names}
           onSave={saveCategory}
           saveError={cats.error}
-          onAssign={cats.assign}
-          onUnassign={cats.unassign}
           onMove={(id, parentId) => cats.move(id, parentId)}
           onClose={() => setForm(null)}
+          pickImage={form.pickImage === true}
         />
       ) : null}
       {productsCategory ? (

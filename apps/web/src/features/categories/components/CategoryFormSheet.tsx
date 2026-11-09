@@ -1,17 +1,15 @@
-import { Boxes, ChevronDown, ChevronRight, FolderInput } from 'lucide-react';
+import { ChevronDown, ChevronRight, FolderInput } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import { SelectField, type SelectOption } from '../../../components/ui/SelectField';
 import { Sheet } from '../../../components/ui/Sheet';
-import { Switch } from '../../../components/ui/Switch';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
 import { TextField } from '../../../components/ui/TextField';
 import { LogoPicker } from '../../brands/components/LogoPicker';
 import { branchOf, flattenTree } from '../tree';
 import { emptyCategoryDraft, type Category, type CategoryDraft } from '../types';
 import { CategoryMovePanel } from './CategoryMovePanel';
-import { CategoryProductsPanel } from './CategoryProductsPanel';
 
 interface CategoryFormSheetProps {
   /** Düzenlenen kategori (güncel sayılarla); yoksa yeni kategori eklenir. */
@@ -22,19 +20,20 @@ interface CategoryFormSheetProps {
   categoryNames: Record<string, string>;
   onSave: (draft: CategoryDraft) => Promise<void>;
   saveError?: string | null;
-  onAssign: (categoryId: string, productIds: string[]) => Promise<void>;
-  onUnassign: (categoryId: string, productIds: string[]) => Promise<void>;
   /** Mevcut kategoriyi hemen taşır (Kaydet'ten bağımsız). */
   onMove: (categoryId: string, parentId: string | null) => Promise<void>;
   onClose: () => void;
+  /** true: pencere açılınca görsel dosya seçici hemen açılır (listede görsele çift tıklanınca). */
+  pickImage?: boolean;
 }
 
 const ROOT = '';
 const NAME_REQUIRED = 'Kategori adı gerekli.';
 
 /**
- * Kategori ekleme/düzenleme paneli (telefonda alttan açılır). Gerekli tek alan ad; açıklama ve
- * SEO "Gelişmiş" altında katlıdır. Üst kategori listesi ağaç şeklinde girintilidir ve kategorinin
+ * Kategori ekleme/düzenleme paneli (telefonda alttan açılır). Gerekli tek alan ad; açıklama
+ * adın altında durur, SEO "Gelişmiş" altında katlıdır. Aktif/gizle anahtarları ve ürünler burada
+ * yoktur (aktiflik listedeki anahtardan, ürünler satırdaki "Ürünler" işleminden yönetilir). Üst kategori listesi ağaç şeklinde girintilidir ve kategorinin
  * kendi dalını içermez. Her açılışta yeniden kurulur (key ile).
  */
 export function CategoryFormSheet({
@@ -44,14 +43,12 @@ export function CategoryFormSheet({
   categoryNames,
   onSave,
   saveError,
-  onAssign,
-  onUnassign,
   onMove,
   onClose,
+  pickImage = false,
 }: CategoryFormSheetProps) {
-  // Yan panel: ürünler ya da taşıma (aynı anda biri açılır).
-  const [panel, setPanel] = useState<'products' | 'move' | null>(null);
-  const productsButton = useRef<HTMLButtonElement>(null);
+  // Yan panel: yalnızca taşıma.
+  const [panel, setPanel] = useState<'move' | null>(null);
   const moveButton = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState<CategoryDraft>(() =>
     category
@@ -106,38 +103,26 @@ export function CategoryFormSheet({
       aside={
         category
           ? {
-              title: panel === 'move' ? `${category.name} · Taşı` : `${category.name} · Ürünler`,
-              subtitle:
-                panel === 'move'
-                  ? 'Nereye taşınsın?'
-                  : `${category.productCount} ürün bu kategoride`,
+              title: `${category.name} · Taşı`,
+              subtitle: 'Nereye taşınsın?',
               open: panel !== null,
               side: 'right',
               onClose: () => {
-                const opener = panel === 'move' ? moveButton : productsButton;
                 setPanel(null);
-                opener.current?.focus();
+                moveButton.current?.focus();
               },
-              children:
-                panel === 'move' ? (
-                  <CategoryMovePanel
-                    category={category}
-                    categories={categories}
-                    onMove={async (parentId) => {
-                      await onMove(category.id, parentId);
-                      set('parentId', parentId);
-                      setPanel(null);
-                      moveButton.current?.focus();
-                    }}
-                  />
-                ) : (
-                  <CategoryProductsPanel
-                    category={category}
-                    categoryNames={categoryNames}
-                    onAssign={onAssign}
-                    onUnassign={onUnassign}
-                  />
-                ),
+              children: (
+                <CategoryMovePanel
+                  category={category}
+                  categories={categories}
+                  onMove={async (parentId) => {
+                    await onMove(category.id, parentId);
+                    set('parentId', parentId);
+                    setPanel(null);
+                    moveButton.current?.focus();
+                  }}
+                />
+              ),
             }
           : undefined
       }
@@ -151,6 +136,7 @@ export function CategoryFormSheet({
             onChange={(url) => set('imageUrl', url)}
             noun="Görsel"
             hint="800×800 oranı önerilir"
+            autoPick={pickImage}
           />
           <div className="flex flex-col gap-4">
             <TextField
@@ -198,38 +184,11 @@ export function CategoryFormSheet({
                 onChange={(v) => set('parentId', v === ROOT ? null : v)}
               />
             )}
-            <Switch label="Aktif" checked={draft.active} onChange={(v) => set('active', v)} />
-            <Switch
-              label="Mağazada Gizle"
-              checked={draft.hidden}
-              onChange={(v) => set('hidden', v)}
+            <TextAreaField
+              label="Açıklama"
+              value={draft.description}
+              onChange={(e) => set('description', e.target.value)}
             />
-            {category ? (
-              <button
-                ref={productsButton}
-                type="button"
-                onClick={() => setPanel((p) => (p === 'products' ? null : 'products'))}
-                aria-expanded={panel === 'products'}
-                className={[
-                  'flex min-h-14 items-center gap-3 rounded-control border px-4 text-left transition-colors',
-                  panel === 'products'
-                    ? 'border-brand-600 bg-brand-50 text-brand-ink'
-                    : 'border-field-border hover:border-brand-500',
-                ].join(' ')}
-              >
-                <Boxes className="size-5 shrink-0" aria-hidden="true" />
-                <span className="flex-1 font-semibold">
-                  Ürünler
-                  <span className="ml-2 rounded-full bg-surface-muted px-2.5 py-0.5 text-sm text-ink-muted">
-                    {category.productCount}
-                  </span>
-                </span>
-                <ChevronRight
-                  className={`size-5 shrink-0 transition-transform ${panel === 'products' ? 'rotate-180' : ''}`}
-                  aria-hidden="true"
-                />
-              </button>
-            ) : null}
           </div>
         </div>
 
@@ -239,7 +198,7 @@ export function CategoryFormSheet({
           aria-expanded={advancedOpen}
           className="inline-flex min-h-11 items-center gap-2 self-start rounded-full px-1 text-sm font-semibold text-brand-ink"
         >
-          Gelişmiş: Açıklama ve SEO
+          Gelişmiş: SEO
           <ChevronDown
             className={`size-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`}
             aria-hidden="true"
@@ -247,11 +206,6 @@ export function CategoryFormSheet({
         </button>
         {advancedOpen ? (
           <div className="flex animate-fade-in flex-col gap-4">
-            <TextAreaField
-              label="Açıklama"
-              value={draft.description}
-              onChange={(e) => set('description', e.target.value)}
-            />
             <TextField
               label="SEO Başlığı"
               value={draft.seoTitle}

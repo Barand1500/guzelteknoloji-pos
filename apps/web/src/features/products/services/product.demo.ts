@@ -144,8 +144,10 @@ export const demoProductService = {
    * Toplu Görsel: ürünlere görselleri yazar. `replace` açıksa ürünün mevcut görselleri silinip yenileri
    * konur, kapalıysa yenileri sona eklenir. İlk görsel vitrin resmi olur. Eklenen toplam görsel sayısı döner.
    */
+  /** Mevcut görsellerin de sırası değiştirilebilir (deneme verisinde evet). */
+  supportsImageOrder: true,
   async applyImages(
-    entries: { productId: string; urls: string[] }[],
+    entries: { productId: string; urls: string[]; finalOrder?: string[] }[],
     replace: boolean,
   ): Promise<number> {
     await wait(0);
@@ -154,7 +156,13 @@ export const demoProductService = {
       const entry = entries.find((e) => e.productId === p.id);
       if (!entry || entry.urls.length === 0) return p;
       added += entry.urls.length;
-      const imageUrls = replace ? [...entry.urls] : [...p.imageUrls, ...entry.urls];
+      // finalOrder: kullanıcının sürükleyerek verdiği son sıra (mevcut + yeni görseller birlikte).
+      const imageUrls =
+        entry.finalOrder && entry.finalOrder.length > 0
+          ? [...entry.finalOrder]
+          : replace
+            ? [...entry.urls]
+            : [...p.imageUrls, ...entry.urls];
       return { ...p, imageUrls, imageUrl: imageUrls[0] ?? null };
     });
     return added;

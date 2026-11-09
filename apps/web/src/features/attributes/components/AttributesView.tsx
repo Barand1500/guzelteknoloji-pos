@@ -4,12 +4,10 @@ import { useSearchParams } from 'react-router';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
-import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
 import { SortableGrid } from '../../../components/ui/SortableGrid';
 import { SortableList } from '../../../components/ui/SortableList';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
-import { usePagination } from '../../../lib/usePagination';
 import { dataError } from '../../../lib/catalog-data';
 import { useCategories } from '../../categories/hooks/useCategories';
 import { useAttributes } from '../hooks/useAttributes';
@@ -57,7 +55,7 @@ function Tag({
 type FormState =
   | { type: 'template'; id: string | null }
   | { type: 'group'; id: string | null }
-  | { type: 'value'; id: string | null }
+  | { type: 'value'; id: string | null; pickImage?: boolean }
   | null;
 
 type Deleting =
@@ -134,17 +132,13 @@ export function AttributesView() {
   const visibleValues = searching
     ? values.filter((v) => matches(v.name) || matches(v.code))
     : values;
+
   const visibleCount =
     level === 'templates'
       ? visibleTemplates.length
       : level === 'groups'
         ? visibleGroups.length
         : visibleValues.length;
-  const pagingTemplates = usePagination(visibleTemplates, 10);
-  const pagingGroups = usePagination(visibleGroups, 10);
-  const pagingValues = usePagination(visibleValues, 10);
-  const paging =
-    level === 'templates' ? pagingTemplates : level === 'groups' ? pagingGroups : pagingValues;
 
   const categoryName = (id: string) => cats.byId.get(id)?.name ?? '';
 
@@ -299,18 +293,12 @@ export function AttributesView() {
     content = (
       <SortableList
         label="Şablonlar"
-        items={pagingTemplates.pageItems}
+        items={visibleTemplates}
         getId={(t) => t.id}
         getLabel={(t) => t.name}
         disabled={searching}
         onDragStart={() => setSwipeOpenId(null)}
-        onReorder={(nextPage) =>
-          attrs.reorderTemplates([
-            ...templates.slice(0, pagingTemplates.start),
-            ...nextPage,
-            ...templates.slice(pagingTemplates.start + nextPage.length),
-          ])
-        }
+        onReorder={(next) => attrs.reorderTemplates(next)}
         renderItem={(t, ctx) => (
           <AttributeRow
             {...rowCommon(t.id)}
@@ -355,19 +343,12 @@ export function AttributesView() {
     content = (
       <SortableList
         label="Gruplar"
-        items={pagingGroups.pageItems}
+        items={visibleGroups}
         getId={(g) => g.id}
         getLabel={(g) => g.name}
         disabled={searching}
         onDragStart={() => setSwipeOpenId(null)}
-        onReorder={(nextPage) =>
-          template &&
-          attrs.reorderGroups(template.id, [
-            ...groups.slice(0, pagingGroups.start),
-            ...nextPage,
-            ...groups.slice(pagingGroups.start + nextPage.length),
-          ])
-        }
+        onReorder={(next) => template && attrs.reorderGroups(template.id, next)}
         renderItem={(g, ctx) => (
           <AttributeRow
             {...rowCommon(g.id)}
@@ -402,24 +383,19 @@ export function AttributesView() {
     content = (
       <SortableGrid
         label="Özellikler"
-        items={pagingValues.pageItems}
+        items={visibleValues}
         getId={(v) => v.id}
         getLabel={(v) => v.name}
         disabled={searching}
         className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
-        onReorder={(nextPage) =>
-          attrs.reorderValues(group.id, [
-            ...values.slice(0, pagingValues.start),
-            ...nextPage,
-            ...values.slice(pagingValues.start + nextPage.length),
-          ])
-        }
+        onReorder={(next) => attrs.reorderValues(group.id, next)}
         renderItem={(v, ctx) => (
           <ValueTile
             value={v}
             kind={group.kind}
             sortable={ctx}
             onEdit={() => setForm({ type: 'value', id: v.id })}
+            onEditImage={() => setForm({ type: 'value', id: v.id, pickImage: true })}
           />
         )}
       />
@@ -431,7 +407,7 @@ export function AttributesView() {
     : level === 'values'
       ? phone
         ? 'Dokununca düzenler · basılı tutup sürükleyerek sırala.'
-        : 'Dokununca düzenler · sıralamak için çipi tutup sürükleyin.'
+        : 'Dokununca düzenler · resme çift tıklayınca resim yüklenir · sıralamak için çipi tutup sürükleyin.'
       : phone
         ? 'Dokununca içine girilir · basılı tutup sürükleyerek sırala · sola kaydırınca işlemler.'
         : 'Tıklayınca içine girilir · sıralamak için ⠿ tutamağından sürükleyin.';
@@ -457,10 +433,7 @@ export function AttributesView() {
         <div className="min-w-0 flex-1">
           <SearchField
             value={query}
-            onChange={(text) => {
-              setQuery(text);
-              paging.setPage(1);
-            }}
+            onChange={setQuery}
             label="Özellik ara"
             placeholder={
               level === 'templates'
@@ -568,23 +541,6 @@ export function AttributesView() {
         {content}
       </div>
 
-      {!attrs.loading && visibleCount > 0 ? (
-        <PaginationBar
-          noun={level === 'templates' ? 'şablon' : level === 'groups' ? 'grup' : 'özellik'}
-          total={paging.total}
-          from={paging.from}
-          to={paging.to}
-          page={paging.page}
-          pageCount={paging.pageCount}
-          onPageChange={(p) => {
-            setSwipeOpenId(null);
-            paging.setPage(p);
-          }}
-          sizeText={paging.sizeText}
-          onSizeTextChange={paging.setSizeText}
-        />
-      ) : null}
-
       {/* Telefon: yüzen ekleme düğmesi (alt çubuğun üstünde) */}
       <button
         type="button"
@@ -630,6 +586,7 @@ export function AttributesView() {
       {form?.type === 'value' && group ? (
         <ValueFormSheet
           key={form.id ?? 'yeni-ozellik'}
+          pickImage={form.pickImage === true}
           group={group}
           value={editingValue}
           takenNames={values.filter((v) => v.id !== editingValue?.id).map((v) => v.name)}

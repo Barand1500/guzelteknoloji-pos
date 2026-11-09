@@ -1,4 +1,5 @@
-import { Check, MoreVertical } from 'lucide-react';
+import { Check, ChevronDown, Copy, Pencil, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import {
   currencyOf,
@@ -6,6 +7,7 @@ import {
   grossOf,
   moneyOrDash,
   netOf,
+  vatOf,
   type PriceColumn,
   type ProductItem,
 } from '../types';
@@ -14,30 +16,49 @@ import { StockBadge } from './StockBadge';
 
 interface ProductTableProps {
   products: ProductItem[];
-  /** Gösterilecek fiyat sütunları: kullanıcının fiyat listeleri (ve isteğe bağlı Alış), kendi adlarıyla. */
-  columns: PriceColumn[];
+  /** Başlıktan seçilebilen fiyat görünümleri: kullanıcının fiyat listeleri ve Alış (kendi adlarıyla). */
+  priceOptions: PriceColumn[];
+  /** Tabloda şu an gösterilen fiyat görünümü (varsayılan: ilk liste). */
+  priceView: string;
+  onPriceView: (id: string) => void;
   selected: ReadonlySet<string>;
   onToggleSelect: (id: string) => void;
   onToggleAll: (select: boolean) => void;
   onEdit: (product: ProductItem) => void;
-  onMore: (product: ProductItem) => void;
+  onCopy: (product: ProductItem) => void;
+  onDelete: (product: ProductItem) => void;
+  /** Resme çift tıklama: görselleri değiştir / daha fazla yükle penceresi. */
+  onEditImages: (product: ProductItem) => void;
   onStockTracking: (id: string, on: boolean) => void;
   onSales: (id: string, on: boolean) => void;
 }
 
-/** Masaüstü tablo görünümü: seçilen fiyat listeleri yan yana, resim üstüne gelince büyük önizleme. */
+/**
+ * Masaüstü tablo görünümü. Tabloda TEK fiyat sütunu vardır (varsayılan ilk liste, ör. FİYAT); çok
+ * sayıda fiyat listesi olsa da tablo kalabalıklaşmaz:
+ * - sütun başlığındaki küçük seçiciyle sütunda hangi listenin (ya da Alış'ın) görüneceği değişir;
+ * - bir fiyatın ÜZERİNE GELİNCE (ya da klavyeyle odaklanınca) o ürünün tüm fiyat listeleri bir
+ *   küçük kartta açılır.
+ * İşlemler (Düzenle, Kopya Oluştur, Sil) doğrudan simgelerdir; resme çift tıklayınca görseller açılır.
+ */
 export function ProductTable({
   products,
-  columns,
+  priceOptions,
+  priceView,
+  onPriceView,
   selected,
   onToggleSelect,
   onToggleAll,
   onEdit,
-  onMore,
+  onCopy,
+  onDelete,
+  onEditImages,
   onStockTracking,
   onSales,
 }: ProductTableProps) {
   const allOn = products.length > 0 && products.every((p) => selected.has(p.id));
+  const iconButton =
+    'inline-flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-ink focus-visible:bg-brand-50';
   return (
     <div className="rounded-3xl border border-line bg-surface-raised">
       <table className="w-full border-collapse text-sm">
@@ -52,15 +73,13 @@ export function ProductTable({
             </th>
             <th className="p-3">Ürün</th>
             <th className="p-3">Kod · Tip</th>
-            {columns.map((column) => (
-              <th key={column.id} className="p-3 text-right">
-                {column.name}
-              </th>
-            ))}
+            <th className="p-3 text-right">
+              <PriceHeader options={priceOptions} value={priceView} onChange={onPriceView} />
+            </th>
             <th className="p-3">Stok</th>
             <th className="p-3 text-center">Stok Takibi</th>
             <th className="p-3 text-center">Satış</th>
-            <th className="w-12 p-3">
+            <th className="p-3">
               <span className="sr-only">İşlemler</span>
             </th>
           </tr>
@@ -85,7 +104,17 @@ export function ProductTable({
               </td>
               <td className="p-3">
                 <div className="flex items-center gap-3">
-                  <ProductThumb product={p} hoverPreview />
+                  {/* Resme çift tıklama: satırın düzenleme açan çift tıklaması çalışmaz. */}
+                  <span
+                    role="presentation"
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      onEditImages(p);
+                    }}
+                    title="Görselleri değiştirmek için çift tıklayın"
+                  >
+                    <ProductThumb product={p} hoverPreview />
+                  </span>
                   <div className="min-w-0">
                     {p.brandName ? (
                       <p className="text-xs font-bold text-ink-muted">{p.brandName}</p>
@@ -107,20 +136,9 @@ export function ProductTable({
                 {p.code}
                 <span className="block text-xs text-brand-ink">{p.stockType}</span>
               </td>
-              {columns.map((column) => {
-                const net = netOf(p, column.id);
-                const currency = currencyOf(p, column.id);
-                return (
-                  <td key={column.id} className="p-3 text-right font-bold whitespace-nowrap">
-                    {moneyOrDash(grossOf(p, column.id), currency)}
-                    {net === null ? null : (
-                      <span className="block text-xs font-medium text-ink-muted">
-                        KDV hariç {formatMoney(net, currency)}
-                      </span>
-                    )}
-                  </td>
-                );
-              })}
+              <td className="p-3 text-right">
+                <PriceCell product={p} view={priceView} options={priceOptions} />
+              </td>
               <td className="p-3">
                 <StockBadge product={p} />
               </td>
@@ -139,19 +157,200 @@ export function ProductTable({
                 />
               </td>
               <td className="p-3">
-                <button
-                  type="button"
-                  aria-label={`${p.name} işlemleri`}
-                  onClick={() => onMore(p)}
-                  className="flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
-                >
-                  <MoreVertical className="size-5" aria-hidden="true" />
-                </button>
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(p)}
+                    aria-label={`${p.name} ürününü düzenle`}
+                    title="Düzenle"
+                    className={iconButton}
+                  >
+                    <Pencil className="size-5" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onCopy(p)}
+                    aria-label={`${p.name} ürününün kopyasını oluştur`}
+                    title="Kopya Oluştur"
+                    className={iconButton}
+                  >
+                    <Copy className="size-5" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(p)}
+                    aria-label={`${p.name} ürününü sil`}
+                    title="Sil"
+                    className="inline-flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger focus-visible:bg-danger-soft"
+                  >
+                    <Trash2 className="size-5" aria-hidden="true" />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** Fiyat sütununun başlığı: tıklayınca hangi listenin gösterileceği seçilir. */
+function PriceHeader({
+  options,
+  value,
+  onChange,
+}: {
+  options: PriceColumn[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const current = options.find((o) => o.id === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
+  // Tek seçenek varsa seçici gerekmez.
+  if (options.length <= 1) return <span>{current?.name ?? 'Fiyat'}</span>;
+  return (
+    <div ref={root} className="relative inline-block normal-case">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Tabloda gösterilecek fiyat"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold tracking-wide text-brand-ink uppercase transition-colors hover:bg-brand-100"
+      >
+        {current?.name ?? 'Fiyat'}
+        <ChevronDown
+          className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+      {open ? (
+        <ul
+          role="listbox"
+          aria-label="Fiyat listeleri"
+          className="absolute top-full right-0 z-30 mt-2 max-h-72 min-w-44 animate-fade-in overflow-y-auto rounded-2xl border border-line bg-surface-raised p-1.5 text-left shadow-card"
+        >
+          {options.map((o) => (
+            <li
+              key={o.id}
+              role="option"
+              aria-selected={o.id === value}
+              tabIndex={0}
+              onClick={() => {
+                onChange(o.id);
+                setOpen(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onChange(o.id);
+                  setOpen(false);
+                }
+              }}
+              className={[
+                'flex min-h-10 cursor-pointer items-center gap-2 rounded-xl px-3 text-sm font-semibold',
+                o.id === value ? 'bg-brand-50 text-brand-ink' : 'text-ink hover:bg-surface-muted',
+              ].join(' ')}
+            >
+              <span className="flex-1">{o.name}</span>
+              {o.id === value ? <Check className="size-4" aria-hidden="true" /> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Tablodaki fiyat hücresi: seçili listenin KDV Dahil fiyatı + KDV Hariç tutarı. Üzerine gelince
+ * (ya da odaklanınca) ürünün TÜM fiyat listeleri küçük bir kartta görünür.
+ */
+function PriceCell({
+  product,
+  view,
+  options,
+}: {
+  product: ProductItem;
+  view: string;
+  options: PriceColumn[];
+}) {
+  const net = netOf(product, view);
+  const currency = currencyOf(product, view);
+  // Kart yalnızca üzerine gelince ya da odaklanınca çizilir (satır başına fazladan öğe yok).
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="relative inline-block text-right"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        aria-label={`${product.name} fiyatları`}
+        className="cursor-default rounded-xl px-2 py-1 text-right font-bold whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-brand-600/40"
+      >
+        {moneyOrDash(grossOf(product, view), currency)}
+        {net === null ? null : (
+          <span className="block text-xs font-medium text-ink-muted">
+            KDV Hariç {formatMoney(net, currency)}
+          </span>
+        )}
+      </button>
+      {open && options.length > 1 ? (
+        <div
+          role="tooltip"
+          className="pointer-events-none absolute top-full right-0 z-30 mt-1 w-64 animate-fade-in rounded-2xl border border-line bg-surface-raised p-3 text-left shadow-card"
+        >
+          <p className="mb-2 text-xs font-bold tracking-wide text-ink-muted uppercase">
+            Tüm Fiyatlar · KDV %{vatOf(product, view)}
+          </p>
+          <dl className="flex flex-col gap-1.5">
+            {options.map((o) => {
+              const n = netOf(product, o.id);
+              const c = currencyOf(product, o.id);
+              return (
+                <div
+                  key={o.id}
+                  className={[
+                    'flex items-baseline justify-between gap-3 rounded-lg px-2 py-1',
+                    o.id === view ? 'bg-brand-50' : '',
+                  ].join(' ')}
+                >
+                  <dt className="text-xs font-bold text-ink-muted">{o.name}</dt>
+                  <dd className="text-right text-sm font-bold">
+                    {moneyOrDash(grossOf(product, o.id), c)}
+                    {n === null ? null : (
+                      <span className="block text-[0.6875rem] font-medium text-ink-muted">
+                        KDV Hariç {formatMoney(n, c)}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+        </div>
+      ) : null}
     </div>
   );
 }

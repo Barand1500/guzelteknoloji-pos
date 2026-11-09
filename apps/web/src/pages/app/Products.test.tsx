@@ -1,7 +1,14 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { parseImport, sampleImportCsv } from '../../features/products/import.csv';
+import {
+  autoMapping,
+  buildImportText,
+  missingRequired,
+  parseImport,
+  readTable,
+  sampleImportCsv,
+} from '../../features/products/import.csv';
 import { demoProductService as productService } from '../../features/products/services/product.demo';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
 
@@ -73,7 +80,8 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     const user = await openProducts();
     await user.click(screen.getByRole('button', { name: 'Süzgeçler' }));
     const dialog = await screen.findByRole('dialog', { name: 'Süzgeçler' });
-    await user.click(within(dialog).getByRole('switch', { name: 'CAS' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Marka' }));
+    await user.click(within(dialog).getByRole('checkbox', { name: 'CAS' }));
     await user.click(await within(dialog).findByRole('button', { name: '2 Ürünü Göster' }));
     await waitFor(() => expect(rowCount()).toBe(2));
 
@@ -115,27 +123,59 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     expect(await screen.findByText('2 ürün satışa kapatıldı.')).toBeInTheDocument();
   });
 
-  it('⋮ menüsünden silinir; onay ister', async () => {
+  it('satırdaki Sil simgesiyle silinir; onay ister', async () => {
     const user = await openProducts();
-    await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
-    const menu = await screen.findByRole('dialog', { name: NAME_1 });
-    await user.click(within(menu).getByRole('button', { name: 'Sil' }));
+    await user.click(screen.getByRole('button', { name: `${NAME_1} ürününü sil` }));
     expect(await screen.findByText(`${NAME_1} Silinsin Mi?`)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Sil' }));
     await waitFor(() => expect(document.querySelector('tr[data-product-id="p1"]')).toBeNull());
     expect((await productService.list()).some((p) => p.id === 'p1')).toBe(false);
   });
 
-  it('⋮ menüsünde yalnızca Düzenle, Kopya Oluştur ve Sil vardır (pazaryeri satırı yok)', async () => {
-    const user = await openProducts();
-    await user.click(screen.getByRole('button', { name: `${NAME_1} işlemleri` }));
-    const menu = await screen.findByRole('dialog', { name: NAME_1 });
+  it('satırda ⋮ menüsü yoktur: Düzenle, Kopya Oluştur ve Sil doğrudan simgedir', async () => {
+    await openProducts();
+    expect(screen.queryByRole('button', { name: `${NAME_1} işlemleri` })).not.toBeInTheDocument();
+    const row = document.querySelector('tr[data-product-id="p1"]') as HTMLElement;
     expect(
-      within(menu)
+      within(row)
         .getAllByRole('button')
-        .map((b) => b.textContent?.trim())
-        .filter((t) => t !== ''),
-    ).toEqual(['Düzenle', 'Kopya Oluştur', 'Sil']);
+        .map((b) => b.getAttribute('title'))
+        .filter(Boolean),
+    ).toEqual(expect.arrayContaining(['Düzenle', 'Kopya Oluştur', 'Sil']));
+  });
+
+  it('tabloda tek fiyat sütunu vardır; üzerine gelince tüm fiyat listeleri açılır', async () => {
+    const user = await openProducts();
+    const header = document.querySelector('thead') as HTMLElement;
+    expect(within(header).queryByText('PERAKENDE')).not.toBeInTheDocument();
+    const cell = screen.getByRole('button', { name: `${NAME_1} fiyatları` });
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    await user.hover(cell);
+    const card = await screen.findByRole('tooltip');
+    for (const name of ['FİYAT', 'PERAKENDE', 'TOPTAN', 'Alış'])
+      expect(within(card).getByText(name)).toBeInTheDocument();
+    expect(within(card).getAllByText(/KDV Hariç/).length).toBeGreaterThan(0);
+    await user.unhover(cell);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('resme çift tıklayınca görseller penceresi açılır; daha fazla görsel yüklenir', async () => {
+    const user = await openProducts();
+    const row = document.querySelector('tr[data-product-id="p1"]') as HTMLElement;
+    await user.dblClick(within(row).getByTitle('Görselleri değiştirmek için çift tıklayın'));
+    const dialog = await screen.findByRole('dialog', { name: 'Ürün Görselleri' });
+    // Satırın çift tıklaması (düzenleme) çalışmaz.
+    expect(screen.queryByRole('heading', { name: 'Stok Kartını Düzenle' })).not.toBeInTheDocument();
+    const before = (await productService.list()).find((p) => p.id === 'p1')!.imageUrls.length;
+    await user.click(within(dialog).getByRole('button', { name: 'Daha Fazla Yükle' }));
+    await user.upload(
+      within(dialog).getByLabelText('Görsel dosyaları seç'),
+      new File(['x'], 'yeni.png', { type: 'image/png' }),
+    );
+    await user.click(await within(dialog).findByRole('button', { name: '1 Görseli Yükle' }));
+    expect(await screen.findByText(/için 1 görsel eklendi/)).toBeInTheDocument();
+    const after = (await productService.list()).find((p) => p.id === 'p1')!.imageUrls.length;
+    expect(after).toBe(before + 1);
   });
 });
 
@@ -148,16 +188,27 @@ describe('Excel ile ürün yükleme sihirbazı', () => {
     'YENI-2;Kategorisi yok;10;Olmayan Kategori;;',
   ].join('\r\n');
 
-  it('önizlemede doğru/yanlış satırlar ayrılır; onaylayınca yalnızca doğrular kaydedilir', async () => {
+  async function openWizard() {
     const user = await openProducts();
     await user.click(screen.getByRole('button', { name: 'Excel ile Yükle' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Excel ile Ürün Yükle' });
-    expect(within(dialog).getByText('Stok Kodu *')).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Dosyam Hazır, Devam' }));
+    const dialog = await screen.findByRole('dialog', { name: "Excel'den İçe Aktar" });
+    return { user, dialog };
+  }
+  const upload = (user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement, file: File) =>
+    user.upload(within(dialog).getByLabelText('Excel veya CSV dosyası seç'), file);
 
-    const file = new File([csv], 'urunler.csv', { type: 'text/csv' });
-    await user.upload(within(dialog).getByLabelText('Excel veya CSV dosyası seç'), file);
-    await user.click(await within(dialog).findByRole('button', { name: 'Denetle ve Önizle' }));
+  it('dosya seçilince sütunlar kendiliğinden eşleşir; önizlemede doğru/yanlış satırlar ayrılır; onaylayınca yalnızca doğrular kaydedilir', async () => {
+    const { user, dialog } = await openWizard();
+    expect(within(dialog).getByText('Dosya Seç')).toBeInTheDocument();
+    await upload(user, dialog, new File([csv], 'urunler.csv', { type: 'text/csv' }));
+
+    // 2. adım: eşleştirme
+    const map = await within(dialog).findByRole('list', { name: 'Sütun eşleştirme' });
+    expect(within(dialog).getByText('4 satır · 6 sütun bulundu')).toBeInTheDocument();
+    expect(within(map).getAllByRole('listitem')).toHaveLength(6);
+    const first = within(map).getAllByRole('listitem')[0]!;
+    expect(within(first).getByRole('combobox')).toHaveTextContent('Ürün Kodu *'); // "Stok Kodu" başlığı
+    await user.click(within(dialog).getByRole('button', { name: 'Ön İzlemeyi Gör' }));
 
     expect(await within(dialog).findByText('1 yeni')).toBeInTheDocument();
     expect(within(dialog).getByText('1 güncellenecek')).toBeInTheDocument();
@@ -173,18 +224,31 @@ describe('Excel ile ürün yükleme sihirbazı', () => {
     expect(list.find((p) => p.code === 'FLEXYPOS.FP-503')?.name).toBe('Güncel FP-503');
   });
 
-  it('zorunlu sütun eksikse önizlemeye geçilmez', async () => {
-    const user = await openProducts();
-    await user.click(screen.getByRole('button', { name: 'Excel ile Yükle' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Excel ile Ürün Yükle' });
-    await user.click(within(dialog).getByRole('button', { name: 'Dosyam Hazır, Devam' }));
-    await user.upload(
-      within(dialog).getByLabelText('Excel veya CSV dosyası seç'),
-      new File(['Ad;Fiyat\r\nx;1'], 'yanlis.csv', { type: 'text/csv' }),
+  it('zorunlu alan eşleşmemişse önizlemeye geçilmez; elle eşleştirilince geçilir', async () => {
+    const { user, dialog } = await openWizard();
+    await upload(
+      user,
+      dialog,
+      new File(['SKU;Mal Adı;Birim Fiyatı\r\nZ-1;Deneme Malı;12'], 'ozel.csv', {
+        type: 'text/csv',
+      }),
     );
-    await user.click(await within(dialog).findByRole('button', { name: 'Denetle ve Önizle' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Stok Kodu/);
-    expect(within(dialog).queryByText('Onayla')).toBeInTheDocument(); // hâlâ 2. adımda
+    const map = await within(dialog).findByRole('list', { name: 'Sütun eşleştirme' });
+    const rows = within(map).getAllByRole('listitem');
+    // "SKU" kendiliğinden Ürün Koduna eşleşir; diğer ikisi atlanmıştır.
+    expect(within(rows[0]!).getByRole('combobox')).toHaveTextContent('Ürün Kodu *');
+    expect(within(rows[1]!).getByRole('combobox')).toHaveTextContent('Bu sütunu atla');
+    const next = within(dialog).getByRole('button', { name: 'Ön İzlemeyi Gör' });
+    expect(next).toBeDisabled();
+    expect(within(dialog).getByRole('status')).toHaveTextContent(/Ürün Adı, Fiyat 1/);
+
+    await user.click(within(rows[1]!).getByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'Ürün Adı *' }));
+    await user.click(within(rows[2]!).getByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'Fiyat 1 (ilk liste) *' }));
+    expect(next).toBeEnabled();
+    await user.click(next);
+    expect(await within(dialog).findByText('1 yeni')).toBeInTheDocument();
   });
 });
 
@@ -253,6 +317,22 @@ describe('Excel dosyası okuma', () => {
     const inch = 'POS 15.6" Dokunmatik';
     const parsed = parseImport(`Stok Kodu;Ürün Adı;Fiyat 1\r\nA;${inch};5\r\nB;Diğer;6`);
     expect(parsed.rows.map((r) => r.name)).toEqual([inch, 'Diğer']);
+  });
+
+  it('başlıklar harf/aksan farkına bakmadan eşleşir; aynı tablo sütunu iki kez kullanılmaz', () => {
+    expect(autoMapping(['URUN KODU', 'urun adi', 'FİYAT', 'Fiyat 1', 'Bilinmeyen'])).toEqual([
+      'code',
+      'name',
+      'price1',
+      '',
+      '',
+    ]);
+    const table = readTable('Kod;Ad;Fiyat\r\nA;B;5\r\n\r\n');
+    expect(table.records).toHaveLength(1);
+    expect(buildImportText(table, ['code', 'name', 'price1'])).toBe(
+      '"Stok Kodu";"Ürün Adı";"Fiyat 1";"Kategori";"Marka";"Fiyat 2";"Fiyat 3";"Alış Fiyatı";"KDV";"Stok"\r\n"A";"B";"5";"";"";"";"";"";"";""',
+    );
+    expect(missingRequired(['code', 'name', ''])).toEqual(['Fiyat 1 (ilk liste)']);
   });
 
   it('örnek dosya kendi okuyucusundan hatasız geçer', () => {

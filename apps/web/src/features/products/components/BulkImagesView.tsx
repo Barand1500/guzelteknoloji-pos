@@ -1,11 +1,12 @@
-import { CheckCircle2, ChevronLeft, ImagePlus, X } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ImagePlus, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { dataError } from '../../../lib/catalog-data';
 import { Link } from 'react-router';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import { HoverZoomImage } from './HoverZoomImage';
-import { SelectField } from '../../../components/ui/SelectField';
+import { ImageOrderStrip, type ImageTile } from './ImageOrderStrip';
+import { ProductPickerSheet } from './ProductPickerSheet';
 import { Switch } from '../../../components/ui/Switch';
 import { PRODUCTS_PATH } from '../../../config/navigation';
 import { useProducts } from '../hooks/useProducts';
@@ -17,6 +18,7 @@ import {
   type RejectedFile,
 } from '../image-match';
 import { useProductService } from '../services/product.service';
+import type { ProductItem } from '../types';
 import { WizardSteps } from './WizardSteps';
 
 const STEPS = ['Dosyaları Seç', 'Eşleştir ve Onayla'] as const;
@@ -57,6 +59,10 @@ export function BulkImagesView() {
   const [rejected, setRejected] = useState<RejectedFile[]>([]);
   const [manual, setManual] = useState<ReadonlyMap<string, string>>(new Map());
   const [replace, setReplace] = useState(false);
+  // Ürün başına kullanıcının sürükleyerek verdiği görsel sırası (kutucuk anahtarları).
+  const [orders, setOrders] = useState<ReadonlyMap<string, string[]>>(new Map());
+  // Ürün seçme penceresi açık olan eşleşmeyen dosya.
+  const [pickFor, setPickFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [done, setDone] = useState<{ products: number; images: number } | null>(null);
@@ -119,6 +125,32 @@ export function BulkImagesView() {
     if (!saveLock.current) setManual((current) => new Map(current).set(imageId, productId));
   };
 
+  /** Bir ürünün şeridi: (silinmiyorsa) mevcut görseller + yeni görseller, kullanıcının sırasıyla. */
+  const tilesFor = (product: ProductItem, group: PickedImage[]): ImageTile[] => {
+    const base: ImageTile[] = [
+      ...(replace
+        ? []
+        : (product.imageUrls ?? []).map((url) => ({
+            key: `e:${url}`,
+            url,
+            name: 'Mevcut görsel',
+            existing: true,
+          }))),
+      ...group.map((i) => ({ key: `n:${i.id}`, url: i.url, name: i.name, existing: false })),
+    ];
+    const saved = orders.get(product.id);
+    if (!saved) return base;
+    const rank = new Map(saved.map((key, i) => [key, i]));
+    return [...base].sort((x, y) => (rank.get(x.key) ?? 1e9) - (rank.get(y.key) ?? 1e9));
+  };
+  const reorderTiles = (productId: string, tiles: ImageTile[]) =>
+    setOrders((current) =>
+      new Map(current).set(
+        productId,
+        tiles.map((t) => t.key),
+      ),
+    );
+
   const reset = () => {
     for (const url of createdUrls.current) URL.revokeObjectURL?.(url);
     createdUrls.current.clear();
@@ -135,11 +167,20 @@ export function BulkImagesView() {
     saveLock.current = true;
     setSaving(true);
     setSaveError(null);
-    const entries = match.groups.map((g) => ({
-      productId: g.product.id,
-      urls: g.images.map((i) => i.url),
-      files: g.images.map((i) => i.file),
-    }));
+    const entries = match.groups.map((g) => {
+      const tiles = tilesFor(g.product, g.images);
+      const byId = new Map(g.images.map((i) => [`n:${i.id}`, i]));
+      // Yeni görseller kullanıcının sırasıyla; mevcutlarla birlikte son sıra (destekleniyorsa) ayrıca gider.
+      const ordered = tiles.flatMap((t) => (byId.has(t.key) ? [byId.get(t.key)!] : []));
+      return {
+        productId: g.product.id,
+        urls: ordered.map((i) => i.url),
+        files: ordered.map((i) => i.file),
+        ...(service.supportsImageOrder && orders.has(g.product.id)
+          ? { finalOrder: tiles.map((t) => t.url) }
+          : {}),
+      };
+    });
     try {
       const count = await service.applyImages(entries, replace);
       setDone({ products: entries.length, images: count });
@@ -150,11 +191,6 @@ export function BulkImagesView() {
       saveLock.current = false;
     }
   };
-
-  const productOptions = useMemo(
-    () => products.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` })),
-    [products],
-  );
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -336,45 +372,13 @@ export function BulkImagesView() {
                             : `Şu an ${product.imageUrls.length} görsel`}
                         </span>
                       </div>
-                      <ul
-                        aria-label={`${product.name} görselleri`}
-                        className="flex flex-wrap gap-2"
-                      >
-                        {!replace && product.imageUrls[0] ? (
-                          <li className="relative">
-                            <HoverZoomImage
-                              src={product.imageUrls[0]}
-                              alt="Mevcut vitrin görseli"
-                              className="size-16 rounded-2xl border border-line bg-surface-muted object-cover"
-                            />
-                            <span className="absolute bottom-1 left-1 rounded-md bg-accent px-1.5 text-[0.625rem] font-extrabold text-ink">
-                              Vitrin
-                            </span>
-                          </li>
-                        ) : null}
-                        {group.map((image, index) => (
-                          <li key={image.id} className="relative">
-                            <HoverZoomImage
-                              src={image.url}
-                              alt={image.name}
-                              className="size-16 rounded-2xl border border-line bg-surface-muted object-cover"
-                            />
-                            {index === 0 && (replace || product.imageUrls.length === 0) ? (
-                              <span className="absolute bottom-1 left-1 rounded-md bg-accent px-1.5 text-[0.625rem] font-extrabold text-ink">
-                                Vitrin
-                              </span>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={() => removeImage(image.id)}
-                              aria-label={`${image.name} dosyasını kaldır`}
-                              className="absolute -top-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full bg-ink text-surface shadow-soft"
-                            >
-                              <X className="size-3.5" aria-hidden="true" />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                      <ImageOrderStrip
+                        productName={product.name}
+                        tiles={tilesFor(product, group)}
+                        lockExisting={!service.supportsImageOrder}
+                        onReorder={(next) => reorderTiles(product.id, next)}
+                        onRemove={(tile) => removeImage(tile.key.slice(2))}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -409,13 +413,15 @@ export function BulkImagesView() {
                             <X className="size-4" aria-hidden="true" />
                           </button>
                         </div>
-                        <div className="sm:w-72">
-                          <SelectField
-                            label="Ürün seç"
-                            options={productOptions}
-                            value=""
-                            onChange={(productId) => assign(image.id, productId)}
-                          />
+                        <div className="sm:w-56">
+                          <Button
+                            variant="outline"
+                            flow={false}
+                            onClick={() => setPickFor(image.id)}
+                            leadingIcon={<Search className="size-5" aria-hidden="true" />}
+                          >
+                            Ürün Seç
+                          </Button>
                         </div>
                       </li>
                     ))}
@@ -459,6 +465,18 @@ export function BulkImagesView() {
           )}
         </>
       )}
+
+      {pickFor ? (
+        <ProductPickerSheet
+          products={products}
+          description={images.find((i) => i.id === pickFor)?.name ?? ''}
+          onPick={(productId) => {
+            assign(pickFor, productId);
+            setPickFor(null);
+          }}
+          onClose={() => setPickFor(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { CircleAlert } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Sheet } from '../../../components/ui/Sheet';
 import { TextField } from '../../../components/ui/TextField';
-import { ToggleChip } from '../../../components/ui/ToggleChip';
+import { MultiSelectField } from '../../../components/ui/MultiSelectField';
 import {
   emptyFilters,
   matchesFilters,
@@ -55,7 +55,8 @@ function distinct(products: ProductItem[], pick: (p: ProductItem) => [string | n
 }
 
 /**
- * Süzgeç paneli. Seçimler "Uygula" denene kadar listeyi değiştirmez; düğmede kaç ürünün
+ * Süzgeç paneli. Kategori ve marka aranabilir çoklu seçim kutularıdır (çok sayıda olunca da
+ * kullanışlı kalsın diye). Seçimler "Uygula" denene kadar listeyi değiştirmez; düğmede kaç ürünün
  * bulunacağı canlı yazar. "Sıfırla" hepsini kapatır.
  */
 export function ProductFilterSheet({
@@ -121,35 +122,22 @@ export function ProductFilterSheet({
       : null
     : products.filter((p) => matchesFilters(p, draft)).length;
 
-  const toggle = (key: 'categoryIds' | 'brandIds', id: string) =>
-    setDraft((d) => ({
-      ...d,
-      [key]: d[key].includes(id) ? d[key].filter((x) => x !== id) : [...d[key], id],
-    }));
-
   return (
     <Sheet open onClose={onClose} title="Süzgeçler" size="lg">
       <div className="flex flex-col gap-6">
-        <Group title="Kategori">
-          {categories.map((c) => (
-            <ToggleChip
-              key={c.id}
-              label={c.name}
-              checked={draft.categoryIds.includes(c.id)}
-              onChange={() => toggle('categoryIds', c.id)}
-            />
-          ))}
-        </Group>
-        <Group title="Marka">
-          {brands.map((b) => (
-            <ToggleChip
-              key={b.id}
-              label={b.name}
-              checked={draft.brandIds.includes(b.id)}
-              onChange={() => toggle('brandIds', b.id)}
-            />
-          ))}
-        </Group>
+        {/* Kategori ve marka çok olabilir: aranabilir, çoklu seçimli açılır kutu (çip duvarı yok). */}
+        <MultiSelectField
+          label="Kategori"
+          options={categories}
+          value={draft.categoryIds}
+          onChange={(categoryIds) => setDraft((d) => ({ ...d, categoryIds }))}
+        />
+        <MultiSelectField
+          label="Marka"
+          options={brands}
+          value={draft.brandIds}
+          onChange={(brandIds) => setDraft((d) => ({ ...d, brandIds }))}
+        />
         <Choice
           title="Stok durumu"
           options={STOCK_OPTIONS}
@@ -170,7 +158,7 @@ export function ProductFilterSheet({
         />
         <div className="flex flex-col gap-2">
           <p className="text-sm font-bold tracking-wide text-ink-muted uppercase">
-            {firstListName ?? 'Fiyat'} aralığı (KDV dahil)
+            {firstListName ?? 'Fiyat'} aralığı (KDV Dahil)
           </p>
           <div className="grid grid-cols-2 gap-3">
             <TextField

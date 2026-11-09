@@ -4,12 +4,10 @@ import { Link } from 'react-router';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
-import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
 import { SortableList } from '../../../components/ui/SortableList';
 import { PRODUCTS_PATH } from '../../../config/navigation';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
-import { usePagination } from '../../../lib/usePagination';
 import { useDeals } from '../hooks/useDeals';
 import type { Deal, DealDraft } from '../types';
 import { DealFormSheet } from './DealFormSheet';
@@ -62,7 +60,6 @@ export function DealsView() {
   const visible = searching
     ? deals.filter((d) => fold(d.name).includes(fold(query.trim())))
     : deals;
-  const paging = usePagination(visible, 10);
 
   const editing = form?.dealId ? (deals.find((d) => d.id === form.dealId) ?? null) : null;
   const productsDeal = productsFor ? (deals.find((d) => d.id === productsFor) ?? null) : null;
@@ -121,19 +118,12 @@ export function DealsView() {
     content = (
       <SortableList
         label="Fırsatlar"
-        items={paging.pageItems}
+        items={visible}
         getId={(d) => d.id}
         getLabel={(d) => d.name}
         disabled={searching}
         onDragStart={() => setSwipeOpenId(null)}
-        // Sürükleme geçerli sayfa içindedir; sıra tüm listeye yansıtılır.
-        onReorder={(nextPage) =>
-          reorder([
-            ...deals.slice(0, paging.start),
-            ...nextPage,
-            ...deals.slice(paging.start + nextPage.length),
-          ])
-        }
+        onReorder={reorder}
         renderItem={(deal, ctx) => (
           <DealRow
             deal={deal}
@@ -189,10 +179,7 @@ export function DealsView() {
         <div className="min-w-0 flex-1">
           <SearchField
             value={query}
-            onChange={(text) => {
-              setQuery(text);
-              paging.setPage(1);
-            }}
+            onChange={setQuery}
             label="Fırsat ara"
             placeholder="Fırsat ara…"
           />
@@ -218,23 +205,6 @@ export function DealsView() {
       </p>
 
       {content}
-
-      {!loading && visible.length > 0 ? (
-        <PaginationBar
-          noun="fırsat"
-          total={paging.total}
-          from={paging.from}
-          to={paging.to}
-          page={paging.page}
-          pageCount={paging.pageCount}
-          onPageChange={(p) => {
-            setSwipeOpenId(null);
-            paging.setPage(p);
-          }}
-          sizeText={paging.sizeText}
-          onSizeTextChange={paging.setSizeText}
-        />
-      ) : null}
 
       {/* Telefon: yüzen ekleme düğmesi (alt çubuğun üstünde) */}
       <button
