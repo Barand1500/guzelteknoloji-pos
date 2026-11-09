@@ -2,6 +2,8 @@
 
 Migration: `20261109000000_urun_adlandirma_sadelestirme`.
 
+`20261109030000_mevcut_kullanici_vergi_secenekleri`, MTV, Alış ÖTV ve Satış ÖTV seçeneklerini mevcut kullanıcılar için tek seferlik `INSERT ... SELECT` ile tamamlar. Aynı kod veya ad hash'iyle bulunan kayıtlar (pasif olanlar dahil) değiştirilmez. `ensureDefaults` mevcut kullanıcılar için bu seçenekleri tekrar oluşturmaz. Yeni kullanıcıların varsayılan listeleri aynı şekilde oluşturulur. Önceden uygulanan çoklu vergi migration dosyası değiştirilmez.
+
 - `stok_kartlari` tablosu `urunler` oldu. Bağlı birim, barkod, fiyat, görsel, kategori, fırsat, özellik ve varyant tabloları `urun_*` adlarına taşındı. Seçenekler `urun_secenekleri` içinde.
 - Ürün bağlantıları `urun_id`, birim bağlantıları `urun_birimi_id`; ürün alanları `urun_kodu`, `urun_adi`, `urun_tipi_id` oldu. Mevcut ID, ürün, barkod, normal fiyat, görsel ve bağlantı kayıtları yeniden oluşturulmaz.
 - Yeni ekranda kaldırılan KDV departmanı, ürün nevi, GTIP ve birim açıklaması sütunları kaldırılır. Bu alanların eski değerleri korunmaz. Kullanılmayan KDV departmanı/nevi seçenekleri silinir.

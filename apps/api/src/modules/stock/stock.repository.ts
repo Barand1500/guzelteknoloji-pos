@@ -137,22 +137,7 @@ export class PrismaStockRepository implements StockRepository {
       },
       select: { kimlik: true },
     });
-    if (initialized) {
-      await this.db.stokSecenegi.createMany({
-        skipDuplicates: true,
-        data: DEFAULT_STOCK_LOOKUPS.otherTaxes
-          .filter((o) => ['mtv', 'alis-otv', 'satis-otv'].includes(o.value))
-          .map((o, i) => ({
-            kullaniciKimligi: Number(userId),
-            listeTuru: 'otherTaxes',
-            secenekKodu: o.value,
-            secenekAdi: o.label,
-            adHash: labelHash(o.label),
-            sira: 100 + i,
-          })),
-      });
-      return;
-    }
+    if (initialized) return;
     // Benzersiz anahtar sayesinde eşzamanlı açılışlar çoğaltmaz; silinen varsayılanlar yeniden etkinleşmez.
     await retryWrite(() =>
       this.db.stokSecenegi.createMany({

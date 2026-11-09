@@ -72,6 +72,61 @@ export class CategoryRepository {
     return (max._max.sira ?? -1) + 1;
   }
 
+  private async checkProductAttributes(tx: Prisma.TransactionClient, productIds: number[]) {
+    if (!productIds.length) return;
+    const selections = await tx.stokOzellikDegeri.findMany({
+      where: {
+        stokKartiId: { in: productIds },
+        deger: { grup: { sablon: { tumUrunler: false } } },
+      },
+      select: {
+        stokKartiId: true,
+        degerId: true,
+        stokKarti: { select: { kategoriler: { select: { kategoriId: true } } } },
+        deger: {
+          select: {
+            grup: {
+              select: {
+                sablon: {
+                  select: {
+                    kategoriler: { select: { kategoriId: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const incompatible = selections.filter(
+      (s) =>
+        !s.deger.grup.sablon.kategoriler.some((allowed) =>
+          s.stokKarti.kategoriler.some((actual) => actual.kategoriId === allowed.kategoriId),
+        ),
+    );
+    if (!incompatible.length) return;
+    const used = await tx.stokVaryantDegeri.findFirst({
+      where: {
+        OR: incompatible.map((s) => ({
+          degerId: s.degerId,
+          varyant: { stokKartiId: s.stokKartiId },
+        })),
+      },
+      select: { varyantId: true },
+    });
+    if (used)
+      throw new HttpError(
+        409,
+        'CONFLICT',
+        'Bu işlem, ürün varyantlarında kullanılan özellikleri kategoriyle uyumsuz hale getiriyor. Önce ilgili varyantları ve özellik seçimlerini düzenleyin. Hiçbir değişiklik kaydedilmedi.',
+      );
+    throw new HttpError(
+      409,
+      'CONFLICT',
+      'Bu işlem, ürünün seçili özelliklerini kategoriyle uyumsuz hale getiriyor. Önce ürün kartındaki ilgili özellik seçimlerini kaldırın. Hiçbir değişiklik kaydedilmedi.',
+    );
+  }
+
   private async checkName(
     tx: Prisma.TransactionClient,
     user: number,
@@ -183,6 +238,13 @@ export class CategoryRepository {
             changed = true;
           }
       }
+      const affected = await tx.stokKartiKategori.findMany({
+        where: { kategoriId: { in: [...gone] } },
+        select: { stokKartiId: true },
+      });
+      // Kontrol aynı transaction içinde yapılır; hata bütün silme işlemini geri alır.
+      await tx.stokKartiKategori.deleteMany({ where: { kategoriId: { in: [...gone] } } });
+      await this.checkProductAttributes(tx, [...new Set(affected.map((r) => r.stokKartiId))]);
       // Önce dalın iç bağlantıları çözülür; ürünler korunur, yalnızca kategori eşleşmeleri silinir.
       await tx.kategori.updateMany({
         where: { kullaniciId: user, id: { in: [...gone] } },
@@ -254,11 +316,19 @@ export class CategoryRepository {
           'NOT_FOUND',
           'Seçilen ürünlerden biri bulunamadı. İşlem yapılmadı.',
         );
-      if (remove)
+      if (remove) {
+        const affected = await tx.stokKartiKategori.findMany({
+          where: { kategoriId: categoryId, stokKartiId: { in: productIds } },
+          select: { stokKartiId: true },
+        });
         await tx.stokKartiKategori.deleteMany({
           where: { kategoriId: categoryId, stokKartiId: { in: productIds } },
         });
-      else
+        await this.checkProductAttributes(
+          tx,
+          affected.map((r) => r.stokKartiId),
+        );
+      } else
         await tx.stokKartiKategori.createMany({
           skipDuplicates: true,
           data: productIds.map((stokKartiId) => ({ stokKartiId, kategoriId: categoryId })),
