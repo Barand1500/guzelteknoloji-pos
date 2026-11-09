@@ -47,6 +47,7 @@ export interface PriceBlockData {
   discount: string;
   vatRate: string;
   vatIncluded: boolean;
+  /** Eski istemci sözleşmesi için; ek fiyat kaydı artık oluşturulmaz. */
   extras: ExtraPrice[];
 }
 
@@ -73,6 +74,7 @@ export interface StockCardDraft {
   code: string;
   name: string;
   brand: string;
+  /** Eski istemci sözleşmesi için; veritabanına kaydedilmez. */
   vatDepartment: string;
   stockKind: string;
   inventoryTracking: string;
@@ -82,14 +84,6 @@ export interface StockCardDraft {
   stockQuantity: string; // Normal
   lowerLimit: string; // Normal
   upperLimit: string; // Normal
-  serialRequired: boolean; // Seri No
-  serialPrefix: string; // Seri No
-  lotRequired: boolean; // LOT
-  expiryTracking: boolean; // LOT: SKT takibi
-  lotPrefix: string; // LOT
-  expiryRequired: boolean; // Ömür: SKT zorunlu
-  shelfLifeDays: string; // Ömür: raf ömrü (gün)
-  riskDays: string; // Ömür: risk (gün)
   gtip: string;
   origin: string;
   otherTax: string;
@@ -111,7 +105,6 @@ const percentage = decimal.refine(
   (v) => v === '' || Number(v) <= 100,
   'Oran 0–100 arasında olmalı.',
 );
-const days = text(6).refine((v) => v === '' || /^\d{1,6}$/.test(v), 'Gün sayısı tam sayı olmalı.');
 const currency = z.enum(['TRY', 'USD', 'EUR'], { error: 'Geçerli bir para birimi seçin.' });
 const extraPriceSchema = z.strictObject({
   id: text(100),
@@ -165,8 +158,8 @@ export const stockDraftSchema = z
     name: text(250),
     brand: text(100),
     vatDepartment: text(100),
-    stockKind: text(100).min(1),
-    inventoryTracking: z.enum(['yok', 'normal', 'seri', 'lot', 'omur']),
+    stockKind: text(100),
+    inventoryTracking: z.enum(['yok', 'normal']),
     // Eski istemciler göndermezse boş sayılır.
     stockQuantity: z
       .string()
@@ -179,14 +172,6 @@ export const stockDraftSchema = z
       .default(''),
     lowerLimit: decimal,
     upperLimit: decimal,
-    serialRequired: z.boolean(),
-    serialPrefix: text(100),
-    lotRequired: z.boolean(),
-    expiryTracking: z.boolean(),
-    lotPrefix: text(100),
-    expiryRequired: z.boolean(),
-    shelfLifeDays: days,
-    riskDays: days,
     gtip: text(32),
     origin: text(40),
     otherTax: text(100),
@@ -225,18 +210,6 @@ export const stockDraftSchema = z
         code: 'custom',
         path: ['upperLimit'],
         message: 'Üst limit alt limitten küçük olamaz.',
-      });
-    }
-    if (
-      draft.inventoryTracking === 'omur' &&
-      draft.shelfLifeDays !== '' &&
-      draft.riskDays !== '' &&
-      Number(draft.riskDays) > Number(draft.shelfLifeDays)
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['riskDays'],
-        message: 'Risk süresi raf ömründen uzun olamaz.',
       });
     }
   });

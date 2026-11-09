@@ -24,6 +24,16 @@ const commitSchema = z
         z.strictObject({
           productId: z.union([recordId, recordKey.transform(Number)]),
           tickets: z.array(z.string().max(1000)).min(1).max(300),
+          finalOrder: z
+            .array(
+              z.union([
+                z.strictObject({ imageId: recordId }),
+                z.strictObject({ ticket: z.string().max(1000) }),
+              ]),
+            )
+            .min(1)
+            .max(2000)
+            .optional(),
         }),
       )
       .min(1)
@@ -36,6 +46,28 @@ const commitSchema = z
 
 export const stockImageUrl = (image: { id: number; dosyaAdi: string }) =>
   `/api/stok/gorseller/${image.id}?v=${image.dosyaAdi}`;
+
+export function orderedStockImages(
+  rows: { id: number; dosyaAdi: string }[],
+  order: ({ imageId: number } | { file: string })[],
+) {
+  const ordered = order.map((item) =>
+    'imageId' in item
+      ? rows.find((row) => row.id === item.imageId)
+      : rows.find((row) => row.dosyaAdi === item.file),
+  );
+  if (
+    ordered.length !== rows.length ||
+    ordered.some((row) => !row) ||
+    new Set(ordered.map((row) => row?.id)).size !== rows.length
+  )
+    throw new HttpError(
+      409,
+      'CONFLICT',
+      'Ürünün görselleri değişmiş. Listeyi yenileyip yeniden sıralayın.',
+    );
+  return ordered.map((row) => row!);
+}
 
 /** Dosyalar küçük isteklerle hazırlanır; tüm ürün bağlantıları onayda tek transaction'da yazılır. */
 export function createStockImages(env: Env, db: PrismaClient) {
@@ -128,6 +160,9 @@ export function createStockImages(env: Env, db: PrismaClient) {
       const entries = input.entries.map((e) => ({
         id: e.productId,
         files: e.tickets.map((t) => verify(t, user)),
+        order: e.finalOrder?.map((item) =>
+          'imageId' in item ? { imageId: item.imageId } : { file: verify(item.ticket, user) },
+        ),
       }));
       const ids = entries.map((e) => e.id);
       const names = entries.flatMap((e) => e.files);
@@ -151,25 +186,25 @@ export function createStockImages(env: Env, db: PrismaClient) {
         )
           throw new HttpError(404, 'NOT_FOUND', 'Ürün bulunamadı. Hiçbir görsel kaydedilmedi.');
         const existing = await tx.stokGorseli.findMany({ where: { dosyaAdi: { in: names } } });
-        if (existing.length) {
-          if (
+        const replay = existing.length > 0;
+        if (replay) {
+          if (!(
             existing.length === names.length &&
             entries.every((e) =>
               e.files.every((name) =>
                 existing.some((r) => r.dosyaAdi === name && r.stokKartiId === e.id),
               ),
             )
-          )
-            return [];
-          throw new HttpError(
-            409,
-            'CONFLICT',
-            'Bu yüklemedeki görsellerden biri zaten kullanılmış.',
-          );
+          ))
+            throw new HttpError(
+              409,
+              'CONFLICT',
+              'Bu yüklemedeki görsellerden biri zaten kullanılmış.',
+            );
         }
         const oldFiles: string[] = [];
         for (const entry of entries) {
-          if (input.replace) {
+          if (input.replace && !replay) {
             const old = await tx.stokGorseli.findMany({
               where: { stokKartiId: entry.id },
               select: { dosyaAdi: true },
@@ -184,13 +219,21 @@ export function createStockImages(env: Env, db: PrismaClient) {
                 _max: { sira: true },
               })
             )._max.sira ?? -1;
-          await tx.stokGorseli.createMany({
-            data: entry.files.map((dosyaAdi, i) => ({
-              stokKartiId: entry.id,
-              dosyaAdi,
-              sira: last + i + 1,
-            })),
-          });
+          if (!replay)
+            await tx.stokGorseli.createMany({
+              data: entry.files.map((dosyaAdi, i) => ({
+                stokKartiId: entry.id,
+                dosyaAdi,
+                sira: last + i + 1,
+              })),
+            });
+          if (entry.order) {
+            const rows = await tx.stokGorseli.findMany({ where: { stokKartiId: entry.id } });
+            // Tam liste zorunludur: başka ürüne ait veya eşzamanlı değişmiş görseller sıralanamaz.
+            const ordered = orderedStockImages(rows, entry.order);
+            for (const [sira, row] of ordered.entries())
+              await tx.stokGorseli.update({ where: { id: row.id }, data: { sira } });
+          }
         }
         return oldFiles;
       });

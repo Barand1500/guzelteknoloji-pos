@@ -6,6 +6,7 @@ interface ConfirmSheetProps {
   title: string;
   description: string;
   confirmLabel: string;
+  cancelLabel?: string;
   /** Silme gibi geri alınamaz işlemlerde kırmızı onay düğmesi. */
   danger?: boolean;
   onConfirm: () => void;
@@ -18,6 +19,7 @@ export function ConfirmSheet({
   title,
   description,
   confirmLabel,
+  cancelLabel = 'Vazgeç',
   danger = false,
   onConfirm,
   onClose,
@@ -29,7 +31,7 @@ export function ConfirmSheet({
           {confirmLabel}
         </Button>
         <Button variant="outline" flow={false} onClick={onClose}>
-          Vazgeç
+          {cancelLabel}
         </Button>
       </div>
     </Sheet>

@@ -169,19 +169,53 @@ try {
     const migratedBrand = await prisma.marka.findFirstOrThrow({
       where: { kullaniciKimligi: migratedUser.kimlik, markaKodu: 'eski' },
     });
+    for (const table of [
+      'urunler',
+      'urun_birimleri',
+      'urun_barkodlari',
+      'urun_fiyatlari',
+      'urun_gorselleri',
+      'urun_kategorileri',
+      'urun_ozellik_degerleri',
+      'urun_varyantlari',
+    ]) {
+      assert.equal((await connection.query('SHOW TABLES LIKE ?', [table])).length, 1);
+    }
+    assert.equal((await connection.query("SHOW TABLES LIKE 'stok_ek_fiyatlari'")).length, 0);
+    for (const column of [
+      'stok_nevi_id',
+      'kdv_departmani_id',
+      'gtip_kodu',
+      'seri_no_zorunlu',
+      'seri_no_oneki',
+      'lot_zorunlu',
+      'skt_takibi',
+      'lot_oneki',
+      'skt_zorunlu',
+      'raf_omru_gun',
+      'risk_suresi_gun',
+    ]) {
+      assert.equal(
+        (await connection.query('SHOW COLUMNS FROM urunler LIKE ?', [column])).length,
+        0,
+      );
+    }
+    assert.equal(
+      (await connection.query("SHOW COLUMNS FROM urun_birimleri LIKE 'aciklama'")).length,
+      0,
+    );
     const migratedCard = await prisma.stokKarti.findFirstOrThrow({
       where: { kullaniciKimligi: migratedUser.kimlik },
     });
     const migratedUnit = await prisma.stokBirimi.findFirstOrThrow({
       where: { stokKartiKimligi: migratedCard.kimlik },
-      include: { barkodlar: true, fiyatlar: { include: { ekFiyatlar: true } } },
+      include: { barkodlar: true, fiyatlar: true },
     });
     assert.equal(migratedUnit.barkodlar[0]?.barkod, '8690000000001');
     const firstLegacyPrice = migratedUnit.fiyatlar.find(
       (p) => p.girilenFiyat?.toString() === '25.5',
     );
     assert(firstLegacyPrice);
-    assert.equal(firstLegacyPrice.ekFiyatlar[0]?.tutar?.toString(), '5');
     assert(migratedUnit.fiyatlar.some((p) => p.girilenFiyat?.toString() === '45.25'));
     assert.equal(
       await prisma.stokBirimi.count({ where: { stokKartiKimligi: migratedCard.kimlik } }),
@@ -601,8 +635,7 @@ try {
     assert.equal(unit.barcodes[0].code, '8690000000001');
     const purchase = unit.purchase;
     assert.equal(purchase.amount, '100.125');
-    assert.equal(purchase.extras[0].amount, '50.5');
-    assert.equal(purchase.extras[0].currency, 'EUR');
+    assert.deepEqual(purchase.extras, []);
     assert.equal(unit.sale.amount, '120');
     assert.equal(
       (
@@ -643,25 +676,20 @@ try {
         ...draft,
         code: 'EXPIRED',
         inventoryTracking: 'omur',
-        shelfLifeDays: '30',
-        riskDays: '5',
       },
     };
     // Pasif seçenek yeni kartta kullanılamaz; hiçbir parça yazılmaz.
     assert.equal((await post('/kartlar', expired)).status, 400);
     const plain = stockFixture();
     plain.units.fiyat![0]!.barcodes[0]!.code = '8690000000003';
-    plain.inventoryTracking = 'omur';
-    plain.shelfLifeDays = '30';
-    plain.riskDays = '5';
+    plain.inventoryTracking = 'yok';
     plain.code = 'DAYS';
     const saved = await post('/kartlar', { requestId: randomUUID(), draft: plain });
     assert.equal(saved.status, 201);
-    const days = await prisma.stokKarti.findUniqueOrThrow({
+    const untracked = await prisma.stokKarti.findUniqueOrThrow({
       where: { kimlik: Number(saved.body.id) },
     });
-    assert.equal(days.rafOmruGun, 30);
-    assert.equal(days.altLimit, null);
+    assert.equal(untracked.altLimit, null);
     const changed = structuredClone(plain);
     changed.name = 'Güncellenmiş stok kartı';
     changed.units.fiyat![0]!.sale.amount = '123';
@@ -874,7 +902,7 @@ try {
       prices: await prisma.stokFiyati.count(),
     };
     await connection.query(
-      "CREATE TRIGGER reject_stock_price BEFORE INSERT ON stok_fiyatlari FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='forced-test-failure'",
+      "CREATE TRIGGER reject_stock_price BEFORE INSERT ON urun_fiyatlari FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='forced-test-failure'",
     );
     try {
       const rejected = stockFixture();

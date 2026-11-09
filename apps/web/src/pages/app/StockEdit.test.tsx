@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { demoProductService as productService } from '../../features/products/services/product.demo';
@@ -73,11 +73,15 @@ it('ana Kaydet varyant değişikliklerini kaybetmez; stok toplamı salt okunur v
   const unload = new Event('beforeunload', { cancelable: true });
   window.dispatchEvent(unload);
   expect(unload.defaultPrevented).toBe(true);
-  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
   await user.click(screen.getByRole('link', { name: 'Ürünlere dön' }));
-  expect(confirm).toHaveBeenCalled();
-  confirm.mockRestore();
+  const leaveDialog = await screen.findByRole('dialog', { name: 'Kaydedilmemiş Değişiklikler' });
+  expect(
+    within(leaveDialog).getByRole('button', { name: 'Kaydetmeden Ayrıl' }),
+  ).toBeInTheDocument();
+  await user.click(within(leaveDialog).getByRole('button', { name: 'Düzenlemeye Devam Et' }));
+  expect(price).toHaveValue('25');
   await user.type(screen.getByLabelText('Ürün Adı'), ' değişti');
+
   await user.click(screen.getByRole('button', { name: 'Kaydet' }));
   await screen.findByText(
     'Stok kartı kaydedildi. Varyant değişiklikleri için “Varyantları kaydet” düğmesine basın.',
@@ -94,6 +98,15 @@ it('ana Kaydet varyant değişikliklerini kaybetmez; stok toplamı salt okunur v
     revision: 'b'.repeat(64),
     variants: [{ price: '25' }],
   });
+  await user.type(price, '0');
+  await user.click(screen.getByRole('link', { name: 'Ürünlere dön' }));
+  await user.click(
+    within(await screen.findByRole('dialog', { name: 'Kaydedilmemiş Değişiklikler' })).getByRole(
+      'button',
+      { name: 'Kaydetmeden Ayrıl' },
+    ),
+  );
+  await screen.findByRole('searchbox', { name: 'Ürün ara' });
 });
 
 async function openList() {

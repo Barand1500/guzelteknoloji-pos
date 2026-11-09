@@ -14,33 +14,29 @@ export function stockListWhere(userId: number, query: StockListQuery, firstPrice
   if (brands.length) clauses.push(Prisma.sql`k.marka_id IN (${Prisma.join(brands)})`);
   if (categories.length)
     clauses.push(
-      Prisma.sql`EXISTS (SELECT 1 FROM stok_karti_kategorileri sk WHERE sk.stok_karti_id = k.id AND sk.kategori_id IN (${Prisma.join(categories)}))`,
+      Prisma.sql`EXISTS (SELECT 1 FROM urun_kategorileri sk WHERE sk.urun_id = k.id AND sk.kategori_id IN (${Prisma.join(categories)}))`,
     );
   if (query.arama) {
     const text = query.arama;
     clauses.push(Prisma.sql`(
-      LOCATE(${text}, COALESCE(k.stok_kodu, '')) > 0 OR LOCATE(${text}, COALESCE(k.stok_adi, '')) > 0
+      LOCATE(${text}, COALESCE(k.urun_kodu, '')) > 0 OR LOCATE(${text}, COALESCE(k.urun_adi, '')) > 0
       OR EXISTS (SELECT 1 FROM markalar m WHERE m.id = k.marka_id AND LOCATE(${text}, m.marka_adi) > 0)
-      OR EXISTS (SELECT 1 FROM stok_birimleri sb JOIN stok_barkodlari bk ON bk.stok_birimi_id = sb.id WHERE sb.stok_karti_id = k.id AND LOCATE(${text}, bk.barkod) > 0)
-      OR EXISTS (SELECT 1 FROM stok_varyantlari sv WHERE sv.stok_karti_id = k.id AND (LOCATE(${text}, sv.kod) > 0 OR LOCATE(${text}, COALESCE(sv.barkod, '')) > 0))
+      OR EXISTS (SELECT 1 FROM urun_birimleri sb JOIN urun_barkodlari bk ON bk.urun_birimi_id = sb.id WHERE sb.urun_id = k.id AND LOCATE(${text}, bk.barkod) > 0)
+      OR EXISTS (SELECT 1 FROM urun_varyantlari sv WHERE sv.urun_id = k.id AND (LOCATE(${text}, sv.kod) > 0 OR LOCATE(${text}, COALESCE(sv.barkod, '')) > 0))
     )`);
   }
   if (query.firsat === 'with')
-    clauses.push(
-      Prisma.sql`EXISTS (SELECT 1 FROM stok_firsatlari sf WHERE sf.stok_karti_id = k.id)`,
-    );
+    clauses.push(Prisma.sql`EXISTS (SELECT 1 FROM urun_firsatlari sf WHERE sf.urun_id = k.id)`);
   if (query.firsat === 'without')
-    clauses.push(
-      Prisma.sql`NOT EXISTS (SELECT 1 FROM stok_firsatlari sf WHERE sf.stok_karti_id = k.id)`,
-    );
+    clauses.push(Prisma.sql`NOT EXISTS (SELECT 1 FROM urun_firsatlari sf WHERE sf.urun_id = k.id)`);
   if (query.stok === 'unlimited') clauses.push(Prisma.sql`k.envanter_takibi = 'yok'`);
   if (query.stok === 'in')
     clauses.push(
-      Prisma.sql`k.envanter_takibi <> 'yok' AND COALESCE((SELECT SUM(sv.miktar) FROM stok_varyantlari sv WHERE sv.stok_karti_id = k.id), k.stok_miktari) > 0`,
+      Prisma.sql`k.envanter_takibi <> 'yok' AND COALESCE((SELECT SUM(sv.miktar) FROM urun_varyantlari sv WHERE sv.urun_id = k.id), k.stok_miktari) > 0`,
     );
   if (query.stok === 'out')
     clauses.push(
-      Prisma.sql`k.envanter_takibi <> 'yok' AND COALESCE((SELECT SUM(sv.miktar) FROM stok_varyantlari sv WHERE sv.stok_karti_id = k.id), k.stok_miktari) <= 0`,
+      Prisma.sql`k.envanter_takibi <> 'yok' AND COALESCE((SELECT SUM(sv.miktar) FROM urun_varyantlari sv WHERE sv.urun_id = k.id), k.stok_miktari) <= 0`,
     );
   if (query.satis === 'open') clauses.push(Prisma.sql`k.satisa_acik = TRUE`);
   if (query.satis === 'closed') clauses.push(Prisma.sql`k.satisa_acik = FALSE`);
@@ -54,8 +50,8 @@ export function stockListWhere(userId: number, query: StockListQuery, firstPrice
       const bounds = [];
       if (query.en_az) bounds.push(Prisma.sql`${gross} >= ${new Prisma.Decimal(query.en_az)}`);
       if (query.en_cok) bounds.push(Prisma.sql`${gross} <= ${new Prisma.Decimal(query.en_cok)}`);
-      clauses.push(Prisma.sql`EXISTS (SELECT 1 FROM stok_birimleri b JOIN stok_fiyatlari f ON f.stok_birimi_id = b.id
-        WHERE b.stok_karti_id = k.id AND b.ana_birim = TRUE AND f.fiyat_yonu = 'satis'
+      clauses.push(Prisma.sql`EXISTS (SELECT 1 FROM urun_birimleri b JOIN urun_fiyatlari f ON f.urun_birimi_id = b.id
+        WHERE b.urun_id = k.id AND b.ana_birim = TRUE AND f.fiyat_yonu = 'satis'
         AND f.fiyat_listesi_id = ${firstPriceListId} AND f.girilen_fiyat IS NOT NULL AND ${Prisma.join(bounds, ' AND ')})`);
     }
   }

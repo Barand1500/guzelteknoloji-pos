@@ -1,9 +1,10 @@
 import { ChevronLeft } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { PRODUCTS_PATH } from '../../../config/navigation';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
+import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { useSession } from '../../auth/hooks/session-context';
 import { hasDevAccess } from '../../dev-login/devAccess';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
@@ -153,6 +154,10 @@ function StockCardEditor({
     ...(variantState.count ? { variantStock: variantState.quantity } : {}),
   });
   const wide = useMediaQuery('(min-width: 80rem)');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [pendingLeave, setPendingLeave] = useState<string | null>(null);
+  const allowLeave = useRef(false);
   const previousVariantCount = useRef(0);
   const syncVariantQuantity = editor.syncVariantQuantity;
   const onVariantStateChange = useCallback(
@@ -169,23 +174,37 @@ function StockCardEditor({
       errorRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
   }, [editor.saveError]);
   useEffect(() => {
-    if (!variantState.dirty && !variantState.busy) return;
+    if (!editor.dirty && !variantState.dirty && !variantState.busy && !editor.saving) return;
     const unload = (event: BeforeUnloadEvent) => {
+      if (allowLeave.current) return;
       event.preventDefault();
       event.returnValue = '';
     };
     const click = (event: MouseEvent) => {
       const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
-      if (!anchor || anchor.getAttribute('href')?.startsWith('#')) return;
       if (
-        variantState.busy ||
-        !window.confirm(
-          'Kaydedilmemiş varyant değişiklikleri var. Sayfadan ayrılırsanız kaybolur. Yine de ayrılsın mı?',
-        )
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+        !(anchor instanceof HTMLAnchorElement) ||
+        anchor.getAttribute('href')?.startsWith('#') ||
+        anchor.hasAttribute('download') ||
+        anchor.target === '_blank' ||
+        event.button !== 0 ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const target = new URL(anchor.href);
+      if (!['http:', 'https:'].includes(target.protocol)) return;
+      if (
+        target.origin === window.location.origin &&
+        target.pathname + target.search + target.hash ===
+          location.pathname + location.search + location.hash
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!variantState.busy && !editor.saving) setPendingLeave(target.href);
     };
     window.addEventListener('beforeunload', unload);
     document.addEventListener('click', click, true);
@@ -193,7 +212,15 @@ function StockCardEditor({
       window.removeEventListener('beforeunload', unload);
       document.removeEventListener('click', click, true);
     };
-  }, [variantState.dirty, variantState.busy]);
+  }, [
+    editor.dirty,
+    editor.saving,
+    variantState.dirty,
+    variantState.busy,
+    location.pathname,
+    location.search,
+    location.hash,
+  ]);
 
   const savedScreen = editor.saved ? (
     <StockSavedScreen
@@ -212,6 +239,25 @@ function StockCardEditor({
 
   return (
     <>
+      <ConfirmSheet
+        open={pendingLeave !== null}
+        title="Kaydedilmemiş Değişiklikler"
+        description="Yaptığın değişiklikler henüz kaydedilmedi. Sayfadan ayrılırsan bu değişiklikler kaybolacak."
+        confirmLabel="Kaydetmeden Ayrıl"
+        cancelLabel="Düzenlemeye Devam Et"
+        onClose={() => setPendingLeave(null)}
+        onConfirm={() => {
+          if (!pendingLeave || editor.saving || variantState.busy) return;
+          const target = new URL(pendingLeave);
+          setPendingLeave(null);
+          if (target.origin === window.location.origin)
+            navigate(target.pathname + target.search + target.hash);
+          else {
+            allowLeave.current = true;
+            window.location.assign(target.href);
+          }
+        }}
+      />
       {savedScreen}
       {editor.saved && variantState.dirty && (
         <Alert tone="info">

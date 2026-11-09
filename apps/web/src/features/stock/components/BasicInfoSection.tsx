@@ -31,11 +31,6 @@ function editable(
   };
 }
 
-const YES_NO = [
-  { value: 'hayir', label: 'Hayır' },
-  { value: 'evet', label: 'Evet' },
-];
-
 /** Envanter Takibi yalnızca Evet / Hayır'dır: Hayır = "yok", Evet = "normal" (stok miktarı + limitler). */
 const TRACKING = [
   { value: 'yok', label: 'Hayır' },
@@ -73,9 +68,8 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
     return list;
   }, [draft.origin]);
 
-  // Eski kayıtlarda Seri/LOT/Ömür olabilir; arayüz bunları "Evet" sayar, alanları kendi türüne göre gösterir.
   const tracking = draft.inventoryTracking === 'yok' ? 'yok' : 'normal';
-  const inventoryFields = INVENTORY_FIELDS[draft.inventoryTracking] ?? [];
+  const inventoryFields = INVENTORY_FIELDS[tracking] ?? [];
 
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-6 xl:grid-cols-12">
@@ -124,42 +118,26 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
         />
       </div>
 
-      {/* Envanter takibi açıksa stok miktarı ve limitler (ya da eski türün alanları) çıkar. */}
+      {/* Envanter takibi açıksa stok miktarı ve limitler çıkar. */}
       {inventoryFields.map((field) => (
         <div key={`${draft.inventoryTracking}-${field.key}`} className={`${cell} animate-fade-in`}>
-          {field.kind === 'yesno' ? (
-            <SelectField
-              label={field.label}
-              options={YES_NO}
-              value={draft[field.key] ? 'evet' : 'hayir'}
-              onChange={(v) => set(field.key, v === 'evet')}
-            />
-          ) : (
-            <TextField
-              label={field.label}
-              value={
-                field.key === 'stockQuantity' && editor.variantStock !== undefined
-                  ? editor.variantStock
-                  : draft[field.key]
-              }
-              readOnly={field.key === 'stockQuantity' && editor.variantStock !== undefined}
-              hint={
-                field.key === 'stockQuantity' && editor.variantStock !== undefined
-                  ? 'Varyant miktarlarının toplamı. Varyantlar bölümünden değiştirilir.'
-                  : undefined
-              }
-              error={errors[field.key]}
-              // Sayı alanlarına yalnızca rakam girilir; "Önek" alanları serbest metindir.
-              numeric={
-                field.key === 'stockQuantity'
-                  ? 'signed-decimal'
-                  : field.kind === 'text'
-                    ? undefined
-                    : field.kind
-              }
-              onChange={(e) => set(field.key, e.target.value)}
-            />
-          )}
+          <TextField
+            label={field.label}
+            value={
+              field.key === 'stockQuantity' && editor.variantStock !== undefined
+                ? editor.variantStock
+                : draft[field.key]
+            }
+            readOnly={field.key === 'stockQuantity' && editor.variantStock !== undefined}
+            hint={
+              field.key === 'stockQuantity' && editor.variantStock !== undefined
+                ? 'Varyant miktarlarının toplamı. Varyantlar bölümünden değiştirilir.'
+                : undefined
+            }
+            error={errors[field.key]}
+            numeric={field.key === 'stockQuantity' ? 'signed-decimal' : field.kind}
+            onChange={(e) => set(field.key, e.target.value)}
+          />
         </div>
       ))}
     </div>

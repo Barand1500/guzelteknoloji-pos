@@ -39,8 +39,7 @@ async function imageData(url: string, file?: File): Promise<string> {
 export const productService = {
   isDemo: false,
   supportsImages: true,
-  /** Sunucu henüz MEVCUT görsellerin sırasını değiştirmiyor; yalnızca yeni görseller sıralanır. */
-  supportsImageOrder: false,
+  supportsImageOrder: true,
   listPage: async (query: ProductPageQuery): Promise<ProductPage> => {
     const result = await apiRequest<Page>('/api/stok/kartlar?' + productQueryString(query));
     return {
@@ -70,7 +69,11 @@ export const productService = {
     replace: boolean,
   ): Promise<number> => {
     for (const [url, saved] of tickets) if (saved.expires < Date.now()) tickets.delete(url);
-    const prepared: { productId: string; tickets: string[] }[] = [];
+    const prepared: {
+      productId: string;
+      tickets: string[];
+      finalOrder?: ({ imageId: number } | { ticket: string })[];
+    }[] = [];
     // 300 adet 5 MB görseli tek gövdede tutmak yerine dosyalar sırayla hazırlanır.
     for (const entry of entries) {
       const batch: string[] = [];
@@ -87,7 +90,20 @@ export const productService = {
         }
         batch.push(saved.ticket);
       }
-      prepared.push({ productId: entry.productId, tickets: batch });
+      const finalOrder = entry.finalOrder?.map((url) => {
+        const index = entry.urls.indexOf(url);
+        if (index >= 0) return { ticket: batch[index]! };
+        const match = /^\/api\/stok\/gorseller\/([1-9]\d*)$/.exec(
+          new URL(url, window.location.href).pathname,
+        );
+        if (!match) throw new Error('Görsel sırası okunamadı. Listeyi yenileyin.');
+        return { imageId: Number(match[1]) };
+      });
+      prepared.push({
+        productId: entry.productId,
+        tickets: batch,
+        ...(finalOrder ? { finalOrder } : {}),
+      });
     }
     const result = await apiRequest<{ images: number }>('/api/stok/gorseller/kaydet', {
       method: 'POST',

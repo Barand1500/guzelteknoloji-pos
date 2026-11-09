@@ -58,7 +58,6 @@ function commonUnits(draft: StockSaveInput['draft']) {
       weight: row.weight === '' ? null : new Prisma.Decimal(row.weight).toString(),
       weightUnit: row.weightUnit,
       volume: row.volume === '' ? null : new Prisma.Decimal(row.volume).toString(),
-      note: row.note,
       barcodes: row.barcodes
         .map((b) => [b.type, b.code])
         .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
@@ -121,15 +120,6 @@ function priceData(side: 'alis' | 'satis', block: PriceBlockData) {
     iskontoOrani: decimal(block.discount),
     kdvOrani: decimal(block.vatRate),
     kdvDahilGirildi: block.vatIncluded,
-    ekFiyatlar: {
-      create: block.extras.map((extra, position) => ({
-        sira: position,
-        aciklama: nullable(extra.note),
-        tutar: decimal(extra.amount),
-        iskontoOrani: decimal(extra.discount),
-        paraBirimi: extra.currency,
-      })),
-    },
   };
 }
 
@@ -153,7 +143,7 @@ export class PrismaStockRepository implements StockRepository {
       this.db.stokSecenegi.createMany({
         skipDuplicates: true,
         data: (Object.keys(DEFAULT_STOCK_LOOKUPS) as (keyof StockLookups)[])
-          .filter((key) => key !== 'brands')
+          .filter((key) => key !== 'brands' && key !== 'vatDepartments' && key !== 'stockKinds')
           .flatMap((listKey) =>
             DEFAULT_STOCK_LOOKUPS[listKey].map((option, position) => ({
               kullaniciKimligi: Number(userId),
@@ -195,6 +185,8 @@ export class PrismaStockRepository implements StockRepository {
   }
 
   async addOption(userId: string, listKey: OptionListKey, label: string) {
+    if (listKey === 'vatDepartments' || listKey === 'stockKinds')
+      throw new HttpError(400, 'VALIDATION_ERROR', 'Bu alan ürün ekranından kaldırıldı.');
     await this.ensureDefaults(userId);
     const row = await this.db.$transaction(async (tx) => {
       await tx.$queryRaw(Prisma.sql`SELECT id FROM kullanicilar WHERE id = ${userId} FOR UPDATE`);
@@ -370,8 +362,6 @@ export class PrismaStockRepository implements StockRepository {
               current
                 ? [
                     current.stokTipiKimligi,
-                    current.stokNeviKimligi,
-                    current.kdvDepartmaniKimligi,
                     current.digerVergiKimligi,
                     ...current.birimler.flatMap((unit) => [
                       unit.birimKimligi,
@@ -405,8 +395,6 @@ export class PrismaStockRepository implements StockRepository {
             };
             const d = input.draft;
             optionId('stockTypes', d.stockType);
-            optionId('stockKinds', d.stockKind);
-            optionId('vatDepartments', d.vatDepartment, true);
             optionId('otherTaxes', d.otherTax, true);
             for (const row of common.rows) optionId('units', row.unit);
             for (const [list] of common.lists) optionId('priceLists', list);
@@ -486,18 +474,13 @@ export class PrismaStockRepository implements StockRepository {
                 'CONFLICT',
                 'Varyantlı ürünün miktarını dosyadan değiştiremezsiniz. Miktarları varyantlar bölümünden güncelleyin.',
               );
-            const serial = d.inventoryTracking === 'seri';
-            const lot = d.inventoryTracking === 'lot';
-            const expiry = d.inventoryTracking === 'omur';
             const changes = {
               kayitIstegiKimligi: input.requestId,
               kayitIstegiHash: requestHash,
               stokKodu: nullable(d.code),
               stokAdi: nullable(d.name),
               stokTipiKimligi: optionId('stockTypes', d.stockType)!,
-              stokNeviKimligi: optionId('stockKinds', d.stockKind)!,
               markaKimligi: brand?.kimlik ?? null,
-              kdvDepartmaniKimligi: optionId('vatDepartments', d.vatDepartment, true),
               digerVergiKimligi: optionId('otherTaxes', d.otherTax, true),
               envanterTakibi: d.inventoryTracking,
               // Adet yalnızca "Normal" takipte girilir; diğer takip türlerinde kayıtlı adet korunur.
@@ -506,15 +489,6 @@ export class PrismaStockRepository implements StockRepository {
                 : {}),
               altLimit: normal ? decimal(d.lowerLimit) : null,
               ustLimit: normal ? decimal(d.upperLimit) : null,
-              seriNoZorunlu: serial && d.serialRequired,
-              seriNoOneki: serial ? nullable(d.serialPrefix) : null,
-              lotZorunlu: lot && d.lotRequired,
-              sktTakibi: lot && d.expiryTracking,
-              lotOneki: lot ? nullable(d.lotPrefix) : null,
-              sktZorunlu: expiry && d.expiryRequired,
-              rafOmruGun: expiry && d.shelfLifeDays ? Number(d.shelfLifeDays) : null,
-              riskSuresiGun: expiry && d.riskDays ? Number(d.riskDays) : null,
-              gtipKodu: nullable(d.gtip),
               mensei: nullable(d.origin),
               birimler: {
                 create: common.rows.map((row, position) => ({
@@ -526,7 +500,6 @@ export class PrismaStockRepository implements StockRepository {
                   agirlik: decimal(row.weight),
                   agirlikBirimi: row.weightUnit,
                   hacimDesi: decimal(row.volume),
-                  aciklama: nullable(row.note),
                   barkodlar: {
                     create: row.barcodes.map((b) => ({ barkodTuru: b.type, barkod: b.code })),
                   },
@@ -627,9 +600,7 @@ export class PrismaStockRepository implements StockRepository {
       where: { kimlik: Number(id), kullaniciKimligi: Number(userId) },
       include: {
         stokTipi: true,
-        stokNevi: true,
         marka: true,
-        kdvDepartmani: true,
         digerVergi: true,
         varyantlar: { select: { miktar: true } },
         kategoriler: { include: { kategori: true }, orderBy: { kategoriId: 'asc' } },
@@ -638,7 +609,7 @@ export class PrismaStockRepository implements StockRepository {
           include: {
             secenek: true,
             barkodlar: { orderBy: { kimlik: 'asc' } },
-            fiyatlar: { include: { fiyatListesi: true, ekFiyatlar: { orderBy: { sira: 'asc' } } } },
+            fiyatlar: { include: { fiyatListesi: true } },
           },
         },
       },
@@ -674,13 +645,7 @@ export class PrismaStockRepository implements StockRepository {
               discount: str(row?.iskontoOrani),
               vatRate: str(row?.kdvOrani),
               vatIncluded: row?.kdvDahilGirildi ?? false,
-              extras: (row?.ekFiyatlar ?? []).map((extra) => ({
-                id: String(extra.kimlik),
-                note: str(extra.aciklama),
-                amount: str(extra.tutar),
-                discount: str(extra.iskontoOrani),
-                currency: extra.paraBirimi,
-              })),
+              extras: [],
             };
           };
           return {
@@ -697,7 +662,7 @@ export class PrismaStockRepository implements StockRepository {
             weight: str(unit.agirlik),
             weightUnit: unit.agirlikBirimi,
             volume: str(unit.hacimDesi),
-            note: str(unit.aciklama),
+            note: '',
             isMain: unit.anaBirim,
             isDefault: unit.varsayilanBirim,
           };
@@ -709,8 +674,8 @@ export class PrismaStockRepository implements StockRepository {
       code: str(card.stokKodu),
       name: str(card.stokAdi),
       brand: str(card.markaKimligi),
-      vatDepartment: card.kdvDepartmani?.secenekKodu ?? '',
-      stockKind: card.stokNevi.secenekKodu,
+      vatDepartment: '',
+      stockKind: '',
       inventoryTracking: card.envanterTakibi,
       stockQuantity:
         card.envanterTakibi === 'normal'
@@ -722,15 +687,7 @@ export class PrismaStockRepository implements StockRepository {
           : '',
       lowerLimit: str(card.altLimit),
       upperLimit: str(card.ustLimit),
-      serialRequired: card.seriNoZorunlu,
-      serialPrefix: str(card.seriNoOneki),
-      lotRequired: card.lotZorunlu,
-      expiryTracking: card.sktTakibi,
-      lotPrefix: str(card.lotOneki),
-      expiryRequired: card.sktZorunlu,
-      shelfLifeDays: str(card.rafOmruGun),
-      riskDays: str(card.riskSuresiGun),
-      gtip: str(card.gtipKodu),
+      gtip: '',
       origin: str(card.mensei),
       otherTax: card.digerVergi?.secenekKodu ?? '',
       units,
@@ -746,14 +703,14 @@ export class PrismaStockRepository implements StockRepository {
         });
         const where = stockListWhere(Number(userId), query, priceLists[0]?.kimlik);
         const counts = await tx.$queryRaw<{ total: bigint }[]>(
-          Prisma.sql`SELECT COUNT(*) AS total FROM stok_kartlari k WHERE ${where}`,
+          Prisma.sql`SELECT COUNT(*) AS total FROM urunler k WHERE ${where}`,
         );
         const total = Number(counts[0]?.total ?? 0);
         const page = Math.min(query.sayfa, Math.max(1, Math.ceil(total / query.boyut)));
         if (query.sayim === '1') return { items: [], total, page, pageSize: query.boyut };
         const ids = await tx.$queryRaw<
           { id: number }[]
-        >(Prisma.sql`SELECT k.id FROM stok_kartlari k WHERE ${where}
+        >(Prisma.sql`SELECT k.id FROM urunler k WHERE ${where}
           ORDER BY k.olusturma_zamani DESC, k.id DESC LIMIT ${query.boyut} OFFSET ${(page - 1) * query.boyut}`);
         const rows = await tx.stokKarti.findMany({
           where: { kullaniciKimligi: Number(userId), kimlik: { in: ids.map((row) => row.id) } },
@@ -901,7 +858,7 @@ export class PrismaStockRepository implements StockRepository {
         });
         const where = stockListWhere(Number(userId), query, first?.kimlik);
         const rows = await tx.$queryRaw<{ id: number }[]>(
-          Prisma.sql`SELECT k.id FROM stok_kartlari k WHERE ${where} ORDER BY k.olusturma_zamani DESC, k.id DESC LIMIT 1001`,
+          Prisma.sql`SELECT k.id FROM urunler k WHERE ${where} ORDER BY k.olusturma_zamani DESC, k.id DESC LIMIT 1001`,
         );
         if (rows.length > 1000)
           throw new HttpError(

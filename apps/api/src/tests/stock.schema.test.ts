@@ -39,13 +39,19 @@ describe('Stok doğrulama', () => {
     d.units.fiyat![0]!.isMain = false;
     expect(stockDraftSchema.safeParse(d).success).toBe(false);
   });
-  it('limitler ve raf ömrü tutarlılığını kontrol eder', () => {
+  it('limitlerin tutarlılığını kontrol eder', () => {
     const d = stockFixture();
     d.lowerLimit = '100';
     expect(stockDraftSchema.safeParse(d).success).toBe(false);
-    d.inventoryTracking = 'omur';
-    d.shelfLifeDays = '10';
-    d.riskDays = '11';
-    expect(stockDraftSchema.safeParse(d).success).toBe(false);
+  });
+  it.each(['seri', 'lot', 'omur'])('kaldırılan takip türünü reddeder: %s', (inventoryTracking) => {
+    expect(stockDraftSchema.safeParse({ ...stockFixture(), inventoryTracking }).success).toBe(
+      false,
+    );
+  });
+  it('kaldırılan seri alanlarını istek gövdesinde kabul etmez', () => {
+    expect(stockDraftSchema.safeParse({ ...stockFixture(), serialPrefix: 'SN' }).success).toBe(
+      false,
+    );
   });
 });

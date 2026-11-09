@@ -26,11 +26,8 @@ export const DEFAULT_STOCK_LOOKUPS: StockLookups = {
     { value: 'gayriresmi', label: 'Gayriresmî' },
   ],
   inventoryTracking: [
-    { value: 'yok', label: 'Yok' },
-    { value: 'normal', label: 'Normal' },
-    { value: 'seri', label: 'Seri No' },
-    { value: 'lot', label: 'LOT' },
-    { value: 'omur', label: 'Ömür' },
+    { value: 'yok', label: 'Hayır' },
+    { value: 'normal', label: 'Evet' },
   ],
   otherTaxes: [
     { value: '', label: 'Seçilmedi' },

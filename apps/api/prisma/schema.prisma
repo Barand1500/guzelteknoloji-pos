@@ -127,17 +127,15 @@ model StokSecenegi {
   etkin             Boolean            @default(true) @map("etkin")
   sira              Int                @default(0) @map("sira")
   olusturmaZamani   DateTime           @default(now()) @map("olusturma_zamani")
-  kullanici         Kullanici          @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "stok_secenekleri_kullanici_baglantisi")
+  kullanici         Kullanici          @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "urun_secenekleri_kullanici_baglantisi")
   tipKartlari       StokKarti[]        @relation("StockType")
-  neviKartlari      StokKarti[]        @relation("StockKind")
-  departmanKartlari StokKarti[]        @relation("StockDepartment")
   vergiKartlari     StokKarti[]        @relation("StockTax")
   fiyatlar          StokFiyati[]
   birimler          StokBirimi[]
 
-  @@unique([kullaniciKimligi, listeTuru, secenekKodu], map: "stok_secenekleri_kod_tekil")
-  @@unique([kullaniciKimligi, listeTuru, adHash], map: "stok_secenekleri_ad_tekil")
-  @@map("stok_secenekleri")
+  @@unique([kullaniciKimligi, listeTuru, secenekKodu], map: "urun_secenekleri_kod_tekil")
+  @@unique([kullaniciKimligi, listeTuru, adHash], map: "urun_secenekleri_ad_tekil")
+  @@map("urun_secenekleri")
 }
 
 /// Marka bilgileri tek kayıttadır ve oturumdaki kullanıcıya aittir.
@@ -170,36 +168,23 @@ model StokKarti {
   kullaniciKimligi     Int                @map("kullanici_id")
   kayitIstegiKimligi   String             @map("kayit_istegi_id") @db.Char(36)
   kayitIstegiHash      String             @map("kayit_istegi_hash") @db.Char(64)
-  stokKodu             String?            @map("stok_kodu") @db.VarChar(100)
-  stokAdi              String?            @map("stok_adi") @db.VarChar(250)
-  stokTipiKimligi      Int                @map("stok_tipi_id")
-  stokNeviKimligi      Int                @map("stok_nevi_id")
+  stokKodu             String?            @map("urun_kodu") @db.VarChar(100)
+  stokAdi              String?            @map("urun_adi") @db.VarChar(250)
+  stokTipiKimligi      Int                @map("urun_tipi_id")
   markaKimligi         Int?               @map("marka_id")
   satisAcik            Boolean            @default(true) @map("satisa_acik")
   stokMiktari          Decimal            @default(0) @map("stok_miktari") @db.Decimal(18, 6)
-  kdvDepartmaniKimligi Int?               @map("kdv_departmani_id")
   digerVergiKimligi    Int?               @map("diger_vergi_id")
   envanterTakibi       String             @map("envanter_takibi") @db.VarChar(10)
   altLimit             Decimal?           @map("alt_limit") @db.Decimal(18, 6)
   ustLimit             Decimal?           @map("ust_limit") @db.Decimal(18, 6)
-  seriNoZorunlu        Boolean            @default(false) @map("seri_no_zorunlu")
-  seriNoOneki          String?            @map("seri_no_oneki") @db.VarChar(100)
-  lotZorunlu           Boolean            @default(false) @map("lot_zorunlu")
-  sktTakibi            Boolean            @default(false) @map("skt_takibi")
-  lotOneki             String?            @map("lot_oneki") @db.VarChar(100)
-  sktZorunlu           Boolean            @default(false) @map("skt_zorunlu")
-  rafOmruGun           Int?               @map("raf_omru_gun")
-  riskSuresiGun        Int?               @map("risk_suresi_gun")
-  gtipKodu             String?            @map("gtip_kodu") @db.VarChar(32)
   mensei               String?            @map("mensei") @db.VarChar(40)
   olusturmaZamani      DateTime           @default(now()) @map("olusturma_zamani")
   guncellemeZamani     DateTime           @updatedAt @map("guncelleme_zamani")
-  kullanici            Kullanici          @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "stok_kartlari_kullanici_baglantisi")
-  stokTipi             StokSecenegi       @relation("StockType", fields: [stokTipiKimligi], references: [kimlik], map: "stok_kartlari_tip_baglantisi")
-  stokNevi             StokSecenegi       @relation("StockKind", fields: [stokNeviKimligi], references: [kimlik], map: "stok_kartlari_nevi_baglantisi")
-  marka                Marka?             @relation(fields: [markaKimligi], references: [kimlik], map: "stok_kartlari_marka_baglantisi")
-  kdvDepartmani        StokSecenegi?      @relation("StockDepartment", fields: [kdvDepartmaniKimligi], references: [kimlik], map: "stok_kartlari_departman_baglantisi")
-  digerVergi           StokSecenegi?      @relation("StockTax", fields: [digerVergiKimligi], references: [kimlik], map: "stok_kartlari_vergi_baglantisi")
+  kullanici            Kullanici          @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "urunler_kullanici_baglantisi")
+  stokTipi             StokSecenegi       @relation("StockType", fields: [stokTipiKimligi], references: [kimlik], map: "urunler_tip_baglantisi")
+  marka                Marka?             @relation(fields: [markaKimligi], references: [kimlik], map: "urunler_marka_baglantisi")
+  digerVergi           StokSecenegi?      @relation("StockTax", fields: [digerVergiKimligi], references: [kimlik], map: "urunler_vergi_baglantisi")
   birimler             StokBirimi[]
   kategoriler          StokKartiKategori[]
   firsatlar            StokFirsati[]
@@ -207,21 +192,21 @@ model StokKarti {
   ozellikDegerleri     StokOzellikDegeri[]
   varyantlar           StokVaryanti[]
 
-  @@unique([kullaniciKimligi, stokKodu], map: "stok_kartlari_kullanici_kod_tekil")
-  @@unique([kullaniciKimligi, kayitIstegiKimligi], map: "stok_kartlari_kayit_istegi_tekil")
-  @@map("stok_kartlari")
+  @@unique([kullaniciKimligi, stokKodu], map: "urunler_kullanici_kod_tekil")
+  @@unique([kullaniciKimligi, kayitIstegiKimligi], map: "urunler_kayit_istegi_tekil")
+  @@map("urunler")
 }
 
 /// Dosya uploads/urunler içinde özgün biçimde tutulur; ilk sıra vitrin görselidir.
 model StokGorseli {
   id          Int       @id @default(autoincrement())
-  stokKartiId Int       @map("stok_karti_id")
+  stokKartiId Int       @map("urun_id")
   dosyaAdi    String    @unique @map("dosya_adi") @db.VarChar(255)
   sira        Int       @default(0)
   stokKarti   StokKarti @relation(fields: [stokKartiId], references: [kimlik], onDelete: Cascade)
 
   @@index([stokKartiId, sira])
-  @@map("stok_gorselleri")
+  @@map("urun_gorselleri")
 }
 
 model Kategori {
@@ -246,12 +231,12 @@ model Kategori {
 }
 
 model StokKartiKategori {
-  stokKartiId Int @map("stok_karti_id")
+  stokKartiId Int @map("urun_id")
   kategoriId Int @map("kategori_id")
   stokKarti StokKarti @relation(fields: [stokKartiId], references: [kimlik], onDelete: Cascade)
   kategori Kategori @relation(fields: [kategoriId], references: [id], onDelete: Cascade)
   @@id([stokKartiId, kategoriId])
-  @@map("stok_karti_kategorileri")
+  @@map("urun_kategorileri")
 }
 
 model Firsat {
@@ -273,12 +258,12 @@ model Firsat {
 }
 
 model StokFirsati {
-  stokKartiId Int @map("stok_karti_id")
+  stokKartiId Int @map("urun_id")
   firsatId Int @map("firsat_id")
   stokKarti StokKarti @relation(fields: [stokKartiId], references: [kimlik], onDelete: Cascade)
   firsat Firsat @relation(fields: [firsatId], references: [id], onDelete: Cascade)
   @@id([stokKartiId, firsatId])
-  @@map("stok_firsatlari")
+  @@map("urun_firsatlari")
 }
 
 model OzellikSablonu {
@@ -338,17 +323,17 @@ model OzellikDegeri {
 }
 
 model StokOzellikDegeri {
-  stokKartiId Int @map("stok_karti_id")
+  stokKartiId Int @map("urun_id")
   degerId Int @map("deger_id")
   stokKarti StokKarti @relation(fields: [stokKartiId], references: [kimlik], onDelete: Cascade)
   deger OzellikDegeri @relation(fields: [degerId], references: [id], onDelete: Cascade)
   @@id([stokKartiId, degerId])
-  @@map("stok_ozellik_degerleri")
+  @@map("urun_ozellik_degerleri")
 }
 
 model StokVaryanti {
   id Int @id @default(autoincrement())
-  stokKartiId Int @map("stok_karti_id")
+  stokKartiId Int @map("urun_id")
   kod String @db.VarChar(100)
   barkod String? @db.VarChar(100)
   fiyat Decimal @db.Decimal(18, 6)
@@ -357,7 +342,7 @@ model StokVaryanti {
   degerler StokVaryantDegeri[]
   @@unique([stokKartiId, kod])
   @@index([stokKartiId])
-  @@map("stok_varyantlari")
+  @@map("urun_varyantlari")
 }
 
 model StokVaryantDegeri {
@@ -366,12 +351,12 @@ model StokVaryantDegeri {
   varyant StokVaryanti @relation(fields: [varyantId], references: [id], onDelete: Cascade)
   deger OzellikDegeri @relation(fields: [degerId], references: [id], onDelete: Restrict)
   @@id([varyantId, degerId])
-  @@map("stok_varyant_degerleri")
+  @@map("urun_varyant_degerleri")
 }
 
 model StokBirimi {
   kimlik                  Int              @id @default(autoincrement()) @map("id")
-  stokKartiKimligi        Int              @map("stok_karti_id")
+  stokKartiKimligi        Int              @map("urun_id")
   birimKimligi            Int              @map("birim_id")
   sira                    Int              @map("sira")
   carpan                  Decimal          @map("carpan") @db.Decimal(18, 6)
@@ -380,19 +365,18 @@ model StokBirimi {
   agirlik                 Decimal?         @map("agirlik") @db.Decimal(18, 6)
   agirlikBirimi           String           @map("agirlik_birimi") @db.VarChar(2)
   hacimDesi               Decimal?         @map("hacim_desi") @db.Decimal(18, 6)
-  aciklama                String?          @map("aciklama") @db.VarChar(1000)
-  stokKarti               StokKarti        @relation(fields: [stokKartiKimligi], references: [kimlik], onDelete: Cascade, map: "stok_birimleri_kart_baglantisi")
-  secenek                 StokSecenegi     @relation(fields: [birimKimligi], references: [kimlik], map: "stok_birimleri_secenek_baglantisi")
+  stokKarti               StokKarti        @relation(fields: [stokKartiKimligi], references: [kimlik], onDelete: Cascade, map: "urun_birimleri_kart_baglantisi")
+  secenek                 StokSecenegi     @relation(fields: [birimKimligi], references: [kimlik], map: "urun_birimleri_secenek_baglantisi")
   fiyatlar                StokFiyati[]
   barkodlar               StokBarkodu[]
 
-  @@index([stokKartiKimligi], map: "stok_birimleri_kart_indeks")
-  @@map("stok_birimleri")
+  @@index([stokKartiKimligi], map: "urun_birimleri_kart_indeks")
+  @@map("urun_birimleri")
 }
 
 model StokFiyati {
   kimlik            Int            @id @default(autoincrement()) @map("id")
-  stokBirimiKimligi Int            @map("stok_birimi_id")
+  stokBirimiKimligi Int            @map("urun_birimi_id")
   fiyatListesiKimligi Int          @map("fiyat_listesi_id")
   fiyatYonu         String         @map("fiyat_yonu") @db.VarChar(5)
   girilenFiyat      Decimal?       @map("girilen_fiyat") @db.Decimal(18, 6)
@@ -400,36 +384,22 @@ model StokFiyati {
   iskontoOrani      Decimal?       @map("iskonto_orani") @db.Decimal(18, 6)
   kdvOrani          Decimal?       @map("kdv_orani") @db.Decimal(18, 6)
   kdvDahilGirildi   Boolean        @map("kdv_dahil_girildi")
-  stokBirimi        StokBirimi     @relation(fields: [stokBirimiKimligi], references: [kimlik], onDelete: Cascade, map: "stok_fiyatlari_birim_baglantisi")
-  fiyatListesi      StokSecenegi   @relation(fields: [fiyatListesiKimligi], references: [kimlik], map: "stok_fiyatlari_liste_baglantisi")
-  ekFiyatlar        StokEkFiyati[]
+  stokBirimi        StokBirimi     @relation(fields: [stokBirimiKimligi], references: [kimlik], onDelete: Cascade, map: "urun_fiyatlari_birim_baglantisi")
+  fiyatListesi      StokSecenegi   @relation(fields: [fiyatListesiKimligi], references: [kimlik], map: "urun_fiyatlari_liste_baglantisi")
 
-  @@unique([stokBirimiKimligi, fiyatListesiKimligi, fiyatYonu], map: "stok_fiyatlari_birim_liste_yon_tekil")
-  @@map("stok_fiyatlari")
+  @@unique([stokBirimiKimligi, fiyatListesiKimligi, fiyatYonu], map: "urun_fiyatlari_birim_liste_yon_tekil")
+  @@map("urun_fiyatlari")
 }
 
-model StokEkFiyati {
-  kimlik            Int        @id @default(autoincrement()) @map("id")
-  stokFiyatiKimligi Int        @map("stok_fiyati_id")
-  sira              Int        @map("sira")
-  aciklama          String?    @map("aciklama") @db.VarChar(250)
-  tutar             Decimal?   @map("tutar") @db.Decimal(18, 6)
-  iskontoOrani      Decimal?   @map("iskonto_orani") @db.Decimal(18, 6)
-  paraBirimi        String     @map("para_birimi") @db.Char(3)
-  stokFiyati        StokFiyati @relation(fields: [stokFiyatiKimligi], references: [kimlik], onDelete: Cascade, map: "stok_ek_fiyatlari_fiyat_baglantisi")
-
-  @@index([stokFiyatiKimligi], map: "stok_ek_fiyatlari_fiyat_indeks")
-  @@map("stok_ek_fiyatlari")
-}
 
 model StokBarkodu {
   kimlik            Int        @id @default(autoincrement()) @map("id")
-  stokBirimiKimligi Int        @map("stok_birimi_id")
+  stokBirimiKimligi Int        @map("urun_birimi_id")
   barkodTuru        String     @map("barkod_turu") @db.VarChar(10)
   barkod            String     @map("barkod") @db.VarChar(128)
-  stokBirimi        StokBirimi @relation(fields: [stokBirimiKimligi], references: [kimlik], onDelete: Cascade, map: "stok_barkodlari_birim_baglantisi")
+  stokBirimi        StokBirimi @relation(fields: [stokBirimiKimligi], references: [kimlik], onDelete: Cascade, map: "urun_barkodlari_birim_baglantisi")
 
-  @@unique([stokBirimiKimligi, barkod], map: "stok_barkodlari_birim_kod_tekil")
-  @@index([barkod], map: "stok_barkodlari_kod_indeks")
-  @@map("stok_barkodlari")
+  @@unique([stokBirimiKimligi, barkod], map: "urun_barkodlari_birim_kod_tekil")
+  @@index([barkod], map: "urun_barkodlari_kod_indeks")
+  @@map("urun_barkodlari")
 }
