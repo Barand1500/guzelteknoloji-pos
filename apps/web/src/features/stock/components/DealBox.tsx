@@ -60,9 +60,6 @@ export function DealBox({ deals, selectedIds, onToggle }: DealBoxProps) {
           </li>
         ))}
       </ul>
-      <p className="px-1 text-xs text-ink-muted">
-        Rozetin ürün resmindeki yeri ve boyutu Fırsatlar ekranında ayarlanır.
-      </p>
     </div>
   );
 }

@@ -66,8 +66,7 @@ it('ana Kaydet varyant değişikliklerini kaybetmez; stok toplamı salt okunur v
   renderApp('/uygulama/stok-karti/123');
   const price = await screen.findByLabelText('Fiyat');
   await waitFor(() => expect(price).toBeEnabled());
-  expect(screen.getByLabelText('Stok Miktarı')).toHaveValue('5.000000');
-  expect(screen.getByLabelText('Stok Miktarı')).toHaveAttribute('readonly');
+  expect(screen.queryByLabelText('Stok Miktarı')).not.toBeInTheDocument();
   await user.clear(price);
   await user.type(price, '25');
   const unload = new Event('beforeunload', { cancelable: true });

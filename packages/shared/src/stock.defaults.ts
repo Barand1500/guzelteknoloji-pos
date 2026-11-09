@@ -29,15 +29,6 @@ export const DEFAULT_STOCK_LOOKUPS: StockLookups = {
     { value: 'yok', label: 'Hayır' },
     { value: 'normal', label: 'Evet' },
   ],
-  otherTaxes: [
-    { value: '', label: 'Seçilmedi' },
-    { value: 'otv', label: 'ÖTV' },
-    { value: 'mtv', label: 'MTV' },
-    { value: 'oiv', label: 'ÖİV' },
-    { value: 'alis-otv', label: 'Alış ÖTV' },
-    { value: 'satis-otv', label: 'Satış ÖTV' },
-    { value: 'konaklama', label: 'Konaklama Vergisi' },
-  ],
   units: [
     { value: 'adet', label: 'ADET' },
     { value: 'koli', label: 'KOLİ', removable: true },

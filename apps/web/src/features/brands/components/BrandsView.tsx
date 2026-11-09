@@ -1,4 +1,5 @@
 import { Plus, Tag } from 'lucide-react';
+import { usePublishAddAction } from '../../app-shell/save-action';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
@@ -143,6 +144,7 @@ export function BrandsView() {
   };
 
   const openAdd = () => setForm({ brandId: null });
+  usePublishAddAction('Marka Ekle', openAdd);
 
   return (
     <div className="flex min-w-0 flex-col gap-4" aria-busy={busy}>
@@ -255,16 +257,6 @@ export function BrandsView() {
           />
         )}
       </div>
-
-      {/* Telefon: yüzen ekleme düğmesi (alt çubuğun üstünde) */}
-      <button
-        type="button"
-        onClick={openAdd}
-        aria-label="Marka Ekle"
-        className="fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 flex size-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-card transition-transform active:scale-95 md:hidden"
-      >
-        <Plus className="size-7" aria-hidden="true" />
-      </button>
 
       {notice ? (
         <div

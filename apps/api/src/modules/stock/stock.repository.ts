@@ -275,7 +275,6 @@ export class PrismaStockRepository implements StockRepository {
                 : await tx.stokKarti.findFirst({
                     where: { kimlik: cardId, kullaniciKimligi: Number(userId) },
                     include: {
-                      vergiler: true,
                       birimler: { include: { fiyatlar: true } },
                       _count: { select: { varyantlar: true } },
                     },
@@ -363,7 +362,6 @@ export class PrismaStockRepository implements StockRepository {
               current
                 ? [
                     current.stokTipiKimligi,
-                    ...current.vergiler.map((v) => v.vergiId),
                     ...current.birimler.flatMap((unit) => [
                       unit.birimKimligi,
                       ...unit.fiyatlar.map((p) => p.fiyatListesiKimligi),
@@ -396,8 +394,6 @@ export class PrismaStockRepository implements StockRepository {
             };
             const d = input.draft;
             optionId('stockTypes', d.stockType);
-            const taxes = d.otherTaxes ?? (d.otherTax ? [{ code: d.otherTax, rate: '' }] : []);
-            for (const tax of taxes) optionId('otherTaxes', tax.code);
             for (const row of common.rows) optionId('units', row.unit);
             for (const [list] of common.lists) optionId('priceLists', list);
             if (d.brand && (!/^[1-9][0-9]{0,9}$/.test(d.brand) || Number(d.brand) > 2147483647))
@@ -484,12 +480,10 @@ export class PrismaStockRepository implements StockRepository {
               stokTipiKimligi: optionId('stockTypes', d.stockType)!,
               markaKimligi: brand?.kimlik ?? null,
               envanterTakibi: d.inventoryTracking,
-              // Adet yalnızca "Normal" takipte girilir; diğer takip türlerinde kayıtlı adet korunur.
-              ...(normal && !hasVariants
+              // Formda adet alanı yok: kayıtlı adet korunur. Yalnızca dosyadan içe aktarma adet gönderir.
+              ...(normal && !hasVariants && d.stockQuantity !== undefined
                 ? { stokMiktari: decimal(d.stockQuantity) ?? new Prisma.Decimal(0) }
                 : {}),
-              altLimit: normal ? decimal(d.lowerLimit) : null,
-              ustLimit: normal ? decimal(d.upperLimit) : null,
               mensei: nullable(d.origin),
               birimler: {
                 create: common.rows.map((row, position) => ({
@@ -519,16 +513,6 @@ export class PrismaStockRepository implements StockRepository {
             };
             // Kart numarası, satış durumu, stok miktarı ve kategoriler güncellemede korunur.
             const finish = async (id: number) => {
-              await tx.urunVergisi.deleteMany({ where: { urunId: id } });
-              if (taxes.length)
-                await tx.urunVergisi.createMany({
-                  data: taxes.map((tax, sira) => ({
-                    urunId: id,
-                    vergiId: optionId('otherTaxes', tax.code)!,
-                    oran: decimal(tax.rate),
-                    sira,
-                  })),
-                });
               if (input.extras) {
                 if (input.extras.attributeValueIds) {
                   const used = await tx.stokVaryantDegeri.findFirst({
@@ -612,7 +596,6 @@ export class PrismaStockRepository implements StockRepository {
       include: {
         stokTipi: true,
         marka: true,
-        vergiler: { include: { vergi: true }, orderBy: { sira: 'asc' } },
         varyantlar: { select: { miktar: true } },
         kategoriler: { include: { kategori: true }, orderBy: { kategoriId: 'asc' } },
         birimler: {
@@ -688,20 +671,8 @@ export class PrismaStockRepository implements StockRepository {
       vatDepartment: '',
       stockKind: '',
       inventoryTracking: card.envanterTakibi,
-      stockQuantity:
-        card.envanterTakibi === 'normal'
-          ? str(
-              card.varyantlar.length
-                ? card.varyantlar.reduce((sum, v) => sum.plus(v.miktar), new Prisma.Decimal(0))
-                : card.stokMiktari,
-            )
-          : '',
-      lowerLimit: str(card.altLimit),
-      upperLimit: str(card.ustLimit),
       gtip: '',
       origin: str(card.mensei),
-      otherTax: card.vergiler[0]?.vergi.secenekKodu ?? '',
-      otherTaxes: card.vergiler.map((v) => ({ code: v.vergi.secenekKodu, rate: str(v.oran) })),
       units,
     };
   }

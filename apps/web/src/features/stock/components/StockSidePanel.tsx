@@ -258,9 +258,6 @@ export function StockSidePanel({ editor, panel }: StockSidePanelProps) {
                         ))}
                     </section>
                   ))}
-                <p className="text-xs text-ink-muted">
-                  Kategoriye uygun şablonlar ve tüm ürünlere açık şablonlar gösterilir.
-                </p>
               </div>
             ) : null}
           </div>

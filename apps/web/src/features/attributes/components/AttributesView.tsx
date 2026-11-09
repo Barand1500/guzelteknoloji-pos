@@ -1,4 +1,5 @@
 import { ChevronLeft, Layers, Plus } from 'lucide-react';
+import { usePublishAddAction } from '../../app-shell/save-action';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { Button } from '../../../components/ui/Button';
@@ -232,6 +233,7 @@ export function AttributesView() {
       type: level === 'templates' ? 'template' : level === 'groups' ? 'group' : 'value',
       id: null,
     });
+  usePublishAddAction(addLabel, openAdd);
 
   const editingTemplate =
     form?.type === 'template' && form.id ? (attrs.templateById.get(form.id) ?? null) : null;
@@ -540,16 +542,6 @@ export function AttributesView() {
       >
         {content}
       </div>
-
-      {/* Telefon: yüzen ekleme düğmesi (alt çubuğun üstünde) */}
-      <button
-        type="button"
-        onClick={openAdd}
-        aria-label={addLabel}
-        className="fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 flex size-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-card transition-transform active:scale-95 md:hidden"
-      >
-        <Plus className="size-7" aria-hidden="true" />
-      </button>
 
       {notice ? (
         <div

@@ -40,11 +40,8 @@ export function stockFixture(): StockCardDraft {
     stockKind: 'resmi',
     inventoryTracking: 'normal',
     stockQuantity: '5,5',
-    lowerLimit: '1,25',
-    upperLimit: '20',
     gtip: '123456789012',
     origin: 'Türkiye',
-    otherTax: 'otv',
     units: { fiyat: [row] },
   };
 }

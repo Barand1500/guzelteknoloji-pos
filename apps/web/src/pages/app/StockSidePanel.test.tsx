@@ -100,7 +100,7 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
     expect(
       screen.getByRole('button', { name: 'Dokunmatik POS kategorisini kaldır' }),
     ).toBeVisible();
-    expect(screen.getByText('2 seçili')).toBeInTheDocument();
+    expect(screen.getAllByText('2 seçili').length).toBeGreaterThan(0);
     expect(tab('Kategori')).toHaveTextContent('2');
 
     // Arama kutusu başta gizlidir; düğmeyle açılır.

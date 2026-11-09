@@ -3,34 +3,6 @@ import { stockDraftSchema } from '@gt/shared';
 import { stockFixture } from './stock.fixture';
 
 describe('Stok doğrulama', () => {
-  it('çoklu vergi oranlarını doğrular, virgülü dönüştürür ve yinelenen vergiyi reddeder', () => {
-    const draft = {
-      ...stockFixture(),
-      otherTaxes: [
-        { code: 'otv', rate: '12,5' },
-        { code: 'mtv', rate: '' },
-      ],
-    };
-    expect(stockDraftSchema.parse(draft).otherTaxes).toEqual([
-      { code: 'otv', rate: '12.5' },
-      { code: 'mtv', rate: '' },
-    ]);
-    expect(
-      stockDraftSchema.safeParse({ ...draft, otherTaxes: [{ code: 'otv', rate: '101' }] }).success,
-    ).toBe(false);
-    expect(
-      stockDraftSchema.safeParse({ ...draft, otherTaxes: [{ code: 'otv', rate: '-1' }] }).success,
-    ).toBe(false);
-    expect(
-      stockDraftSchema.safeParse({
-        ...draft,
-        otherTaxes: [
-          { code: 'otv', rate: '1' },
-          { code: 'otv', rate: '2' },
-        ],
-      }).success,
-    ).toBe(false);
-  });
   it('eksi stok miktarını kabul eder ve virgülü dönüştürür; fiyatı negatif yapmaz', () => {
     const draft = stockFixture();
     draft.stockQuantity = '-5,25';
@@ -42,7 +14,6 @@ describe('Stok doğrulama', () => {
     const d = stockFixture();
     d.units.fiyat![0]!.barcodes[0]!.code = '00123456';
     const parsed = stockDraftSchema.parse(d);
-    expect(parsed.lowerLimit).toBe('1.25');
     expect(parsed.stockQuantity).toBe('5.5');
     expect(parsed.units.fiyat![0]!.purchase.amount).toBe('100.125');
     expect(parsed.units.fiyat![0]!.sale.discount).toBe('');
@@ -67,10 +38,14 @@ describe('Stok doğrulama', () => {
     d.units.fiyat![0]!.isMain = false;
     expect(stockDraftSchema.safeParse(d).success).toBe(false);
   });
-  it('limitlerin tutarlılığını kontrol eder', () => {
-    const d = stockFixture();
-    d.lowerLimit = '100';
-    expect(stockDraftSchema.safeParse(d).success).toBe(false);
+  it('kaldırılan alanları (vergi, alt/üst limit) istek gövdesinde kabul etmez', () => {
+    for (const extra of [
+      { otherTaxes: [] },
+      { otherTax: 'otv' },
+      { lowerLimit: '1' },
+      { upperLimit: '2' },
+    ])
+      expect(stockDraftSchema.safeParse({ ...stockFixture(), ...extra }).success).toBe(false);
   });
   it.each(['seri', 'lot', 'omur'])('kaldırılan takip türünü reddeder: %s', (inventoryTracking) => {
     expect(stockDraftSchema.safeParse({ ...stockFixture(), inventoryTracking }).success).toBe(

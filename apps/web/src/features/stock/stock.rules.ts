@@ -85,12 +85,8 @@ export function createEmptyDraft(firstPriceListId: string): StockCardDraft {
     vatDepartment: '',
     stockKind: 'resmi',
     inventoryTracking: 'normal',
-    stockQuantity: '',
-    lowerLimit: '',
-    upperLimit: '',
     gtip: '',
     origin: '',
-    otherTax: '',
     units: { [firstPriceListId]: [createUnitRow(true)] },
   };
 }
@@ -129,19 +125,3 @@ export function syncUnits(
   }
   return next;
 }
-
-/** Envanter takibi türüne göre gösterilecek alanlar. Anahtar = envanter takibi seçeneğinin değeri. */
-export interface InventoryField {
-  kind: 'decimal';
-  key: 'stockQuantity' | 'lowerLimit' | 'upperLimit';
-  label: string;
-}
-
-export const INVENTORY_FIELDS: Record<string, InventoryField[]> = {
-  yok: [],
-  normal: [
-    { kind: 'decimal', key: 'stockQuantity', label: 'Stok Miktarı' },
-    { kind: 'decimal', key: 'lowerLimit', label: 'Alt Limit' },
-    { kind: 'decimal', key: 'upperLimit', label: 'Üst Limit' },
-  ],
-};

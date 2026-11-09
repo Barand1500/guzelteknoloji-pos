@@ -58,3 +58,47 @@ export function usePublishSaveAction(action: SaveAction | null): void {
     };
   }, [active, saving]);
 }
+
+/**
+ * Sayfaya özel "Ekle" eylemi: Fırsatlar sayfasında "Fırsat Ekle", Kategorilerde "Kategori Ekle",
+ * Özelliklerde derinliğe göre "Şablon/Grup/Özellik Ekle" penceresini açar. Kaydet eyleminden sonra
+ * gelir (Kaydet varsa Kaydet görünür); hiçbiri yoksa "+" yeni stok kartı açar.
+ */
+export interface AddAction {
+  /** Erişilebilir ad ve ipucu: "Fırsat Ekle". */
+  label: string;
+  onAdd: () => void;
+}
+
+let currentAdd: AddAction | null = null;
+const addListeners = new Set<() => void>();
+
+function subscribeAdd(listener: () => void) {
+  addListeners.add(listener);
+  return () => void addListeners.delete(listener);
+}
+
+/** Dock'un okuduğu etkin "Ekle" eylemi (yoksa null). */
+export function useActiveAddAction(): AddAction | null {
+  return useSyncExternalStore(
+    subscribeAdd,
+    () => currentAdd,
+    () => null,
+  );
+}
+
+/** Bir sayfa kendi "Ekle" eylemini Dock'a bildirir; sayfadan çıkınca otomatik geri çekilir. */
+export function usePublishAddAction(label: string, onAdd: () => void): void {
+  const latest = useRef(onAdd);
+  useEffect(() => {
+    latest.current = onAdd;
+  });
+  useEffect(() => {
+    currentAdd = { label, onAdd: () => latest.current() };
+    addListeners.forEach((l) => l());
+    return () => {
+      currentAdd = null;
+      addListeners.forEach((l) => l());
+    };
+  }, [label]);
+}
