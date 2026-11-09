@@ -4,7 +4,7 @@ import { TextField } from '../../../components/ui/TextField';
 import type { OptionList } from '../hooks/useOptionList';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { countryOptions } from '../countries';
-import { OtherTaxes } from './OtherTaxes';
+import { OtherTaxPicker, OtherTaxRates } from './OtherTaxes';
 import { INVENTORY_FIELDS } from '../stock.rules';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
@@ -71,6 +71,10 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
 
   // Eski kayıtlarda yalnızca tek "otherTax" olabilir; oran bilinmediği için boş gelir.
   const taxes = draft.otherTaxes ?? (draft.otherTax ? [{ code: draft.otherTax, rate: '' }] : []);
+  const setTaxes = (next: typeof taxes) => {
+    set('otherTaxes', next);
+    set('otherTax', next[0]?.code ?? '');
+  };
   const tracking = draft.inventoryTracking === 'yok' ? 'yok' : 'normal';
   const inventoryFields = INVENTORY_FIELDS[tracking] ?? [];
 
@@ -87,15 +91,14 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
       <div className="col-span-2 md:col-span-3 xl:col-span-4">{text('code', 'Ürün Kodu')}</div>
       <div className="col-span-2 md:col-span-6 xl:col-span-5">{text('name', 'Ürün Adı')}</div>
 
-      <div className={cell}>
+      {/* 2. satır: Marka, Menşei, Envanter Takibi, Diğer Vergi Ekle — dört eşit sütun. */}
+      <div className="col-span-full grid grid-cols-2 gap-4 md:grid-cols-4">
         <SelectField
           label="Marka"
           options={lookups.brands}
           value={draft.brand}
           onChange={(v) => set('brand', v)}
         />
-      </div>
-      <div className={cell}>
         <SelectField
           label="Menşei"
           options={origins}
@@ -103,50 +106,47 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           onChange={(v) => set('origin', v)}
           searchable
         />
-      </div>
-      <div className={cell}>
         <SelectField
           label="Envanter Takibi"
           options={TRACKING}
           value={tracking}
           onChange={(v) => set('inventoryTracking', v)}
         />
+        <OtherTaxPicker options={lookups.otherTaxes} value={taxes} onChange={setTaxes} />
       </div>
 
-      {/* Diğer vergiler: seçilen her vergi için yanında oran (%) alanı belirir. */}
-      <div className="col-span-full">
-        <OtherTaxes
-          options={lookups.otherTaxes}
-          value={taxes}
-          onChange={(next) => {
-            set('otherTaxes', next);
-            set('otherTax', next[0]?.code ?? '');
-          }}
-        />
-      </div>
-
-      {/* Envanter takibi açıksa stok miktarı ve limitler çıkar. */}
-      {inventoryFields.map((field) => (
-        <div key={`${draft.inventoryTracking}-${field.key}`} className={`${cell} animate-fade-in`}>
-          <TextField
-            label={field.label}
-            value={
-              field.key === 'stockQuantity' && editor.variantStock !== undefined
-                ? editor.variantStock
-                : draft[field.key]
-            }
-            readOnly={field.key === 'stockQuantity' && editor.variantStock !== undefined}
-            hint={
-              field.key === 'stockQuantity' && editor.variantStock !== undefined
-                ? 'Varyant miktarlarının toplamı. Varyantlar bölümünden değiştirilir.'
-                : undefined
-            }
-            error={errors[field.key]}
-            numeric={field.key === 'stockQuantity' ? 'signed-decimal' : field.kind}
-            onChange={(e) => set(field.key, e.target.value)}
-          />
+      {/* Envanter takibi Evet ise: Stok Miktarı, Alt Limit, Üst Limit tam satırı eşit paylaşır. */}
+      {inventoryFields.length > 0 ? (
+        <div className="animate-fade-in col-span-full grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {inventoryFields.map((field) => (
+            <TextField
+              key={`${draft.inventoryTracking}-${field.key}`}
+              label={field.label}
+              value={
+                field.key === 'stockQuantity' && editor.variantStock !== undefined
+                  ? editor.variantStock
+                  : draft[field.key]
+              }
+              readOnly={field.key === 'stockQuantity' && editor.variantStock !== undefined}
+              hint={
+                field.key === 'stockQuantity' && editor.variantStock !== undefined
+                  ? 'Varyant miktarlarının toplamı. Varyantlar bölümünden değiştirilir.'
+                  : undefined
+              }
+              error={errors[field.key]}
+              numeric={field.key === 'stockQuantity' ? 'signed-decimal' : field.kind}
+              onChange={(e) => set(field.key, e.target.value)}
+            />
+          ))}
         </div>
-      ))}
+      ) : null}
+
+      {/* Seçilen vergilerin oran alanları: kaç tane seçildiyse satırı eşit doldurur. */}
+      {taxes.length > 0 ? (
+        <div className="col-span-full">
+          <OtherTaxRates options={lookups.otherTaxes} value={taxes} onChange={setTaxes} />
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -16,7 +16,7 @@ interface OtherTaxesProps {
  * işaretlenir (✓) ve yanında ORAN (%) alanı belirir, tekrar tıklanınca işaret kalkar ve alan
  * kaybolur. Oran alanları kutuyla aynı satırda dizilir (dört sütun).
  */
-export function OtherTaxes({ options, value, onChange }: OtherTaxesProps) {
+export function OtherTaxPicker({ options, value, onChange }: OtherTaxesProps) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -54,7 +54,7 @@ export function OtherTaxes({ options, value, onChange }: OtherTaxesProps) {
         : `${value.length} vergi seçili`;
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="grid">
       <div ref={root} className="relative">
         <div className="field">
           <button
@@ -118,19 +118,57 @@ export function OtherTaxes({ options, value, onChange }: OtherTaxesProps) {
           </ul>
         ) : null}
       </div>
+    </div>
+  );
+}
 
-      {value.map((tax) => (
-        <TextField
-          key={tax.code}
-          label={`${nameOf(tax.code)} Oranı`}
-          numeric="decimal"
-          value={tax.rate}
-          trailing={<span className="pr-3 text-sm font-bold text-ink-muted">%</span>}
-          onChange={(e) =>
-            onChange(value.map((t) => (t.code === tax.code ? { ...t, rate: e.target.value } : t)))
-          }
-        />
-      ))}
+/** Satır başına en çok bu kadar oran alanı sığar. */
+const MAX_PER_ROW = 4;
+
+/** n alanı satırlara dengeli böler (5 → 3+2, 6 → 3+3, 9 → 3+3+3); her satır tam genişliği doldurur. */
+export function splitRows(n: number): number[] {
+  if (n <= 0) return [];
+  const rows = Math.ceil(n / MAX_PER_ROW);
+  const base = Math.floor(n / rows);
+  const extra = n % rows;
+  return Array.from({ length: rows }, (_, i) => base + (i < extra ? 1 : 0));
+}
+
+/**
+ * Seçilen her verginin oran (%) alanı. Alanlar satırı tam kaplar: kaç tane seçildiyse genişlik ona
+ * göre eşit paylaşılır (1 alan tam satır, 2 alan yarı yarıya, 5 alan 3+2…).
+ */
+export function OtherTaxRates({ options, value, onChange }: OtherTaxesProps) {
+  const nameOf = (code: string) => options.find((o) => o.value === code)?.label ?? code;
+  const sizes = splitRows(value.length);
+  return (
+    <div className="grid gap-4">
+      {sizes.map((count, index) => {
+        const start = sizes.slice(0, index).reduce((a, b) => a + b, 0);
+        const row = value.slice(start, start + count);
+        return (
+          <div
+            key={row[0]!.code}
+            style={{ '--cols': count } as React.CSSProperties}
+            className="animate-fade-in grid grid-cols-2 gap-4 md:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]"
+          >
+            {row.map((tax) => (
+              <TextField
+                key={tax.code}
+                label={`${nameOf(tax.code)} Oranı`}
+                numeric="decimal"
+                value={tax.rate}
+                trailing={<span className="pr-3 text-sm font-bold text-ink-muted">%</span>}
+                onChange={(e) =>
+                  onChange(
+                    value.map((t) => (t.code === tax.code ? { ...t, rate: e.target.value } : t)),
+                  )
+                }
+              />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
