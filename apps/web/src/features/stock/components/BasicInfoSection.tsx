@@ -4,6 +4,7 @@ import { TextField } from '../../../components/ui/TextField';
 import type { OptionList } from '../hooks/useOptionList';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { countryOptions } from '../countries';
+import { OtherTaxes } from './OtherTaxes';
 import { INVENTORY_FIELDS } from '../stock.rules';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
@@ -31,6 +32,10 @@ function editable(
   };
 }
 
+/** Sunucunun şu an tanıdığı diğer vergi kodları (yenileri sunucu desteğiyle gelecek). */
+const LEGACY_TAXES = new Set(['otv', 'oiv', 'konaklama']);
+
+
 /** Envanter Takibi yalnızca Evet / Hayır'dır: Hayır = "yok", Evet = "normal" (stok miktarı + limitler). */
 const TRACKING = [
   { value: 'yok', label: 'Hayır' },
@@ -43,8 +48,8 @@ const cell = 'col-span-2 md:col-span-3 xl:col-span-3';
 /**
  * Ürün bilgisi alanları. Masaüstündeki kartta da telefondaki "Ürün" sekmesinde de aynı bileşen
  * kullanılır. Tüm alanlar hep görünür (katlama yok). Izgara: tablet 6, geniş ekran 12 sütun.
- * Sıra: Ürün Tipi, Ürün Kodu, Ürün Adı / Marka, Menşei, Envanter Takibi, Diğer Vergi /
- * (Envanter Takibi = Evet ise) Stok Miktarı, Alt Limit, Üst Limit.
+ * Sıra: Ürün Tipi, Ürün Kodu, Ürün Adı / Marka, Menşei, Envanter Takibi / Diğer Vergi Ekle (seçilen
+ * vergilerin oran alanlarıyla) / (Envanter Takibi = Evet ise) Stok Miktarı, Alt Limit, Üst Limit.
  * KDV departmanı, stok nevi ve GTIP kodu bu ekrandan kaldırıldı; taslaktaki alanları durur.
  */
 export function BasicInfoSection({ editor }: { editor: StockEditor }) {
@@ -68,6 +73,8 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
     return list;
   }, [draft.origin]);
 
+  // Eski kayıtlarda yalnızca tek "otherTax" olabilir; oran bilinmediği için boş gelir.
+  const taxes = draft.otherTaxes ?? (draft.otherTax ? [{ code: draft.otherTax, rate: '' }] : []);
   const tracking = draft.inventoryTracking === 'yok' ? 'yok' : 'normal';
   const inventoryFields = INVENTORY_FIELDS[tracking] ?? [];
 
@@ -109,12 +116,17 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           onChange={(v) => set('inventoryTracking', v)}
         />
       </div>
-      <div className={cell}>
-        <SelectField
-          label="Diğer Vergi Ekle"
+
+      {/* Diğer vergiler: seçilen her vergi için yanında oran (%) alanı belirir. */}
+      <div className="col-span-full">
+        <OtherTaxes
           options={lookups.otherTaxes}
-          value={draft.otherTax}
-          onChange={(v) => set('otherTax', v)}
+          value={taxes}
+          onChange={(next) => {
+            set('otherTaxes', next);
+            // Sunucu şimdilik tek vergi saklar: bildiği vergilerden eklenen ilki yazılır.
+            set('otherTax', next.find((t) => LEGACY_TAXES.has(t.code))?.code ?? '');
+          }}
         />
       </div>
 

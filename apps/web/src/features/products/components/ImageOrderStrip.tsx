@@ -46,7 +46,10 @@ export function ImageOrderStrip({
   const movable = lockExisting ? tiles.filter((t) => !t.existing) : tiles;
 
   return (
-    <div className="flex flex-wrap items-start gap-2" aria-label={`${productName} görselleri`}>
+    <div
+      className="grid grid-cols-[repeat(auto-fill,4rem)] gap-2"
+      aria-label={`${productName} görselleri`}
+    >
       {locked.map((t, index) => (
         <div key={t.key} className="relative">
           <HoverZoomImage src={t.url} alt={label(t)} className={IMG} />
@@ -59,7 +62,7 @@ export function ImageOrderStrip({
         getId={(t) => t.key}
         getLabel={label}
         onReorder={(next) => onReorder([...locked, ...next])}
-        className="flex flex-wrap gap-2"
+        className="contents!"
         renderItem={(t, ctx) => (
           <div
             role="button"

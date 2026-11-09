@@ -54,3 +54,31 @@ describe('Alt çubuk: "+" düğmesi stok kartında Kaydet olur', () => {
     expect(screen.queryByRole('button', { name: 'Kaydet' })).not.toBeInTheDocument();
   });
 });
+
+describe('Diğer Vergi Ekle', () => {
+  it('seçilen vergi için oran alanı belirir; eklenen vergi listeden düşer; ✕ ile kaldırılır', async () => {
+    const user = await openNewCard();
+    await user.click(screen.getByRole('combobox', { name: 'Diğer Vergi Ekle' }));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Seçilmedi',
+      'ÖTV',
+      'MTV',
+      'ÖİV',
+      'Alış ÖTV',
+      'Satış ÖTV',
+      'Konaklama Vergisi',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'ÖTV' }));
+    await user.type(screen.getByLabelText('ÖTV'), '18');
+    expect(screen.getByLabelText('ÖTV')).toHaveValue('18');
+
+    await user.click(screen.getByRole('combobox', { name: 'Diğer Vergi Ekle' }));
+    expect(screen.queryByRole('option', { name: 'ÖTV' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'MTV' }));
+    expect(screen.getByLabelText('MTV')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'ÖTV vergisini kaldır' }));
+    expect(screen.queryByLabelText('ÖTV')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('MTV')).toBeInTheDocument();
+  });
+});
