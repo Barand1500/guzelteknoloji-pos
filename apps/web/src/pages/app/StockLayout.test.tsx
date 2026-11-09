@@ -69,16 +69,16 @@ describe('Diğer Vergi Ekle', () => {
     ]);
     await user.click(screen.getByRole('checkbox', { name: 'ÖTV' }));
     await user.click(screen.getByRole('checkbox', { name: 'MTV' }));
-    await user.type(screen.getByLabelText('ÖTV Oranı'), '18');
-    expect(screen.getByLabelText('ÖTV Oranı')).toHaveValue('18');
-    expect(screen.getByLabelText('MTV Oranı')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('ÖTV'), '18');
+    expect(screen.getByLabelText('ÖTV')).toHaveValue('18');
+    expect(screen.getByLabelText('MTV')).toBeInTheDocument();
 
     // Alana tıklamak listeyi kapatır; işareti kaldırmak için yeniden açılır.
     await user.click(screen.getByRole('button', { name: 'Diğer Vergi Ekle' }));
     expect(screen.getByRole('checkbox', { name: 'ÖTV' })).toBeChecked();
     await user.click(screen.getByRole('checkbox', { name: 'ÖTV' }));
-    expect(screen.queryByLabelText('ÖTV Oranı')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('MTV Oranı')).toBeInTheDocument();
+    expect(screen.queryByLabelText('ÖTV')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('MTV')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /vergisini kaldır/ })).not.toBeInTheDocument();
   });
 });
