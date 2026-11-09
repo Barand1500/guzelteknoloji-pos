@@ -32,10 +32,6 @@ function editable(
   };
 }
 
-/** Sunucunun şu an tanıdığı diğer vergi kodları (yenileri sunucu desteğiyle gelecek). */
-const LEGACY_TAXES = new Set(['otv', 'oiv', 'konaklama']);
-
-
 /** Envanter Takibi yalnızca Evet / Hayır'dır: Hayır = "yok", Evet = "normal" (stok miktarı + limitler). */
 const TRACKING = [
   { value: 'yok', label: 'Hayır' },
@@ -124,8 +120,7 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           value={taxes}
           onChange={(next) => {
             set('otherTaxes', next);
-            // Sunucu şimdilik tek vergi saklar: bildiği vergilerden eklenen ilki yazılır.
-            set('otherTax', next.find((t) => LEGACY_TAXES.has(t.code))?.code ?? '');
+            set('otherTax', next[0]?.code ?? '');
           }}
         />
       </div>

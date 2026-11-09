@@ -92,9 +92,9 @@ export interface StockCardDraft {
   upperLimit: string; // Normal
   gtip: string;
   origin: string;
-  /** Eski tek seçimli alan: eklenen ilk vergi (sunucu şimdilik yalnızca bunu saklar). */
+  /** Eski istemciler için ilk vergi; kayıtların asıl kaynağı otherTaxes listesidir. */
   otherTax: string;
-  /** Eklenen tüm diğer vergiler ve oranları (sunucu desteği gelene kadar istemcide tutulur). */
+  /** Eklenen vergiler ve oranları; her biri veritabanında ayrı satırda saklanır. */
   otherTaxes?: OtherTaxEntry[];
   /** Fiyat listesi kimliği → o listenin birim satırları. */
   units: Record<string, UnitRow[]>;
@@ -185,8 +185,12 @@ export const stockDraftSchema = z
     origin: text(40),
     otherTax: text(100),
     otherTaxes: z
-      .array(z.strictObject({ code: text(100).min(1), rate: z.string().max(20) }))
+      .array(z.strictObject({ code: text(100).min(1), rate: percentage }))
       .max(10)
+      .refine(
+        (taxes) => new Set(taxes.map((t) => t.code)).size === taxes.length,
+        'Aynı vergi birden fazla kez eklenemez.',
+      )
       .optional(),
     units: z.record(
       text(100).min(1),

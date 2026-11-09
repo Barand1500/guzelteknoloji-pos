@@ -445,6 +445,10 @@ try {
     const reloaded = await request(app).get('/api/stok/secenekler').set('Cookie', cookie());
     assert(reloaded.body.units.some((unit: { label: string }) => unit.label === 'PALET'));
     const draft = stockFixture();
+    draft.otherTaxes = [
+      { code: 'otv', rate: '12,5' },
+      { code: 'mtv', rate: '2' },
+    ];
     draft.units.fiyat!.push({
       ...structuredClone(draft.units.fiyat![0]!),
       id: 'second-row',
@@ -626,6 +630,11 @@ try {
       .get('/api/stok/kartlar/' + id)
       .set('Cookie', cookie());
     assert.equal(card.status, 200);
+    assert.deepEqual(card.body.otherTaxes, [
+      { code: 'otv', rate: '12.5' },
+      { code: 'mtv', rate: '2' },
+    ]);
+    assert.equal(await prisma.urunVergisi.count({ where: { urunId: Number(id) } }), 2);
     assert.equal(Object.keys(card.body.units).length, 2);
     assert.equal(card.body.units.fiyat.length, 2);
     const unit = card.body.units.fiyat[0];

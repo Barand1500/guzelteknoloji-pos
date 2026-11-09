@@ -3,6 +3,34 @@ import { stockDraftSchema } from '@gt/shared';
 import { stockFixture } from './stock.fixture';
 
 describe('Stok doğrulama', () => {
+  it('çoklu vergi oranlarını doğrular, virgülü dönüştürür ve yinelenen vergiyi reddeder', () => {
+    const draft = {
+      ...stockFixture(),
+      otherTaxes: [
+        { code: 'otv', rate: '12,5' },
+        { code: 'mtv', rate: '' },
+      ],
+    };
+    expect(stockDraftSchema.parse(draft).otherTaxes).toEqual([
+      { code: 'otv', rate: '12.5' },
+      { code: 'mtv', rate: '' },
+    ]);
+    expect(
+      stockDraftSchema.safeParse({ ...draft, otherTaxes: [{ code: 'otv', rate: '101' }] }).success,
+    ).toBe(false);
+    expect(
+      stockDraftSchema.safeParse({ ...draft, otherTaxes: [{ code: 'otv', rate: '-1' }] }).success,
+    ).toBe(false);
+    expect(
+      stockDraftSchema.safeParse({
+        ...draft,
+        otherTaxes: [
+          { code: 'otv', rate: '1' },
+          { code: 'otv', rate: '2' },
+        ],
+      }).success,
+    ).toBe(false);
+  });
   it('eksi stok miktarını kabul eder ve virgülü dönüştürür; fiyatı negatif yapmaz', () => {
     const draft = stockFixture();
     draft.stockQuantity = '-5,25';

@@ -137,7 +137,22 @@ export class PrismaStockRepository implements StockRepository {
       },
       select: { kimlik: true },
     });
-    if (initialized) return;
+    if (initialized) {
+      await this.db.stokSecenegi.createMany({
+        skipDuplicates: true,
+        data: DEFAULT_STOCK_LOOKUPS.otherTaxes
+          .filter((o) => ['mtv', 'alis-otv', 'satis-otv'].includes(o.value))
+          .map((o, i) => ({
+            kullaniciKimligi: Number(userId),
+            listeTuru: 'otherTaxes',
+            secenekKodu: o.value,
+            secenekAdi: o.label,
+            adHash: labelHash(o.label),
+            sira: 100 + i,
+          })),
+      });
+      return;
+    }
     // Benzersiz anahtar sayesinde eşzamanlı açılışlar çoğaltmaz; silinen varsayılanlar yeniden etkinleşmez.
     await retryWrite(() =>
       this.db.stokSecenegi.createMany({
@@ -275,6 +290,7 @@ export class PrismaStockRepository implements StockRepository {
                 : await tx.stokKarti.findFirst({
                     where: { kimlik: cardId, kullaniciKimligi: Number(userId) },
                     include: {
+                      vergiler: true,
                       birimler: { include: { fiyatlar: true } },
                       _count: { select: { varyantlar: true } },
                     },
@@ -362,7 +378,7 @@ export class PrismaStockRepository implements StockRepository {
               current
                 ? [
                     current.stokTipiKimligi,
-                    current.digerVergiKimligi,
+                    ...current.vergiler.map((v) => v.vergiId),
                     ...current.birimler.flatMap((unit) => [
                       unit.birimKimligi,
                       ...unit.fiyatlar.map((p) => p.fiyatListesiKimligi),
@@ -395,7 +411,8 @@ export class PrismaStockRepository implements StockRepository {
             };
             const d = input.draft;
             optionId('stockTypes', d.stockType);
-            optionId('otherTaxes', d.otherTax, true);
+            const taxes = d.otherTaxes ?? (d.otherTax ? [{ code: d.otherTax, rate: '' }] : []);
+            for (const tax of taxes) optionId('otherTaxes', tax.code);
             for (const row of common.rows) optionId('units', row.unit);
             for (const [list] of common.lists) optionId('priceLists', list);
             if (d.brand && (!/^[1-9][0-9]{0,9}$/.test(d.brand) || Number(d.brand) > 2147483647))
@@ -481,7 +498,6 @@ export class PrismaStockRepository implements StockRepository {
               stokAdi: nullable(d.name),
               stokTipiKimligi: optionId('stockTypes', d.stockType)!,
               markaKimligi: brand?.kimlik ?? null,
-              digerVergiKimligi: optionId('otherTaxes', d.otherTax, true),
               envanterTakibi: d.inventoryTracking,
               // Adet yalnızca "Normal" takipte girilir; diğer takip türlerinde kayıtlı adet korunur.
               ...(normal && !hasVariants
@@ -518,6 +534,16 @@ export class PrismaStockRepository implements StockRepository {
             };
             // Kart numarası, satış durumu, stok miktarı ve kategoriler güncellemede korunur.
             const finish = async (id: number) => {
+              await tx.urunVergisi.deleteMany({ where: { urunId: id } });
+              if (taxes.length)
+                await tx.urunVergisi.createMany({
+                  data: taxes.map((tax, sira) => ({
+                    urunId: id,
+                    vergiId: optionId('otherTaxes', tax.code)!,
+                    oran: decimal(tax.rate),
+                    sira,
+                  })),
+                });
               if (input.extras) {
                 if (input.extras.attributeValueIds) {
                   const used = await tx.stokVaryantDegeri.findFirst({
@@ -601,7 +627,7 @@ export class PrismaStockRepository implements StockRepository {
       include: {
         stokTipi: true,
         marka: true,
-        digerVergi: true,
+        vergiler: { include: { vergi: true }, orderBy: { sira: 'asc' } },
         varyantlar: { select: { miktar: true } },
         kategoriler: { include: { kategori: true }, orderBy: { kategoriId: 'asc' } },
         birimler: {
@@ -689,7 +715,8 @@ export class PrismaStockRepository implements StockRepository {
       upperLimit: str(card.ustLimit),
       gtip: '',
       origin: str(card.mensei),
-      otherTax: card.digerVergi?.secenekKodu ?? '',
+      otherTax: card.vergiler[0]?.vergi.secenekKodu ?? '',
+      otherTaxes: card.vergiler.map((v) => ({ code: v.vergi.secenekKodu, rate: str(v.oran) })),
       units,
     };
   }

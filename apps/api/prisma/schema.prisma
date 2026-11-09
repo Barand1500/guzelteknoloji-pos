@@ -129,7 +129,7 @@ model StokSecenegi {
   olusturmaZamani   DateTime           @default(now()) @map("olusturma_zamani")
   kullanici         Kullanici          @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "urun_secenekleri_kullanici_baglantisi")
   tipKartlari       StokKarti[]        @relation("StockType")
-  vergiKartlari     StokKarti[]        @relation("StockTax")
+  urunVergileri UrunVergisi[]
   fiyatlar          StokFiyati[]
   birimler          StokBirimi[]
 
@@ -174,7 +174,6 @@ model StokKarti {
   markaKimligi         Int?               @map("marka_id")
   satisAcik            Boolean            @default(true) @map("satisa_acik")
   stokMiktari          Decimal            @default(0) @map("stok_miktari") @db.Decimal(18, 6)
-  digerVergiKimligi    Int?               @map("diger_vergi_id")
   envanterTakibi       String             @map("envanter_takibi") @db.VarChar(10)
   altLimit             Decimal?           @map("alt_limit") @db.Decimal(18, 6)
   ustLimit             Decimal?           @map("ust_limit") @db.Decimal(18, 6)
@@ -184,7 +183,7 @@ model StokKarti {
   kullanici            Kullanici          @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "urunler_kullanici_baglantisi")
   stokTipi             StokSecenegi       @relation("StockType", fields: [stokTipiKimligi], references: [kimlik], map: "urunler_tip_baglantisi")
   marka                Marka?             @relation(fields: [markaKimligi], references: [kimlik], map: "urunler_marka_baglantisi")
-  digerVergi           StokSecenegi?      @relation("StockTax", fields: [digerVergiKimligi], references: [kimlik], map: "urunler_vergi_baglantisi")
+  vergiler             UrunVergisi[]
   birimler             StokBirimi[]
   kategoriler          StokKartiKategori[]
   firsatlar            StokFirsati[]
@@ -402,4 +401,15 @@ model StokBarkodu {
   @@unique([stokBirimiKimligi, barkod], map: "urun_barkodlari_birim_kod_tekil")
   @@index([barkod], map: "urun_barkodlari_kod_indeks")
   @@map("urun_barkodlari")
+}
+
+model UrunVergisi {
+  urunId Int @map("urun_id")
+  vergiId Int @map("vergi_id")
+  oran Decimal? @db.Decimal(18, 6)
+  sira Int
+  urun StokKarti @relation(fields: [urunId], references: [kimlik], onDelete: Cascade)
+  vergi StokSecenegi @relation(fields: [vergiId], references: [kimlik], onDelete: Restrict)
+  @@id([urunId, vergiId])
+  @@map("urun_vergileri")
 }

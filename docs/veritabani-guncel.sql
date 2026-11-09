@@ -120,7 +120,6 @@ CREATE TABLE `urunler` (
     `marka_id` INTEGER NULL,
     `satisa_acik` BOOLEAN NOT NULL DEFAULT true,
     `stok_miktari` DECIMAL(18, 6) NOT NULL DEFAULT 0,
-    `diger_vergi_id` INTEGER NULL,
     `envanter_takibi` VARCHAR(10) NOT NULL,
     `alt_limit` DECIMAL(18, 6) NULL,
     `ust_limit` DECIMAL(18, 6) NULL,
@@ -325,6 +324,16 @@ CREATE TABLE `urun_barkodlari` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE `urun_vergileri` (
+    `urun_id` INTEGER NOT NULL,
+    `vergi_id` INTEGER NOT NULL,
+    `oran` DECIMAL(18, 6) NULL,
+    `sira` INTEGER NOT NULL,
+
+    PRIMARY KEY (`urun_id`, `vergi_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- AddForeignKey
 ALTER TABLE `giris_kimlikleri` ADD CONSTRAINT `giris_kimlikleri_kullanici_baglantisi` FOREIGN KEY (`kullanici_id`) REFERENCES `kullanicilar`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -345,9 +354,6 @@ ALTER TABLE `urunler` ADD CONSTRAINT `urunler_tip_baglantisi` FOREIGN KEY (`urun
 
 -- AddForeignKey
 ALTER TABLE `urunler` ADD CONSTRAINT `urunler_marka_baglantisi` FOREIGN KEY (`marka_id`) REFERENCES `markalar`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `urunler` ADD CONSTRAINT `urunler_vergi_baglantisi` FOREIGN KEY (`diger_vergi_id`) REFERENCES `urun_secenekleri`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `urun_gorselleri` ADD CONSTRAINT `urun_gorselleri_urun_id_fkey` FOREIGN KEY (`urun_id`) REFERENCES `urunler`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -417,3 +423,9 @@ ALTER TABLE `urun_fiyatlari` ADD CONSTRAINT `urun_fiyatlari_liste_baglantisi` FO
 
 -- AddForeignKey
 ALTER TABLE `urun_barkodlari` ADD CONSTRAINT `urun_barkodlari_birim_baglantisi` FOREIGN KEY (`urun_birimi_id`) REFERENCES `urun_birimleri`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `urun_vergileri` ADD CONSTRAINT `urun_vergileri_urun_id_fkey` FOREIGN KEY (`urun_id`) REFERENCES `urunler`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `urun_vergileri` ADD CONSTRAINT `urun_vergileri_vergi_id_fkey` FOREIGN KEY (`vergi_id`) REFERENCES `urun_secenekleri`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
