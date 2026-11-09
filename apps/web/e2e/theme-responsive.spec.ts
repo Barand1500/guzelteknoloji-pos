@@ -41,15 +41,44 @@ for (const width of [390, 768, 1440])
         const main = page.getByRole('dialog', { name: 'Markayı Düzenle', exact: true });
         await check(main);
         await screenshot('marka');
-        await main.getByRole('button', { name: /^Ürünler/ }).click();
+        await main.getByRole('button', { name: 'Kaydet', exact: true }).click();
+        await expect(page.getByRole('status')).toBeVisible();
+        await screenshot('bildirim');
+        if (width < 768) {
+          const box = (await edit.boundingBox())!;
+          await edit.dispatchEvent('pointerdown', {
+            pointerId: 1,
+            pointerType: 'touch',
+            clientX: box.x + 250,
+            clientY: box.y + 20,
+          });
+          await edit.dispatchEvent('pointermove', {
+            pointerId: 1,
+            pointerType: 'touch',
+            clientX: box.x + 20,
+            clientY: box.y + 20,
+          });
+          await edit.dispatchEvent('pointerup', {
+            pointerId: 1,
+            pointerType: 'touch',
+            clientX: box.x + 20,
+            clientY: box.y + 20,
+          });
+          await page
+            .getByRole('listitem')
+            .filter({ has: edit })
+            .getByRole('button', { name: 'Ürünler', exact: true })
+            .click();
+        } else {
+          await page
+            .getByRole('button', { name: 'ALATEL markasının ürünlerini yönet', exact: true })
+            .click();
+        }
         const products = page.getByRole('dialog', { name: 'ALATEL · Ürünler', exact: true });
         await check(products);
         await screenshot('urunler');
         await page.keyboard.press('Escape');
-        await main.getByRole('button', { name: 'Kaydet', exact: true }).click();
-        await expect(page.getByRole('status')).toBeVisible();
-        await screenshot('bildirim');
-        await page.getByRole('link', { name: 'Yeni Stok Kartı', exact: true }).click();
+        await page.goto('/uygulama/stok-karti/yeni');
         await page.getByRole('combobox', { name: 'Marka', exact: true }).click();
         const list = page.getByRole('listbox');
         await check(list);

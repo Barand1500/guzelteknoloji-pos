@@ -686,7 +686,7 @@ try {
     plain.code = 'DAYS';
     const saved = await post('/kartlar', { requestId: randomUUID(), draft: plain });
     assert.equal(saved.status, 201);
-    const untracked = await prisma.stokKarti.findUniqueOrThrow({
+    await prisma.stokKarti.findUniqueOrThrow({
       where: { kimlik: Number(saved.body.id) },
     });
     const changed = structuredClone(plain);
