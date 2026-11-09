@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" role="img" aria-label="Güzel Teknoloji POS">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C2410C"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="280" rx="28" fill="url(#g)"/>
+  <circle cx="1060" cy="40" r="170" fill="#fff" opacity=".07"/>
+  <circle cx="930" cy="260" r="120" fill="#fff" opacity=".07"/>
+  <g transform="translate(70 70)">
+    <rect width="140" height="140" rx="36" fill="#C2410C" stroke="#fff" stroke-opacity=".35" stroke-width="3"/>
+    <path d="M40 88c14 14 46 14 60-8" fill="none" stroke="#FFB44D" stroke-width="13" stroke-linecap="round"/>
+    <circle cx="52" cy="54" r="11" fill="#fff"/><circle cx="88" cy="54" r="11" fill="#fff"/>
+  </g>
+  <text x="250" y="130" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="64" font-weight="800" fill="#fff">Güzel Teknoloji</text>
+  <text x="252" y="185" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="500" fill="#FFE7CF">Stok Kartı &amp; POS Yönetim Paneli</text>
+</svg>

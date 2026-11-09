@@ -56,11 +56,10 @@ describe('Alt çubuk: "+" düğmesi stok kartında Kaydet olur', () => {
 });
 
 describe('Diğer Vergi Ekle', () => {
-  it('seçilen vergi için oran alanı belirir; eklenen vergi listeden düşer; ✕ ile kaldırılır', async () => {
+  it('işaretlenen her vergi için oran alanı belirir; tekrar tıklayınca işaret ve alan kalkar', async () => {
     const user = await openNewCard();
-    await user.click(screen.getByRole('combobox', { name: 'Diğer Vergi Ekle' }));
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
-      'Seçilmedi',
+    await user.click(screen.getByRole('button', { name: 'Diğer Vergi Ekle' }));
+    expect(screen.getAllByRole('checkbox').map((o) => o.textContent)).toEqual([
       'ÖTV',
       'MTV',
       'ÖİV',
@@ -68,17 +67,18 @@ describe('Diğer Vergi Ekle', () => {
       'Satış ÖTV',
       'Konaklama Vergisi',
     ]);
-    await user.click(screen.getByRole('option', { name: 'ÖTV' }));
-    await user.type(screen.getByLabelText('ÖTV'), '18');
-    expect(screen.getByLabelText('ÖTV')).toHaveValue('18');
+    await user.click(screen.getByRole('checkbox', { name: 'ÖTV' }));
+    await user.click(screen.getByRole('checkbox', { name: 'MTV' }));
+    await user.type(screen.getByLabelText('ÖTV Oranı'), '18');
+    expect(screen.getByLabelText('ÖTV Oranı')).toHaveValue('18');
+    expect(screen.getByLabelText('MTV Oranı')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('combobox', { name: 'Diğer Vergi Ekle' }));
-    expect(screen.queryByRole('option', { name: 'ÖTV' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('option', { name: 'MTV' }));
-    expect(screen.getByLabelText('MTV')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'ÖTV vergisini kaldır' }));
-    expect(screen.queryByLabelText('ÖTV')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('MTV')).toBeInTheDocument();
+    // Alana tıklamak listeyi kapatır; işareti kaldırmak için yeniden açılır.
+    await user.click(screen.getByRole('button', { name: 'Diğer Vergi Ekle' }));
+    expect(screen.getByRole('checkbox', { name: 'ÖTV' })).toBeChecked();
+    await user.click(screen.getByRole('checkbox', { name: 'ÖTV' }));
+    expect(screen.queryByLabelText('ÖTV Oranı')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('MTV Oranı')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /vergisini kaldır/ })).not.toBeInTheDocument();
   });
 });
