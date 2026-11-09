@@ -79,23 +79,38 @@ describe('Özellikler ekranı', () => {
     expect(ids('Özellikler')).toHaveLength(5);
   });
 
-  it('özellik düzenlenir ve silinir', async () => {
+  it('özelliğe çift tıklayınca pencere açılmadan yerinde değişir; kod alanı yoktur', async () => {
     const user = await openAttributes('/uygulama/ozellikler?s=t-pos&g=g-ram', 'Özellikler');
-    await user.click(screen.getByRole('button', { name: '4 GB özelliğini düzenle' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Özelliği Düzenle' });
-    const name = within(dialog).getByLabelText('Özellik Adı');
-    await user.clear(name);
-    await user.type(name, '4 GB DDR4');
-    await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
+    await user.dblClick(screen.getByRole('button', { name: '4 GB özelliğini düzenle' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const input = screen.getByRole('textbox', { name: '4 GB özellik adı' });
+    await user.clear(input);
+    await user.type(input, '4 GB DDR4{Enter}');
     expect(
       await screen.findByRole('button', { name: '4 GB DDR4 özelliğini düzenle' }),
     ).toBeInTheDocument();
+    const saved = (await attributeService.snapshot()).values.find((v) => v.name === '4 GB DDR4');
+    expect(saved?.code).toBe('4-gb'); // kod değişmez
 
-    await user.click(screen.getByRole('button', { name: '8 GB özelliğini düzenle' }));
-    const second = await screen.findByRole('dialog', { name: 'Özelliği Düzenle' });
-    await user.click(within(second).getByRole('button', { name: 'Özelliği Sil' }));
+    // Esc vazgeçer.
+    await user.dblClick(screen.getByRole('button', { name: '8 GB özelliğini düzenle' }));
+    await user.type(screen.getByRole('textbox', { name: '8 GB özellik adı' }), 'X{Escape}');
+    expect(screen.getByRole('button', { name: '8 GB özelliğini düzenle' })).toBeInTheDocument();
+  });
+
+  it('çöp kutusu özelliği onayla siler (kalem simgesi yoktur)', async () => {
+    const user = await openAttributes('/uygulama/ozellikler?s=t-pos&g=g-ram', 'Özellikler');
+    await user.click(screen.getByRole('button', { name: '8 GB özelliğini sil' }));
     await user.click(await screen.findByRole('button', { name: 'Sil' }));
     await waitFor(() => expect(ids('Özellikler')).toHaveLength(2));
+  });
+
+  it('özellik ekleme penceresinde kod alanı yoktur', async () => {
+    const user = await openAttributes('/uygulama/ozellikler?s=t-pos&g=g-ram', 'Özellikler');
+    await user.click(screen.getAllByRole('button', { name: 'Özellik Ekle' })[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Özellik Ekle' });
+    expect(within(dialog).queryByLabelText('Özellik Kodu')).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Özellik Adı')).toBeInTheDocument();
   });
 
   it('resimli grupta hızlı giriş yerine resimli ekleme düğmesi çıkar', async () => {

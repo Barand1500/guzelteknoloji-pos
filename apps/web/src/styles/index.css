@@ -237,14 +237,11 @@
   .field-input:focus,
   .field-input:focus-visible {
     outline: none;
+    /* Turuncu dış gölge (halo) yok: odak yalnızca kenarlık rengiyle belirtilir. */
     border-color: var(--color-brand-600);
-    box-shadow: 0 0 0 4px rgb(194 65 12 / 0.12);
   }
   .field-input[aria-invalid='true'] {
     border-color: var(--color-danger);
-  }
-  .field-input[aria-invalid='true']:focus {
-    box-shadow: 0 0 0 4px rgb(180 35 24 / 0.12);
   }
   .field-label {
     position: absolute;

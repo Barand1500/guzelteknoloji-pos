@@ -143,7 +143,7 @@ describe('Markalar ekranı (masaüstü)', () => {
     expect(within(add).getByLabelText('Açıklama')).toBeInTheDocument();
   });
 
-  it('logoya çift tıklayınca düzenleme açılır ve logo seçici hemen çalışır; satıra çift tıklama yalnızca düzenler', async () => {
+  it('logoya çift tıklayınca pencere açılmadan doğrudan logo seçici çalışır; satıra çift tıklama düzenlemeyi açar', async () => {
     const click = vi.spyOn(HTMLInputElement.prototype, 'click');
     const user = await openBrands();
     const row = screen.getByRole('button', { name: 'ANYPAY markasını düzenle' });
@@ -154,8 +154,8 @@ describe('Markalar ekranı (masaüstü)', () => {
     await user.keyboard('{Escape}');
     // Logoya çift tıklama: dosya seçici açılır.
     await user.dblClick(within(row).getByTitle('Logoyu değiştirmek için çift tıklayın'));
-    await screen.findByRole('dialog', { name: 'Markayı Düzenle' });
     expect(click).toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Markayı Düzenle' })).not.toBeInTheDocument();
     click.mockRestore();
   });
 
@@ -201,7 +201,10 @@ describe('Markalar ekranı (masaüstü)', () => {
   it('pasif yapılan marka stok kartındaki marka listesinde görünmez', async () => {
     const user = await openBrands();
     await user.click(screen.getByRole('switch', { name: 'ALATEL aktif' }));
-    await user.click(screen.getByRole('link', { name: 'Yeni Stok Kartı' }));
+    // Markalar sayfasında ortadaki düğme "Marka Ekle"dir; stok kartına Ürünler üzerinden gidilir.
+    expect(screen.queryByRole('link', { name: 'Yeni Stok Kartı' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: 'Ürünler' }));
+    await user.click(await screen.findByRole('link', { name: 'Yeni Stok Kartı' }));
     await user.click(await screen.findByRole('combobox', { name: 'Marka' }));
     expect(screen.getByRole('option', { name: 'ANYPAY' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'ALATEL' })).not.toBeInTheDocument();

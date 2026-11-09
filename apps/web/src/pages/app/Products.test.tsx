@@ -81,7 +81,7 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     await user.click(screen.getByRole('button', { name: 'Süzgeçler' }));
     const dialog = await screen.findByRole('dialog', { name: 'Süzgeçler' });
     await user.click(within(dialog).getByRole('button', { name: 'Marka' }));
-    await user.click(within(dialog).getByRole('checkbox', { name: 'CAS' }));
+    await user.click(screen.getByRole('checkbox', { name: 'CAS' }));
     await user.click(await within(dialog).findByRole('button', { name: '2 Ürünü Göster' }));
     await waitFor(() => expect(rowCount()).toBe(2));
 

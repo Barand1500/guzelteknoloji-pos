@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { SelectField } from '../../../components/ui/SelectField';
+import { MultiSelectField } from '../../../components/ui/MultiSelectField';
 import { TextField } from '../../../components/ui/TextField';
 import type { OptionList } from '../hooks/useOptionList';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { countryOptions } from '../countries';
-import { OtherTaxPicker, OtherTaxRates } from './OtherTaxes';
-import { INVENTORY_FIELDS } from '../stock.rules';
+import { flattenTree } from '../../categories/tree';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
 function editable(
@@ -32,7 +32,7 @@ function editable(
   };
 }
 
-/** Envanter Takibi yalnızca Evet / Hayır'dır: Hayır = "yok", Evet = "normal" (stok miktarı + limitler). */
+/** Envanter Takibi yalnızca Evet / Hayır'dır: Hayır = "yok", Evet = "normal". */
 const TRACKING = [
   { value: 'yok', label: 'Hayır' },
   { value: 'normal', label: 'Evet' },
@@ -44,9 +44,8 @@ const cell = 'col-span-2 md:col-span-3 xl:col-span-3';
 /**
  * Ürün bilgisi alanları. Masaüstündeki kartta da telefondaki "Ürün" sekmesinde de aynı bileşen
  * kullanılır. Tüm alanlar hep görünür (katlama yok). Izgara: tablet 6, geniş ekran 12 sütun.
- * Sıra: Ürün Tipi, Ürün Kodu, Ürün Adı / Marka, Menşei, Envanter Takibi / Diğer Vergi Ekle (seçilen
- * vergilerin oran alanlarıyla) / (Envanter Takibi = Evet ise) Stok Miktarı, Alt Limit, Üst Limit.
- * KDV departmanı, stok nevi ve GTIP kodu bu ekrandan kaldırıldı; taslaktaki alanları durur.
+ * Sıra: Ürün Tipi, Ürün Kodu, Ürün Adı / Marka, Menşei, Envanter Takibi (Evet/Hayır), Kategori.
+ * KDV departmanı, stok nevi, GTIP, stok miktarı, limitler ve diğer vergiler bu ekrandan kaldırıldı.
  */
 export function BasicInfoSection({ editor }: { editor: StockEditor }) {
   const { draft, errors, set, lookups, lists } = editor;
@@ -69,14 +68,31 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
     return list;
   }, [draft.origin]);
 
-  // Eski kayıtlarda yalnızca tek "otherTax" olabilir; oran bilinmediği için boş gelir.
-  const taxes = draft.otherTaxes ?? (draft.otherTax ? [{ code: draft.otherTax, rate: '' }] : []);
-  const setTaxes = (next: typeof taxes) => {
-    set('otherTaxes', next);
-    set('otherTax', next[0]?.code ?? '');
-  };
   const tracking = draft.inventoryTracking === 'yok' ? 'yok' : 'normal';
-  const inventoryFields = INVENTORY_FIELDS[tracking] ?? [];
+
+  // Kategori: ağaç sırasıyla, alt kategoriler "Üst › Alt" yoluyla gösterilir. Seçim yan paneldeki
+  // Kategori sekmesiyle ortaktır (aynı durum).
+  const categories = editor.extraOptions?.categories;
+  const categoryOptions = useMemo(() => {
+    if (!categories) return [];
+    const byId = new Map(categories.map((c) => [c.id, c]));
+    const path = (id: string): string => {
+      const c = byId.get(id);
+      return c ? (c.parentId ? `${path(c.parentId)} › ${c.name}` : c.name) : id;
+    };
+    return flattenTree(categories).map(({ category }) => ({
+      id: category.id,
+      name: path(category.id),
+    }));
+  }, [categories]);
+  const chooseCategories = (ids: string[]) => {
+    const current = editor.extras.categoryIds;
+    for (const id of [
+      ...ids.filter((x) => !current.includes(x)),
+      ...current.filter((x) => !ids.includes(x)),
+    ])
+      editor.toggleCategory(id);
+  };
 
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-6 xl:grid-cols-12">
@@ -91,7 +107,7 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
       <div className="col-span-2 md:col-span-3 xl:col-span-4">{text('code', 'Ürün Kodu')}</div>
       <div className="col-span-2 md:col-span-6 xl:col-span-5">{text('name', 'Ürün Adı')}</div>
 
-      {/* 2. satır: Marka, Menşei, Envanter Takibi, Diğer Vergi Ekle — dört eşit sütun. */}
+      {/* 2. satır: Marka, Menşei, Envanter Takibi, Kategori — dört eşit sütun. */}
       <div className="col-span-full grid grid-cols-2 gap-4 md:grid-cols-4">
         <SelectField
           label="Marka"
@@ -112,41 +128,16 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           value={tracking}
           onChange={(v) => set('inventoryTracking', v)}
         />
-        <OtherTaxPicker options={lookups.otherTaxes} value={taxes} onChange={setTaxes} />
+        {categories ? (
+          <MultiSelectField
+            label="Kategori"
+            options={categoryOptions}
+            value={editor.extras.categoryIds}
+            onChange={chooseCategories}
+            emptyText="Seçilmedi"
+          />
+        ) : null}
       </div>
-
-      {/* Envanter takibi Evet ise: Stok Miktarı, Alt Limit, Üst Limit tam satırı eşit paylaşır. */}
-      {inventoryFields.length > 0 ? (
-        <div className="animate-fade-in col-span-full grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {inventoryFields.map((field) => (
-            <TextField
-              key={`${draft.inventoryTracking}-${field.key}`}
-              label={field.label}
-              value={
-                field.key === 'stockQuantity' && editor.variantStock !== undefined
-                  ? editor.variantStock
-                  : draft[field.key]
-              }
-              readOnly={field.key === 'stockQuantity' && editor.variantStock !== undefined}
-              hint={
-                field.key === 'stockQuantity' && editor.variantStock !== undefined
-                  ? 'Varyant miktarlarının toplamı. Varyantlar bölümünden değiştirilir.'
-                  : undefined
-              }
-              error={errors[field.key]}
-              numeric={field.key === 'stockQuantity' ? 'signed-decimal' : field.kind}
-              onChange={(e) => set(field.key, e.target.value)}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {/* Seçilen vergilerin oran alanları: kaç tane seçildiyse satırı eşit doldurur. */}
-      {taxes.length > 0 ? (
-        <div className="col-span-full">
-          <OtherTaxRates options={lookups.otherTaxes} value={taxes} onChange={setTaxes} />
-        </div>
-      ) : null}
     </div>
   );
 }

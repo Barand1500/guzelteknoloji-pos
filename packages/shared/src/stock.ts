@@ -15,7 +15,6 @@ export interface StockLookups {
   brands: SelectOption[];
   stockKinds: SelectOption[];
   inventoryTracking: SelectOption[];
-  otherTaxes: SelectOption[];
   units: SelectOption[];
   currencies: SelectOption[];
   priceLists: SelectOption[];
@@ -68,12 +67,6 @@ export interface UnitRow {
   isDefault: boolean;
 }
 
-/** Karta eklenen bir "diğer vergi" (ÖTV, MTV…) ve oranı (% olarak metin). */
-export interface OtherTaxEntry {
-  code: string;
-  rate: string;
-}
-
 export interface StockCardDraft {
   // Temel bilgi
   stockType: string;
@@ -86,16 +79,10 @@ export interface StockCardDraft {
   inventoryTracking: string;
   // Gelişmiş (varsayılan kapalı)
   // Envanter takibine göre görünen alanlar (yalnızca seçili takip türünün alanları gösterilir)
-  /** Eldeki adet (yalnızca "Normal" envanter takibinde girilir; boş = 0). */
-  stockQuantity: string; // Normal
-  lowerLimit: string; // Normal
-  upperLimit: string; // Normal
+  /** Yalnızca dosyadan içe aktarmada gelir; formda adet alanı yoktur. */
+  stockQuantity?: string;
   gtip: string;
   origin: string;
-  /** Eski istemciler için ilk vergi; kayıtların asıl kaynağı otherTaxes listesidir. */
-  otherTax: string;
-  /** Eklenen vergiler ve oranları; her biri veritabanında ayrı satırda saklanır. */
-  otherTaxes?: OtherTaxEntry[];
   /** Fiyat listesi kimliği → o listenin birim satırları. */
   units: Record<string, UnitRow[]>;
 }
@@ -178,20 +165,9 @@ export const stockDraftSchema = z
         (v) => v === '' || /^-?\d{1,12}(\.\d{1,6})?$/.test(v),
         'Geçerli bir stok miktarı girin; en fazla 12 tam ve 6 ondalık basamak kullanılabilir.',
       )
-      .default(''),
-    lowerLimit: decimal,
-    upperLimit: decimal,
+      .optional(),
     gtip: text(32),
     origin: text(40),
-    otherTax: text(100),
-    otherTaxes: z
-      .array(z.strictObject({ code: text(100).min(1), rate: percentage }))
-      .max(10)
-      .refine(
-        (taxes) => new Set(taxes.map((t) => t.code)).size === taxes.length,
-        'Aynı vergi birden fazla kez eklenemez.',
-      )
-      .optional(),
     units: z.record(
       text(100).min(1),
       z.array(unitSchema).min(1, 'Fiyat listesinde en az bir birim olmalı.').max(30),
@@ -216,18 +192,6 @@ export const stockDraftSchema = z
           message: 'Her fiyat listesinde bir ana ve bir varsayılan birim seçin.',
         });
       }
-    }
-    if (
-      draft.inventoryTracking === 'normal' &&
-      draft.lowerLimit !== '' &&
-      draft.upperLimit !== '' &&
-      Number(draft.lowerLimit) > Number(draft.upperLimit)
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['upperLimit'],
-        message: 'Üst limit alt limitten küçük olamaz.',
-      });
     }
   });
 export const createStockSchema = z.strictObject({ requestId: z.uuid(), draft: stockDraftSchema });

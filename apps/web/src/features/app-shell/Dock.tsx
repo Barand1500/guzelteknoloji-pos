@@ -1,10 +1,10 @@
-import { Check, Plus } from 'lucide-react';
+import { Plus, Save } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { Spinner } from '../../components/ui/Spinner';
 import { STOCK_CREATE_PATH, navLeft, navRight, type NavItem } from '../../config/navigation';
-import { useActiveSaveAction } from './save-action';
 import { useWorkspace, pageResource } from '../workspace/workspace-context';
+import { useActiveAddAction, useActiveSaveAction } from './save-action';
 
 function DockLink({ item }: { item: NavItem }) {
   const Icon = item.icon;
@@ -35,8 +35,9 @@ function DockLink({ item }: { item: NavItem }) {
  * gider (konum doğrudan DOM'a yazılır; böylece React yeniden çizimi gerekmez, animasyon akıcıdır).
  * "+" (yeni stok kartı) seçiliyken kutu gizlenir.
  *
- * Bir ekran kaydetme işlemi bildirmişse (stok kartı; bkz. save-action.ts) "+" düğmesi dönerek
- * kaybolur ve yerini "Kaydet" düğmesi alır; ekrandan çıkınca ya da kaydedilince tekrar "+" olur.
+ * Ortadaki düğme sayfaya göre değişir (bkz. save-action.ts): stok kartında yalnızca disket simgeli
+ * "Kaydet"; Fırsatlar/Kategoriler/Markalar/Özellikler sayfalarında o sayfanın "Ekle" penceresini
+ * (Özelliklerde derinliğe göre Şablon/Grup/Özellik) açan "+"; diğer sayfalarda yeni stok kartı "+".
  */
 export function Dock() {
   const { can } = useWorkspace();
@@ -45,6 +46,7 @@ export function Dock() {
   const indicator = useRef<HTMLSpanElement>(null);
   const placedOnce = useRef(false);
   const save = useActiveSaveAction();
+  const add = useActiveAddAction();
 
   useLayoutEffect(() => {
     const box = container.current;
@@ -99,24 +101,35 @@ export function Dock() {
             <DockLink key={item.id} item={item} />
           ))}
 
-        {save && can('products', 'save') ? (
-          // Kaydet hali: daire genişleyip hap olur; "+" dönerek solar, onay simgesi ve yazı belirir.
-          <button
-            type="button"
-            onClick={save.onSave}
-            disabled={save.saving}
-            aria-label="Kaydet"
-            className="relative -mt-7 mx-1 flex h-14 w-32 shrink-0 animate-turn-in items-center justify-center gap-2 overflow-hidden rounded-full bg-brand-700 text-base font-bold text-white shadow-soft ring-4 ring-surface-raised transition-[transform,opacity] duration-200 hover:scale-105 active:scale-95 disabled:opacity-80 md:mt-0 md:ring-0"
-          >
-            {save.saving ? (
-              <Spinner className="size-6" />
-            ) : (
-              <>
-                <Check className="size-6" aria-hidden="true" />
-                Kaydet
-              </>
-            )}
-          </button>
+        {save ? (
+          can('products', 'save') ? (
+            <button
+              type="button"
+              onClick={save.onSave}
+              disabled={save.saving}
+              aria-label="Kaydet"
+              title="Kaydet"
+              className="relative -mt-7 mx-1 flex size-14 shrink-0 animate-turn-in items-center justify-center overflow-hidden rounded-full bg-brand-700 text-white shadow-soft ring-4 ring-surface-raised transition-[transform,opacity] duration-200 hover:scale-105 active:scale-95 disabled:opacity-80 md:mt-0 md:ring-0"
+            >
+              {save.saving ? (
+                <Spinner className="size-6" />
+              ) : (
+                <Save className="size-7" aria-hidden="true" />
+              )}
+            </button>
+          ) : null
+        ) : add ? (
+          can(pageResource(pathname) ?? 'products', 'save') ? (
+            <button
+              type="button"
+              onClick={add.onAdd}
+              aria-label={add.label}
+              title={add.label}
+              className="-mt-7 mx-1 flex size-14 shrink-0 animate-turn-in items-center justify-center rounded-full bg-brand-700 text-white shadow-soft ring-4 ring-surface-raised transition-transform duration-200 hover:scale-105 active:scale-95 md:mt-0 md:ring-0"
+            >
+              <Plus className="size-7" aria-hidden="true" />
+            </button>
+          ) : null
         ) : can('products', 'save') ? (
           <NavLink
             to={STOCK_CREATE_PATH}

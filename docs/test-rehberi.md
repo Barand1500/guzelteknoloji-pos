@@ -46,7 +46,6 @@ Beklenen: grup ve değerler eklenir, F5'te durur.
 | Stok Adı | FlexyPOS FP-503 15.6" Dokunmatik POS |
 | Marka | FlexyPOS |
 | Kategori (yan panel) | POS Cihazları |
-| Stok miktarı | 12 |
 | FİYAT listesi → Satış Fiyatı | 25000 (KDV %20) |
 | Alış fiyatı | 19000 |
 | Barkod | 8690000000011 |

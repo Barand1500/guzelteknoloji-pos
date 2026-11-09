@@ -1,4 +1,5 @@
 import { ChevronLeft, Plus, Sparkles } from 'lucide-react';
+import { usePublishAddAction } from '../../app-shell/save-action';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Button } from '../../../components/ui/Button';
@@ -85,6 +86,7 @@ export function DealsView() {
   };
 
   const openAdd = () => setForm({ dealId: null });
+  usePublishAddAction('Fırsat Ekle', openAdd);
 
   let content: ReactNode;
   if (loading) {
@@ -205,16 +207,6 @@ export function DealsView() {
       </p>
 
       {content}
-
-      {/* Telefon: yüzen ekleme düğmesi (alt çubuğun üstünde) */}
-      <button
-        type="button"
-        onClick={openAdd}
-        aria-label="Fırsat Ekle"
-        className="fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 flex size-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-card transition-transform active:scale-95 md:hidden"
-      >
-        <Plus className="size-7" aria-hidden="true" />
-      </button>
 
       {notice ? (
         <div

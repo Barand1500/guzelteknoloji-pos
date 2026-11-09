@@ -135,11 +135,11 @@ it('süzgeç seçenekleri sayfadan bağımsızdır; çoklu seçimleri ve fiyatı
   await user.click(screen.getByRole('button', { name: 'Süzgeçler' }));
   const dialog = await screen.findByRole('dialog', { name: 'Süzgeçler' });
   await user.click(within(dialog).getByRole('button', { name: 'Kategori' }));
-  await user.click(within(dialog).getByRole('checkbox', { name: 'Kategori A' }));
-  await user.click(within(dialog).getByRole('checkbox', { name: 'Kategori B' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Kategori A' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Kategori B' }));
   await user.click(within(dialog).getByRole('button', { name: 'Marka' }));
-  await user.click(within(dialog).getByRole('checkbox', { name: 'Marka A' }));
-  await user.click(within(dialog).getByRole('checkbox', { name: 'Marka B' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Marka A' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Marka B' }));
   await user.type(within(dialog).getByLabelText('En az'), '10,5');
   await user.type(within(dialog).getByLabelText('En çok'), '500');
   await user.click(within(dialog).getByRole('radio', { name: 'Fırsatlı' }));

@@ -1,4 +1,4 @@
-import { Check, X } from 'lucide-react';
+import { Check, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { SearchField } from '../../../components/ui/SearchField';
 import { flattenTree } from '../../categories/tree';
@@ -19,6 +19,8 @@ const fold = (s: string) => s.toLocaleLowerCase('tr');
  */
 export function CategoryBox({ categories, selectedIds, onToggle }: CategoryBoxProps) {
   const [query, setQuery] = useState('');
+  // Arama kutusu başlangıçta gizlidir; "Ara" düğmesiyle açılır, kapatılınca aramayı da temizler.
+  const [searchOpen, setSearchOpen] = useState(false);
   const rows = useMemo(() => flattenTree(categories), [categories]);
   const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const searching = query.trim() !== '';
@@ -49,12 +51,30 @@ export function CategoryBox({ categories, selectedIds, onToggle }: CategoryBoxPr
         </ul>
       ) : null}
 
-      <SearchField
-        value={query}
-        onChange={setQuery}
-        label="Kategori ara"
-        placeholder="Kategori ara…"
-      />
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          aria-expanded={searchOpen}
+          onClick={() => {
+            setSearchOpen((v) => !v);
+            setQuery('');
+          }}
+          className="inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-line px-4 text-sm font-semibold text-ink-muted hover:bg-surface-muted"
+        >
+          <Search className="size-4" aria-hidden="true" />
+          {searchOpen ? 'Aramayı Kapat' : 'Kategori Ara'}
+        </button>
+        {searchOpen ? (
+          <div className="animate-fade-in">
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              label="Kategori ara"
+              placeholder="Kategori ara…"
+            />
+          </div>
+        ) : null}
+      </div>
 
       {visible.length === 0 ? (
         <p className="px-2 text-sm text-ink-muted">

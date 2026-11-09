@@ -2,6 +2,16 @@ import { expect, test } from '@playwright/test';
 import { DEFAULT_STOCK_LOOKUPS } from '@gt/shared';
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/hesap', (route) =>
+    route.fulfill({
+      json: {
+        business: { id: 1, name: 'Test' },
+        user: { id: 1, name: 'Test', email: 'user@example.com' },
+        owner: true,
+        permissions: [],
+      },
+    }),
+  );
   await page.route('**/api/stok/secenekler', (route) =>
     route.fulfill({ json: DEFAULT_STOCK_LOOKUPS }),
   );

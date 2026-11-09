@@ -187,14 +187,14 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     );
     await screen.findByLabelText('Ürün Kodu');
 
-    for (const label of ['Ürün Adı', 'Marka', 'Menşei', 'Envanter Takibi', 'Diğer Vergi Ekle'])
+    for (const label of ['Ürün Adı', 'Marka', 'Menşei', 'Envanter Takibi', 'Kategori'])
       expect(screen.getAllByLabelText(label).length).toBeGreaterThan(0);
     expect(screen.getByRole('combobox', { name: 'Ürün Tipi' })).toBeInTheDocument();
     for (const gone of ['KDV Departmanı', 'Stok Nevi', 'GTIP Kodu', 'Stok Kodu', 'Stok Adı'])
       expect(screen.queryByLabelText(gone)).not.toBeInTheDocument();
   });
 
-  it('Envanter Takibi yalnızca Evet/Hayır: Evet stok miktarı ve limitleri açar, Hayır gizler', async () => {
+  it('Envanter Takibi yalnızca Evet/Hayır; stok miktarı, limit ve diğer vergi alanları yoktur', async () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
     renderApp();
@@ -207,16 +207,10 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     await user.click(tracking);
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Hayır', 'Evet']);
     await user.click(screen.getByRole('option', { name: 'Evet' }));
-    expect(screen.getByLabelText('Stok Miktarı')).toBeInTheDocument();
-    expect(screen.getByLabelText('Alt Limit')).toBeInTheDocument();
-    expect(screen.getByLabelText('Üst Limit')).toBeInTheDocument();
-    // Sayı alanlarına yalnızca rakam girilir.
-    await user.type(screen.getByLabelText('Alt Limit'), '12abc,5');
-    expect(screen.getByLabelText('Alt Limit')).toHaveValue('12,5');
-
+    for (const gone of ['Stok Miktarı', 'Alt Limit', 'Üst Limit', 'Diğer Vergi Ekle'])
+      expect(screen.queryByLabelText(gone)).not.toBeInTheDocument();
     await user.click(screen.getByRole('combobox', { name: 'Envanter Takibi' }));
     await user.click(screen.getByRole('option', { name: 'Hayır' }));
-    expect(screen.queryByLabelText('Alt Limit')).not.toBeInTheDocument();
 
     // Fiyat alanı da yalnızca rakam alır.
     await user.type(screen.getByLabelText('Satış Fiyatı'), '4x5,0y');

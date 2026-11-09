@@ -1,30 +1,18 @@
-import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import { Sheet } from '../../../components/ui/Sheet';
 import { TextField } from '../../../components/ui/TextField';
 import { LogoPicker } from '../../brands/components/LogoPicker';
-import {
-  emptyValueDraft,
-  slugify,
-  type AttrGroup,
-  type AttrValue,
-  type ValueDraft,
-} from '../types';
+import { emptyValueDraft, slugify, type AttrGroup, type ValueDraft } from '../types';
 
 interface ValueFormSheetProps {
   group: AttrGroup;
-  /** Düzenlenen özellik; yoksa yeni özellik eklenir. */
-  value: AttrValue | null;
   /** Aynı gruptaki diğer özelliklerin adları (aynı ad iki kez eklenmesin). */
   takenNames: string[];
   onSave: (draft: ValueDraft) => Promise<void>;
   saveError?: string | null;
-  onDelete?: () => void;
   onClose: () => void;
-  /** true: açılışta resim seçici hemen açılır (listede resme çift tıklanınca). */
-  pickImage?: boolean;
 }
 
 /** Hazır renkler (hızlı seçim); isteyen kendi rengini de seçer. */
@@ -46,26 +34,20 @@ const PALETTE = [
 const fold = (s: string) => s.toLocaleLowerCase('tr').trim();
 
 /**
- * Özellik (değer) ekleme/düzenleme paneli. Kod, adından otomatik üretilir; kullanıcı elle
- * değiştirirse artık otomatik güncellenmez. Grup "Renk" ise renk, "Resim" ise görsel istenir.
+ * Özellik (değer) ekleme paneli (düzenleme ve silme çip üzerinde yapılır). Kod kullanıcıya
+ * sorulmaz, addan otomatik üretilir. Grup "Renk" ise renk, "Resim" ise görsel istenir.
  */
 export function ValueFormSheet({
   group,
-  value,
   takenNames,
   onSave,
   saveError,
-  onDelete,
   onClose,
-  pickImage = false,
 }: ValueFormSheetProps) {
-  const [draft, setDraft] = useState<ValueDraft>(() =>
-    value
-      ? { code: value.code, name: value.name, color: value.color, imageUrl: value.imageUrl }
-      : { ...emptyValueDraft(), color: group.kind === 'color' ? '#4f5380' : null },
-  );
-  // Kod elle değiştirildiyse ad yazarken yeniden üretilmez.
-  const [codeEdited, setCodeEdited] = useState(Boolean(value));
+  const [draft, setDraft] = useState<ValueDraft>(() => ({
+    ...emptyValueDraft(),
+    color: group.kind === 'color' ? '#4f5380' : null,
+  }));
   const [nameError, setNameError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
 
@@ -80,7 +62,7 @@ export function ValueFormSheet({
       return;
     }
     setSaving(true);
-    await onSave({ ...draft, name, code: draft.code.trim() || slugify(name) });
+    await onSave({ ...draft, name, code: slugify(name) });
     setSaving(false);
   };
 
@@ -88,7 +70,7 @@ export function ValueFormSheet({
     <Sheet permission="save"
       open
       onClose={onClose}
-      title={value ? 'Özelliği Düzenle' : 'Özellik Ekle'}
+      title="Özellik Ekle"
       description={`${group.name} grubuna`}
       size="md"
     >
@@ -100,21 +82,10 @@ export function ValueFormSheet({
           error={nameError}
           onChange={(e) => {
             const name = e.target.value;
-            setDraft((d) => ({ ...d, name, code: codeEdited ? d.code : slugify(name) }));
+            setDraft((d) => ({ ...d, name }));
             setNameError(undefined);
           }}
         />
-        <TextField
-          label="Özellik Kodu"
-          value={draft.code}
-          onChange={(e) => {
-            setCodeEdited(true);
-            setDraft((d) => ({ ...d, code: e.target.value }));
-          }}
-        />
-        <p className="-mt-3 px-2 text-sm text-ink-muted">
-          Kod adından otomatik üretilir; istersen değiştirebilirsin.
-        </p>
 
         {group.kind === 'color' ? (
           <div className="flex flex-col gap-3">
@@ -163,7 +134,6 @@ export function ValueFormSheet({
             onChange={(url) => setDraft((d) => ({ ...d, imageUrl: url }))}
             noun="Resim"
             hint="Kare oran önerilir"
-            autoPick={pickImage}
           />
         ) : null}
 
@@ -181,16 +151,6 @@ export function ValueFormSheet({
               Vazgeç
             </Button>
           </div>
-          {onDelete ? (
-            <Button
-              variant="danger"
-              flow={false}
-              onClick={onDelete}
-              leadingIcon={<Trash2 className="size-5" aria-hidden="true" />}
-            >
-              Özelliği Sil
-            </Button>
-          ) : null}
         </div>
       </div>
     </Sheet>

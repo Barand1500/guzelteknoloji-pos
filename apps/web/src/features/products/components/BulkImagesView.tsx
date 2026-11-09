@@ -393,9 +393,9 @@ export function BulkImagesView() {
                     {match.unmatched.map((image) => (
                       <li
                         key={image.id}
-                        className="flex flex-col gap-3 rounded-3xl border border-danger/30 bg-danger-soft p-3 sm:flex-row sm:items-center"
+                        className="relative flex flex-col gap-3 rounded-3xl border border-danger/30 bg-danger-soft p-3 sm:flex-row sm:items-center"
                       >
-                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-3 pr-10 sm:pr-0">
                           <HoverZoomImage
                             src={image.url}
                             alt=""
@@ -404,14 +404,6 @@ export function BulkImagesView() {
                           <span className="min-w-0 flex-1 truncate text-sm font-bold">
                             {image.name}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => removeImage(image.id)}
-                            aria-label={`${image.name} dosyasını kaldır`}
-                            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-muted"
-                          >
-                            <X className="size-4" aria-hidden="true" />
-                          </button>
                         </div>
                         <div className="sm:w-56">
                           <Button
@@ -423,6 +415,16 @@ export function BulkImagesView() {
                             Ürün Seç
                           </Button>
                         </div>
+                        {/* Kaldır (✕): satırın en sağında; telefonda sağ üst köşede. */}
+                        <button
+                          type="button"
+                          onClick={() => removeImage(image.id)}
+                          aria-label={`${image.name} dosyasını kaldır`}
+                          title="Kaldır"
+                          className="absolute top-3 right-3 flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-raised text-ink-muted hover:text-danger sm:static"
+                        >
+                          <X className="size-4" aria-hidden="true" />
+                        </button>
                       </li>
                     ))}
                   </ul>

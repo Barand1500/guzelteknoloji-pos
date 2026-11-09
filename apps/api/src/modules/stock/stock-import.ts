@@ -61,12 +61,8 @@ function emptyDraft(): StockCardDraft {
     vatDepartment: 'genel',
     stockKind: 'resmi',
     inventoryTracking: 'yok',
-    stockQuantity: '',
-    lowerLimit: '',
-    upperLimit: '',
     gtip: '',
     origin: '',
-    otherTax: '',
     units: { fiyat: [unit] },
   };
 }

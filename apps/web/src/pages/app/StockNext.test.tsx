@@ -106,37 +106,15 @@ describe('Düzenlemede sıradaki ürüne geçiş', () => {
   });
 });
 
-describe('Stok miktarı', () => {
-  it('Normal takipte dolu gelir, değiştirilip kaydedilince ürünün adedi güncellenir', async () => {
+describe('Stok miktarı ve limitler', () => {
+  it('formda yoktur: Evet seçilse de Stok Miktarı, Alt Limit, Üst Limit çıkmaz; kayıt adedi korur', async () => {
     const user = await openEdit('p1');
-    const qty = await screen.findByLabelText('Stok Miktarı');
-    expect(qty).toHaveValue('5');
-    await user.clear(qty);
-    await user.type(qty, '9');
+    await screen.findByLabelText('Ürün Adı');
+    for (const gone of ['Stok Miktarı', 'Alt Limit', 'Üst Limit'])
+      expect(screen.queryByLabelText(gone)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     await screen.findByText('Deneme tamamlandı!');
     const saved = (await productService.list()).find((p) => p.id === 'p1');
-    expect(saved?.stock).toBe(9);
-    expect(saved?.stockTracking).toBe(true);
-  });
-
-  it('takip kapalıysa (Sınırsız) alan yoktur; Normal seçilince çıkar', async () => {
-    const user = await openEdit('p3');
-    await screen.findByLabelText('Ürün Adı');
-    expect(screen.queryByLabelText('Stok Miktarı')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('combobox', { name: 'Envanter Takibi' }));
-    await user.click(screen.getByRole('option', { name: 'Evet' }));
-    expect(await screen.findByLabelText('Stok Miktarı')).toHaveValue('');
-  });
-
-  it('yeni kartta Stok Miktarı boş başlar ve yalnızca sayı kabul eder', async () => {
-    sessionStorage.setItem('gt-dev-access', '1');
-    mockFetch(anonymousRoutes);
-    const user = userEvent.setup();
-    renderApp('/uygulama/stok-karti/yeni');
-    const qty = await screen.findByLabelText('Stok Miktarı');
-    expect(qty).toHaveValue('');
-    await user.type(qty, '1a2,5');
-    expect(qty).toHaveValue('12,5');
+    expect(saved?.stock).toBe(5);
   });
 });

@@ -19,3 +19,5 @@ Migration: `20261109000000_urun_adlandirma_sadelestirme`.
 API adresleri ve uygulama içindeki Prisma model adları uyumluluk için aynı kalır. Yeni arayüzün ortak taslak tipi kaldırılan bazı alanları hâlâ taşıyor; API bunları kaydetmez ve okurken boş değer döndürür (ek fiyatlar boş dizi). Ürün nevi artık zorunlu değildir. Kaldırılmış seçenek listelerine yeni kayıt oluşturulamaz.
 
 Dağıtım sırasında yeni kodla birlikte migration uygulanmalıdır. `docs/veritabani-guncel.sql` mevcut veritabanının üstüne çalıştırılacak güncelleme dosyası değildir. Güncelleme Prisma migration ile yapılır.
+
+- 2026-11-09: Diğer Vergi, Stok Miktarı ve Alt/Üst Limit yeni ürün ekranından kaldırıldı. API artık bu alanları kabul etmez (`otherTax`, `otherTaxes`, `lowerLimit`, `upperLimit` taslaktan çıktı) ve okurken döndürmez; `urun_vergileri` ve `urunler.alt_limit/ust_limit` sütunları ŞİMDİLİK veritabanında duruyor (veri silinmedi, kodda kullanılmıyor). Kalıcı temizlik için ayrı bir migration gerekir. `stok_miktari` varyant toplamı ve dosyadan içe aktarma için kullanılmaya devam eder.
