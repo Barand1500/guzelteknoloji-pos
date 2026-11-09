@@ -68,7 +68,18 @@ export function StockCardForm({ cardId, copyFromId, initialBox }: StockCardFormP
           ...(card
             ? {
                 draft: copyFromId
-                  ? { ...card, name: `${card.name} (Kopya)`, code: `${card.code}-KOPYA` }
+                  ? {
+                      ...card,
+                      name: `${card.name} (Kopya)`,
+                      code: `${card.code}-KOPYA`,
+                      // Barkod ürünü ayırt eder: kopyaya aynı barkod taşınmaz (sunucu reddeder).
+                      units: Object.fromEntries(
+                        Object.entries(card.units).map(([list, rows]) => [
+                          list,
+                          rows.map((row) => ({ ...row, barcodes: [] })),
+                        ]),
+                      ),
+                    }
                   : card,
               }
             : {}),
