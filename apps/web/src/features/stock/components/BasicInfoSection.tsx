@@ -7,6 +7,7 @@ import type { StockEditor } from '../hooks/useStockEditor';
 import { countryOptions } from '../countries';
 import { flattenTree } from '../../categories/tree';
 import { CategoryQuickAdd } from './CategoryQuickAdd';
+import { QuickExtras } from './QuickExtras';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
 function editable(
@@ -148,6 +149,9 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           />
         ) : null}
       </div>
+
+      {/* En altta: sessiz bir satırdan "Fırsat ekle / Özellik ekle". */}
+      <QuickExtras editor={editor} />
     </div>
   );
 }

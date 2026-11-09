@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
+import { demoProductService } from '../../features/products/services/product.demo';
 import { demoBrandService } from '../../features/brands/services/brand.demo';
 import { demoCategoryService } from '../../features/categories/services/category.demo';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
@@ -89,5 +90,41 @@ describe('Ürün Bilgisi: Kategori seçici ve hızlı ekleme', () => {
     expect(await within(group).findByRole('checkbox', { name: 'Yeni Alt Grup' })).toBeChecked();
     const created = (await demoCategoryService.list()).find((c) => c.name === 'Yeni Alt Grup');
     expect(created?.parentId).toBe('pos');
+  });
+});
+
+describe('Ürün Bilgisi: Fırsat ekle / Özellik ekle satırı', () => {
+  it('yan sekme yoktur; satırdaki bağlantılar altta seçim alanı açar, seçim sayısı yanında görünür', async () => {
+    const user = await openNewCard();
+    expect(screen.queryByRole('tablist', { name: 'Yan sekmeler' })).not.toBeInTheDocument();
+    const deal = screen.getByRole('button', { name: 'Fırsat ekle' });
+    const attr = screen.getByRole('button', { name: 'Özellik ekle' });
+    expect(deal).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('switch', { name: 'Yeni Ürünler fırsatı' })).not.toBeInTheDocument();
+
+    await user.click(deal);
+    expect(deal).toHaveAttribute('aria-expanded', 'true');
+    const pill = screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' });
+    expect(pill).toHaveAttribute('aria-checked', 'false');
+    await user.click(pill);
+    expect(pill).toHaveAttribute('aria-checked', 'true');
+    expect(deal).toHaveTextContent('1');
+
+    // Özellik açılınca fırsat alanı kapanır (tek alan açık).
+    await user.click(attr);
+    expect(attr).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('switch', { name: 'Yeni Ürünler fırsatı' })).not.toBeInTheDocument();
+  });
+
+  it('kaydedilince seçilen fırsat ürüne yazılır', async () => {
+    const user = await openNewCard();
+    await user.type(screen.getByLabelText('Ürün Kodu'), 'HIZLI-1');
+    await user.type(screen.getByLabelText('Ürün Adı'), 'Hızlı Ürün');
+    await user.click(screen.getByRole('button', { name: 'Fırsat ekle' }));
+    await user.click(screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' }));
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
+    const saved = (await demoProductService.list()).find((p) => p.code === 'HIZLI-1');
+    expect(saved?.dealIds).toEqual(['yeni']);
   });
 });
