@@ -19,7 +19,7 @@ import { authApi } from '../services/auth.api';
 import { loginErrorMessage } from '../services/auth.messages';
 
 /**
- * "E-Posta İle Devam Et" akışı (ürün kararı):
+ * "E-Posta ile Devam Et" akışı (ürün kararı):
  *  1) yalnızca e-posta sorulur → sunucu hesabın durumuna bakar
  *  2a) kayıtlı hesap  → şifre sorulur
  *  2b) kayıtlı değil  → e-postaya 6 haneli kod gönderilir, kod sorulur (doğrulanınca hesap açılır)

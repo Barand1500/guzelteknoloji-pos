@@ -101,7 +101,7 @@ export function LoginPage({ view }: { view: 'options' | 'email' }) {
             className="-mx-3 inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-brand-700 underline-offset-4 transition-colors hover:bg-brand-50 hover:underline"
           >
             <LifeBuoy className="size-5" aria-hidden="true" />
-            Yardıma Mı İhtiyacınız Var?
+            Yardıma mı İhtiyacınız Var?
           </button>
         </div>
         {/* GEÇİCİ: gerçek giriş hazır olunca silinir (features/dev-login). */}

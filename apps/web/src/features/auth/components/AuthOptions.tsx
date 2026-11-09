@@ -82,7 +82,7 @@ export function AuthOptions({
           loadingLabel="Google'a Yönlendiriliyor…"
           leadingIcon={<GoogleIcon />}
         >
-          Google İle Devam Et
+          Google ile Devam Et
         </Button>
         <Button
           variant="outline"
@@ -92,7 +92,7 @@ export function AuthOptions({
           loadingLabel="Apple'a Yönlendiriliyor…"
           leadingIcon={<FaApple className="size-5" aria-hidden="true" />}
         >
-          Apple İle Devam Et
+          Apple ile Devam Et
         </Button>
 
         <div role="separator" className="flex items-center gap-4 py-1 text-sm text-ink-muted">
@@ -107,7 +107,7 @@ export function AuthOptions({
           disabled={busy}
           leadingIcon={<Mail className="size-5" aria-hidden="true" />}
         >
-          E-Posta İle Devam Et
+          E-Posta ile Devam Et
         </Button>
       </div>
     </section>

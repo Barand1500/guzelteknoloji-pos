@@ -8,7 +8,7 @@ interface SupportSheetProps {
   config?: SupportConfig;
 }
 
-/** "Yardıma Mı İhtiyacınız Var?" penceresi: destek formunu doğrudan içinde gösterir. */
+/** "Yardıma mı İhtiyacınız Var?" penceresi: destek formunu doğrudan içinde gösterir. */
 export function SupportSheet({ open, onClose, config = defaultConfig }: SupportSheetProps) {
   return (
     <Sheet open={open} onClose={onClose} title={config.title} size="lg" flush>

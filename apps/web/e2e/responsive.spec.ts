@@ -81,10 +81,10 @@ for (const vp of viewports) {
       await shot(page, `${vp.name}-secenekler`);
       await shot(page, `${vp.name}-secenekler-tam`, true);
 
-      await expectReachable(page, /Google İle Devam Et/);
-      await expectReachable(page, /Apple İle Devam Et/);
-      await expectReachable(page, /E-Posta İle Devam Et/);
-      await expectReachable(page, /Yardıma Mı İhtiyacınız Var/);
+      await expectReachable(page, /Google ile Devam Et/);
+      await expectReachable(page, /Apple ile Devam Et/);
+      await expectReachable(page, /E-Posta ile Devam Et/);
+      await expectReachable(page, /Yardıma mı İhtiyacınız Var/);
     });
 
     test('kod ekranı taşmaz ve tekrar gönder bağlantısı butona yakın kalır', async ({ page }) => {
@@ -128,7 +128,7 @@ for (const vp of viewports) {
       await expectReachable(page, 'Devam Et');
       await shot(page, `${vp.name}-eposta`, true);
 
-      await page.getByRole('button', { name: /Yardıma Mı İhtiyacınız Var/ }).click();
+      await page.getByRole('button', { name: /Yardıma mı İhtiyacınız Var/ }).click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
       await expect(dialog).toBeInViewport();
@@ -166,10 +166,10 @@ test.describe('klavye ile gezinme', () => {
       expect(outline, 'odak halkası görünür olmalı').not.toBe('none');
     }
     expect(order).toEqual([
-      'Google İle Devam Et',
-      'Apple İle Devam Et',
-      'E-Posta İle Devam Et',
-      'Yardıma Mı İhtiyacınız Var?',
+      'Google ile Devam Et',
+      'Apple ile Devam Et',
+      'E-Posta ile Devam Et',
+      'Yardıma mı İhtiyacınız Var?',
     ]);
   });
 });
@@ -202,7 +202,7 @@ test.describe('buton hover animasyonu (yalnızca fare olan cihazlar)', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await mockAnonymousApi(page);
     await page.goto('/login');
-    const button = page.getByRole('button', { name: /E-Posta İle Devam Et/ });
+    const button = page.getByRole('button', { name: /E-Posta ile Devam Et/ });
     const arrow = button.locator('svg').last();
     await expect(arrow).toHaveCSS('opacity', '0');
     await button.hover();
@@ -219,7 +219,7 @@ test.describe('buton hover animasyonu (yalnızca fare olan cihazlar)', () => {
     const page = await context.newPage();
     await mockAnonymousApi(page);
     await page.goto('/login');
-    const button = page.getByRole('button', { name: /Apple İle Devam Et/ });
+    const button = page.getByRole('button', { name: /Apple ile Devam Et/ });
     await button.tap();
     // Dokunma sonrası takılı kalan hover olmaz: ok görünmez.
     await expect(button.locator('svg').last()).toHaveCSS('opacity', '0');

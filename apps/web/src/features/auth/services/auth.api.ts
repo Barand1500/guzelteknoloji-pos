@@ -22,7 +22,7 @@ export const authApi = {
     return user;
   },
 
-  /** E-Posta İle Devam Et adım 1: hesap kayıtlıysa 'password', değilse kod gönderilir ('code'). */
+  /** E-Posta ile Devam Et adım 1: hesap kayıtlıysa 'password', değilse kod gönderilir ('code'). */
   emailStart(email: string): Promise<EmailStartResponse> {
     return apiRequest<EmailStartResponse>('/api/auth/email/start', {
       method: 'POST',

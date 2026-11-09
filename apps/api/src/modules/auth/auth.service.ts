@@ -78,7 +78,7 @@ export class AuthService {
   }
 
   /**
-   * "E-Posta İle Devam Et" adım 1. Şifresi olan kayıtlı hesap → şifre adımı.
+   * "E-Posta ile Devam Et" adım 1. Şifresi olan kayıtlı hesap → şifre adımı.
    * Aksi halde e-postaya kod gönderilir (kod adımı).
    * NOT: Bu uç nokta hesabın var olup olmadığını bilerek ayırt eder (ürün kararı);
    * kötüye kullanımı sıkı hız sınırı ve gönderim kotasıyla sınırlandırılır.

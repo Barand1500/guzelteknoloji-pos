@@ -36,7 +36,7 @@ export function createSupportConfig(env: SupportEnv): SupportConfig {
     console.warn('[destek] VITE_SUPPORT_FORM_URL geçerli bir https adresi olmadığı için gizlendi.');
   }
   return {
-    title: blankToNull(env.VITE_SUPPORT_TITLE) ?? 'Yardıma Mı İhtiyacınız Var?',
+    title: blankToNull(env.VITE_SUPPORT_TITLE) ?? 'Yardıma mı İhtiyacınız Var?',
     formUrl: url ? url.href : null,
     formOrigin: url ? url.origin : null,
   };

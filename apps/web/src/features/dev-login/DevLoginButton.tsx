@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { APP_HOME_PATH } from '../../config/navigation';
 import { grantDevAccess } from './devAccess';
 
-/** GEÇİCİ — bkz. devAccess.ts. "Yardıma Mı İhtiyacınız Var?" bağlantısının altında durur. */
+/** GEÇİCİ — bkz. devAccess.ts. "Yardıma mı İhtiyacınız Var?" bağlantısının altında durur. */
 export function DevLoginButton() {
   const navigate = useNavigate();
   return (

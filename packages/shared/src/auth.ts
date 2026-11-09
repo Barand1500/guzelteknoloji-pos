@@ -62,7 +62,7 @@ export interface ProvidersResponse {
 }
 
 /**
- * "E-Posta İle Devam Et" akışının sonraki adımı:
+ * "E-Posta ile Devam Et" akışının sonraki adımı:
  *  - password: hesap kayıtlı ve şifresi var → şifre sorulur
  *  - code: hesap yok (ya da şifresi yok) → e-postaya kod gönderildi
  */

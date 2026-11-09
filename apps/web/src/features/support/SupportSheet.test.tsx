@@ -35,7 +35,7 @@ describe('Destek yapılandırması', () => {
     const config = createSupportConfig(fullEnv);
     expect(config.formUrl).toBe(FORM_URL);
     expect(config.formOrigin).toBe(ORIGIN);
-    expect(config.title).toBe('Yardıma Mı İhtiyacınız Var?');
+    expect(config.title).toBe('Yardıma mı İhtiyacınız Var?');
   });
 
   it('boş, http veya bozuk adresleri reddeder', () => {
@@ -50,7 +50,7 @@ describe('Destek yapılandırması', () => {
 describe('Yardım penceresi (gömülü destek formu)', () => {
   it('açılınca formu iframe içinde gösterir (başlık ve güvenli öznitelikler)', async () => {
     await openSheet();
-    const dialog = screen.getByRole('dialog', { name: 'Yardıma Mı İhtiyacınız Var?' });
+    const dialog = screen.getByRole('dialog', { name: 'Yardıma mı İhtiyacınız Var?' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
 
     const frame = screen.getByTitle('Destek Talebi');

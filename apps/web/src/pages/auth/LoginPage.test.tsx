@@ -29,10 +29,10 @@ describe('Giriş seçenekleri ekranı', () => {
       .map((b) => b.textContent?.trim())
       .filter(Boolean);
     expect(buttons).toEqual([
-      'Google İle Devam Et',
-      'Apple İle Devam Et',
-      'E-Posta İle Devam Et',
-      'Yardıma Mı İhtiyacınız Var?',
+      'Google ile Devam Et',
+      'Apple ile Devam Et',
+      'E-Posta ile Devam Et',
+      'Yardıma mı İhtiyacınız Var?',
       // GEÇİCİ: gerçek giriş gelince bu satır ve buton silinir (features/dev-login).
       'Test Kullanıcısı Olarak Devam Et',
     ]);
@@ -62,7 +62,7 @@ describe('Giriş seçenekleri ekranı', () => {
       'GET /api/auth/providers': () => jsonResponse(200, { google: false, apple: false }),
     });
     renderApp();
-    const button = await screen.findByRole('button', { name: /Google İle Devam Et/ });
+    const button = await screen.findByRole('button', { name: /Google ile Devam Et/ });
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2));
     await userEvent.click(button);
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -73,7 +73,7 @@ describe('Giriş seçenekleri ekranı', () => {
   it('Apple yapılandırılmamışsa yönlendirmez, anlaşılır mesaj gösterir', async () => {
     mockFetch(anonymousRoutes); // google: true, apple: false
     renderApp();
-    const button = await screen.findByRole('button', { name: /Apple İle Devam Et/ });
+    const button = await screen.findByRole('button', { name: /Apple ile Devam Et/ });
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2));
     await userEvent.click(button);
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -96,11 +96,11 @@ describe('Giriş seçenekleri ekranı', () => {
   });
 });
 
-describe('E-Posta İle Devam Et', () => {
+describe('E-Posta ile Devam Et', () => {
   async function openEmailForm() {
     const ue = userEvent.setup();
     renderApp();
-    await ue.click(await screen.findByRole('button', { name: /E-Posta İle Devam Et/ }));
+    await ue.click(await screen.findByRole('button', { name: /E-Posta ile Devam Et/ }));
     await screen.findByRole('heading', { name: 'E-Posta ile giriş' });
     return ue;
   }
