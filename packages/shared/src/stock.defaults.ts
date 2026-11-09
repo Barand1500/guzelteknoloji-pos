@@ -35,7 +35,10 @@ export const DEFAULT_STOCK_LOOKUPS: StockLookups = {
   otherTaxes: [
     { value: '', label: 'Seçilmedi' },
     { value: 'otv', label: 'ÖTV' },
+    { value: 'mtv', label: 'MTV' },
     { value: 'oiv', label: 'ÖİV' },
+    { value: 'alis-otv', label: 'Alış ÖTV' },
+    { value: 'satis-otv', label: 'Satış ÖTV' },
     { value: 'konaklama', label: 'Konaklama Vergisi' },
   ],
   units: [

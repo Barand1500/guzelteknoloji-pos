@@ -10,6 +10,7 @@ export type {
   PriceBlockData,
   UnitRow,
   StockCardDraft,
+  OtherTaxEntry,
 } from '@gt/shared';
 
 /** Stok kartıyla birlikte seçilen, kart gövdesinin (StockCardDraft) dışındaki ek bilgiler. */

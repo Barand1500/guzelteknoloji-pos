@@ -30,7 +30,7 @@ interface GroupFormSheetProps {
 const NAME_REQUIRED = 'Grup adı gerekli.';
 const TEMPLATE_REQUIRED = 'Şablon seçin.';
 
-/** Anahtar (soru biçiminde: "…Mu?") + sade Türkçe açıklaması. */
+/** Anahtar (soru biçiminde; "mu/mi" eki küçük harfle: "…Olsun mu?") + sade Türkçe açıklaması. */
 function Option({
   label,
   hint,
@@ -142,19 +142,19 @@ export function GroupFormSheet({
 
         <div className="flex flex-col gap-4">
           <Option
-            label="Mağazada Filtre Olsun Mu?"
+            label="Mağazada Filtre Olsun mu?"
             hint="Müşteri ürünleri bu gruba göre süzebilir."
             checked={draft.filter}
             onChange={(v) => set('filter', v)}
           />
           <Option
-            label="Birden Fazla Seçilebilsin Mi?"
+            label="Birden Fazla Seçilebilsin mi?"
             hint="Bir üründe bu gruptan birden çok değer seçilebilir."
             checked={draft.multiple}
             onChange={(v) => set('multiple', v)}
           />
           <Option
-            label="Varyant Olsun Mu?"
+            label="Varyant Olsun mu?"
             hint="Her seçim ayrı bir varyant (ürün çeşidi) olur, ör. renge göre."
             checked={draft.variant}
             onChange={(v) => set('variant', v)}
@@ -164,7 +164,7 @@ export function GroupFormSheet({
         {draft.kind === 'image' ? (
           <div className="flex flex-col gap-4 rounded-3xl border border-line bg-surface-muted/50 p-4 sm:p-5">
             <Option
-              label="Ürün Resminin Üzerinde Gösterilsin Mi?"
+              label="Ürün Resminin Üzerinde Gösterilsin mi?"
               hint="Seçilen resim, ürün resminin köşesinde rozet gibi görünür."
               checked={draft.showOnImage}
               onChange={(v) => set('showOnImage', v)}
