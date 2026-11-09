@@ -193,8 +193,8 @@ describe('Formda eklenen fiyat listesi ürün listesine yansır (deneme)', () =>
     await user.click(
       await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
     );
-    await user.type(await screen.findByLabelText('Stok Kodu'), 'B-1');
-    await user.type(screen.getByLabelText('Stok Adı'), 'Baran Ürünü');
+    await user.type(await screen.findByLabelText('Ürün Kodu'), 'B-1');
+    await user.type(screen.getByLabelText('Ürün Adı'), 'Baran Ürünü');
     await user.type(screen.getByLabelText('Satış Fiyatı'), '50');
 
     await user.click(screen.getByRole('button', { name: 'Fiyat Adı Ekle' }));

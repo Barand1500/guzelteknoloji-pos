@@ -28,7 +28,7 @@ async function openNew(path = '/uygulama/stok-karti/yeni') {
   mockFetch(anonymousRoutes);
   const user = userEvent.setup();
   renderApp(path);
-  await screen.findByLabelText('Stok Kodu');
+  await screen.findByLabelText('Ürün Kodu');
   return user;
 }
 
@@ -132,8 +132,8 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
 
   it('kaydedince seçilen kategori ve fırsat ürüne yazılır; kayıt sonrası kartlar durumu gösterir', async () => {
     const user = await openNew();
-    await user.type(screen.getByLabelText('Stok Kodu'), 'KUTU-1');
-    await user.type(screen.getByLabelText('Stok Adı'), 'Kutulu Ürün');
+    await user.type(screen.getByLabelText('Ürün Kodu'), 'KUTU-1');
+    await user.type(screen.getByLabelText('Ürün Adı'), 'Kutulu Ürün');
     await user.click(tab('Kategori'));
     await user.click(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' }));
     await user.click(tab('Fırsat'));
@@ -151,15 +151,15 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
 
   it('kayıt sonrası karta dokununca düzenleme ekranında o panel açık ve seçim korunmuş gelir', async () => {
     const user = await openNew();
-    await user.type(screen.getByLabelText('Stok Kodu'), 'KUTU-2');
-    await user.type(screen.getByLabelText('Stok Adı'), 'Kutulu Ürün 2');
+    await user.type(screen.getByLabelText('Ürün Kodu'), 'KUTU-2');
+    await user.type(screen.getByLabelText('Ürün Adı'), 'Kutulu Ürün 2');
     await user.click(tab('Kategori'));
     await user.click(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' }));
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     await screen.findByText('Deneme tamamlandı!');
 
     await user.click(screen.getByRole('link', { name: /Ürün hangi kategorilerde/ }));
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('KUTU-2');
+    expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('KUTU-2');
     expect(screen.getByRole('heading', { name: 'Stok Kartını Düzenle' })).toBeInTheDocument();
     expect(tab('Kategori')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' })).toBeChecked();
@@ -193,7 +193,7 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
     });
     const user = userEvent.setup();
     renderApp('/uygulama/stok-karti/yeni');
-    await screen.findByLabelText('Stok Kodu');
+    await screen.findByLabelText('Ürün Kodu');
     expect(tab('Kategori')).toBeEnabled();
     expect(tab('Fırsat')).toBeEnabled();
     await user.click(tab('Kategori'));

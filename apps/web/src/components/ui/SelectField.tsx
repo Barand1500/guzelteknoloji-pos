@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 
@@ -16,6 +17,8 @@ export interface SelectOption {
   label: string;
   /** true ise listede çöp kutusu çıkar (kullanıcının eklediği/silebileceği seçenek). false: "sabit". */
   removable?: boolean;
+  /** Etiketin önünde görünen küçük simge (ör. ülke bayrağı). */
+  icon?: ReactNode;
 }
 
 export interface SelectCreator {
@@ -257,7 +260,10 @@ export function SelectField({
         className={`field-input flex items-center pr-11 text-left aria-expanded:border-brand-600 ${className}`}
       >
         {selected ? (
-          <span className="truncate">{selected.label}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            {selected.icon}
+            <span className="truncate">{selected.label}</span>
+          </span>
         ) : (
           <span className="truncate text-ink-muted">Seçiniz</span>
         )}
@@ -350,6 +356,7 @@ export function SelectField({
                             isSelected && index !== active ? 'bg-brand-50' : '',
                           ].join(' ')}
                         >
+                          {option.icon}
                           <span className="min-w-0 flex-1 truncate">{option.label}</span>
                           {isSelected ? (
                             <Check className="size-4 shrink-0" aria-hidden="true" />

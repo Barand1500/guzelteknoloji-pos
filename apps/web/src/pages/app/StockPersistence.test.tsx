@@ -22,15 +22,15 @@ describe('Gerçek stok kayıt bağlantısı', () => {
       },
     });
     renderApp('/uygulama/stok-karti/yeni');
-    await userEvent.type(await screen.findByLabelText('Stok Kodu'), 'A-123');
-    await userEvent.type(screen.getByLabelText('Stok Adı'), 'Kalıcı Ürün');
+    await userEvent.type(await screen.findByLabelText('Ürün Kodu'), 'A-123');
+    await userEvent.type(screen.getByLabelText('Ürün Adı'), 'Kalıcı Ürün');
     await userEvent.click(screen.getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('Stok kartı kaydedildi!')).toBeInTheDocument();
     expect(bodies[0]?.draft).toMatchObject({ code: 'A-123', name: 'Kalıcı Ürün' });
     expect(bodies[0]?.requestId).toMatch(/^[0-9a-f-]{36}$/);
     expect(sessionStorage.getItem('gt-dev-access')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Yeni Stok Kartı' }));
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('');
+    expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('');
   });
 
   it('ağ hatasında formu korur ve aynı kayıt kimliğiyle yeniden dener', async () => {
@@ -44,10 +44,10 @@ describe('Gerçek stok kayıt bağlantısı', () => {
       },
     });
     renderApp('/uygulama/stok-karti/yeni');
-    await userEvent.type(await screen.findByLabelText('Stok Kodu'), 'KORUNAN');
+    await userEvent.type(await screen.findByLabelText('Ürün Kodu'), 'KORUNAN');
     await userEvent.click(screen.getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Bilgileriniz korundu');
-    expect(screen.getByLabelText('Stok Kodu')).toHaveValue('KORUNAN');
+    expect(screen.getByLabelText('Ürün Kodu')).toHaveValue('KORUNAN');
     expect(screen.queryByText('Stok kartı kaydedildi!')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('Stok kartı kaydedildi!')).toBeInTheDocument();
@@ -63,12 +63,12 @@ describe('Gerçek stok kayıt bağlantısı', () => {
         }),
     });
     renderApp('/uygulama/stok-karti/yeni');
-    await screen.findByLabelText('Stok Kodu');
+    await screen.findByLabelText('Ürün Kodu');
     await userEvent.click(screen.getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Bu stok koduyla bir kart zaten var.',
     );
-    expect(screen.getByLabelText('Stok Kodu')).toBeEnabled();
+    expect(screen.getByLabelText('Ürün Kodu')).toBeEnabled();
     expect(screen.queryByText('Stok kartı kaydedildi!')).not.toBeInTheDocument();
   });
 });

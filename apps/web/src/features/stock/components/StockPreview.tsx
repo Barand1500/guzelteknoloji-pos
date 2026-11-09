@@ -20,7 +20,6 @@ export function StockPreview({ draft, lookups, rows, priceListLabel }: StockPrev
   const chips = [
     labelOf(lookups.stockTypes, draft.stockType),
     labelOf(lookups.brands, draft.brand),
-    labelOf(lookups.vatDepartments, draft.vatDepartment),
   ].filter(Boolean);
 
   const checks = getCompletion(draft);
@@ -41,7 +40,7 @@ export function StockPreview({ draft, lookups, rows, priceListLabel }: StockPrev
           >
             {draft.name || 'Ürün adı'}
           </p>
-          <p className="mt-0.5 font-mono text-sm text-ink-muted">{draft.code || 'STOK-KODU'}</p>
+          <p className="mt-0.5 font-mono text-sm text-ink-muted">{draft.code || 'URUN-KODU'}</p>
         </div>
       </div>
 

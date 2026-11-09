@@ -77,7 +77,7 @@ it('ana Kaydet varyant değişikliklerini kaybetmez; stok toplamı salt okunur v
   await user.click(screen.getByRole('link', { name: 'Ürünlere dön' }));
   expect(confirm).toHaveBeenCalled();
   confirm.mockRestore();
-  await user.type(screen.getByLabelText('Stok Adı'), ' değişti');
+  await user.type(screen.getByLabelText('Ürün Adı'), ' değişti');
   await user.click(screen.getByRole('button', { name: 'Kaydet' }));
   await screen.findByText(
     'Stok kartı kaydedildi. Varyant değişiklikleri için “Varyantları kaydet” düğmesine basın.',
@@ -119,8 +119,8 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
     const menu = await screen.findByRole('dialog', { name: NAME_1 });
     await user.click(within(menu).getByRole('button', { name: 'Düzenle' }));
 
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('FLEXYPOS.FP-503');
-    expect(screen.getByLabelText('Stok Adı')).toHaveValue(NAME_1);
+    expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('FLEXYPOS.FP-503');
+    expect(screen.getByLabelText('Ürün Adı')).toHaveValue(NAME_1);
     expect(screen.getByRole('heading', { name: 'Stok Kartını Düzenle' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ürünlere dön' })).toBeInTheDocument();
     expect(screen.getByText('Düzenleniyor')).toBeInTheDocument();
@@ -134,7 +134,7 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
         name: 'Düzenle',
       }),
     );
-    const name = await screen.findByLabelText('Stok Adı');
+    const name = await screen.findByLabelText('Ürün Adı');
     await user.clear(name);
     await user.type(name, 'Yeni Ad POS');
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
@@ -156,8 +156,8 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
         name: 'Kopya Oluştur',
       }),
     );
-    expect(await screen.findByLabelText('Stok Adı')).toHaveValue(`${NAME_1} (Kopya)`);
-    expect(screen.getByLabelText('Stok Kodu')).toHaveValue('FLEXYPOS.FP-503-KOPYA');
+    expect(await screen.findByLabelText('Ürün Adı')).toHaveValue(`${NAME_1} (Kopya)`);
+    expect(screen.getByLabelText('Ürün Kodu')).toHaveValue('FLEXYPOS.FP-503-KOPYA');
     expect(screen.getByText(/kaydedene kadar yeni ürün oluşmaz/)).toBeInTheDocument();
     expect(await productService.list()).toHaveLength(16); // henüz kayıt yok
   });
@@ -170,7 +170,7 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
         name: 'Kopya Oluştur',
       }),
     );
-    await screen.findByLabelText('Stok Adı');
+    await screen.findByLabelText('Ürün Adı');
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
@@ -185,10 +185,10 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
   it('Ürün Ekle: boş açılır, kaydedince listeye yeni ürün düşer', async () => {
     const user = await openList();
     await user.click(screen.getByRole('button', { name: 'Ürün Ekle' }));
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('');
+    expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('');
     expect(screen.getByRole('heading', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Stok Kodu'), 'NEW-1');
-    await user.type(screen.getByLabelText('Stok Adı'), 'Yepyeni Ürün');
+    await user.type(screen.getByLabelText('Ürün Kodu'), 'NEW-1');
+    await user.type(screen.getByLabelText('Ürün Adı'), 'Yepyeni Ürün');
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     await screen.findByText('Deneme tamamlandı!');
     await waitFor(async () => expect(await productService.list()).toHaveLength(17));
@@ -227,7 +227,7 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
     const user = userEvent.setup();
     renderApp('/uygulama/urunler');
     await user.dblClick(await screen.findByText(item.name));
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue(item.code);
+    expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue(item.code);
     expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/api/stok/kartlar/123'))).toBe(
       true,
     );
@@ -243,11 +243,11 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
         name: 'Düzenle',
       }),
     );
-    await screen.findByLabelText('Stok Adı');
+    await screen.findByLabelText('Ürün Adı');
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     await screen.findByText('Deneme tamamlandı!');
     expect(screen.queryByRole('button', { name: 'Ayrıntıları Doldur' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Düzenlemeye Devam Et' }));
-    expect(await screen.findByLabelText('Stok Adı')).toHaveValue(NAME_1);
+    expect(await screen.findByLabelText('Ürün Adı')).toHaveValue(NAME_1);
   });
 });

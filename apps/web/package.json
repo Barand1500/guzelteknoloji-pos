@@ -18,6 +18,7 @@
     "@hookform/resolvers": "^7.0.2",
     "@phosphor-icons/react": "^2.1.10",
     "exceljs": "^4.4.0",
+    "flag-icons": "^7.6.0",
     "lucide-react": "^1.68.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

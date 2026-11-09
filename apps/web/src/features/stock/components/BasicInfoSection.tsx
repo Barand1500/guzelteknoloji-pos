@@ -1,8 +1,9 @@
-import type { CSSProperties } from 'react';
+import { useMemo } from 'react';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import type { OptionList } from '../hooks/useOptionList';
 import type { StockEditor } from '../hooks/useStockEditor';
+import { countryOptions } from '../countries';
 import { INVENTORY_FIELDS } from '../stock.rules';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
@@ -35,121 +36,59 @@ const YES_NO = [
   { value: 'evet', label: 'Evet' },
 ];
 
+/** Envanter Takibi yalnızca Evet / Hayır'dır: Hayır = "yok", Evet = "normal" (stok miktarı + limitler). */
+const TRACKING = [
+  { value: 'yok', label: 'Hayır' },
+  { value: 'normal', label: 'Evet' },
+];
+
 /** Izgarada tek bir alanın kapladığı yer: telefon tam, tablet yarım, geniş ekran 3/12. */
 const cell = 'col-span-2 md:col-span-3 xl:col-span-3';
 
 /**
  * Ürün bilgisi alanları. Masaüstündeki kartta da telefondaki "Ürün" sekmesinde de aynı bileşen
  * kullanılır. Tüm alanlar hep görünür (katlama yok). Izgara: tablet 6, geniş ekran 12 sütun.
- * "Envanter Takibi" seçimine göre yanındaki alanlar değişir (bkz. INVENTORY_FIELDS).
+ * Sıra: Ürün Tipi, Ürün Kodu, Ürün Adı / Marka, Menşei, Envanter Takibi, Diğer Vergi /
+ * (Envanter Takibi = Evet ise) Stok Miktarı, Alt Limit, Üst Limit.
+ * KDV departmanı, stok nevi ve GTIP kodu bu ekrandan kaldırıldı; taslaktaki alanları durur.
  */
 export function BasicInfoSection({ editor }: { editor: StockEditor }) {
   const { draft, errors, set, lookups, lists } = editor;
 
-  const text = (key: 'code' | 'name' | 'gtip' | 'origin', label: string, maxLength?: number) => (
+  const text = (key: 'code' | 'name', label: string) => (
     <TextField
       label={label}
       value={draft[key]}
       error={errors[key]}
-      maxLength={maxLength}
       onChange={(e) => set(key, e.target.value)}
     />
   );
 
-  const inventoryFields = INVENTORY_FIELDS[draft.inventoryTracking] ?? [];
+  // Menşei: ülke listesi (bayraklı, aranabilir). "Belirtilmedi" seçimi alanı boşaltır; eski kayıtta
+  // listede olmayan serbest metin varsa o da seçenek olarak görünür, kaybolmaz.
+  const origins = useMemo(() => {
+    const list = [{ value: '', label: 'Belirtilmedi' }, ...countryOptions()];
+    if (draft.origin && !list.some((o) => o.value === draft.origin))
+      list.push({ value: draft.origin, label: draft.origin });
+    return list;
+  }, [draft.origin]);
 
-  // Satırdaki kutular, geniş ekranda (xl) kendi içinde eşit bölünür; dar ekranda ana ızgaraya karışır
-  // ("contents"), bu yüzden telefon/tablet düzeni değişmez.
-  const inner = 'col-span-2 md:col-span-3 xl:col-span-1';
-  const items = [
-    <div key="envanter" className={inner}>
-      <SelectField
-        label="Envanter Takibi"
-        options={lookups.inventoryTracking}
-        value={draft.inventoryTracking}
-        onChange={(v) => set('inventoryTracking', v)}
-      />
-    </div>,
-    ...inventoryFields.map((field) => (
-      <div key={`${draft.inventoryTracking}-${field.key}`} className={`${inner} animate-fade-in`}>
-        {field.kind === 'yesno' ? (
-          <SelectField
-            label={field.label}
-            options={YES_NO}
-            value={draft[field.key] ? 'evet' : 'hayir'}
-            onChange={(v) => set(field.key, v === 'evet')}
-          />
-        ) : (
-          <TextField
-            label={field.label}
-            value={
-              field.key === 'stockQuantity' && editor.variantStock !== undefined
-                ? editor.variantStock
-                : draft[field.key]
-            }
-            readOnly={field.key === 'stockQuantity' && editor.variantStock !== undefined}
-            hint={
-              field.key === 'stockQuantity' && editor.variantStock !== undefined
-                ? 'Varyant miktarlarının toplamı. Varyantlar bölümünden değiştirilir.'
-                : undefined
-            }
-            error={errors[field.key]}
-            // Sayı alanlarına yalnızca rakam girilir; "Önek" alanları serbest metindir.
-            numeric={
-              field.key === 'stockQuantity'
-                ? 'signed-decimal'
-                : field.kind === 'text'
-                  ? undefined
-                  : field.kind
-            }
-            onChange={(e) => set(field.key, e.target.value)}
-          />
-        )}
-      </div>
-    )),
-    <div key="mensei" className={inner}>
-      {/* En uzun ülke adı ("Güney Georgia ve Güney Sandviç Adaları") 37 karakterdir → 40 sınır. */}
-      {text('origin', 'Menşei', 40)}
-    </div>,
-    <div key="diger-vergi" className={inner}>
-      <SelectField
-        label="Diğer Vergi Ekle"
-        options={lookups.otherTaxes}
-        value={draft.otherTax}
-        onChange={(v) => set('otherTax', v)}
-      />
-    </div>,
-  ];
-  // 3 ek alan olan türlerde (LOT, Ömür) satır 4 + 2 olarak bölünür (zaten tam sığar);
-  // diğerlerinde (Yok: 3, Normal/Seri No: 5) hepsi tek satırda eşit genişlikte durur.
-  const rowSizes = inventoryFields.length >= 3 ? [inventoryFields.length + 1, 2] : [items.length];
-  let taken = 0;
-  const inventoryRows = rowSizes.map((size, index) => {
-    const rowItems = items.slice(taken, taken + size);
-    taken += size;
-    return (
-      <div
-        key={index}
-        style={{ '--cols': size } as CSSProperties}
-        className="contents xl:col-span-12 xl:grid xl:gap-4 xl:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]"
-      >
-        {rowItems}
-      </div>
-    );
-  });
+  // Eski kayıtlarda Seri/LOT/Ömür olabilir; arayüz bunları "Evet" sayar, alanları kendi türüne göre gösterir.
+  const tracking = draft.inventoryTracking === 'yok' ? 'yok' : 'normal';
+  const inventoryFields = INVENTORY_FIELDS[draft.inventoryTracking] ?? [];
 
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-6 xl:grid-cols-12">
       <div className={cell}>
         <SelectField
-          label="Stok Tipi"
+          label="Ürün Tipi"
           value={draft.stockType}
           onChange={(v) => set('stockType', v)}
-          {...editable(lists.stockTypes, 'stok tipi', (v) => set('stockType', v))}
+          {...editable(lists.stockTypes, 'ürün tipi', (v) => set('stockType', v))}
         />
       </div>
-      <div className="col-span-2 md:col-span-3 xl:col-span-4">{text('code', 'Stok Kodu')}</div>
-      <div className="col-span-2 md:col-span-6 xl:col-span-5">{text('name', 'Stok Adı')}</div>
+      <div className="col-span-2 md:col-span-3 xl:col-span-4">{text('code', 'Ürün Kodu')}</div>
+      <div className="col-span-2 md:col-span-6 xl:col-span-5">{text('name', 'Ürün Adı')}</div>
 
       <div className={cell}>
         <SelectField
@@ -161,30 +100,68 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
       </div>
       <div className={cell}>
         <SelectField
-          label="KDV Departmanı"
-          value={draft.vatDepartment}
-          onChange={(v) => set('vatDepartment', v)}
-          {...editable(
-            lists.vatDepartments,
-            'KDV departmanı',
-            (v) => set('vatDepartment', v),
-            true,
-          )}
+          label="Menşei"
+          options={origins}
+          value={draft.origin}
+          onChange={(v) => set('origin', v)}
+          searchable
         />
       </div>
       <div className={cell}>
         <SelectField
-          label="Stok Nevi"
-          value={draft.stockKind}
-          onChange={(v) => set('stockKind', v)}
-          {...editable(lists.stockKinds, 'stok nevi', (v) => set('stockKind', v))}
+          label="Envanter Takibi"
+          options={TRACKING}
+          value={tracking}
+          onChange={(v) => set('inventoryTracking', v)}
         />
       </div>
-      <div className={cell}>{text('gtip', 'GTIP Kodu')}</div>
+      <div className={cell}>
+        <SelectField
+          label="Diğer Vergi Ekle"
+          options={lookups.otherTaxes}
+          value={draft.otherTax}
+          onChange={(v) => set('otherTax', v)}
+        />
+      </div>
 
-      {/* Envanter takibi + seçime göre değişen alanlar + Menşei + Diğer Vergi: boşluk kalmasın diye
-          satırdaki kutu sayısına göre sütunlar eşit bölünür (bkz. inventoryRows). */}
-      {inventoryRows}
+      {/* Envanter takibi açıksa stok miktarı ve limitler (ya da eski türün alanları) çıkar. */}
+      {inventoryFields.map((field) => (
+        <div key={`${draft.inventoryTracking}-${field.key}`} className={`${cell} animate-fade-in`}>
+          {field.kind === 'yesno' ? (
+            <SelectField
+              label={field.label}
+              options={YES_NO}
+              value={draft[field.key] ? 'evet' : 'hayir'}
+              onChange={(v) => set(field.key, v === 'evet')}
+            />
+          ) : (
+            <TextField
+              label={field.label}
+              value={
+                field.key === 'stockQuantity' && editor.variantStock !== undefined
+                  ? editor.variantStock
+                  : draft[field.key]
+              }
+              readOnly={field.key === 'stockQuantity' && editor.variantStock !== undefined}
+              hint={
+                field.key === 'stockQuantity' && editor.variantStock !== undefined
+                  ? 'Varyant miktarlarının toplamı. Varyantlar bölümünden değiştirilir.'
+                  : undefined
+              }
+              error={errors[field.key]}
+              // Sayı alanlarına yalnızca rakam girilir; "Önek" alanları serbest metindir.
+              numeric={
+                field.key === 'stockQuantity'
+                  ? 'signed-decimal'
+                  : field.kind === 'text'
+                    ? undefined
+                    : field.kind
+              }
+              onChange={(e) => set(field.key, e.target.value)}
+            />
+          )}
+        </div>
+      ))}
     </div>
   );
 }

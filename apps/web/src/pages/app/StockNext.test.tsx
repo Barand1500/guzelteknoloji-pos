@@ -11,7 +11,7 @@ async function openEdit(id: string) {
   mockFetch(anonymousRoutes);
   const user = userEvent.setup();
   renderApp(`/uygulama/stok-karti/${id}`);
-  await screen.findByLabelText('Stok Kodu');
+  await screen.findByLabelText('Ürün Kodu');
   return user;
 }
 
@@ -36,8 +36,8 @@ describe('Düzenlemede sıradaki ürüne geçiş', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Sonraki ürüne geç' }));
-    expect(await screen.findByLabelText('Stok Adı')).toHaveValue(NAME_2);
-    expect(screen.getByLabelText('Stok Kodu')).toHaveValue('2');
+    expect(await screen.findByLabelText('Ürün Adı')).toHaveValue(NAME_2);
+    expect(screen.getByLabelText('Ürün Kodu')).toHaveValue('2');
   });
 
   it('kutuya yazınca altında liste açılır; istenen ürün seçilip ok ile gidilir', async () => {
@@ -53,7 +53,7 @@ describe('Düzenlemede sıradaki ürüne geçiş', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Sonraki ürüne geç' }));
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('CAS-PD-3');
+    expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('CAS-PD-3');
   });
 
   it('klavyeyle de seçilir: yaz, Enter ile seç, Enter ile git', async () => {
@@ -64,30 +64,30 @@ describe('Düzenlemede sıradaki ürüne geçiş', () => {
     await user.keyboard('{Enter}');
     expect(box).toHaveValue('USB Barkod Okuyucu Standart');
     await user.keyboard('{Enter}');
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('GEN-USB-5');
+    expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('GEN-USB-5');
   });
 
   it('kaydedilmemiş değişiklik varsa geçmeden önce sorar; vazgeçilirse yerinde kalır', async () => {
     const user = await openEdit('p1');
-    await user.type(await screen.findByLabelText('Stok Adı'), ' X');
+    await user.type(await screen.findByLabelText('Ürün Adı'), ' X');
     await user.click(await screen.findByRole('button', { name: 'Sonraki ürüne geç' }));
     const dialog = await screen.findByRole('dialog', { name: 'Kaydedilmemiş değişiklikler var' });
     await user.click(within(dialog).getByRole('button', { name: 'Vazgeç' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByLabelText('Stok Kodu')).toHaveValue('FLEXYPOS.FP-503');
+    expect(screen.getByLabelText('Ürün Kodu')).toHaveValue('FLEXYPOS.FP-503');
 
     await user.click(await screen.findByRole('button', { name: 'Sonraki ürüne geç' }));
     await user.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Yine de Geç' }),
     );
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('2');
+    expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('2');
   });
 
   it('değişiklik yoksa sormadan geçer', async () => {
     const user = await openEdit('p1');
     await user.click(await screen.findByRole('button', { name: 'Sonraki ürüne geç' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(await screen.findByLabelText('Stok Kodu')).toHaveValue('2');
+    expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('2');
   });
 
   it('son üründe ok kapalıdır', async () => {
@@ -101,7 +101,7 @@ describe('Düzenlemede sıradaki ürüne geçiş', () => {
     cleanup();
     mockFetch(anonymousRoutes);
     renderApp('/uygulama/stok-karti/yeni?kopya=p1');
-    await screen.findByLabelText('Stok Kodu');
+    await screen.findByLabelText('Ürün Kodu');
     expect(screen.queryByRole('combobox', { name: 'Gidilecek ürün' })).not.toBeInTheDocument();
   });
 });
@@ -122,10 +122,10 @@ describe('Stok miktarı', () => {
 
   it('takip kapalıysa (Sınırsız) alan yoktur; Normal seçilince çıkar', async () => {
     const user = await openEdit('p3');
-    await screen.findByLabelText('Stok Adı');
+    await screen.findByLabelText('Ürün Adı');
     expect(screen.queryByLabelText('Stok Miktarı')).not.toBeInTheDocument();
     await user.click(screen.getByRole('combobox', { name: 'Envanter Takibi' }));
-    await user.click(screen.getByRole('option', { name: 'Normal' }));
+    await user.click(screen.getByRole('option', { name: 'Evet' }));
     expect(await screen.findByLabelText('Stok Miktarı')).toHaveValue('');
   });
 

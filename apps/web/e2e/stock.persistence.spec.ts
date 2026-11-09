@@ -18,8 +18,8 @@ for (const width of [320, 390, 768, 1440]) {
       });
       await page.goto('/uygulama/stok-karti/yeni');
       const code = 'BROWSER-' + width + '-' + Date.now();
-      await page.getByLabel('Stok Kodu', { exact: true }).fill(code);
-      await page.getByLabel('Stok Adı', { exact: true }).fill('Tarayıcıdan Kalıcı Ürün');
+      await page.getByLabel('Ürün Kodu', { exact: true }).fill(code);
+      await page.getByLabel('Ürün Adı', { exact: true }).fill('Tarayıcıdan Kalıcı Ürün');
       await expect(
         page.getByText('Test Kullanıcısı · Deneme verileriyle çalışıyorsunuz.'),
       ).toHaveCount(0);

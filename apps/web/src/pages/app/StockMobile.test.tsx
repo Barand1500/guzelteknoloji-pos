@@ -45,7 +45,7 @@ describe('Telefon düzeni (sekmeler + yana kaydırmalı birim kartları)', () =>
       .map((t) => t.textContent?.trim());
     expect(tabs).toEqual(['Ürün', 'Fiyat', 'Barkod', 'Ölçü']);
     expect(screen.getByRole('tab', { name: 'Ürün' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByLabelText('Stok Kodu')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ürün Kodu')).toBeInTheDocument();
     // Yan panel kapalı başlar.
     expect(screen.queryByLabelText('Kart önizlemesi')).not.toBeInTheDocument();
 
@@ -53,7 +53,7 @@ describe('Telefon düzeni (sekmeler + yana kaydırmalı birim kartları)', () =>
     // Fiyat sekmesi Kasa Modu: dev rakam ekranı + tuş takımı
     expect(screen.getByLabelText('Satış fiyatı')).toBeInTheDocument();
     expect(screen.getByRole('radiogroup', { name: 'KDV oranı' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('Stok Kodu')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Ürün Kodu')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Ölçü' }));
     expect(screen.getByLabelText('Ağırlık')).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe('Telefon düzeni (sekmeler + yana kaydırmalı birim kartları)', () =>
 
   it('yüzen Kaydet düğmesi kaydeder', async () => {
     const user = await openStockCard();
-    await user.type(screen.getByLabelText('Stok Adı'), 'Deneme Ürünü');
+    await user.type(screen.getByLabelText('Ürün Adı'), 'Deneme Ürünü');
     // Üstteki canlı özet adı gösterir.
     expect(
       within(screen.getByLabelText('Kart özeti')).getByText('Deneme Ürünü'),

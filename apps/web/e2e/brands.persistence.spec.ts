@@ -118,7 +118,7 @@ for (const width of [320, 390, 768, 1440]) {
       await page.getByRole('option', { name, exact: true }).click();
       await expect(page.getByRole('combobox', { name: 'Marka', exact: true })).toContainText(name);
       await page
-        .getByLabel('Stok Kodu', { exact: true })
+        .getByLabel('Ürün Kodu', { exact: true })
         .fill('MARKA-SECIM-' + width + '-' + Date.now());
       const savedCard = page.waitForResponse(
         (response) =>

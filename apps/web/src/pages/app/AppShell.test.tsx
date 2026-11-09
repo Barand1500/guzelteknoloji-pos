@@ -25,7 +25,7 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
-    expect(await screen.findByLabelText('Stok Kodu')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Ürün Kodu')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Ana gezinme' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Gece Moduna Geç' }));
@@ -43,8 +43,8 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
       await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
     );
 
-    await user.type(await screen.findByLabelText('Stok Kodu'), 'A-1');
-    await user.type(screen.getByLabelText('Stok Adı'), 'Deneme Ürünü');
+    await user.type(await screen.findByLabelText('Ürün Kodu'), 'A-1');
+    await user.type(screen.getByLabelText('Ürün Adı'), 'Deneme Ürünü');
     // Canlı önizleme (sağ kenardaki Özet sekmesi) yazdıkça güncellenir.
     await user.click(screen.getByRole('tab', { name: 'Özet' }));
     expect(screen.getByLabelText('Kart önizlemesi')).toHaveTextContent('Deneme Ürünü');
@@ -119,25 +119,6 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     expect(screen.getByRole('radio', { name: 'g' })).toBeChecked();
   });
 
-  it('KDV departmanı eklerken oran ayrı kutuya yazılır ve ad (%oran) olarak biçimlenir', async () => {
-    mockFetch(anonymousRoutes);
-    const user = userEvent.setup();
-    renderApp();
-    await user.click(
-      await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
-    );
-
-    await user.click(await screen.findByRole('combobox', { name: 'KDV Departmanı' }));
-    await user.type(screen.getByLabelText('Yeni KDV departmanı adı…'), 'Tekstil');
-    // Oran girilmeden Ekle kapalıdır.
-    expect(screen.getByRole('button', { name: 'Ekle' })).toBeDisabled();
-    await user.type(screen.getByLabelText('KDV departmanı oranı (%)'), '%8,5');
-    await user.click(screen.getByRole('button', { name: 'Ekle' }));
-    expect(await screen.findByRole('combobox', { name: 'KDV Departmanı' })).toHaveTextContent(
-      'Tekstil (%8,5)',
-    );
-  });
-
   it('birim ve barkod ortaktır: bir fiyat listesinde yapılan değişiklik diğerlerinde de görünür, fiyatlar ayrı kalır', async () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
@@ -198,106 +179,77 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     );
 
     await user.click(await screen.findByRole('button', { name: 'Desi Hesapla' }));
-    await user.click(screen.getByLabelText('Stok Kodu'));
+    await user.click(screen.getByLabelText('Ürün Kodu'));
     expect(screen.getByRole('dialog', { name: 'Desi Hesapla' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('envanter takibine göre alanlar değişir; Daha Fazla Alan düğmesi yoktur', async () => {
+  it('Ürün Bilgisi: KDV departmanı, stok nevi ve GTIP yok; alanlar Ürün Kodu/Adı/Tipi adını taşır', async () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
     renderApp();
     await user.click(
       await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
     );
-    await screen.findByLabelText('Stok Kodu');
+    await screen.findByLabelText('Ürün Kodu');
 
-    expect(screen.queryByText('Daha Fazla Alan')).not.toBeInTheDocument();
-    // Varsayılan Normal: alt/üst limit
-    expect(screen.getByLabelText('Alt Limit')).toBeInTheDocument();
-    expect(screen.getByLabelText('Üst Limit')).toBeInTheDocument();
-
-    const pick = async (name: string) => {
-      await user.click(screen.getByRole('combobox', { name: 'Envanter Takibi' }));
-      await user.click(screen.getByRole('option', { name }));
-    };
-
-    await pick('Seri No');
-    expect(screen.getByRole('combobox', { name: 'Seri No Zorunlu' })).toHaveTextContent('Hayır');
-    expect(screen.getByLabelText('Seri No Öneki')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Alt Limit')).not.toBeInTheDocument();
-
-    await pick('LOT');
-    expect(screen.getByRole('combobox', { name: 'LOT Zorunlu' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'SKT Takibi' })).toBeInTheDocument();
-    expect(screen.getByLabelText('LOT Öneki')).toBeInTheDocument();
-
-    await pick('Ömür');
-    expect(screen.getByRole('combobox', { name: 'SKT Zorunlu' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Raf Ömrü (Gün)')).toBeInTheDocument();
-    expect(screen.getByLabelText('Risk (Gün)')).toBeInTheDocument();
-
-    await pick('Yok');
-    expect(screen.queryByLabelText('Risk (Gün)')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Alt Limit')).not.toBeInTheDocument();
+    for (const label of ['Ürün Adı', 'Marka', 'Menşei', 'Envanter Takibi', 'Diğer Vergi Ekle'])
+      expect(screen.getAllByLabelText(label).length).toBeGreaterThan(0);
+    expect(screen.getByRole('combobox', { name: 'Ürün Tipi' })).toBeInTheDocument();
+    for (const gone of ['KDV Departmanı', 'Stok Nevi', 'GTIP Kodu', 'Stok Kodu', 'Stok Adı'])
+      expect(screen.queryByLabelText(gone)).not.toBeInTheDocument();
   });
 
-  it('sayı alanlarına rakam dışı karakter yazılamaz; Evet/Hayır seçilir', async () => {
+  it('Envanter Takibi yalnızca Evet/Hayır: Evet stok miktarı ve limitleri açar, Hayır gizler', async () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
     renderApp();
     await user.click(
       await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
     );
-    await screen.findByLabelText('Stok Kodu');
+    await screen.findByLabelText('Ürün Kodu');
 
+    const tracking = screen.getByRole('combobox', { name: 'Envanter Takibi' });
+    await user.click(tracking);
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Hayır', 'Evet']);
+    await user.click(screen.getByRole('option', { name: 'Evet' }));
+    expect(screen.getByLabelText('Stok Miktarı')).toBeInTheDocument();
+    expect(screen.getByLabelText('Alt Limit')).toBeInTheDocument();
+    expect(screen.getByLabelText('Üst Limit')).toBeInTheDocument();
+    // Sayı alanlarına yalnızca rakam girilir.
     await user.type(screen.getByLabelText('Alt Limit'), '12abc,5');
     expect(screen.getByLabelText('Alt Limit')).toHaveValue('12,5');
 
     await user.click(screen.getByRole('combobox', { name: 'Envanter Takibi' }));
-    await user.click(screen.getByRole('option', { name: 'Ömür' }));
-    await user.type(screen.getByLabelText('Raf Ömrü (Gün)'), '3a0,5');
-    expect(screen.getByLabelText('Raf Ömrü (Gün)')).toHaveValue('305');
+    await user.click(screen.getByRole('option', { name: 'Hayır' }));
+    expect(screen.queryByLabelText('Alt Limit')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('combobox', { name: 'SKT Zorunlu' }));
-    await user.click(screen.getByRole('option', { name: 'Evet' }));
-    expect(screen.getByRole('combobox', { name: 'SKT Zorunlu' })).toHaveTextContent('Evet');
-
-    // Fiyat alanı da yalnızca rakam alır
+    // Fiyat alanı da yalnızca rakam alır.
     await user.type(screen.getByLabelText('Satış Fiyatı'), '4x5,0y');
     expect(screen.getByLabelText('Satış Fiyatı')).toHaveValue('45,0');
   });
 
-  it('envanter satırındaki kutular boşluk bırakmaz: Yok 3, Seri No 5, Normal/LOT/Ömür 4+2 sütun', async () => {
+  it('Menşei: ülke adı yazınca süzülür, bayraklı seçenek seçilir; "Belirtilmedi" boşaltır', async () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
     renderApp();
     await user.click(
       await screen.findByRole('button', { name: 'Test Kullanıcısı Olarak Devam Et' }),
     );
-    await screen.findByLabelText('Stok Kodu');
+    await screen.findByLabelText('Ürün Kodu');
 
-    const cols = () =>
-      Array.from(document.querySelectorAll<HTMLElement>('[style*=--cols]')).map((el) =>
-        el.style.getPropertyValue('--cols'),
-      );
-    const pick = async (name: string) => {
-      await user.click(screen.getByRole('combobox', { name: 'Envanter Takibi' }));
-      await user.click(screen.getByRole('option', { name }));
-    };
+    await user.click(screen.getByRole('combobox', { name: 'Menşei' }));
+    await user.type(screen.getByLabelText('Menşei içinde ara'), 'alman');
+    const options = screen.getAllByRole('option');
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent('Almanya');
+    expect(options[0]!.querySelector('.fi-de')).not.toBeNull(); // bayrak SVG sınıfı
+    await user.click(options[0]!);
+    expect(screen.getByRole('combobox', { name: 'Menşei' })).toHaveTextContent('Almanya');
 
-    expect(cols()).toEqual(['4', '2']); // Normal: Envanter + Miktar + Alt + Üst | Menşei + Diğer Vergi
-    await pick('Yok');
-    expect(cols()).toEqual(['3']);
-    await pick('Seri No');
-    expect(cols()).toEqual(['5']);
-    await pick('LOT');
-    expect(cols()).toEqual(['4', '2']);
-    await pick('Ömür');
-    expect(cols()).toEqual(['4', '2']);
-
-    // Menşei en uzun ülke adına göre sınırlı (40 karakter)
-    expect(screen.getByLabelText('Menşei')).toHaveAttribute('maxlength', '40');
+    await user.click(screen.getByRole('combobox', { name: 'Menşei' }));
+    await user.click(screen.getByRole('option', { name: 'Belirtilmedi' }));
+    expect(screen.getByRole('combobox', { name: 'Menşei' })).toHaveTextContent('Belirtilmedi');
   });
 });
