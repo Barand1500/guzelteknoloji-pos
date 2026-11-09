@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Check, ChevronDown, FolderTree, Plus } from 'lucide-react';
 import { useState } from 'react';
 import type { MultiOption } from '../../../components/ui/MultiSelectField';
 
@@ -15,6 +15,8 @@ interface CategoryQuickAddProps {
 export function CategoryQuickAdd({ categories, onCreate }: CategoryQuickAddProps) {
   const [open, setOpen] = useState(false);
   const [parentId, setParentId] = useState('');
+  const [parentOpen, setParentOpen] = useState(false);
+  const parent = categories.find((c) => c.id === parentId);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -49,21 +51,68 @@ export function CategoryQuickAdd({ categories, onCreate }: CategoryQuickAddProps
       aria-label="Yeni kategori"
       className="flex flex-col gap-2 border-t border-line p-3"
     >
-      <label className="flex flex-col gap-1 text-xs font-bold tracking-wide text-ink-muted uppercase">
-        Üst kategori (boş olabilir)
-        <select
-          value={parentId}
-          onChange={(e) => setParentId(e.target.value)}
-          className="h-10 w-full rounded-xl border border-field-border bg-surface-raised px-3 text-sm font-normal tracking-normal text-ink normal-case outline-none focus:border-brand-600"
+      <div className="flex flex-col gap-1">
+        <p className="text-xs font-bold tracking-wide text-ink-muted uppercase">
+          Üst kategori <span className="font-medium normal-case">(boş olabilir)</span>
+        </p>
+        <button
+          type="button"
+          aria-expanded={parentOpen}
+          aria-label="Üst kategori seç"
+          onClick={() => setParentOpen((v) => !v)}
+          className="flex h-11 w-full items-center gap-2 rounded-xl border border-field-border bg-surface-raised px-3 text-left text-sm transition-colors hover:border-brand-500 aria-expanded:border-brand-600"
         >
-          <option value="">Üst kategori yok</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {`${'— '.repeat(c.depth ?? 0)}${c.name}`}
-            </option>
-          ))}
-        </select>
-      </label>
+          <FolderTree className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
+          <span
+            className={`min-w-0 flex-1 truncate font-semibold ${parent ? '' : 'text-ink-muted'}`}
+          >
+            {parent ? parent.name : 'Üst kategori yok'}
+          </span>
+          <ChevronDown
+            aria-hidden="true"
+            className={`size-4 shrink-0 text-ink-muted transition-transform duration-200 ${parentOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {parentOpen ? (
+          <ul
+            role="listbox"
+            aria-label="Üst kategoriler"
+            className="max-h-44 animate-fade-in overflow-y-auto rounded-xl border border-line bg-surface p-1"
+          >
+            {[{ id: '', name: 'Üst kategori yok', depth: 0 }, ...categories].map((c) => {
+              const on = parentId === c.id;
+              return (
+                <li key={c.id || 'yok'} role="presentation">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={on}
+                    onClick={() => {
+                      setParentId(c.id);
+                      setParentOpen(false);
+                    }}
+                    style={{ paddingLeft: `${0.625 + (c.depth ?? 0) * 1.1}rem` }}
+                    className={[
+                      'flex min-h-9 w-full items-center gap-2 rounded-lg pr-2 text-left text-sm transition-colors hover:bg-surface-muted',
+                      on ? 'bg-brand-50 font-semibold text-brand-ink' : '',
+                      c.id === '' ? 'text-ink-muted' : (c.depth ?? 0) === 0 ? 'font-semibold' : '',
+                    ].join(' ')}
+                  >
+                    {(c.depth ?? 0) > 0 ? (
+                      <span
+                        aria-hidden="true"
+                        className="-mt-2 inline-block h-3 w-2.5 shrink-0 rounded-bl-md border-b-2 border-l-2 border-line"
+                      />
+                    ) : null}
+                    <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                    {on ? <Check className="size-4 shrink-0" aria-hidden="true" /> : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </div>
       <div className="flex items-center gap-2">
         <input
           type="text"

@@ -241,8 +241,9 @@ function StockCardEditor({
     <StockSavedScreen
       mode={mode}
       demo={demo}
-      name={editor.draft.name}
-      code={editor.draft.code}
+      draft={editor.draft}
+      extras={editor.extras}
+      extraOptions={editor.extraOptions}
       brand={editor.lookups.brands.find((b) => b.value === editor.draft.brand)?.label ?? ''}
       onNew={editor.startOver}
       onKeepEditing={editor.keepEditing}

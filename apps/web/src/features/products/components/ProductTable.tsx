@@ -357,7 +357,7 @@ function PriceCell({
             })}
             {/* Alış'ın altında: ürünün satış fiyatı (ilk liste). */}
             {options.some((o) => o.id === COST_VIEW) && options[0] ? (
-              <div className="flex items-baseline justify-between gap-3 border-t border-line px-2 pt-2">
+              <div className="flex items-baseline justify-between gap-3 px-2 py-1">
                 <dt className="text-xs font-bold text-ink-muted">Satış</dt>
                 <dd className="text-right text-sm font-bold">
                   {moneyOrDash(grossOf(product, options[0].id), currencyOf(product, options[0].id))}

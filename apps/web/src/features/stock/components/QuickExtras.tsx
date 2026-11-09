@@ -1,4 +1,4 @@
-import { Check, Sparkles, Tag } from 'lucide-react';
+import { Check, ChevronDown, Sparkles, Tag } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { DEALS_PATH } from '../../../config/navigation';
@@ -86,6 +86,10 @@ function InlineLink({
  */
 export function QuickExtras({ editor }: { editor: StockEditor }) {
   const [open, setOpen] = useState<Open>(null);
+  // Özellik grupları başta KAPALI gelir; kullanıcı istediğini açar.
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const toggleGroup = (id: string) =>
+    setOpenGroups((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
   const baseId = useId();
   const options = editor.extraOptions;
   const { dealIds, attributeValueIds = [], categoryIds } = editor.extras;
@@ -187,54 +191,95 @@ export function QuickExtras({ editor }: { editor: StockEditor }) {
               <section key={template.id} aria-label={template.name} className="flex flex-col gap-3">
                 {attributes!.groups
                   .filter((g) => g.templateId === template.id)
-                  .map((group) => (
-                    <div
-                      key={group.id}
-                      role="group"
-                      aria-label={group.name}
-                      className="flex flex-col gap-1.5"
-                    >
-                      <p className="px-1 text-xs font-bold tracking-wide text-ink-muted uppercase">
-                        {group.name}
-                      </p>
-                      <ul className="flex flex-wrap gap-2">
-                        {attributes!.values
-                          .filter((v) => v.groupId === group.id)
-                          .map((value) => (
-                            <li key={value.id}>
-                              <Pill
-                                on={attributeValueIds.includes(value.id)}
-                                role="checkbox"
-                                label={value.name}
-                                onClick={() =>
-                                  editor.toggleAttribute(
-                                    value.id,
-                                    group.id,
-                                    group.multiple || group.variant,
-                                  )
-                                }
-                              >
-                                {group.kind === 'color' ? (
+                  .map((group) => {
+                    const values = attributes!.values.filter((v) => v.groupId === group.id);
+                    const chosen = values.filter((v) => attributeValueIds.includes(v.id));
+                    const isOpen = openGroups.includes(group.id);
+                    return (
+                      <div key={group.id} className="rounded-2xl border border-line bg-surface">
+                        <button
+                          type="button"
+                          aria-expanded={isOpen}
+                          onClick={() => toggleGroup(group.id)}
+                          className="flex min-h-12 w-full items-center gap-3 rounded-2xl px-3.5 text-left"
+                        >
+                          <span className="text-sm font-bold">{group.name}</span>
+                          {/* Kapalıyken seçilenler küçük özet olarak görünür */}
+                          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-ink-muted">
+                            {!isOpen
+                              ? chosen.slice(0, 3).map((v) => (
                                   <span
-                                    aria-hidden="true"
-                                    className="size-4 shrink-0 rounded-full ring-1 ring-black/20"
-                                    style={{ backgroundColor: value.color ?? '#9ca3af' }}
-                                  />
-                                ) : null}
-                                {group.kind === 'image' && value.imageUrl ? (
-                                  <img
-                                    src={value.imageUrl}
-                                    alt=""
-                                    className="size-5 shrink-0 rounded-md bg-white object-contain"
-                                  />
-                                ) : null}
-                                {value.name}
-                              </Pill>
-                            </li>
-                          ))}
-                      </ul>
-                    </div>
-                  ))}
+                                    key={v.id}
+                                    className="inline-flex min-w-0 items-center gap-1"
+                                  >
+                                    {group.kind === 'color' ? (
+                                      <span
+                                        aria-hidden="true"
+                                        className="size-3.5 shrink-0 rounded-full ring-1 ring-black/20"
+                                        style={{ backgroundColor: v.color ?? '#9ca3af' }}
+                                      />
+                                    ) : null}
+                                    <span className="truncate">{v.name}</span>
+                                  </span>
+                                ))
+                              : null}
+                            {!isOpen && chosen.length > 3 ? (
+                              <span>+{chosen.length - 3}</span>
+                            ) : null}
+                          </span>
+                          {chosen.length > 0 ? (
+                            <span className="rounded-full bg-brand-700 px-2 text-xs font-bold text-white">
+                              {chosen.length}
+                            </span>
+                          ) : null}
+                          <ChevronDown
+                            aria-hidden="true"
+                            className={`size-5 shrink-0 text-ink-muted transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                          />
+                        </button>
+                        {isOpen ? (
+                          <ul
+                            role="group"
+                            aria-label={group.name}
+                            className="flex animate-fade-in flex-wrap gap-2 px-3.5 pb-3.5"
+                          >
+                            {values.map((value) => (
+                              <li key={value.id}>
+                                <Pill
+                                  on={attributeValueIds.includes(value.id)}
+                                  role="checkbox"
+                                  label={value.name}
+                                  onClick={() =>
+                                    editor.toggleAttribute(
+                                      value.id,
+                                      group.id,
+                                      group.multiple || group.variant,
+                                    )
+                                  }
+                                >
+                                  {group.kind === 'color' ? (
+                                    <span
+                                      aria-hidden="true"
+                                      className="size-4 shrink-0 rounded-full ring-1 ring-black/20"
+                                      style={{ backgroundColor: value.color ?? '#9ca3af' }}
+                                    />
+                                  ) : null}
+                                  {group.kind === 'image' && value.imageUrl ? (
+                                    <img
+                                      src={value.imageUrl}
+                                      alt=""
+                                      className="size-5 shrink-0 rounded-md bg-white object-contain"
+                                    />
+                                  ) : null}
+                                  {value.name}
+                                </Pill>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    );
+                  })}
               </section>
             ))
           )}
