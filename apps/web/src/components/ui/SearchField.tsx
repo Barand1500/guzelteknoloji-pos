@@ -21,7 +21,7 @@ export function SearchField({ value, onChange, label, placeholder = 'Ara…' }: 
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
         placeholder={placeholder}
-        className="h-13 w-full appearance-none rounded-full border border-field-border bg-surface-raised pr-12 pl-12 text-base text-ink transition-colors outline-none placeholder:text-ink-muted hover:border-brand-500 focus:border-brand-600 focus:shadow-[0_0_0_4px_rgb(194_65_12/0.12)] [&::-webkit-search-cancel-button]:hidden"
+        className="h-13 w-full appearance-none rounded-full border border-field-border bg-surface-raised pr-12 pl-12 text-base text-ink transition-colors outline-none placeholder:text-ink-muted hover:border-brand-500 focus:border-brand-600 [&::-webkit-search-cancel-button]:hidden"
       />
       {value ? (
         <button

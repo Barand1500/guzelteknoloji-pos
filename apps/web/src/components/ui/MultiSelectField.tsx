@@ -95,7 +95,7 @@ export function MultiSelectField({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Ara…"
               aria-label={`${label} içinde ara`}
-              className="h-10 w-full rounded-xl bg-surface-muted pr-3 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
+              className="h-10 w-full rounded-xl bg-surface-muted pr-3 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted"
             />
           </div>
           <ul className="max-h-56 overflow-y-auto p-1.5">

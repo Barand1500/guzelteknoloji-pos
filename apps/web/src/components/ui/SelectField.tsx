@@ -320,7 +320,7 @@ export function SelectField({
                       }}
                       placeholder="Ara…"
                       aria-label={`${label} içinde ara`}
-                      className="h-10 w-full rounded-xl bg-surface-muted pr-3 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
+                      className="h-10 w-full rounded-xl bg-surface-muted pr-3 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted"
                     />
                   </div>
                 ) : null}
@@ -390,7 +390,7 @@ export function SelectField({
                       onKeyDown={onCreatorKeyDown}
                       placeholder={creator.placeholder}
                       aria-label={creator.placeholder}
-                      className="h-10 min-w-0 flex-1 rounded-xl bg-surface-muted px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
+                      className="h-10 min-w-0 flex-1 rounded-xl bg-surface-muted px-3 text-sm text-ink outline-none placeholder:text-ink-muted"
                     />
                     {creator.ratePlaceholder ? (
                       <input
@@ -402,7 +402,7 @@ export function SelectField({
                         onKeyDown={onCreatorKeyDown}
                         placeholder="%"
                         aria-label={creator.ratePlaceholder}
-                        className="h-10 w-20 shrink-0 rounded-xl bg-surface-muted px-3 text-right text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-600/40"
+                        className="h-10 w-20 shrink-0 rounded-xl bg-surface-muted px-3 text-right text-sm text-ink outline-none placeholder:text-ink-muted"
                       />
                     ) : null}
                     <button
