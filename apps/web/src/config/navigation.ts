@@ -49,6 +49,16 @@ export function pageTitle(pathname: string): string | undefined {
 
 /** Üst çubukta gösterilen sayfa başlıkları. */
 export const PAGE_TITLES: Record<string, string> = {
+  [`${APP_BASE}/profil`]: 'Profil',
+  [`${APP_BASE}/kullanicilar`]: 'Kullanıcılar',
+  [`${APP_BASE}/roller`]: 'Roller',
+  [`${APP_BASE}/ayarlar`]: 'Ayarlar',
+  [`${APP_BASE}/ayarlar/general`]: 'Genel Ayarlar',
+  [`${APP_BASE}/ayarlar/entegrasyonlar`]: 'Entegrasyonlar',
+  [`${APP_BASE}/ayarlar/smtp`]: 'SMTP Ayarları',
+  [`${APP_BASE}/ayarlar/imap`]: 'IMAP Ayarları',
+  [`${APP_BASE}/ayarlar/google`]: 'Google Ayarları',
+  [`${APP_BASE}/loglar`]: 'Log Kayıtları',
   [STOCK_CREATE_PATH]: 'Yeni Stok Kartı',
   [DEALS_PATH]: 'Fırsatlar',
   [BULK_IMAGES_PATH]: 'Toplu Görsel',

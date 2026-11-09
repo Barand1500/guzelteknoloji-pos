@@ -69,7 +69,7 @@ export function TemplateFormSheet({
   };
 
   return (
-    <Sheet open onClose={onClose} title={template ? 'Şablonu Düzenle' : 'Şablon Ekle'} size="lg">
+    <Sheet permission="save" open onClose={onClose} title={template ? 'Şablonu Düzenle' : 'Şablon Ekle'} size="lg">
       <div className="flex flex-col gap-5">
         {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <TextField

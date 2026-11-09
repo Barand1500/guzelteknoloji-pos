@@ -1,3 +1,4 @@
+import { useWorkspacePermission } from '../../workspace/workspace-context';
 import { Check, Copy, Pencil, Trash2, X, type LucideIcon } from 'lucide-react';
 import { Sheet } from '../../../components/ui/Sheet';
 
@@ -20,6 +21,8 @@ function MenuSheet({
   groups: MenuItem[][];
   onClose: () => void;
 }) {
+  const canSave=useWorkspacePermission('save');
+  const canDelete=useWorkspacePermission('delete');
   return (
     <Sheet open onClose={onClose} title={title} {...(description ? { description } : {})} size="md">
       <div className="flex flex-col gap-1">
@@ -28,6 +31,7 @@ function MenuSheet({
             {items.map(({ label, icon: Icon, onSelect, danger }) => (
               <button
                 key={label}
+                disabled={danger ? !canDelete : !canSave}
                 type="button"
                 onClick={() => {
                   onClose();

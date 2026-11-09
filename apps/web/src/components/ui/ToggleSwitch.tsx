@@ -1,3 +1,4 @@
+import { useWorkspacePermission } from '../../features/workspace/workspace-context';
 interface ToggleSwitchProps {
   /** Ekran okuyucu adı, ör. "ALATEL aktif". */
   label: string;
@@ -10,9 +11,11 @@ interface ToggleSwitchProps {
  * (44px) büyüktür. Yalnızca anahtar tıklanabilir; satırın geri kalanı başka iş yapar.
  */
 export function ToggleSwitch({ label, checked, onChange }: ToggleSwitchProps) {
+  const allowed = useWorkspacePermission('save');
   return (
     <button
       type="button"
+      disabled={!allowed}
       role="switch"
       aria-checked={checked}
       aria-label={label}

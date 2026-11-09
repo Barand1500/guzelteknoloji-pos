@@ -68,7 +68,7 @@ export function DealFormSheet({
   };
 
   return (
-    <Sheet
+    <Sheet permission="save"
       open
       onClose={onClose}
       title={deal ? 'Fırsatı Düzenle' : 'Fırsat Ekle'}

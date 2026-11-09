@@ -31,7 +31,7 @@ export function createBrandRouter(env: Env, service: AuthService, repo: PrismaBr
     const session = token ? await service.getSession(token) : null;
     if (!session)
       throw new HttpError(401, 'UNAUTHENTICATED', 'Markalar için hesabınıza giriş yapın.');
-    res.locals.brandUserId = session.user.id;
+    res.locals.brandUserId = String(res.locals.workspace?.ownerId ?? session.user.id);
     res.set('Cache-Control', 'no-store');
     next();
   });

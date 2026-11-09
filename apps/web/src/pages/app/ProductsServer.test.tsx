@@ -35,6 +35,7 @@ function server() {
   const mutations: { ids: number[]; islem: string }[] = [];
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
+    if (url.pathname === '/api/hesap') return jsonResponse(200, {business:{id:1,name:'Test İşletmesi'},user:{id:1,name:'Test',email:'test@example.com'},owner:true,permissions:[]});
     if (url.pathname === '/api/auth/me')
       return jsonResponse(200, {
         user: { id: '1', email: 'test@example.com', displayName: null, avatarUrl: null },

@@ -3,6 +3,7 @@ import { useLayoutEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { Spinner } from '../../components/ui/Spinner';
 import { STOCK_CREATE_PATH, navLeft, navRight, type NavItem } from '../../config/navigation';
+import { useWorkspace, pageResource } from '../workspace/workspace-context';
 import { useActiveAddAction, useActiveSaveAction } from './save-action';
 
 function DockLink({ item }: { item: NavItem }) {
@@ -39,6 +40,7 @@ function DockLink({ item }: { item: NavItem }) {
  * (Özelliklerde derinliğe göre Şablon/Grup/Özellik) açan "+"; diğer sayfalarda yeni stok kartı "+".
  */
 export function Dock() {
+  const { can } = useWorkspace();
   const { pathname } = useLocation();
   const container = useRef<HTMLDivElement>(null);
   const indicator = useRef<HTMLSpanElement>(null);
@@ -93,37 +95,42 @@ export function Dock() {
           className="pointer-events-none absolute top-0 left-0 rounded-2xl bg-brand-50 opacity-0 transition-[transform,width,height,opacity] duration-500 ease-[cubic-bezier(0.34,1.4,0.64,1)]"
         />
 
-        {navLeft.map((item) => (
-          <DockLink key={item.id} item={item} />
-        ))}
+        {navLeft
+          .filter((item) => can(pageResource(item.path)!))
+          .map((item) => (
+            <DockLink key={item.id} item={item} />
+          ))}
 
         {save ? (
-          // Kaydet hali: "+" dönerek solar, yerine yalnızca disket simgesi gelir (yazı yok).
-          <button
-            type="button"
-            onClick={save.onSave}
-            disabled={save.saving}
-            aria-label="Kaydet"
-            title="Kaydet"
-            className="relative -mt-7 mx-1 flex size-14 shrink-0 animate-turn-in items-center justify-center overflow-hidden rounded-full bg-brand-700 text-white shadow-soft ring-4 ring-surface-raised transition-[transform,opacity] duration-200 hover:scale-105 active:scale-95 disabled:opacity-80 md:mt-0 md:ring-0"
-          >
-            {save.saving ? (
-              <Spinner className="size-6" />
-            ) : (
-              <Save className="size-7" aria-hidden="true" />
-            )}
-          </button>
+          can('products', 'save') ? (
+            <button
+              type="button"
+              onClick={save.onSave}
+              disabled={save.saving}
+              aria-label="Kaydet"
+              title="Kaydet"
+              className="relative -mt-7 mx-1 flex size-14 shrink-0 animate-turn-in items-center justify-center overflow-hidden rounded-full bg-brand-700 text-white shadow-soft ring-4 ring-surface-raised transition-[transform,opacity] duration-200 hover:scale-105 active:scale-95 disabled:opacity-80 md:mt-0 md:ring-0"
+            >
+              {save.saving ? (
+                <Spinner className="size-6" />
+              ) : (
+                <Save className="size-7" aria-hidden="true" />
+              )}
+            </button>
+          ) : null
         ) : add ? (
-          <button
-            type="button"
-            onClick={add.onAdd}
-            aria-label={add.label}
-            title={add.label}
-            className="-mt-7 mx-1 flex size-14 shrink-0 animate-turn-in items-center justify-center rounded-full bg-brand-700 text-white shadow-soft ring-4 ring-surface-raised transition-transform duration-200 hover:scale-105 active:scale-95 md:mt-0 md:ring-0"
-          >
-            <Plus className="size-7" aria-hidden="true" />
-          </button>
-        ) : (
+          can(pageResource(pathname) ?? 'products', 'save') ? (
+            <button
+              type="button"
+              onClick={add.onAdd}
+              aria-label={add.label}
+              title={add.label}
+              className="-mt-7 mx-1 flex size-14 shrink-0 animate-turn-in items-center justify-center rounded-full bg-brand-700 text-white shadow-soft ring-4 ring-surface-raised transition-transform duration-200 hover:scale-105 active:scale-95 md:mt-0 md:ring-0"
+            >
+              <Plus className="size-7" aria-hidden="true" />
+            </button>
+          ) : null
+        ) : can('products', 'save') ? (
           <NavLink
             to={STOCK_CREATE_PATH}
             aria-label="Yeni Stok Kartı"
@@ -131,11 +138,13 @@ export function Dock() {
           >
             <Plus className="size-7" aria-hidden="true" />
           </NavLink>
-        )}
+        ) : null}
 
-        {navRight.map((item) => (
-          <DockLink key={item.id} item={item} />
-        ))}
+        {navRight
+          .filter((item) => can(pageResource(item.path)!))
+          .map((item) => (
+            <DockLink key={item.id} item={item} />
+          ))}
       </div>
     </nav>
   );

@@ -44,7 +44,7 @@ describe('Üst çubuk selamlaması', () => {
     expect(hello).toHaveTextContent('Günaydın, Test Kullanıcısı');
 
     const theme = screen.getByRole('button', { name: 'Gece Moduna Geç' });
-    const logout = screen.getByRole('button', { name: 'Çıkış Yap' });
+    const logout = screen.getByRole('button', { name: 'Profil Menüsü' });
     expect(theme.compareDocumentPosition(hello) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(hello.compareDocumentPosition(logout) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });

@@ -1,3 +1,4 @@
+import { useWorkspacePermission } from '../../workspace/workspace-context';
 import { Check, ChevronDown, Copy, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
@@ -57,6 +58,8 @@ export function ProductTable({
   onStockTracking,
   onSales,
 }: ProductTableProps) {
+  const canSave = useWorkspacePermission('save');
+  const canDelete = useWorkspacePermission('delete');
   const allOn = products.length > 0 && products.every((p) => selected.has(p.id));
   const iconButton =
     'inline-flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-ink focus-visible:bg-brand-50';
@@ -124,6 +127,7 @@ export function ProductTable({
                     {(p.variantCount ?? 0) > 0 && (
                       <button
                         type="button"
+                        disabled={!canSave}
                         onClick={() => onEdit(p)}
                         className="text-xs font-semibold text-brand-ink"
                       >
@@ -170,6 +174,7 @@ export function ProductTable({
                   </button>
                   <button
                     type="button"
+                    disabled={!canSave}
                     onClick={() => onCopy(p)}
                     aria-label={`${p.name} ürününün kopyasını oluştur`}
                     title="Kopya Oluştur"
@@ -179,6 +184,7 @@ export function ProductTable({
                   </button>
                   <button
                     type="button"
+                    disabled={!canDelete}
                     onClick={() => onDelete(p)}
                     aria-label={`${p.name} ürününü sil`}
                     title="Sil"
