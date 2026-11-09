@@ -1,22 +1,14 @@
-import {
-  FolderTree,
-  LayoutList,
-  Sparkles,
-  SlidersHorizontal,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+import { LayoutList, Sparkles, SlidersHorizontal, X, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { StockEditor } from '../hooks/useStockEditor';
-import { CategoryBox } from './CategoryBox';
 import { AttributeGroupFold } from './AttributeGroupFold';
 import { DealBox } from './DealBox';
 import { StockPreview } from './StockPreview';
 
 /** Yan sekmelerin kimlikleri (adres çubuğundaki `?ac=` değeriyle de açılır). */
-export type SideBoxId = 'ozet' | 'kategori' | 'firsat' | 'ozellik';
+export type SideBoxId = 'ozet' | 'firsat' | 'ozellik';
 
-export const SIDE_BOX_IDS: readonly SideBoxId[] = ['ozet', 'kategori', 'firsat', 'ozellik'];
+export const SIDE_BOX_IDS: readonly SideBoxId[] = ['ozet', 'firsat', 'ozellik'];
 
 interface SideTab {
   id: SideBoxId;
@@ -29,7 +21,6 @@ interface SideTab {
 
 const TABS: readonly SideTab[] = [
   { id: 'ozet', label: 'Özet', title: 'Özet', icon: LayoutList },
-  { id: 'kategori', label: 'Kategori', title: 'Kategori', icon: FolderTree },
   { id: 'firsat', label: 'Fırsat', title: 'Fırsat Yönetimi', icon: Sparkles },
   { id: 'ozellik', label: 'Özellik', title: 'Ürün Özellikleri', icon: SlidersHorizontal },
 ];
@@ -79,13 +70,11 @@ export function StockSidePanel({ editor, panel }: StockSidePanelProps) {
 
   const counts: Record<SideBoxId, number> = {
     ozet: 0,
-    kategori: extras.categoryIds.length,
     firsat: extras.dealIds.length,
     ozellik: extras.attributeValueIds?.length ?? 0,
   };
   const pill: Record<SideBoxId, string> = {
     ozet: '', // Özet içeriğinde doluluk zaten yazılı
-    kategori: counts.kategori > 0 ? `${counts.kategori} seçili` : '',
     firsat: counts.firsat > 0 ? `${counts.firsat} açık` : '',
     ozellik: counts.ozellik > 0 ? `${counts.ozellik} seçili` : '',
   };
@@ -184,13 +173,6 @@ export function StockSidePanel({ editor, panel }: StockSidePanelProps) {
                 }}
                 rows={rows}
                 priceListLabel={editor.activeListLabel}
-              />
-            ) : null}
-            {active.id === 'kategori' && extraOptions ? (
-              <CategoryBox
-                categories={extraOptions.categories}
-                selectedIds={extras.categoryIds}
-                onToggle={editor.toggleCategory}
               />
             ) : null}
             {active.id === 'firsat' && extraOptions ? (

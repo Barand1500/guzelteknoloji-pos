@@ -1,6 +1,8 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
+import { demoBrandService } from '../../features/brands/services/brand.demo';
+import { demoCategoryService } from '../../features/categories/services/category.demo';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
 
 afterEach(() => sessionStorage.clear());
@@ -55,14 +57,37 @@ describe('Alt çubuk: "+" düğmesi stok kartında Kaydet olur', () => {
   });
 });
 
-describe('Ürün Bilgisi: Kategori seçici', () => {
-  it('Kategori kutusundan seçilen kategori yan panelle ortaktır; Diğer Vergi alanı yoktur', async () => {
+describe('Ürün Bilgisi: Kategori seçici ve hızlı ekleme', () => {
+  it('Kategori kutusundan çoklu seçilir; seçilenler kutunun içinde çip olarak görünür; yan sekmede Kategori yoktur', async () => {
     const user = await openNewCard();
     expect(screen.queryByLabelText('Diğer Vergi Ekle')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Kategori' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Kategori' }));
     const group = screen.getByRole('group', { name: 'Kategori seçenekleri' });
-    const first = within(group).getAllByRole('checkbox')[0]!;
-    await user.click(first);
-    expect(first).toBeChecked();
+    await user.click(within(group).getByRole('checkbox', { name: 'Dokunmatik POS' }));
+    expect(within(group).getByRole('checkbox', { name: 'Dokunmatik POS' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Kategori' })).toHaveTextContent('Dokunmatik POS');
+  });
+
+  it('Marka: listede olmayan marka adı yazılıp hemen eklenir ve seçilir', async () => {
+    const user = await openNewCard();
+    await user.click(screen.getByRole('combobox', { name: 'Marka' }));
+    await user.type(screen.getByPlaceholderText('Yeni marka adı…'), 'Yepyeni Marka{Enter}');
+    expect(await screen.findByRole('combobox', { name: 'Marka' })).toHaveTextContent(
+      'Yepyeni Marka',
+    );
+    expect((await demoBrandService.list()).some((b) => b.name === 'Yepyeni Marka')).toBe(true);
+  });
+
+  it('Kategori: üst kategori (isteğe bağlı) ve ad yazılınca eklenir ve seçili gelir', async () => {
+    const user = await openNewCard();
+    await user.click(screen.getByRole('button', { name: 'Kategori' }));
+    await user.click(screen.getByRole('button', { name: 'Yeni kategori ekle' }));
+    await user.selectOptions(screen.getByLabelText(/Üst kategori/), 'pos');
+    await user.type(screen.getByLabelText('Yeni kategori adı'), 'Yeni Alt Grup{Enter}');
+    const group = screen.getByRole('group', { name: 'Kategori seçenekleri' });
+    expect(await within(group).findByRole('checkbox', { name: 'Yeni Alt Grup' })).toBeChecked();
+    const created = (await demoCategoryService.list()).find((c) => c.name === 'Yeni Alt Grup');
+    expect(created?.parentId).toBe('pos');
   });
 });

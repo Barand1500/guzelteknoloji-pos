@@ -6,6 +6,8 @@ import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { useSession } from '../../auth/hooks/session-context';
+import { useBrandService } from '../../brands/hooks/useBrandService';
+import { useCategoryService } from '../../categories/services/category.service';
 import { hasDevAccess } from '../../dev-login/devAccess';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { NextProductBar } from '../../products/components/NextProductBar';
@@ -156,11 +158,17 @@ function StockCardEditor({
     count: 0,
     quantity: '0',
   });
+  const brandService = useBrandService();
+  const categoryService = useCategoryService();
   const editor = useStockEditor(loaded.lookups, service, {
     ...(loaded.draft ? { initialDraft: loaded.draft } : {}),
     ...(loaded.extras ? { initialExtras: loaded.extras } : {}),
     ...(cardId ? { cardId } : {}),
     extraOptions: loaded.extraOptions,
+    quickAdd: {
+      createBrand: (draft) => brandService.create(draft),
+      createCategory: (draft) => categoryService.create(draft),
+    },
     stayOnSave: variantState.dirty,
     ...(variantState.count ? { variantStock: variantState.quantity } : {}),
   });

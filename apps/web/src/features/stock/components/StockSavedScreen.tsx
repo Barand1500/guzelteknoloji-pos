@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronRight, FolderTree, Package, Sparkles } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Package, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../../../components/ui/Button';
 import { PRODUCTS_PATH, stockEditPath } from '../../../config/navigation';
@@ -55,13 +55,6 @@ export function StockSavedScreen({
     state: string;
     icon: typeof Package;
   }[] = [
-    {
-      id: 'kategori',
-      title: 'Kategori',
-      hint: 'Ürün hangi kategorilerde görünsün?',
-      state: extras.categoryIds.length === 0 ? 'Boş' : `${extras.categoryIds.length} kategori`,
-      icon: FolderTree,
-    },
     {
       id: 'firsat',
       title: 'Fırsat Yönetimi',

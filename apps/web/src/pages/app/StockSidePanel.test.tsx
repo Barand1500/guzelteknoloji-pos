@@ -21,7 +21,7 @@ function stubNarrowScreen() {
 /** Sağ kenardaki dikey sekme. */
 const tab = (name: string) => screen.getByRole('tab', { name });
 /** Açılan yan panel (telefon düzeninin kendi sekme içeriğinden ayırt edilir). */
-const panel = () => screen.queryByRole('tabpanel', { name: /^(Özet|Kategori|Fırsat)$/ });
+const panel = () => screen.queryByRole('tabpanel', { name: /^(Özet|Fırsat)$/ });
 
 async function openNew(path = '/uygulama/stok-karti/yeni') {
   sessionStorage.setItem('gt-dev-access', '1'); // geçici test girişi
@@ -39,14 +39,14 @@ afterEach(() => {
 });
 
 describe('Stok kartı yan sekmeleri (masaüstü)', () => {
-  it('açılışta panel kapalıdır; sağ kenarda Özet, Kategori, Fırsat ve Özellik sekmeleri durur', async () => {
+  it('açılışta panel kapalıdır; sağ kenarda Özet, Fırsat ve Özellik sekmeleri durur (Kategori formdadır)', async () => {
     await openNew();
     const rail = screen.getByRole('tablist', { name: 'Yan sekmeler' });
     expect(
       within(rail)
         .getAllByRole('tab')
         .map((t) => t.textContent),
-    ).toEqual(['Özet', 'Kategori', 'Fırsat', 'Özellik']);
+    ).toEqual(['Özet', 'Fırsat', 'Özellik']);
     expect(panel()).not.toBeInTheDocument();
     expect(tab('Özet')).toHaveAttribute('aria-selected', 'false');
     // Kaydet formun altındadır.
@@ -63,7 +63,7 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
     await user.click(tab('Özet'));
     expect(panel()).not.toBeInTheDocument();
 
-    await user.click(tab('Kategori'));
+    await user.click(tab('Özellik'));
     await user.click(screen.getByRole('button', { name: 'Paneli kapat' }));
     expect(panel()).not.toBeInTheDocument();
 
@@ -75,52 +75,33 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
 
   it('başka sekmeye basınca panel o sekmeye döner (tek panel, tek açık sekme)', async () => {
     const user = await openNew();
-    await user.click(tab('Kategori'));
-    expect(screen.getByRole('heading', { name: 'Kategori' })).toBeInTheDocument();
+    await user.click(tab('Özet'));
+    expect(screen.getByRole('heading', { name: 'Özet' })).toBeInTheDocument();
     await user.click(tab('Fırsat'));
-    expect(screen.getAllByRole('tabpanel', { name: /^(Özet|Kategori|Fırsat)$/ })).toHaveLength(1);
+    expect(screen.getAllByRole('tabpanel', { name: /^(Özet|Fırsat)$/ })).toHaveLength(1);
     expect(screen.getByRole('heading', { name: 'Fırsat Yönetimi' })).toBeInTheDocument();
-    expect(tab('Kategori')).toHaveAttribute('aria-selected', 'false');
+    expect(tab('Özet')).toHaveAttribute('aria-selected', 'false');
     expect(tab('Fırsat')).toHaveAttribute('aria-selected', 'true');
   });
 
   it('panelde Kaydet yoktur; tek Kaydet alt çubuktaki "+" düğmesidir', async () => {
     const user = await openNew();
-    await user.click(tab('Kategori'));
+    await user.click(tab('Fırsat'));
     expect(within(panel()!).queryByRole('button', { name: 'Kaydet' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Kaydet' })).toHaveLength(1);
     expect(screen.queryByRole('link', { name: 'Yeni Stok Kartı' })).not.toBeInTheDocument();
   });
 
-  it('kategori seçilir, çip olarak görünür, aranır, ✕ ile kaldırılır; sekmede sayı görünür', async () => {
-    const user = await openNew();
-    await user.click(tab('Kategori'));
-    await user.click(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Barkod Okuyucular kategorisini seç' }));
-    expect(
-      screen.getByRole('button', { name: 'Dokunmatik POS kategorisini kaldır' }),
-    ).toBeVisible();
-    expect(screen.getAllByText('2 seçili').length).toBeGreaterThan(0);
-    expect(tab('Kategori')).toHaveTextContent('2');
-
-    // Arama kutusu başta gizlidir; düğmeyle açılır.
-    expect(screen.queryByRole('searchbox', { name: 'Kategori ara' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Kategori Ara' }));
-    await user.type(screen.getByRole('searchbox', { name: 'Kategori ara' }), 'yazıcı');
-    const list = screen.getByRole('list', { name: 'Kategoriler' });
-    expect(within(list).getAllByRole('checkbox')).toHaveLength(1);
-
-    await user.click(screen.getByRole('button', { name: 'Barkod Okuyucular kategorisini kaldır' }));
-    expect(screen.getByText('1 seçili')).toBeInTheDocument();
-  });
-
   it('seçimler panel kapanıp açılınca korunur', async () => {
     const user = await openNew();
-    await user.click(tab('Kategori'));
-    await user.click(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' }));
-    await user.click(tab('Kategori')); // kapat
-    await user.click(tab('Kategori')); // aç
-    expect(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' })).toBeChecked();
+    await user.click(tab('Fırsat'));
+    await user.click(screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' }));
+    await user.click(tab('Fırsat')); // kapat
+    await user.click(tab('Fırsat')); // aç
+    expect(screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
   it('fırsat tek dokunuşla açılıp kapanır ve sekmede sayı görünür', async () => {
@@ -138,18 +119,17 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
     const user = await openNew();
     await user.type(screen.getByLabelText('Ürün Kodu'), 'KUTU-1');
     await user.type(screen.getByLabelText('Ürün Adı'), 'Kutulu Ürün');
-    await user.click(tab('Kategori'));
-    await user.click(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' }));
+    await user.click(screen.getByRole('button', { name: 'Kategori' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Dokunmatik POS' }));
     await user.click(tab('Fırsat'));
     await user.click(screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' }));
-    await user.click(screen.getByRole('button', { name: 'Kaydet' })); // panelin içindeki Kaydet
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
 
     expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
     const saved = (await productService.list()).find((p) => p.code === 'KUTU-1');
     expect(saved?.categoryIds).toEqual(['pos']);
     expect(saved?.dealIds).toEqual(['yeni']);
 
-    expect(screen.getByRole('link', { name: /Kategori.*1 kategori/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Fırsat Yönetimi.*1 fırsat/ })).toBeInTheDocument();
   });
 
@@ -157,21 +137,26 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
     const user = await openNew();
     await user.type(screen.getByLabelText('Ürün Kodu'), 'KUTU-2');
     await user.type(screen.getByLabelText('Ürün Adı'), 'Kutulu Ürün 2');
-    await user.click(tab('Kategori'));
-    await user.click(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' }));
+    await user.click(tab('Fırsat'));
+    await user.click(screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' }));
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     await screen.findByText('Deneme tamamlandı!');
 
-    await user.click(screen.getByRole('link', { name: /Ürün hangi kategorilerde/ }));
+    await user.click(screen.getByRole('link', { name: /Fırsat Yönetimi/ }));
     expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('KUTU-2');
     expect(screen.getByRole('heading', { name: 'Stok Kartını Düzenle' })).toBeInTheDocument();
-    expect(tab('Kategori')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' })).toBeChecked();
+    expect(tab('Fırsat')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
   it('düzenlemede ürünün kayıtlı kategorisi ve fırsatı dolu gelir; değişiklik kaydedilir', async () => {
     const user = await openNew('/uygulama/stok-karti/p1');
-    await waitFor(() => expect(tab('Kategori')).toHaveTextContent('1'));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Kategori' })).not.toHaveTextContent('Seçilmedi'),
+    );
     expect(tab('Fırsat')).toHaveTextContent('1');
 
     await user.click(tab('Fırsat'));
@@ -198,9 +183,8 @@ describe('Stok kartı yan sekmeleri (masaüstü)', () => {
     const user = userEvent.setup();
     renderApp('/uygulama/stok-karti/yeni');
     await screen.findByLabelText('Ürün Kodu');
-    expect(tab('Kategori')).toBeEnabled();
     expect(tab('Fırsat')).toBeEnabled();
-    await user.click(tab('Kategori'));
+    await user.click(tab('Fırsat'));
     expect(panel()).toBeInTheDocument();
     await user.click(tab('Özet'));
     expect(screen.getByLabelText('Kart önizlemesi')).toBeInTheDocument();
@@ -215,9 +199,9 @@ describe('Stok kartı yan sekmeleri (telefon)', () => {
     expect(panel()).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Kaydet' })).toHaveLength(1); // alt çubuk
 
-    await user.click(tab('Kategori'));
-    await user.click(screen.getByRole('checkbox', { name: 'Dokunmatik POS kategorisini seç' }));
-    expect(tab('Kategori')).toHaveTextContent('1');
+    await user.click(tab('Fırsat'));
+    await user.click(screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' }));
+    expect(tab('Fırsat')).toHaveTextContent('1');
     // Panel açıkken de tek Kaydet vardır (panelin içinde değil).
     expect(screen.getAllByRole('button', { name: 'Kaydet' })).toHaveLength(1);
     expect(within(panel()!).queryByRole('button', { name: 'Kaydet' })).not.toBeInTheDocument();

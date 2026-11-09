@@ -6,6 +6,7 @@ import type { OptionList } from '../hooks/useOptionList';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { countryOptions } from '../countries';
 import { flattenTree } from '../../categories/tree';
+import { CategoryQuickAdd } from './CategoryQuickAdd';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
 function editable(
@@ -70,8 +71,7 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
 
   const tracking = draft.inventoryTracking === 'yok' ? 'yok' : 'normal';
 
-  // Kategori: ağaç sırasıyla, alt kategoriler "Üst › Alt" yoluyla gösterilir. Seçim yan paneldeki
-  // Kategori sekmesiyle ortaktır (aynı durum).
+  // Kategori: ağaç sırasıyla (alt kategoriler girintili, aramada "Üst › Alt" yoluyla) gösterilir.
   const categories = editor.extraOptions?.categories;
   const categoryOptions = useMemo(() => {
     if (!categories) return [];
@@ -80,9 +80,11 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
       const c = byId.get(id);
       return c ? (c.parentId ? `${path(c.parentId)} › ${c.name}` : c.name) : id;
     };
-    return flattenTree(categories).map(({ category }) => ({
+    return flattenTree(categories).map(({ category, depth }) => ({
       id: category.id,
-      name: path(category.id),
+      name: category.name,
+      depth,
+      path: category.parentId ? path(category.parentId) : '',
     }));
   }, [categories]);
   const chooseCategories = (ids: string[]) => {
@@ -114,6 +116,12 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           options={lookups.brands}
           value={draft.brand}
           onChange={(v) => set('brand', v)}
+          searchable
+          // Hızlı ekleme: listede olmayan markayı adını yazıp ekle (ürün tipindeki gibi).
+          creator={{
+            placeholder: 'Yeni marka adı…',
+            onCreate: (label) => void editor.addBrand(label),
+          }}
         />
         <SelectField
           label="Menşei"
@@ -135,6 +143,8 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
             value={editor.extras.categoryIds}
             onChange={chooseCategories}
             emptyText="Seçilmedi"
+            inlineChips
+            footer={<CategoryQuickAdd categories={categoryOptions} onCreate={editor.addCategory} />}
           />
         ) : null}
       </div>
