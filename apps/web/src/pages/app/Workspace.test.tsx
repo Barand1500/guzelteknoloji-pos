@@ -106,24 +106,15 @@ describe('Profil ve işletme ekranları', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.queryByText('Kaydedilmemiş Değişiklikler')).not.toBeInTheDocument();
   });
-  it('profil menüsü bölümleri açar, çıkış en alttadır', async () => {
+  it('profil simgesi menü açmaz, doğrudan profile götürür; çıkış ayrı düğmedir', async () => {
     const user = userEvent.setup();
     mockFetch(login);
-    renderApp('/uygulama/profil');
-    await screen.findByRole('heading', { name: 'Profil Bilgileri' });
-    await user.click(screen.getByRole('button', { name: 'Profil Menüsü' }));
-    const menu = screen.getByRole('dialog', { name: 'Profil Menüsü' });
-    expect(
-      within(menu)
-        .getAllByRole('link')
-        .map((a) => a.textContent),
-    ).toEqual(['YunusGüzel İşletme', 'Kullanıcılar', 'Roller', 'Ayarlar', 'Log Kayıtları']);
-    expect(within(menu).getByRole('link', { name: /Yunus/ })).toHaveAttribute(
-      'href',
-      '/uygulama/profil',
-    );
-    expect(within(menu).getByRole('button', { name: 'Çıkış Yap' })).toBeVisible();
-    await user.keyboard('{Escape}');
+    renderApp('/uygulama/kullanicilar');
+    await screen.findByRole('heading', { name: 'Kullanıcılar' });
+    expect(screen.queryByRole('button', { name: 'Profil Menüsü' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Çıkış Yap' })).toBeVisible();
+    await user.click(screen.getByRole('link', { name: 'Profil' }));
+    expect(await screen.findByRole('heading', { name: 'Profil Bilgileri' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
   it('Kaydet seçilince Görüntüle de açılır; rol izinleri API’ye gider', async () => {
@@ -296,7 +287,10 @@ describe('Profil ve işletme ekranları', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
     await screen.findByRole('button', { name: 'Şifreyi Değiştir' });
     const call = fetch.mock.calls.find(([url]) => String(url).endsWith('/profil/sifre'))!;
-    expect(JSON.parse(String(call[1]?.body))).toEqual({ current: '', password: 'example-password' });
+    expect(JSON.parse(String(call[1]?.body))).toEqual({
+      current: '',
+      password: 'example-password',
+    });
   });
   it('profilde yazılan yeni şifre göz düğmesiyle gösterilir', async () => {
     const user = userEvent.setup();

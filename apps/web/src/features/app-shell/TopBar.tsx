@@ -1,8 +1,7 @@
-import { Moon, Sun } from 'lucide-react';
-import { ProfileMenu } from '../workspace/ProfileMenu';
-import { useLocation, useNavigate } from 'react-router';
+import { LogOut, Moon, Sun, UserRound } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { brandConfig } from '../../config/brand.config';
-import { pageTitle } from '../../config/navigation';
+import { APP_BASE, pageTitle } from '../../config/navigation';
 import { LOGIN_PATH } from '../../pages/auth/LoginPage';
 import { useSession } from '../auth/hooks/session-context';
 import { hasDevAccess, revokeDevAccess } from '../dev-login/devAccess';
@@ -60,7 +59,25 @@ export function TopBar() {
         )}
       </button>
       {wide ? <Greeting name={name} className="max-w-[16rem] px-1 text-sm" /> : null}
-      <ProfileMenu onLogout={signOut} />
+      {/* Profil simgesi menü açmaz: doğrudan profil sayfasına götürür. Çıkış ayrı düğmedir. */}
+      <Link
+        to={`${APP_BASE}/profil`}
+        aria-label="Profil"
+        title="Profil"
+        aria-current={pathname === `${APP_BASE}/profil` ? 'page' : undefined}
+        className={`${iconButton} aria-[current=page]:bg-brand-50 aria-[current=page]:text-brand-ink`}
+      >
+        <UserRound className="size-5" aria-hidden="true" />
+      </Link>
+      <button
+        type="button"
+        onClick={() => void signOut()}
+        aria-label="Çıkış Yap"
+        title="Çıkış Yap"
+        className={`${iconButton} hover:bg-danger-soft hover:text-danger`}
+      >
+        <LogOut className="size-5" aria-hidden="true" />
+      </button>
     </header>
   );
 }
