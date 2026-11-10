@@ -12,7 +12,13 @@ import type { Env } from '../../config/env';
 import type { PasswordHasher } from '../../lib/password';
 import { HttpError } from '../../lib/http-error';
 import { canGrant, forbidden, requirePermission, type AccessContext } from './workspace.access';
-import { WorkspaceSettings } from './workspace.settings';
+import {
+  WorkspaceSettings,
+  environmentConnection,
+  hasOwnConnection,
+  type ConnectionSection,
+} from './workspace.settings';
+import { verifySmtp } from '../../lib/mailer';
 import {
   testMailConnection,
   googleConnect,
@@ -343,10 +349,31 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
     const ctx = ctxOf(res);
     requirePermission(ctx, 'settings', 'read');
     const result = await settings.read(ctx.business.id, page(req.params.section));
+    const section = page(req.params.section);
+    const connection = ['smtp', 'imap', 'google'].includes(section)
+      ? (section as ConnectionSection)
+      : null;
+    const own =
+      connection &&
+      hasOwnConnection(connection, {
+        ...result.values,
+        ...Object.fromEntries(result.configured.map((key) => [key, 'configured'])),
+      });
+    const source = connection
+      ? own
+        ? 'database'
+        : Object.keys(environmentConnection(env, connection)).length
+          ? 'environment'
+          : 'unconfigured'
+      : undefined;
     res.json({
       ...result,
+      source,
       system: { smtp: !!env.smtp, google: !!env.google },
-      googleRedirect: workspaceGoogleRedirect(env, result.values.clientId),
+      googleRedirect: workspaceGoogleRedirect(
+        env,
+        own ? result.values.clientId : env.google?.clientId,
+      ),
     });
   });
   router.post('/ayarlar/:section', async (req, res) => {
@@ -381,7 +408,9 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
     const ctx = ctxOf(res);
     requirePermission(ctx, 'settings', 'save');
     const section = z.enum(['smtp', 'imap']).parse(req.params.section);
-    await testMailConnection(section, await settings.values(ctx.business.id, section, true));
+    const connection = await settings.effective(ctx.business.id, section, env);
+    if (section === 'smtp' && connection.source === 'environment') await verifySmtp(env);
+    else await testMailConnection(section, connection.values);
     res.json({ message: 'Bağlantı ve kimlik doğrulama başarılı.' });
   });
   router.post('/ayarlar/:section/gizli/:key', async (req, res) => {

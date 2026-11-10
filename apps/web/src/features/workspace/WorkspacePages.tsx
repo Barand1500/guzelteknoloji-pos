@@ -830,7 +830,6 @@ function SecretSettingField({
       autoComplete="new-password"
       value={current}
       error={error}
-      hint={configured ? 'Kayıtlı. Değiştirmediğiniz sürece mevcut bilgi korunur.' : undefined}
       onFocus={(e) => {
         if (current === mask) e.target.select();
       }}
@@ -857,6 +856,9 @@ function SecretSettingField({
 export function SettingsPage({ initialSection = 'general' }: { initialSection?: string }) {
   const { section: parameter } = useParams();
   const section = parameter ?? initialSection;
+  return <SettingsPageContent key={section} section={section} />;
+}
+function SettingsPageContent({ section }: { section: string }) {
   const page = SETTINGS_PAGES.find((p) => p.key === section);
   const { can, refresh } = useWorkspace();
   const rows = useRows<FullSettings>(`/ayarlar/${page?.key ?? 'general'}`, {
@@ -926,6 +928,16 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
             }
           />
           <h2 className="text-xl font-extrabold">{page.title}</h2>
+          {rows.value.source && (
+            <p className="text-xs text-ink-muted">
+              Kullanılan ayar:{' '}
+              {rows.value.source === 'database'
+                ? 'Bu işletmenin kayıtlı bilgileri'
+                : rows.value.source === 'environment'
+                  ? 'Sunucudaki ortak ayarlar'
+                  : 'Henüz tanımlanmadı'}
+            </p>
+          )}
           {section === 'images' && (
             <p className="text-sm text-ink-muted">
               Açık olduğunda görsel kutusunun zemini şeffaf olur. Dosyanın içindeki beyaz veya
@@ -1017,13 +1029,6 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
                 adresi kullanılır.
               </p>
             </div>
-          )}
-          {(section === 'smtp' || section === 'google') && (
-            <p className="text-xs text-ink-muted">
-              Uygulamanın giriş e-postası:{' '}
-              {rows.value.system?.smtp ? 'Yapılandırılmış' : 'Yapılandırılmamış'}. İşletme
-              bağlantıları giriş hizmetinin ayarlarını değiştirmez.
-            </p>
           )}
           {can('settings', 'save') && (
             <div className="flex flex-wrap gap-3">

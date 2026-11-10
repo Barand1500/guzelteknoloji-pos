@@ -26,6 +26,32 @@ const login = {
 beforeEach(() => sessionStorage.clear());
 
 describe('Profil ve işletme ekranları', () => {
+  it.each([false, true])(
+    'bağlantı bildirimi başka ayar sayfasına taşınmaz (bekleyen: %s)',
+    async (pending) => {
+      const user = userEvent.setup();
+      let finish = () => {};
+      const response = new Promise<Response>((resolve) => {
+        finish = () => resolve(jsonResponse(200, {}));
+      });
+      mockFetch({
+        ...login,
+        'GET /api/hesap/ayarlar/smtp': () => jsonResponse(200, { values: {}, configured: [] }),
+        'GET /api/hesap/ayarlar/imap': () => jsonResponse(200, { values: {}, configured: [] }),
+        'POST /api/hesap/ayarlar/smtp/test': () => (pending ? response : jsonResponse(200, {})),
+      });
+      renderApp('/uygulama/ayarlar/smtp');
+      await user.click(await screen.findByRole('button', { name: 'Kayıtlı Bağlantıyı Test Et' }));
+      if (!pending) await screen.findByText('Kayıtlı bağlantı doğrulandı. E-posta gönderilmedi.');
+      await user.click(screen.getByRole('link', { name: 'Gelen E-Posta (IMAP)' }));
+      await screen.findByRole('heading', { name: 'IMAP' });
+      finish();
+      await response;
+      expect(
+        screen.queryByText('Kayıtlı bağlantı doğrulandı. E-posta gönderilmedi.'),
+      ).not.toBeInTheDocument();
+    },
+  );
   it.each([
     ['/uygulama/roller', 'Rol Ekle', 'Rol Adı'],
     ['/uygulama/kullanicilar', 'Kullanıcı Ekle', 'Ad Soyad'],

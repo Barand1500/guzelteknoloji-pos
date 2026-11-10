@@ -122,4 +122,5 @@ export interface SettingsResult {
   values: Record<string, string>;
   configured: string[];
   googleConnected?: boolean;
+  source?: 'database' | 'environment' | 'unconfigured';
 }
