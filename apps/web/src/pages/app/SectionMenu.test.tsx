@@ -32,7 +32,7 @@ describe('Üst menü (bölüm gezgini)', () => {
       'Ürünler',
       'Kampanyalar',
       'Tanımlamalar',
-      'Mobil Bildirimler',
+      'Bildirimler',
       'Seo',
     ]);
     // Ürünler sayfaları kart olarak çıkar.
@@ -79,5 +79,25 @@ describe('Üst menü (bölüm gezgini)', () => {
     await user.clear(screen.getByRole('searchbox', { name: 'Menüde ara' }));
     await user.type(screen.getByRole('searchbox', { name: 'Menüde ara' }), 'zzz');
     expect(screen.getByText(/ile eşleşen sayfa yok/)).toBeInTheDocument();
+  });
+
+  it('Ctrl+Q menüyü açar ve kapatır', async () => {
+    const user = await open('/uygulama/urunler');
+    await user.keyboard('{Control>}q{/Control}');
+    expect(await screen.findByRole('dialog', { name: 'Ana menü' })).toBeInTheDocument();
+    await user.keyboard('{Control>}q{/Control}');
+    expect(screen.queryByRole('dialog', { name: 'Ana menü' })).not.toBeInTheDocument();
+  });
+
+  it('ok tuşlarıyla gezilir: aramadan seçili kategoriye geçilir, Esc kapatır', async () => {
+    const user = await open('/uygulama/urunler');
+    await user.keyboard('{Control>}q{/Control}');
+    const search = await screen.findByRole('searchbox', { name: 'Menüde ara' });
+    expect(search).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('tab', { selected: true })).toHaveFocus();
+    expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('Ürünler');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Ana menü' })).not.toBeInTheDocument();
   });
 });

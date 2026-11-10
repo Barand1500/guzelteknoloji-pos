@@ -71,7 +71,7 @@ export const PAGE_TITLES: Record<string, string> = {
   [`${APP_BASE}/musteriler`]: 'Müşteriler',
   [`${APP_BASE}/kampanyalar`]: 'Kampanyalar',
   [`${APP_BASE}/tanimlamalar`]: 'Tanımlamalar',
-  [`${APP_BASE}/bildirimler`]: 'Mobil Bildirimler',
+  [`${APP_BASE}/bildirimler`]: 'Bildirimler',
   [`${APP_BASE}/seo`]: 'Seo',
   ...Object.fromEntries([...navLeft, ...navRight].map((i) => [i.path, i.label])),
 };

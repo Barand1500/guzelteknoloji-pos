@@ -49,6 +49,7 @@ function Tile({
     <li style={{ animationDelay: `${Math.min(index, 12) * 30}ms` }} className="animate-rise-in">
       <NavLink
         to={page.path}
+        data-tile=""
         onClick={onGo}
         className={({ isActive }) =>
           [
@@ -105,6 +106,19 @@ export function SectionMenu() {
     }
   }, [pathname]);
 
+  // Ctrl+Q: menüyü açar/kapatır (her sayfada).
+  const toggleRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && e.key.toLowerCase() === 'q') {
+        e.preventDefault();
+        toggleRef.current();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -146,18 +160,81 @@ export function SectionMenu() {
     [q, can],
   );
 
+  const toggleMenu = () => {
+    const box = trigger.current?.getBoundingClientRect();
+    if (box) setAnchor({ top: Math.round(box.bottom + 10), left: Math.round(box.left) });
+    setPreview(current.id);
+    setQuery('');
+    setOpen((v) => !v);
+  };
+  // Kısayol her zaman güncel durumla çalışsın.
+  useEffect(() => {
+    toggleRef.current = toggleMenu;
+  });
+
+  // Ok tuşlarıyla gezinme: arama → kategoriler → sayfa kutuları (Enter açar).
+  const onPanelKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+    if (!keys.includes(e.key) || e.ctrlKey || e.altKey || e.metaKey) return;
+    const root = e.currentTarget;
+    const active = document.activeElement as HTMLElement | null;
+    const tabs = [...root.querySelectorAll<HTMLElement>('[role="tab"]')];
+    const tiles = [...root.querySelectorAll<HTMLElement>('[data-tile]')];
+    const tabList = root.querySelector<HTMLElement>('[role="tablist"]');
+    const rowTabs = tabList ? getComputedStyle(tabList).flexDirection === 'row' : false;
+    const selectedTab = tabs.find((t) => t.getAttribute('aria-selected') === 'true') ?? tabs[0];
+    const go = (el: HTMLElement | undefined) => {
+      if (!el) return;
+      e.preventDefault();
+      el.focus();
+    };
+    const pickTab = (el: HTMLElement | undefined) => {
+      if (!el) return;
+      e.preventDefault();
+      const id = el.querySelector<HTMLElement>('[data-tab-id]')?.dataset.tabId;
+      if (id) {
+        setQuery('');
+        setPreview(id);
+      }
+      el.focus();
+    };
+    const inSearch = active === searchBox.current;
+    const tabIndex = active ? tabs.indexOf(active) : -1;
+    const tileIndex = active ? tiles.indexOf(active) : -1;
+
+    if (inSearch) {
+      // Yazı alanında yalnızca aşağı ok menüye geçer (sol/sağ imleci hareket ettirir).
+      if (e.key !== 'ArrowDown') return;
+      go(q === '' ? selectedTab : tiles[0]);
+    } else if (tabIndex >= 0) {
+      const prev = rowTabs ? 'ArrowLeft' : 'ArrowUp';
+      const next = rowTabs ? 'ArrowRight' : 'ArrowDown';
+      if (e.key === prev) {
+        if (tabIndex === 0) go(searchBox.current ?? undefined);
+        else pickTab(tabs[tabIndex - 1]);
+      } else if (e.key === next) pickTab(tabs[Math.min(tabs.length - 1, tabIndex + 1)]);
+      else if (e.key === (rowTabs ? 'ArrowDown' : 'ArrowRight')) go(tiles[0]);
+      else if (rowTabs && e.key === 'ArrowUp') go(searchBox.current ?? undefined);
+    } else if (tileIndex >= 0) {
+      // Izgara sütun sayısı: ilk satırdaki kutu sayısı.
+      const cols = Math.max(1, tiles.filter((t) => t.offsetTop === tiles[0]!.offsetTop).length);
+      const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols }[e.key]!;
+      const target = tileIndex + step;
+      if (e.key === 'ArrowLeft' && tileIndex % cols === 0)
+        go(q === '' ? selectedTab : (searchBox.current ?? undefined));
+      else if (e.key === 'ArrowUp' && target < 0)
+        go(q === '' && rowTabs ? selectedTab : (searchBox.current ?? undefined));
+      else if (target >= 0 && target < tiles.length) go(tiles[target]);
+      else if (e.key === 'ArrowDown') e.preventDefault();
+    }
+  };
+
   return (
     <>
       <button
         ref={trigger}
         type="button"
-        onClick={(e) => {
-          const box = e.currentTarget.getBoundingClientRect();
-          setAnchor({ top: Math.round(box.bottom + 10), left: Math.round(box.left) });
-          setPreview(current.id);
-          setQuery('');
-          setOpen((v) => !v);
-        }}
+        onClick={toggleMenu}
         aria-label="Ana menü"
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -179,6 +256,7 @@ export function SectionMenu() {
             >
               {/* Görünmez yakalayıcı: panelin dışına dokunmak kapatır (ekran kararmaz). */}
               <div className="absolute inset-0" onClick={close} aria-hidden="true" />
+              {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- ok tuşları içindeki öğelerden gelir */}
               <div
                 style={
                   {
@@ -187,6 +265,7 @@ export function SectionMenu() {
                     '--menu-left': `${anchor.left}px`,
                   } as React.CSSProperties
                 }
+                onKeyDown={onPanelKey}
                 className="absolute inset-x-3 flex origin-top-left animate-pop flex-col overflow-hidden rounded-3xl border border-brand-600/60 bg-surface-raised shadow-card md:inset-x-auto md:left-[var(--menu-left)] md:w-[46rem] md:max-w-[calc(100vw-2rem)]"
               >
                 {/* Başlık + kapat */}
@@ -265,17 +344,23 @@ export function SectionMenu() {
                               setPreview(s.id);
                             }}
                             className={[
-                              'flex min-h-12 shrink-0 items-center gap-3 rounded-xl border px-3.5 text-left text-sm font-bold transition-colors',
+                              'flex min-h-12 w-full min-w-0 shrink-0 items-center gap-3 rounded-xl border px-3.5 text-left text-sm font-bold transition-colors max-md:w-auto max-md:max-w-[12rem]',
                               on
                                 ? 'border-brand-600 bg-brand-50 text-brand-ink'
                                 : 'border-line bg-surface text-ink hover:border-brand-500/60',
                             ].join(' ')}
                           >
                             <Icon className="size-[1.125rem] shrink-0" aria-hidden="true" />
-                            <span className="flex-1 whitespace-nowrap">{s.label}</span>
+                            <span
+                              data-tab-id={s.id}
+                              className="min-w-0 flex-1 truncate"
+                              title={s.label}
+                            >
+                              {s.label}
+                            </span>
                             <span
                               aria-hidden="true"
-                              className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-bold text-ink-muted"
+                              className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs font-bold text-ink-muted"
                             >
                               {s.soon ? '—' : pagesOf(s).length}
                             </span>
