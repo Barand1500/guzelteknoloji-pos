@@ -43,7 +43,7 @@ const TILES: { id: Exclude<View, 'menu'>; title: string; hint: string; icon: Luc
   {
     id: 'price',
     title: 'Fiyat Güncelle',
-    hint: 'Yüzde ya da tutarla toplu zam/indirim',
+    hint: 'Yüzde ya da tutarla zam, indirim',
     icon: Percent,
   },
   { id: 'deal', title: 'Fırsat', hint: 'Rozet ekle ya da kaldır', icon: Sparkles },
@@ -225,40 +225,41 @@ export function BulkActionsSheet({
 
   if (view === 'menu') {
     body = (
-      <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        {TILES.map(({ id, title: tileTitle, hint, icon: Icon }) => (
-          <li key={id}>
-            <button
-              type="button"
-              disabled={!canSave}
-              onClick={() => go(id)}
-              className="flex min-h-20 w-full items-center gap-3 rounded-2xl border border-line bg-surface p-3.5 text-left transition-colors hover:border-brand-500 disabled:opacity-50"
-            >
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-ink">
-                <Icon className="size-5" aria-hidden="true" />
-              </span>
-              <span className="min-w-0">
-                <span className="block font-bold">{tileTitle}</span>
-                <span className="block text-sm text-ink-muted">{hint}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-        <li className="sm:col-span-2">
-          <button
-            type="button"
-            disabled={!canDelete}
-            onClick={() => {
-              onClose();
-              onDelete();
-            }}
-            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-danger/30 p-3.5 text-left font-bold text-danger transition-colors hover:bg-danger-soft disabled:opacity-50"
-          >
-            <Trash2 className="size-5" aria-hidden="true" />
-            Seçilenleri Sil
-          </button>
-        </li>
-      </ul>
+      <div className="flex flex-col gap-3">
+        {/* Altı eşit boyutlu kutucuk: 2 sütun × 3 satır, hepsi aynı yükseklikte ve aynı hizada. */}
+        <ul className="grid auto-rows-fr grid-cols-2 gap-3">
+          {TILES.map(({ id, title: tileTitle, hint, icon: Icon }) => (
+            <li key={id} className="flex">
+              <button
+                type="button"
+                disabled={!canSave}
+                onClick={() => go(id)}
+                className="group flex w-full flex-col items-start gap-3 rounded-2xl border border-line bg-surface p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-500 hover:shadow-soft disabled:opacity-50 disabled:hover:translate-y-0"
+              >
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-ink transition-colors group-hover:bg-brand-100">
+                  <Icon className="size-5" aria-hidden="true" />
+                </span>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="font-bold">{tileTitle}</span>
+                  <span className="text-sm leading-snug text-ink-muted">{hint}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          disabled={!canDelete}
+          onClick={() => {
+            onClose();
+            onDelete();
+          }}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-danger/30 px-4 font-bold text-danger transition-colors hover:bg-danger-soft disabled:opacity-50"
+        >
+          <Trash2 className="size-5" aria-hidden="true" />
+          Seçilenleri Sil
+        </button>
+      </div>
     );
   } else if (view === 'price') {
     title = 'Fiyat Güncelle';
