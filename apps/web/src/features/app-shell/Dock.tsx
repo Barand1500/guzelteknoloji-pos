@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router';
 import { Spinner } from '../../components/ui/Spinner';
 import { STOCK_CREATE_PATH, type NavItem } from '../../config/navigation';
 import { sectionFor } from '../../config/sections';
+import { HomeDock } from '../home/components/HomeDock';
 import { useWorkspace, pageResource } from '../workspace/workspace-context';
 import { useActiveAddAction, useActiveSaveAction } from './save-action';
 
@@ -82,6 +83,9 @@ export function Dock() {
     observer?.observe(box);
     return () => observer?.disconnect();
   }, [pathname]);
+
+  // Anasayfanın alt çubuğu sayfanın bloklarına kayar.
+  if (section.id === 'anasayfa') return <HomeDock />;
 
   // Henüz sayfası olmayan bölümlerde alt çubuk gösterilmez.
   if (navLeft.length + navRight.length === 0) return null;

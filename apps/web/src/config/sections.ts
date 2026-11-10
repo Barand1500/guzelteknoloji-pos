@@ -108,7 +108,11 @@ const soon = (
 });
 
 export const SECTIONS: readonly Section[] = [
-  soon('anasayfa', 'Anasayfa', Home, 255, 'Günün özeti'),
+  {
+    ...soon('anasayfa', 'Anasayfa', Home, 255, 'Günün özeti'),
+    soon: false,
+    pages: [p('anasayfa', 'Anasayfa', `${APP_BASE}/anasayfa`, Home, 'Günün özeti')],
+  },
   soon('siparisler', 'Siparişler', ShoppingBag, 28, 'Gelen siparişler'),
   soon('musteriler', 'Müşteriler', UserCog, 172, 'Müşteri listesi'),
   {
