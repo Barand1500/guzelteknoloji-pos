@@ -40,7 +40,6 @@ describe('Gece/gündüz teması', () => {
     await screen.findByRole('list', { name: 'Markalar' });
     await user.click(screen.getByRole('button', { name: 'Gece Moduna Geç' }));
     expect(document.documentElement.dataset.theme).toBe('dark');
-    await user.click(screen.getByRole('button', { name: 'Profil Menüsü' }));
     await user.click(screen.getByRole('button', { name: 'Çıkış Yap' }));
     await screen.findByRole('heading', { name: /giriş yapın/i });
     expect(document.documentElement.dataset.theme).toBeUndefined();

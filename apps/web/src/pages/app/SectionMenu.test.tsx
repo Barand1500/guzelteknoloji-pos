@@ -32,7 +32,6 @@ describe('Üst menü (bölüm gezgini)', () => {
       'Ürünler',
       'Kampanyalar',
       'Tanımlamalar',
-      'Ayarlar',
       'Mobil Bildirimler',
       'Seo',
     ]);
@@ -47,7 +46,7 @@ describe('Üst menü (bölüm gezgini)', () => {
   it('sayfa kartına basınca gidilir ve menü kapanır; alt çubuk bölüme göre değişir', async () => {
     const user = await open('/uygulama/urunler');
     await user.click(screen.getByRole('button', { name: 'Ana menü' }));
-    await user.click(await screen.findByRole('tab', { name: /Ayarlar/ }));
+    await user.click(await screen.findByRole('button', { name: 'Ayarlar' }));
     const panel = screen.getByRole('tabpanel', { name: 'Ayarlar' });
     await user.click(within(panel).getByRole('link', { name: /Roller/ }));
     expect(screen.queryByRole('dialog', { name: 'Ana menü' })).not.toBeInTheDocument();
