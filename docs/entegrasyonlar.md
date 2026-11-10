@@ -12,7 +12,7 @@ Sağlayıcı tokenı test sırasında tüketilir; tekrar denemede yeni doğrulam
 
 ## Meta WhatsApp Cloud API
 
-Alanlar: Meta Uygulama Kimliği, Uygulama Gizli Anahtarı, Telefon Numarası Kimliği, Erişim Belirteci, Webhook Doğrulama Belirteci ve Meta Graph API Sürümü. Sürüm boşsa `v25.0` kullanılır; Meta uygulamasındaki desteklenen sürüme göre değiştirilebilir. Uygulama ID'si ve telefon numarası ID'si, ekranda gösterilen telefon numarasından farklı kimliklerdir.
+Alanlar: Meta Uygulama Kimliği, Uygulama Gizli Anahtarı, Telefon Numarası Kimliği, Erişim Belirteci ve Webhook Doğrulama Belirteci. Meta Graph API sürümü uygulama tarafından arka planda yönetilir (`v25.0`); kullanıcıdan istenmez ve eski işletme sürüm ayarları kullanılmaz. Uygulama ID'si ve telefon numarası ID'si, ekranda gösterilen telefon numarasından farklı kimliklerdir.
 
 OTP, giriş kodu ve OTP şablon ayarları eklenmedi. Kayıtlı Bağlantıyı Test Et, telefon numarası metadatasını Meta'dan okur; mesaj göndermez. Alıcı ve mesaj yazılıp Mesaj Gönder düğmesine basılınca normal metin mesajı gönderilir. Meta'nın görüşme penceresi, izin ve alıcı kuralları geçerlidir. API kabul yanıtı, mesajın teslim edildiği anlamına gelmez. Uygulama otomatik mesaj veya OTP göndermez.
 

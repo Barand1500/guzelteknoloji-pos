@@ -18,6 +18,7 @@ export interface RolePermission {
   delete: boolean;
 }
 export interface WorkspaceContext {
+  hasPassword?: boolean;
   business: { id: number; name: string };
   user: { id: number; name: string | null; email: string | null };
   owner: boolean;
@@ -147,7 +148,6 @@ export const SETTINGS_PAGES = [
       { key: 'phoneNumberId', label: 'Telefon Numarası Kimliği' },
       { key: 'accessToken', label: 'Erişim Belirteci', type: 'secret' },
       { key: 'verifyToken', label: 'Webhook Doğrulama Belirteci', type: 'secret' },
-      { key: 'apiVersion', label: 'Meta Graph API Sürümü' },
     ],
   },
 ] as const;

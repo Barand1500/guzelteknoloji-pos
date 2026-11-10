@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ChallengeConfig } from '@gt/shared';
 import { ApiError } from '../../../lib/http';
 import { loginErrorMessage } from '../services/auth.messages';
+import { Button } from '../../../components/ui/Button';
 
 type WidgetApi = {
   render: (element: HTMLElement, options: Record<string, unknown>) => string | number;
@@ -25,17 +26,22 @@ function load(provider: ChallengeConfig['provider']) {
       reject(new Error('timeout'));
     }, 15000);
     script.onload = () => {
-      window.clearTimeout(timeout);
       const api = (window as unknown as { turnstile?: WidgetApi; grecaptcha?: WidgetApi })[
         provider === 'cloudflare' ? 'turnstile' : 'grecaptcha'
       ];
       if (!api) {
+        window.clearTimeout(timeout);
         scripts.delete(provider);
         reject(new Error('missing'));
         return;
       }
-      if (api.ready) api.ready(() => resolve(api));
-      else resolve(api);
+      const ready = () => {
+        window.clearTimeout(timeout);
+        resolve(api);
+      };
+      // Turnstile is ready when its explicit script loads; Google exposes a separate ready hook.
+      if (provider === 'recaptcha' && api.ready) api.ready(ready);
+      else ready();
     };
     script.onerror = () => {
       window.clearTimeout(timeout);
@@ -58,23 +64,41 @@ export function RobotChallenge({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
+  const [status, setStatus] = useState('Doğrulama yükleniyor…');
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    const element = container.current;
     let active = true;
+    const timeout = window.setTimeout(() => {
+      if (active) {
+        setFailed(true);
+        onToken('');
+      }
+    }, 45000);
     let id: string | number | undefined;
     let api: WidgetApi | undefined;
     void load(config.provider)
       .then((loaded) => {
-        if (!active || !container.current) return;
+        if (!active || !element) return;
         api = loaded;
-        id = api.render(container.current, {
+        setStatus('Robot doğrulamasının tamamlanması bekleniyor.');
+        id = api.render(element, {
           sitekey: config.siteKey,
           size: 'compact',
           theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
           callback: (token: string) => {
-            if (active) onToken(token);
+            if (active) {
+              window.clearTimeout(timeout);
+              setFailed(false);
+              setStatus('Robot doğrulaması tamamlandı.');
+              onToken(token);
+            }
           },
           'expired-callback': () => {
-            if (active) onToken('');
+            if (active) {
+              onToken('');
+              setFailed(true);
+            }
           },
           'error-callback': () => {
             if (active) {
@@ -89,16 +113,40 @@ export function RobotChallenge({
       });
     return () => {
       active = false;
+      window.clearTimeout(timeout);
       if (id !== undefined) api?.remove?.(id);
+      element?.replaceChildren();
     };
-  }, [config.provider, config.siteKey, onToken]);
+  }, [config.provider, config.siteKey, onToken, attempt]);
   return (
     <div className="space-y-2">
       <div ref={container} aria-label="Robot doğrulaması" />
-      {failed && (
-        <p role="alert" className="text-sm text-danger">
-          Robot doğrulaması yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin.
+      {!failed && (
+        <p role="status" className="text-sm text-ink-muted">
+          {status}
         </p>
+      )}
+      {failed && (
+        <>
+          <p role="alert" className="text-sm text-danger">
+            Doğrulama tamamlanamadı. Sağlayıcıdaki izinli alan adını ve anahtarları kontrol edin.
+            Reklam engelleyici veya bağlantı sorunu da doğrulamayı engelleyebilir.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            fullWidth={false}
+            flow={false}
+            onClick={() => {
+              onToken('');
+              setFailed(false);
+              setStatus('Doğrulama yükleniyor…');
+              setAttempt((value) => value + 1);
+            }}
+          >
+            Yeniden Dene
+          </Button>
+        </>
       )}
     </div>
   );

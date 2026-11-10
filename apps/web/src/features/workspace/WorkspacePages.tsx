@@ -313,16 +313,30 @@ export function ProfilePage() {
               fullWidth={false}
               onClick={() => setPassword(true)}
             >
-              Şifreyi Değiştir
+              {data?.hasPassword === false ? 'Şifre Oluştur' : 'Şifreyi Değiştir'}
             </Button>
           </div>
         </form>
       </section>
-      {password && <PasswordForm onClose={() => setPassword(false)} />}
+      {password && (
+        <PasswordForm
+          hasPassword={data?.hasPassword !== false}
+          onSaved={refresh}
+          onClose={() => setPassword(false)}
+        />
+      )}
     </Frame>
   );
 }
-function PasswordForm({ onClose }: { onClose: () => void }) {
+function PasswordForm({
+  hasPassword,
+  onSaved,
+  onClose,
+}: {
+  hasPassword: boolean;
+  onSaved: () => Promise<void>;
+  onClose: () => void;
+}) {
   const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
@@ -340,22 +354,32 @@ function PasswordForm({ onClose }: { onClose: () => void }) {
   );
   return (
     <FormSheet
-      title="Şifreyi Değiştir"
+      title={hasPassword ? 'Şifreyi Değiştir' : 'Şifre Oluştur'}
       onClose={onClose}
       dirty={!!current || !!password || !!repeat}
       onSave={async () => {
         if (password !== repeat) throw new Error('Şifreler aynı olmalı.');
         await post('/profil/sifre', { current, password });
+        await onSaved();
       }}
     >
-      <TextField
-        type={visible.current ? 'text' : 'password'}
-        label="Mevcut Şifre"
-        trailing={eye('current', 'Mevcut Şifre')}
-        autoComplete="current-password"
-        value={current}
-        onChange={(e) => setCurrent(e.target.value)}
-      />
+      {!hasPassword && (
+        <p className="text-sm text-ink-muted">
+          E-posta ve şifreyle de giriş yapmak için şifre oluşturabilirsiniz. Google şifreniz
+          istenmez.
+        </p>
+      )}
+      {hasPassword && (
+        <TextField
+          type={visible.current ? 'text' : 'password'}
+          label="Mevcut Şifre"
+          trailing={eye('current', 'Mevcut Şifre')}
+          autoComplete="current-password"
+          required
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+        />
+      )}
       <TextField
         type={visible.password ? 'text' : 'password'}
         label="Yeni Şifre"
@@ -1243,6 +1267,18 @@ function SettingsPageContent({ section }: { section: string }) {
   );
 }
 
+function normalizeRecipient(value: string) {
+  const digits = value.replace(/\D/g, '').replace(/^00/, '');
+  if (/^0\d{10}$/.test(digits)) return `+90${digits.slice(1)}`;
+  if (/^5\d{9}$/.test(digits)) return `+90${digits}`;
+  return digits ? `+${digits}` : '';
+}
+
+function formatRecipient(value: string) {
+  const normalized = normalizeRecipient(value);
+  return normalized.replace(/^(\+90)(\d{3})(\d{3})(\d{2})(\d{2})$/, '$1 $2 $3 $4 $5');
+}
+
 function WhatsAppMessageForm() {
   const [to, setTo] = useState('');
   const [text, setText] = useState('');
@@ -1258,7 +1294,10 @@ function WhatsAppMessageForm() {
         setBusy(true);
         setResult('');
         setError('');
-        void post<{ message: string }>('/ayarlar/whatsapp/mesaj', { to, text })
+        void post<{ message: string }>('/ayarlar/whatsapp/mesaj', {
+          to: normalizeRecipient(to),
+          text,
+        })
           .then((value) => setResult(value.message))
           .catch((failure) => setError(dataError(failure)))
           .finally(() => setBusy(false));
@@ -1274,10 +1313,13 @@ function WhatsAppMessageForm() {
       <TextField
         label="Alıcı Telefon Numarası"
         type="tel"
+        autoComplete="tel"
+        hint="Örnek: +90 541 258 44 72"
         required
         value={to}
         onChange={(e) => setTo(e.target.value)}
-        maxLength={16}
+        onBlur={() => setTo(formatRecipient(to))}
+        maxLength={32}
       />
       <TextField
         label="Mesaj"

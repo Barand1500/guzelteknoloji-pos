@@ -9,7 +9,7 @@ async function widgets(page: Page) {
     await page.route(pattern!, (route) =>
       route.fulfill({
         contentType: 'application/javascript',
-        body: `window.${name}={ready:fn=>fn(),render:(element,options)=>{const button=document.createElement('button');button.type='button';button.textContent='Robot doğrulamasını tamamla';button.onclick=()=>options.callback('verified-widget-token');element.appendChild(button);return '1';},remove:()=>{}};`,
+        body: `window.${name}={ready:${name === 'turnstile' ? "()=>{throw new Error('Use explicit render after script load');}" : 'fn=>fn()'},render:(element,options)=>{const button=document.createElement('button');button.type='button';button.textContent='Robot doğrulamasını tamamla';button.onclick=()=>options.callback('verified-widget-token');element.appendChild(button);return '1';},remove:()=>{}};`,
       }),
     );
 }
@@ -41,7 +41,6 @@ for (const width of [390, 1440])
                 enabled: 'true',
                 appId: '12345678',
                 phoneNumberId: '987654321',
-                apiVersion: 'v25.0',
               },
               configured: ['appSecret', 'accessToken', 'verifyToken'],
               webhookUrl: 'https://pos.example.com/api/webhooks/whatsapp/1',

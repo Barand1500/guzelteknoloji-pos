@@ -93,6 +93,9 @@ export class WorkspaceChallenge {
   }
 }
 
+// Managed by the application, independently of business settings.
+const META_GRAPH_API_VERSION = 'v25.0';
+
 export async function whatsappRequest(
   values: Record<string, string>,
   message?: { to: string; text: string },
@@ -103,9 +106,7 @@ export async function whatsappRequest(
       'VALIDATION_ERROR',
       'WhatsApp entegrasyonunu etkinleştirin ve kaydedin.',
     );
-  const version = values.apiVersion || 'v25.0';
   if (
-    !/^v\d{1,2}\.0$/.test(version) ||
     !/^\d{5,30}$/.test(values.phoneNumberId ?? '') ||
     !values.accessToken ||
     !values.appSecret
@@ -116,7 +117,7 @@ export async function whatsappRequest(
       'WhatsApp bağlantı bilgileri eksik veya geçersiz.',
     );
   const url = new URL(
-    `https://graph.facebook.com/${version}/${values.phoneNumberId}${message ? '/messages' : ''}`,
+    `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${values.phoneNumberId}${message ? '/messages' : ''}`,
   );
   url.searchParams.set(
     'appsecret_proof',

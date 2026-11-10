@@ -73,7 +73,12 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
     });
   router.get('/', async (_req, res) => {
     const ctx = ctxOf(res);
+    const credentials = await db.kullanici.findUniqueOrThrow({
+      where: { kimlik: ctx.user.id },
+      select: { sifreHash: true },
+    });
     res.json({
+      hasPassword: !!credentials.sifreHash,
       business: ctx.business,
       user: ctx.user,
       owner: ctx.owner,

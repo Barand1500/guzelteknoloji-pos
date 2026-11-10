@@ -95,7 +95,6 @@ export class WorkspaceSettings {
     const values = Object.fromEntries(
       rows.filter((r) => fields.has(r.key) && !this.isSecret(r.key)).map((r) => [r.key, r.value]),
     );
-    if (section === 'whatsapp' && !values.apiVersion) values.apiVersion = 'v25.0';
     return {
       values,
       configured: rows.filter((r) => fields.has(r.key) && this.isSecret(r.key)).map((r) => r.key),
@@ -171,8 +170,6 @@ export class WorkspaceSettings {
                 'VALIDATION_ERROR',
                 'Meta kimlikleri yalnızca rakam içermeli.',
               );
-          if (combined.apiVersion && !/^v\d{1,2}\.0$/.test(combined.apiVersion))
-            throw new HttpError(400, 'VALIDATION_ERROR', 'API sürümünü v25.0 biçiminde girin.');
         } else if (combined.enabled === 'true') {
           const other = section === 'cloudflare' ? 'recaptcha' : 'cloudflare';
           await tx.isletmeAyari.upsert({

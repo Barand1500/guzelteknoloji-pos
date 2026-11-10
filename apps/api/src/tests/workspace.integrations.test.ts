@@ -24,7 +24,6 @@ const whatsapp = {
   phoneNumberId: '987654321',
   accessToken: 'private-token',
   verifyToken: 'verify-private',
-  apiVersion: 'v25.0',
 };
 function database(values: Record<string, string>, section = 'whatsapp') {
   const settings = new WorkspaceSettings({} as PrismaClient, testEnv().COOKIE_SECRET);
