@@ -237,6 +237,26 @@ export class PrismaBrandRepository {
         .catch(() => console.error('Eski logo dosyası silinemedi.'));
   }
 
+  /** `key` markasını `targetKey` içine birleştirir: ürünleri hedefe geçer, kaynak silinir. */
+  async merge(userId: string, key: string, targetKey: string) {
+    if (key === targetKey)
+      throw new HttpError(400, 'VALIDATION_ERROR', 'Bir marka kendisiyle birleştirilemez.');
+    const oldFile = await this.write(userId, async (tx) => {
+      const source = await this.find(tx, userId, key);
+      const target = await this.find(tx, userId, targetKey);
+      await tx.stokKarti.updateMany({
+        where: { kullaniciKimligi: Number(userId), markaKimligi: source.kimlik },
+        data: { markaKimligi: target.kimlik },
+      });
+      await tx.marka.delete({ where: { kimlik: source.kimlik } });
+      return source.logoDosyasi;
+    });
+    if (oldFile)
+      await this.storage
+        .remove(oldFile)
+        .catch(() => console.error('Eski logo dosyası silinemedi.'));
+  }
+
   async reorder(userId: string, ids: string[]) {
     await this.write(userId, async (tx) => {
       const rows = await tx.marka.findMany({

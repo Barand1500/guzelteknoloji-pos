@@ -81,6 +81,11 @@ export function useBrands() {
       await service.remove(id);
       setBrands((list) => list.filter((b) => b.id !== id));
     });
+  const merge = (id: string, targetId: string) =>
+    run(async () => {
+      await service.merge(id, targetId);
+      await refresh();
+    });
   const assign = (id: string, ids: string[]) =>
     run(async () => {
       await service.assignProducts(id, ids);
@@ -101,6 +106,7 @@ export function useBrands() {
     reorder,
     save,
     remove,
+    merge,
     assign,
     unassign,
   };

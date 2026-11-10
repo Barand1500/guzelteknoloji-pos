@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
@@ -6,6 +6,7 @@ import { stockErrorMessage } from '../../stock/services/stock.service';
 import { Sheet } from '../../../components/ui/Sheet';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
 import { TextField } from '../../../components/ui/TextField';
+import { findSimilarBrand } from '../brand-name';
 import { emptyBrandDraft, type Brand, type BrandDraft } from '../types';
 import { LogoPicker } from './LogoPicker';
 
@@ -14,6 +15,10 @@ interface BrandFormSheetProps {
   brand: Brand | null;
   onSave: (draft: BrandDraft) => Promise<void>;
   onClose: () => void;
+  /** Benzer ad uyarısı için mevcut markalar. */
+  brands?: Brand[];
+  /** Benzer markaya yönlendirir (yeni ekleme yerine var olanı düzenle). */
+  onOpenExisting?: (id: string) => void;
   /** true: pencere açılınca logo dosya seçici hemen açılır (listede logoya çift tıklanınca). */
   pickLogo?: boolean;
 }
@@ -26,7 +31,14 @@ const NAME_REQUIRED = 'Marka adı gerekli.';
  * burada yoktur: aktiflik listedeki anahtardan, ürünler satırdaki "Ürünler" işleminden yönetilir.
  * Her açılışta yeniden kurulur (key ile).
  */
-export function BrandFormSheet({ brand, onSave, onClose, pickLogo = false }: BrandFormSheetProps) {
+export function BrandFormSheet({
+  brand,
+  onSave,
+  onClose,
+  brands = [],
+  onOpenExisting,
+  pickLogo = false,
+}: BrandFormSheetProps) {
   const [draft, setDraft] = useState<BrandDraft>(() =>
     brand
       ? {
@@ -44,6 +56,8 @@ export function BrandFormSheet({ brand, onSave, onClose, pickLogo = false }: Bra
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const similar = findSimilarBrand(draft.name, brands, brand?.id);
+
   const set = <K extends keyof BrandDraft>(key: K, value: BrandDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
@@ -53,6 +67,7 @@ export function BrandFormSheet({ brand, onSave, onClose, pickLogo = false }: Bra
       setNameError(NAME_REQUIRED);
       return;
     }
+    if (similar) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -65,7 +80,13 @@ export function BrandFormSheet({ brand, onSave, onClose, pickLogo = false }: Bra
   };
 
   return (
-    <Sheet permission="save" open onClose={onClose} title={brand ? 'Markayı Düzenle' : 'Marka Ekle'} size="lg">
+    <Sheet
+      permission="save"
+      open
+      onClose={onClose}
+      title={brand ? 'Markayı Düzenle' : 'Marka Ekle'}
+      size="lg"
+    >
       <div className="flex flex-col gap-5">
         {saveError ? <Alert tone="error">{saveError}</Alert> : null}
         <div className="grid gap-5 md:grid-cols-[15rem_minmax(0,1fr)]">
@@ -86,6 +107,28 @@ export function BrandFormSheet({ brand, onSave, onClose, pickLogo = false }: Bra
                 setNameError(undefined);
               }}
             />
+            {similar ? (
+              <div
+                role="alert"
+                className="flex flex-col gap-2 rounded-2xl bg-brand-50 p-3 text-sm text-brand-ink"
+              >
+                <p className="flex items-start gap-2">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    <b>{similar.name}</b> zaten var. Aynı markayı ikinci kez eklemeyin.
+                  </span>
+                </p>
+                {onOpenExisting ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenExisting(similar.id)}
+                    className="inline-flex min-h-10 items-center self-start rounded-full bg-brand-600 px-4 font-bold text-white"
+                  >
+                    {similar.name} markasını aç
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             <TextAreaField
               label="Açıklama"
               maxLength={10000}
@@ -128,6 +171,7 @@ export function BrandFormSheet({ brand, onSave, onClose, pickLogo = false }: Bra
           <Button
             onClick={() => void submit()}
             loading={saving}
+            disabled={similar !== null}
             loadingLabel="Kaydediliyor…"
             flow={false}
           >
