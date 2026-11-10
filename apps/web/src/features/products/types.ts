@@ -77,6 +77,26 @@ export interface ProductFilters {
   maxPrice: string;
 }
 
+/** Seçili ürünlere toplu uygulanan işlem (stok/satış/silme ayrı, bunlar parametreli işlemlerdir). */
+export type BulkRequest =
+  | { islem: 'firsat_ekle' | 'firsat_kaldir'; firsatId: string }
+  | { islem: 'kategori_ekle' | 'kategori_kaldir'; kategoriId: string }
+  | { islem: 'marka_ata'; markaId: string | null }
+  | {
+      islem: 'fiyat_guncelle';
+      listeId: string;
+      yon: 'satis' | 'alis';
+      mod: 'yuzde_artir' | 'yuzde_azalt' | 'tutar_ekle' | 'tutar_cikar' | 'ayarla';
+      /** Oran (%) ya da KDV DAHİL tutar; virgül ya da nokta. */
+      deger: string;
+      yuvarla: 'yok' | 'tam';
+    };
+export interface BulkResult {
+  affected: number;
+  /** Fiyat işleminde: o listede fiyatı olmadığı için atlanan ürün sayısı. */
+  skipped?: number;
+}
+
 export interface ProductPageQuery {
   search: string;
   filters: ProductFilters;

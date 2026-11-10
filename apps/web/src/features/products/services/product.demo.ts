@@ -9,6 +9,8 @@ import { brandSeeds } from '../../../mocks/brand.mock';
 import { parseImport, parseNumber, type RawImportRow } from '../import.csv';
 import {
   priceListsOf,
+  type BulkRequest,
+  type BulkResult,
   type ImportPreview,
   type ImportRow,
   type ListPrice,
@@ -186,6 +188,99 @@ export const demoProductService = {
   async setSales(ids: string[], on: boolean): Promise<void> {
     await wait(0);
     items = items.map((p) => (ids.includes(p.id) ? { ...p, salesOpen: on } : p));
+  },
+
+  async bulk(ids: string[], request: BulkRequest): Promise<BulkResult> {
+    await wait(0);
+    const target = items.filter((p) => ids.includes(p.id));
+    if (request.islem === 'firsat_ekle' || request.islem === 'firsat_kaldir') {
+      const id = request.firsatId;
+      items = items.map((p) =>
+        !ids.includes(p.id)
+          ? p
+          : {
+              ...p,
+              dealIds:
+                request.islem === 'firsat_ekle'
+                  ? p.dealIds.includes(id)
+                    ? p.dealIds
+                    : [...p.dealIds, id]
+                  : p.dealIds.filter((d) => d !== id),
+            },
+      );
+    } else if (request.islem === 'kategori_ekle' || request.islem === 'kategori_kaldir') {
+      const id = request.kategoriId;
+      const name = categorySeeds.find((c) => c.id === id)?.name ?? id;
+      items = items.map((p) => {
+        if (!ids.includes(p.id)) return p;
+        const has = p.categoryIds.includes(id);
+        if (request.islem === 'kategori_ekle' && !has)
+          return {
+            ...p,
+            categoryIds: [...p.categoryIds, id],
+            categoryNames: [...p.categoryNames, name],
+          };
+        if (request.islem === 'kategori_kaldir' && has) {
+          const at = p.categoryIds.indexOf(id);
+          return {
+            ...p,
+            categoryIds: p.categoryIds.filter((c) => c !== id),
+            categoryNames: p.categoryNames.filter((_, i) => i !== at),
+          };
+        }
+        return p;
+      });
+    } else if (request.islem === 'marka_ata') {
+      const brand = brandSeeds.find((b) => b.id === request.markaId);
+      items = items.map((p) =>
+        ids.includes(p.id) ? { ...p, brandId: brand?.id ?? null, brandName: brand?.name ?? '' } : p,
+      );
+    } else {
+      const price = request as Extract<BulkRequest, { islem: 'fiyat_guncelle' }>;
+      const value = Number(price.deger.replace(',', '.'));
+      let skipped = 0;
+      const change = (gross: number) => {
+        const target =
+          price.mod === 'yuzde_artir'
+            ? gross * (1 + value / 100)
+            : price.mod === 'yuzde_azalt'
+              ? gross * (1 - value / 100)
+              : price.mod === 'tutar_ekle'
+                ? gross + value
+                : price.mod === 'tutar_cikar'
+                  ? gross - value
+                  : value;
+        const rounded = price.yuvarla === 'tam' ? Math.round(target) : target;
+        if (rounded < 0)
+          throw new Error('Bazı ürünlerde fiyat sıfırın altına düşer. İşlem yapılmadı.');
+        return rounded;
+      };
+      const next = items.map((p) => {
+        if (!ids.includes(p.id)) return p;
+        if (price.yon === 'alis') {
+          if (!(p.cost > 0)) {
+            skipped++;
+            return p;
+          }
+          const rate = 1 + (p.costVatRate ?? p.vatRate) / 100;
+          return { ...p, cost: change(p.cost * rate) / rate };
+        }
+        const list = p.listPrices?.find((l) => l.id === price.listeId);
+        if (!list || list.net === null) {
+          skipped++;
+          return p;
+        }
+        const rate = 1 + list.vatRate / 100;
+        const net = change(list.net * rate) / rate;
+        return {
+          ...p,
+          listPrices: p.listPrices!.map((l) => (l.id === list.id ? { ...l, net } : l)),
+        };
+      });
+      items = next;
+      return { affected: target.length - skipped, skipped };
+    }
+    return { affected: target.length };
   },
 
   async remove(ids: string[]): Promise<void> {

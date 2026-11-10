@@ -35,7 +35,13 @@ function server() {
   const mutations: { ids: number[]; islem: string }[] = [];
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
-    if (url.pathname === '/api/hesap') return jsonResponse(200, {business:{id:1,name:'Test İşletmesi'},user:{id:1,name:'Test',email:'test@example.com'},owner:true,permissions:[]});
+    if (url.pathname === '/api/hesap')
+      return jsonResponse(200, {
+        business: { id: 1, name: 'Test İşletmesi' },
+        user: { id: 1, name: 'Test', email: 'test@example.com' },
+        owner: true,
+        permissions: [],
+      });
     if (url.pathname === '/api/auth/me')
       return jsonResponse(200, {
         user: { id: '1', email: 'test@example.com', displayName: null, avatarUrl: null },
@@ -95,7 +101,7 @@ const rows = () =>
     row.getAttribute('data-product-id'),
   );
 
-it('yalnızca istenen sayfayı alır; son sayfadan silince geçerli sayfaya döner', async () => {
+it('yalnızca istenen sayfayı alır; son sayfadan silince (süre dolunca) geçerli sayfaya döner', async () => {
   const api = server();
   const user = userEvent.setup();
   renderApp('/uygulama/urunler');
@@ -113,19 +119,17 @@ it('yalnızca istenen sayfayı alır; son sayfadan silince geçerli sayfaya dön
     }),
   );
   await user.click(
-    within(await screen.findByRole('dialog', { name: 'Seçilenler (5)' })).getByRole('button', {
-      name: 'Seçilenleri Sil',
-    }),
+    within(await screen.findByRole('dialog', { name: 'Toplu İşlem · 5 ürün' })).getByRole(
+      'button',
+      { name: 'Seçilenleri Sil' },
+    ),
   );
-  await user.click(
-    within(await screen.findByRole('dialog', { name: '5 ürün Silinsin Mi?' })).getByRole('button', {
-      name: 'Sil',
-    }),
-  );
-  await screen.findByText('Sunucu ürünü 11');
+  // Silme geri alınabilir: önce bildirim çıkar, süre dolunca sunucuya gider ve liste yenilenir.
+  expect(await screen.findByText('5 ürün silindi.')).toBeInTheDocument();
+  await screen.findByText('Sunucu ürünü 11', undefined, { timeout: 9000 });
   expect(rows()).toEqual(Array.from({ length: 10 }, (_, i) => String(i + 11)));
   expect(screen.getByRole('button', { name: 'Sayfa 2' })).toHaveAttribute('aria-current', 'page');
-});
+}, 20000);
 
 it('süzgeç seçenekleri sayfadan bağımsızdır; çoklu seçimleri ve fiyatı API’ye gönderir', async () => {
   const api = server();
@@ -173,10 +177,14 @@ it('seçimi sayfalar arasında korur; tümünü seç filtrelenmiş kimlikleri su
   expect(within(toolbar).getByText('2 seçili')).toBeInTheDocument();
   await user.click(within(toolbar).getByRole('button', { name: 'İşlemler' }));
   await user.click(
-    within(await screen.findByRole('dialog', { name: 'Seçilenler (2)' })).getByRole('button', {
-      name: 'Satışa kapat',
-    }),
+    within(await screen.findByRole('dialog', { name: 'Toplu İşlem · 2 ürün' })).getByRole(
+      'button',
+      { name: /Satış Durumu/ },
+    ),
   );
+  const step = await screen.findByRole('dialog', { name: 'Satış Durumu' });
+  await user.click(within(step).getByRole('radio', { name: 'Satışa Kapat' }));
+  await user.click(within(step).getByRole('button', { name: 'Uygula' }));
   await waitFor(() => expect(api.mutations[0]?.ids).toEqual([1, 11]));
   await screen.findByText('Sunucu ürünü 11');
   await user.click(

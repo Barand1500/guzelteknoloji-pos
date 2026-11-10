@@ -4,6 +4,7 @@ import { WorkspaceProvider, useWorkspace, pageResource } from '../workspace/work
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { useTheme } from '../theme/ThemeProvider';
+import { CommandPalette } from './CommandPalette';
 import { Dock } from './Dock';
 import { TopBar } from './TopBar';
 
@@ -79,6 +80,7 @@ function ShellContent() {
         ) : null}
       </main>
       <Dock />
+      <CommandPalette />
     </div>
   );
 }

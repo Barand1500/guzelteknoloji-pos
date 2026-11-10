@@ -1,5 +1,5 @@
 import { useWorkspacePermission } from '../../workspace/workspace-context';
-import { Check, Copy, Pencil, Trash2, X, type LucideIcon } from 'lucide-react';
+import { Copy, Pencil, Trash2, type LucideIcon } from 'lucide-react';
 import { Sheet } from '../../../components/ui/Sheet';
 
 interface MenuItem {
@@ -21,8 +21,8 @@ function MenuSheet({
   groups: MenuItem[][];
   onClose: () => void;
 }) {
-  const canSave=useWorkspacePermission('save');
-  const canDelete=useWorkspacePermission('delete');
+  const canSave = useWorkspacePermission('save');
+  const canDelete = useWorkspacePermission('delete');
   return (
     <Sheet open onClose={onClose} title={title} {...(description ? { description } : {})} size="md">
       <div className="flex flex-col gap-1">
@@ -79,33 +79,6 @@ export function ProductMenuSheet({
           { label: 'Kopya Oluştur', icon: Copy, onSelect: onDuplicate },
         ],
         [{ label: 'Sil', icon: Trash2, onSelect: onDelete, danger: true }],
-      ]}
-    />
-  );
-}
-
-interface BulkMenuSheetProps {
-  count: number;
-  onStock: (on: boolean) => void;
-  onSales: (on: boolean) => void;
-  onDelete: () => void;
-  onClose: () => void;
-}
-
-/** Seçilen ürünler için toplu işlem menüsü. */
-export function BulkMenuSheet({ count, onStock, onSales, onDelete, onClose }: BulkMenuSheetProps) {
-  return (
-    <MenuSheet
-      title={`Seçilenler (${count})`}
-      onClose={onClose}
-      groups={[
-        [
-          { label: 'Stok takibini aç', icon: Check, onSelect: () => onStock(true) },
-          { label: 'Stok takibini kapat', icon: X, onSelect: () => onStock(false) },
-          { label: 'Satışa aç', icon: Check, onSelect: () => onSales(true) },
-          { label: 'Satışa kapat', icon: X, onSelect: () => onSales(false) },
-        ],
-        [{ label: 'Seçilenleri Sil', icon: Trash2, onSelect: onDelete, danger: true }],
       ]}
     />
   );

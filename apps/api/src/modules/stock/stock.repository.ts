@@ -123,6 +123,88 @@ function priceData(side: 'alis' | 'satis', block: PriceBlockData) {
   };
 }
 
+type BulkPriceInput = Extract<StockBulkInput, { islem: 'fiyat_guncelle' }>;
+
+/**
+ * Bir fiyat satırının yeni "girilen tutarı". Hesap KDV DAHİL gösterilen fiyat üzerinden yapılır:
+ * gösterilen = girilen × (1 − iskonto) × (KDV hariç girildiyse 1 + KDV). Sıfırın altı hata,
+ * iskonto %100 olan satır atlanır (null).
+ */
+export function bulkPriceEntered(
+  row: {
+    girilenFiyat: Prisma.Decimal | null;
+    kdvOrani: Prisma.Decimal | null;
+    iskontoOrani: Prisma.Decimal | null;
+    kdvDahilGirildi: boolean;
+  },
+  mode: BulkPriceInput['mod'],
+  value: Prisma.Decimal,
+  round: BulkPriceInput['yuvarla'],
+): Prisma.Decimal | null {
+  if (!row.girilenFiyat) return null;
+  const rate = (row.kdvOrani ?? new Prisma.Decimal(0)).div(100);
+  const keep = new Prisma.Decimal(1).minus((row.iskontoOrani ?? new Prisma.Decimal(0)).div(100));
+  if (keep.lte(0)) return null;
+  const factor = keep.times(row.kdvDahilGirildi ? 1 : rate.plus(1));
+  const gross = row.girilenFiyat.times(factor);
+  let target =
+    mode === 'yuzde_artir'
+      ? gross.times(value.div(100).plus(1))
+      : mode === 'yuzde_azalt'
+        ? gross.times(new Prisma.Decimal(1).minus(value.div(100)))
+        : mode === 'tutar_ekle'
+          ? gross.plus(value)
+          : mode === 'tutar_cikar'
+            ? gross.minus(value)
+            : value;
+  if (round === 'tam') target = target.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
+  if (target.isNeg())
+    throw new HttpError(
+      400,
+      'VALIDATION_ERROR',
+      'Bazı ürünlerde fiyat sıfırın altına düşer. İşlem yapılmadı.',
+    );
+  const entered = target.div(factor).toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP);
+  if (entered.gt(new Prisma.Decimal('999999999999.999999')))
+    throw new HttpError(400, 'VALIDATION_ERROR', 'Fiyat çok büyük olur. İşlem yapılmadı.');
+  return entered;
+}
+
+/**
+ * Seçilen ürünlerin ana birim fiyatını (bir liste ve yön için) toplu değiştirir. Hesap, ekranda
+ * görünen KDV DAHİL fiyat üzerinden yapılır; iskonto ve "KDV dahil girildi" durumu korunur, yalnızca
+ * girilen tutar yeniden hesaplanır. Sıfırın altına düşen sonuç tüm işlemi reddeder.
+ */
+async function bulkPrice(
+  tx: Prisma.TransactionClient,
+  userId: number,
+  input: BulkPriceInput,
+): Promise<{ affected: number; skipped: number }> {
+  if (
+    !(await tx.stokSecenegi.count({
+      where: { kimlik: input.listeId, kullaniciKimligi: userId, listeTuru: 'priceLists' },
+    }))
+  )
+    throw new HttpError(404, 'NOT_FOUND', 'Fiyat listesi bulunamadı.');
+  const rows = await tx.stokFiyati.findMany({
+    where: {
+      fiyatListesiKimligi: input.listeId,
+      fiyatYonu: input.yon,
+      girilenFiyat: { not: null },
+      stokBirimi: { anaBirim: true, stokKartiKimligi: { in: input.ids } },
+    },
+  });
+  const value = new Prisma.Decimal(input.deger);
+  if (input.mod === 'yuzde_azalt' && value.gt(100))
+    throw new HttpError(400, 'VALIDATION_ERROR', 'Oran 0–100 arasında olmalı.');
+  for (const row of rows) {
+    const entered = bulkPriceEntered(row, input.mod, value, input.yuvarla);
+    if (entered === null) continue;
+    await tx.stokFiyati.update({ where: { kimlik: row.kimlik }, data: { girilenFiyat: entered } });
+  }
+  return { affected: rows.length, skipped: input.ids.length - rows.length };
+}
+
 export class PrismaStockRepository implements StockRepository {
   constructor(private readonly db: PrismaClient) {}
 
@@ -870,6 +952,52 @@ export class PrismaStockRepository implements StockRepository {
           );
         if (input.islem === 'sil') {
           await tx.stokKarti.deleteMany({ where });
+        } else if (input.islem === 'firsat_ekle' || input.islem === 'firsat_kaldir') {
+          if (
+            !(await tx.firsat.count({
+              where: { id: input.firsatId, kullaniciId: Number(userId) },
+            }))
+          )
+            throw new HttpError(404, 'NOT_FOUND', 'Fırsat bulunamadı.');
+          if (input.islem === 'firsat_ekle')
+            await tx.stokFirsati.createMany({
+              data: input.ids.map((stokKartiId) => ({ stokKartiId, firsatId: input.firsatId })),
+              skipDuplicates: true,
+            });
+          else
+            await tx.stokFirsati.deleteMany({
+              where: { stokKartiId: { in: input.ids }, firsatId: input.firsatId },
+            });
+        } else if (input.islem === 'kategori_ekle' || input.islem === 'kategori_kaldir') {
+          if (
+            !(await tx.kategori.count({
+              where: { id: input.kategoriId, kullaniciId: Number(userId) },
+            }))
+          )
+            throw new HttpError(404, 'NOT_FOUND', 'Kategori bulunamadı.');
+          if (input.islem === 'kategori_ekle')
+            await tx.stokKartiKategori.createMany({
+              data: input.ids.map((stokKartiId) => ({
+                stokKartiId,
+                kategoriId: input.kategoriId,
+              })),
+              skipDuplicates: true,
+            });
+          else
+            await tx.stokKartiKategori.deleteMany({
+              where: { stokKartiId: { in: input.ids }, kategoriId: input.kategoriId },
+            });
+        } else if (input.islem === 'marka_ata') {
+          if (
+            input.markaId !== null &&
+            !(await tx.marka.count({
+              where: { kimlik: input.markaId, kullaniciKimligi: Number(userId) },
+            }))
+          )
+            throw new HttpError(404, 'NOT_FOUND', 'Marka bulunamadı.');
+          await tx.stokKarti.updateMany({ where, data: { markaKimligi: input.markaId } });
+        } else if (input.islem === 'fiyat_guncelle') {
+          return bulkPrice(tx, Number(userId), input);
         } else if (input.islem === 'stok_ac') {
           await tx.stokKarti.updateMany({
             where: { ...where, envanterTakibi: 'yok' },

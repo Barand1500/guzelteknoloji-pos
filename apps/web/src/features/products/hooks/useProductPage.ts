@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from '../../auth/hooks/session-context';
 import { dataError } from '../../../lib/catalog-data';
 import { useProductService } from '../services/product.service';
-import type { ProductPage, ProductPageQuery } from '../types';
+import type { BulkRequest, BulkResult, ProductPage, ProductPageQuery } from '../types';
 
 const emptyPage = (): ProductPage => ({
   items: [],
@@ -94,6 +94,19 @@ export function useProductPage(query: ProductPageQuery) {
       perform(() => service.setStockTracking(ids, on)),
     setSales: (ids: string[], on: boolean) => perform(() => service.setSales(ids, on)),
     remove: (ids: string[]) => perform(() => service.remove(ids)),
+    /** Parametreli toplu işlem: sonucu ya da hata iletisini döndürür (pencere kendi içinde gösterir). */
+    bulk: async (
+      ids: string[],
+      request: BulkRequest,
+    ): Promise<{ ok: true; result: BulkResult } | { ok: false; message: string }> => {
+      try {
+        const result = await service.bulk(ids, request);
+        await latestRefresh.current();
+        return { ok: true, result };
+      } catch (e) {
+        return { ok: false, message: dataError(e) };
+      }
+    },
     selectIds: () => service.selectIds(query),
   };
 }

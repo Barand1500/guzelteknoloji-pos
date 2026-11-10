@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
-import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
 import { Segmented } from '../../../components/ui/Segmented';
@@ -30,7 +29,9 @@ import {
 import { ProductFilterSheet } from './ProductFilterSheet';
 import { ProductImagesSheet } from './ProductImagesSheet';
 import { ProductImportSheet } from './ProductImportSheet';
-import { BulkMenuSheet, ProductMenuSheet } from './ProductMenuSheet';
+import { ProductMenuSheet } from './ProductMenuSheet';
+import { BulkActionsSheet } from './BulkActionsSheet';
+import { UndoToast } from '../../../components/ui/UndoToast';
 import { ProductRow } from './ProductRow';
 import { ProductTable } from './ProductTable';
 
@@ -59,8 +60,8 @@ export function ProductsView() {
   const [sizeText, setSizeText] = useState('10');
   const pageSize = Math.min(200, Math.max(1, Number.parseInt(sizeText, 10) || 10));
   const {
-    products,
-    total,
+    products: allProducts,
+    total: allTotal,
     page: currentPage,
     priceLists,
     filterOptions,
@@ -70,6 +71,7 @@ export function ProductsView() {
     setStockTracking,
     setSales,
     remove,
+    bulk,
     selectIds,
   } = useProductPage({ search: query, filters, page, pageSize });
   const [selectionBusy, setSelectionBusy] = useState(false);
@@ -85,7 +87,22 @@ export function ProductsView() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [zoomFor, setZoomFor] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<{ ids: string[]; label: string } | null>(null);
+  // Silme "geri alınabilir": ürünler hemen listeden gizlenir, süre dolunca gerçekten silinir.
+  const [pendingDelete, setPendingDelete] = useState<{
+    ids: string[];
+    label: string;
+    key: number;
+  } | null>(null);
+  const pendingRef = useRef(pendingDelete);
+  useEffect(() => {
+    pendingRef.current = pendingDelete;
+  });
+  const hiddenIds = useMemo(() => new Set(pendingDelete?.ids ?? []), [pendingDelete]);
+  const products = useMemo(
+    () => allProducts.filter((p) => !hiddenIds.has(p.id)),
+    [allProducts, hiddenIds],
+  );
+  const total = Math.max(0, allTotal - hiddenIds.size);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number>(undefined);
   useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
@@ -167,14 +184,23 @@ export function ProductsView() {
       setSelectionBusy(false);
     }
   };
-  const confirmDelete = async () => {
-    if (!deleting) return;
-    const { ids, label } = deleting;
-    setDeleting(null);
-    if (!(await remove(ids))) return;
-    setSelected((s) => new Set([...s].filter((id) => !ids.includes(id))));
-    showNotice(`${label} silindi.`);
+  /** Bekleyen silmeyi kalıcı yapar (süre doldu, başka silme başladı ya da sayfadan çıkıldı). */
+  const commitDelete = (pending: { ids: string[] } | null) => {
+    if (!pending) return;
+    setPendingDelete((current) => (current && current.ids === pending.ids ? null : current));
+    void remove(pending.ids);
   };
+  const requestDelete = (ids: string[], label: string) => {
+    commitDelete(pendingRef.current); // önceki bekleyen silme kalıcı olur
+    setSelected((s) => new Set([...s].filter((id) => !ids.includes(id))));
+    setPendingDelete({ ids, label, key: Date.now() });
+  };
+  // Sayfadan çıkılırken bekleyen silme kaybolmasın.
+  const commitRef = useRef(commitDelete);
+  useEffect(() => {
+    commitRef.current = commitDelete;
+  });
+  useEffect(() => () => commitRef.current(pendingRef.current), []);
 
   let content: ReactNode;
   if (loading) {
@@ -239,7 +265,7 @@ export function ProductsView() {
         }
         onEdit={edit}
         onCopy={copy}
-        onDelete={(p) => setDeleting({ ids: [p.id], label: p.name })}
+        onDelete={(p) => requestDelete([p.id], p.name)}
         onEditImages={(p) => setImagesFor(p.id)}
         onStockTracking={(id, on) => setStockTracking([id], on)}
         onSales={(id, on) => setSales([id], on)}
@@ -530,24 +556,24 @@ export function ProductsView() {
           name={menuProduct.name}
           onEdit={() => edit(menuProduct)}
           onDuplicate={() => copy(menuProduct)}
-          onDelete={() => setDeleting({ ids: [menuProduct.id], label: menuProduct.name })}
+          onDelete={() => requestDelete([menuProduct.id], menuProduct.name)}
           onClose={() => setMenuFor(null)}
         />
       ) : null}
       {bulkOpen ? (
-        <BulkMenuSheet
+        <BulkActionsSheet
           count={selectedIds.length}
-          onStock={async (on) => {
-            if (await setStockTracking(selectedIds, on))
-              showNotice(
-                `${selectedIds.length} üründe stok takibi ${on ? 'açıldı' : 'kapatıldı'}.`,
-              );
-          }}
-          onSales={async (on) => {
-            if (await setSales(selectedIds, on))
-              showNotice(`${selectedIds.length} ürün satışa ${on ? 'açıldı' : 'kapatıldı'}.`);
-          }}
-          onDelete={() => setDeleting({ ids: selectedIds, label: `${selectedIds.length} ürün` })}
+          priceLists={priceLists}
+          onApply={(request) => bulk(selectedIds, request)}
+          onStock={(on) => setStockTracking(selectedIds, on)}
+          onSales={(on) => setSales(selectedIds, on)}
+          onDelete={() =>
+            requestDelete(
+              selectedIds,
+              selectedIds.length === 1 ? 'Ürün' : `${selectedIds.length} ürün`,
+            )
+          }
+          onDone={showNotice}
           onClose={() => setBulkOpen(false)}
         />
       ) : null}
@@ -562,15 +588,14 @@ export function ProductsView() {
           ) : null}
         </Sheet>
       ) : null}
-      <ConfirmSheet
-        open={deleting !== null}
-        danger
-        title={deleting ? `${deleting.label} Silinsin Mi?` : ''}
-        description="Silinen ürünler geri getirilemez. Geçmiş satış kayıtları korunur."
-        confirmLabel="Sil"
-        onConfirm={() => void confirmDelete().catch(() => undefined)}
-        onClose={() => setDeleting(null)}
-      />
+      {pendingDelete ? (
+        <UndoToast
+          key={pendingDelete.key}
+          message={`${pendingDelete.label} silindi.`}
+          onUndo={() => setPendingDelete(null)}
+          onTimeout={() => commitDelete(pendingDelete)}
+        />
+      ) : null}
     </div>
   );
 }

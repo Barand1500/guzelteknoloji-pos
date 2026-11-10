@@ -72,14 +72,44 @@ export const stockListQuery = z
   });
 export type StockListQuery = z.infer<typeof stockListQuery>;
 
-export const stockBulkSchema = z.strictObject({
-  ids: z
-    .array(recordId)
-    .min(1)
-    .max(1000)
-    .refine((ids) => new Set(ids).size === ids.length, 'Aynı ürün birden fazla seçilemez.'),
-  islem: z.enum(['stok_ac', 'stok_kapat', 'satis_ac', 'satis_kapat', 'sil']),
-});
+const bulkIds = z
+  .array(recordId)
+  .min(1)
+  .max(1000)
+  .refine((ids) => new Set(ids).size === ids.length, 'Aynı ürün birden fazla seçilemez.');
+/** Toplu fiyat değişikliği: tutarlar KDV DAHİL gösterilen fiyat üzerinden hesaplanır. */
+const bulkAmount = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(',', '.'))
+  .refine((v) => /^\d{1,12}(\.\d{1,6})?$/.test(v), 'Geçerli bir tutar ya da oran girin.');
+export const stockBulkSchema = z.discriminatedUnion('islem', [
+  z.strictObject({
+    ids: bulkIds,
+    islem: z.enum(['stok_ac', 'stok_kapat', 'satis_ac', 'satis_kapat', 'sil']),
+  }),
+  z.strictObject({
+    ids: bulkIds,
+    islem: z.enum(['firsat_ekle', 'firsat_kaldir']),
+    firsatId: recordId,
+  }),
+  z.strictObject({
+    ids: bulkIds,
+    islem: z.enum(['kategori_ekle', 'kategori_kaldir']),
+    kategoriId: recordId,
+  }),
+  // markaId boşsa ürünler "markasız" olur.
+  z.strictObject({ ids: bulkIds, islem: z.literal('marka_ata'), markaId: recordId.nullable() }),
+  z.strictObject({
+    ids: bulkIds,
+    islem: z.literal('fiyat_guncelle'),
+    listeId: recordId,
+    yon: z.enum(['satis', 'alis']),
+    mod: z.enum(['yuzde_artir', 'yuzde_azalt', 'tutar_ekle', 'tutar_cikar', 'ayarla']),
+    deger: bulkAmount,
+    yuvarla: z.enum(['yok', 'tam']).default('yok'),
+  }),
+]);
 export type StockBulkInput = z.infer<typeof stockBulkSchema>;
 
 /**
