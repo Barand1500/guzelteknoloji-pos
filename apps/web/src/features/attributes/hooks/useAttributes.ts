@@ -70,5 +70,36 @@ export function useAttributes() {
         else await service.createValue(groupId, draft);
       }),
     removeValue: (id: string) => state.perform(() => service.removeValue(id)),
+    valueProducts: (id: string) => service.valueProducts(id),
+    /** Şablonu gruplarıyla ve özellikleriyle birlikte yeni bir şablona kopyalar; yeni kimliği verir. */
+    copyTemplate: (name: string, source: AttrTemplate) =>
+      state.perform(async () => {
+        const newId = await service.createTemplate({
+          name,
+          allProducts: source.allProducts,
+          categoryIds: [...source.categoryIds],
+        });
+        for (const g of state.data.groups.filter((x) => x.templateId === source.id)) {
+          const groupId = await service.createGroup({
+            templateId: newId,
+            name: g.name,
+            kind: g.kind,
+            filter: g.filter,
+            multiple: g.multiple,
+            variant: g.variant,
+            showOnImage: g.showOnImage,
+            position: g.position,
+            size: g.size,
+          });
+          for (const v of state.data.values.filter((x) => x.groupId === g.id))
+            await service.createValue(groupId, {
+              code: v.code,
+              name: v.name,
+              color: v.color,
+              imageUrl: v.imageUrl,
+            });
+        }
+        return newId;
+      }),
   };
 }

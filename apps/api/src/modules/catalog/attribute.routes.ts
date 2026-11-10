@@ -334,6 +334,30 @@ export function createAttributeRouter(env: Env, auth: AuthService, db: PrismaCli
       ),
     });
   });
+  // Silmeden önce: bu özelliği kullanan ürünler (en çok 50 + toplam sayı).
+  router.get('/degerler/:id/urunler', async (req, res) => {
+    const user = res.locals.catalogUserId as number;
+    const id = categoryKey.parse(req.params.id);
+    await value(db, user, id);
+    const where = { degerId: id, stokKarti: { kullaniciKimligi: user } };
+    const [total, rows] = await Promise.all([
+      db.stokOzellikDegeri.count({ where }),
+      db.stokOzellikDegeri.findMany({
+        where,
+        take: 50,
+        orderBy: { stokKartiId: 'asc' },
+        select: { stokKarti: { select: { kimlik: true, stokKodu: true, stokAdi: true } } },
+      }),
+    ]);
+    res.json({
+      total,
+      products: rows.map(({ stokKarti: p }) => ({
+        id: String(p.kimlik),
+        code: p.stokKodu ?? '',
+        name: p.stokAdi || p.stokKodu || 'Adsız Ürün',
+      })),
+    });
+  });
   router.get('/degerler/:id/gorsel', async (req, res) => {
     const row = await value(
       db,

@@ -4,6 +4,7 @@ import { Alert } from '../../../components/ui/Alert';
 import { Sheet } from '../../../components/ui/Sheet';
 import { TextField } from '../../../components/ui/TextField';
 import { LogoPicker } from '../../brands/components/LogoPicker';
+import { COLOR_PALETTE, nearestColorName } from '../color-names';
 import { emptyValueDraft, slugify, type AttrGroup, type ValueDraft } from '../types';
 
 interface ValueFormSheetProps {
@@ -14,22 +15,6 @@ interface ValueFormSheetProps {
   saveError?: string | null;
   onClose: () => void;
 }
-
-/** Hazır renkler (hızlı seçim); isteyen kendi rengini de seçer. */
-const PALETTE = [
-  '#000000',
-  '#dddddd',
-  '#fafafa',
-  '#d4d4d4',
-  '#4f5380',
-  '#3f86c8',
-  '#1f9d55',
-  '#f9fb4d',
-  '#f57c00',
-  '#e5251d',
-  '#dfbfa5',
-  '#8a5330',
-];
 
 const fold = (s: string) => s.toLocaleLowerCase('tr').trim();
 
@@ -51,6 +36,17 @@ export function ValueFormSheet({
   const [nameError, setNameError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
 
+  // Ad boşsa (ya da önceki otomatik adsa) seçilen rengin adı kendiliğinden yazılır.
+  const [autoName, setAutoName] = useState('');
+  const chooseColor = (color: string, name: string) => {
+    setDraft((d) => {
+      const auto = d.name.trim() === '' || d.name === autoName;
+      return { ...d, color, name: auto ? name : d.name };
+    });
+    setAutoName(name);
+    setNameError(undefined);
+  };
+
   const submit = async () => {
     const name = draft.name.trim();
     if (name === '') {
@@ -67,7 +63,8 @@ export function ValueFormSheet({
   };
 
   return (
-    <Sheet permission="save"
+    <Sheet
+      permission="save"
       open
       onClose={onClose}
       title="Özellik Ekle"
@@ -95,7 +92,7 @@ export function ValueFormSheet({
               aria-label="Renk seçimi"
               className="flex flex-wrap items-center gap-2.5"
             >
-              {PALETTE.map((color) => {
+              {COLOR_PALETTE.map(({ hex: color, name }) => {
                 const on = draft.color === color;
                 return (
                   <button
@@ -103,8 +100,9 @@ export function ValueFormSheet({
                     type="button"
                     role="radio"
                     aria-checked={on}
-                    aria-label={`Renk ${color}`}
-                    onClick={() => setDraft((d) => ({ ...d, color }))}
+                    aria-label={`Renk ${name}`}
+                    title={name}
+                    onClick={() => chooseColor(color, name)}
                     style={{ backgroundColor: color }}
                     className={[
                       'size-10 rounded-xl ring-1 ring-black/15 transition-all duration-200',
@@ -117,7 +115,7 @@ export function ValueFormSheet({
                 <input
                   type="color"
                   value={draft.color ?? '#4f5380'}
-                  onChange={(e) => setDraft((d) => ({ ...d, color: e.target.value }))}
+                  onChange={(e) => chooseColor(e.target.value, nearestColorName(e.target.value))}
                   aria-label="Başka renk seç"
                   className="size-6 cursor-pointer border-0 bg-transparent p-0"
                 />

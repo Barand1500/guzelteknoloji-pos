@@ -25,6 +25,12 @@ let seq = 0;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Bir özelliği kullanan ürünler (silmeden önce gösterilir). */
+export interface ValueUsage {
+  total: number;
+  products: { id: string; code: string; name: string }[];
+}
+
 export interface AttributeSnapshot {
   templates: AttrTemplate[];
   groups: AttrGroup[];
@@ -65,6 +71,12 @@ export const demoAttributeService = {
       })),
       values: values.map((v) => ({ ...v })),
     };
+  },
+
+  /** Deneme verisinde ürün–özellik bağı yoktur: kullanan ürün listelenmez. */
+  async valueProducts(_id: string): Promise<ValueUsage> {
+    await wait(0);
+    return { total: 0, products: [] };
   },
 
   // ---- Şablon ----------------------------------------------------------------------------
