@@ -28,6 +28,10 @@ function ShellContent() {
   const { mode } = useTheme();
   const { data, loading, error, can, refresh } = useWorkspace();
   const { pathname } = useLocation();
+  const showPageBack =
+    pathname === '/uygulama/profil' ||
+    pathname.startsWith('/uygulama/ayarlar') ||
+    ['/uygulama/kullanicilar', '/uygulama/roller', '/uygulama/loglar'].includes(pathname);
   const resource = pageResource(pathname);
   const blocked =
     resource && !can(resource, pathname.endsWith('/stok-karti/yeni') ? 'save' : 'read');
@@ -57,7 +61,7 @@ function ShellContent() {
       <TopBar />
       {/* pb-32: alttaki yüzen çubuğun içeriği kapatmaması için boşluk */}
       <main className="mx-auto w-full max-w-[120rem] px-4 pt-5 pb-32 tablet:px-8 2xl:px-12">
-        {pathname === '/uygulama/profil' && <PageBack />}
+        {showPageBack && <PageBack />}
         {!loading && data && pathname.endsWith('/stok-karti/yeni') && !can('products', 'save') ? (
           <Navigate to={can('products') ? '/uygulama/urunler' : '/uygulama/profil'} replace />
         ) : loading ? (
