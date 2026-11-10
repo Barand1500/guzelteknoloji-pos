@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Sparkles, Tag } from 'lucide-react';
+import { ChevronDown, Sparkles, Tag } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { DEALS_PATH } from '../../../config/navigation';
@@ -35,7 +35,6 @@ function Pill({
           : 'border-line bg-surface text-ink hover:border-brand-500',
       ].join(' ')}
     >
-      {on ? <Check className="size-4 shrink-0" aria-hidden="true" /> : null}
       {children}
     </button>
   );
