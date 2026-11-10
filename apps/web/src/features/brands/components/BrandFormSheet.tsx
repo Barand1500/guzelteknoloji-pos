@@ -1,4 +1,4 @@
-import { ChevronDown, TriangleAlert } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
@@ -17,8 +17,6 @@ interface BrandFormSheetProps {
   onClose: () => void;
   /** Benzer ad uyarısı için mevcut markalar. */
   brands?: Brand[];
-  /** Benzer markaya yönlendirir (yeni ekleme yerine var olanı düzenle). */
-  onOpenExisting?: (id: string) => void;
   /** true: pencere açılınca logo dosya seçici hemen açılır (listede logoya çift tıklanınca). */
   pickLogo?: boolean;
 }
@@ -36,7 +34,6 @@ export function BrandFormSheet({
   onSave,
   onClose,
   brands = [],
-  onOpenExisting,
   pickLogo = false,
 }: BrandFormSheetProps) {
   const [draft, setDraft] = useState<BrandDraft>(() =>
@@ -101,34 +98,17 @@ export function BrandFormSheet({
               label="Marka Adı"
               maxLength={120}
               value={draft.name}
-              error={nameError}
+              error={
+                nameError ??
+                (similar
+                  ? `${similar.name} zaten var. Aynı markayı ikinci kez eklemeyin.`
+                  : undefined)
+              }
               onChange={(e) => {
                 set('name', e.target.value);
                 setNameError(undefined);
               }}
             />
-            {similar ? (
-              <div
-                role="alert"
-                className="flex flex-col gap-2 rounded-2xl bg-brand-50 p-3 text-sm text-brand-ink"
-              >
-                <p className="flex items-start gap-2">
-                  <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                  <span>
-                    <b>{similar.name}</b> zaten var. Aynı markayı ikinci kez eklemeyin.
-                  </span>
-                </p>
-                {onOpenExisting ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpenExisting(similar.id)}
-                    className="inline-flex min-h-10 items-center self-start rounded-full bg-brand-600 px-4 font-bold text-white"
-                  >
-                    {similar.name} markasını aç
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
             <TextAreaField
               label="Açıklama"
               maxLength={10000}

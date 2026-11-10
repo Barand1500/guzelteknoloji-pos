@@ -1,6 +1,4 @@
-import { Images, Tag } from 'lucide-react';
-import { Link } from 'react-router';
-import { BULK_LOGOS_PATH } from '../../../config/navigation';
+import { Tag } from 'lucide-react';
 import { usePublishAddAction } from '../../app-shell/save-action';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../../components/ui/Button';
@@ -190,14 +188,6 @@ export function BrandsView() {
               placeholder="Marka ara…"
             />
           </div>
-          <Link
-            to={BULK_LOGOS_PATH}
-            aria-label="Toplu Logo"
-            title="Toplu Logo"
-            className="flex size-12 shrink-0 items-center justify-center rounded-full border border-field-border text-ink-muted transition-colors hover:border-brand-500 hover:text-brand-ink"
-          >
-            <Images className="size-5" aria-hidden="true" />
-          </Link>
         </div>
 
         <p className="px-2 text-sm text-ink-muted">
@@ -288,7 +278,6 @@ export function BrandsView() {
           onSave={saveBrand}
           onClose={() => setForm(null)}
           brands={brands}
-          onOpenExisting={(id) => setForm({ brandId: id })}
         />
       ) : null}
       {mergeBrand ? (

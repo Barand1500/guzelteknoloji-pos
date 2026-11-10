@@ -14,9 +14,6 @@ export const PRODUCTS_PATH = `${APP_BASE}/urunler`;
 export const DEALS_PATH = `${PRODUCTS_PATH}/firsatlar`;
 /** Alt sayfa: Toplu Görsel Yükleme (Fırsatlar gibi Ürünler altındadır). */
 export const BULK_IMAGES_PATH = `${PRODUCTS_PATH}/toplu-gorsel`;
-export const BRANDS_PATH = `${APP_BASE}/markalar`;
-/** Alt sayfa: Toplu Logo Yükleme (Markalar altındadır). */
-export const BULK_LOGOS_PATH = `${BRANDS_PATH}/toplu-logo`;
 /** Girişten sonra açılan ilk ekran: yeni stok kartı. */
 export const APP_HOME_PATH = STOCK_CREATE_PATH;
 
@@ -69,7 +66,6 @@ export const PAGE_TITLES: Record<string, string> = {
   [STOCK_CREATE_PATH]: 'Yeni Stok Kartı',
   [DEALS_PATH]: 'Fırsatlar',
   [BULK_IMAGES_PATH]: 'Toplu Görsel',
-  [BULK_LOGOS_PATH]: 'Toplu Logo',
   [`${APP_BASE}/anasayfa`]: 'Anasayfa',
   [`${APP_BASE}/siparisler`]: 'Siparişler',
   [`${APP_BASE}/musteriler`]: 'Müşteriler',

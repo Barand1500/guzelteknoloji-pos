@@ -6,7 +6,6 @@ import { SessionProvider } from '../features/auth/hooks/session-context';
 import { ThemeProvider } from '../features/theme/ThemeProvider';
 import { AttributesPage } from '../pages/app/AttributesPage';
 import { BulkImagesPage } from '../pages/app/BulkImagesPage';
-import { BulkLogosView } from '../features/brands/components/BulkLogosView';
 import { DealsPage } from '../pages/app/DealsPage';
 import { ProductsPage } from '../pages/app/ProductsPage';
 import { CategoriesPage } from '../pages/app/CategoriesPage';
@@ -49,7 +48,6 @@ export function App() {
             <Route path="urunler/toplu-gorsel" element={<BulkImagesPage />} />
             <Route path="kategoriler" element={<CategoriesPage />} />
             <Route path="markalar" element={<BrandsPage />} />
-            <Route path="markalar/toplu-logo" element={<BulkLogosView />} />
             <Route path="ozellikler" element={<AttributesPage />} />
             {[
               'anasayfa',
