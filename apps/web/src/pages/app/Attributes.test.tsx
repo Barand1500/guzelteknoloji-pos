@@ -229,13 +229,13 @@ describe('Özellikler ekranı', () => {
     expect(screen.getByRole('searchbox', { name: 'Özellik ara' })).toHaveValue('');
   });
 
-  it('toplu ekleme: virgülle ayrılan her ad ayrı özellik olur; var olan atlanır', async () => {
+  it('toplu ekleme: noktalı virgülle ayrılan her ad ayrı özellik olur; var olan atlanır', async () => {
     const user = await openAttributes('/uygulama/ozellikler?s=t-pos&g=g-os', 'Özellikler');
     const box = screen.getByRole('textbox', { name: 'Yeni özellik adı' });
-    await user.type(box, 'S, M, L, XL, S{Enter}');
+    await user.type(box, 'S; M; L; XL; S{Enter}');
     await waitFor(() => expect(ids('Özellikler')).toHaveLength(8));
     expect(screen.getByText('S, M, L, XL eklendi.')).toBeInTheDocument();
-    await user.type(box, 'M, XXL{Enter}');
+    await user.type(box, 'M; XXL{Enter}');
     await waitFor(() => expect(ids('Özellikler')).toHaveLength(9));
     expect(screen.getByText('XXL eklendi. 1 tanesi zaten vardı.')).toBeInTheDocument();
   });
@@ -248,7 +248,7 @@ describe('Özellikler ekranı', () => {
     await user.click(screen.getByRole('button', { name: 'Renk Lacivert' }));
     expect(box).toHaveValue('Lacivert');
     await user.clear(box);
-    await user.type(box, 'Pembe, Bej{Enter}');
+    await user.type(box, 'Pembe; Bej{Enter}');
     await waitFor(() => expect(ids('Özellikler')).toHaveLength(11));
     const values = (await attributeService.snapshot()).values;
     expect(values.find((v) => v.name === 'Pembe')?.color).toBe('#ec4899');
@@ -289,5 +289,12 @@ describe('Özellikler ekranı', () => {
     expect(await screen.findByText('Şu ürünlerden kalkacak (10)')).toBeInTheDocument();
     expect(screen.getByText('Hızlı Terazi')).toBeInTheDocument();
     expect(screen.getByText('+9 ürün daha')).toBeInTheDocument();
+  });
+
+  it('virgül ayraç değildir: "1,5 kg" tek özellik olur', async () => {
+    const user = await openAttributes('/uygulama/ozellikler?s=t-pos&g=g-os', 'Özellikler');
+    await user.type(screen.getByRole('textbox', { name: 'Yeni özellik adı' }), '1,5 kg{Enter}');
+    await waitFor(() => expect(ids('Özellikler')).toHaveLength(5));
+    expect((await attributeService.snapshot()).values.some((v) => v.name === '1,5 kg')).toBe(true);
   });
 });

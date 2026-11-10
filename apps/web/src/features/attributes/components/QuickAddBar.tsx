@@ -11,11 +11,11 @@ interface QuickAddBarProps {
   onOpenForm: () => void;
 }
 
-/** "S, M, L ,xl" → ["S", "M", "L", "xl"] (boşlar ve tekrarlar atılır). */
+/** "S; M; L ;xl" → ["S", "M", "L", "xl"] (boşlar ve tekrarlar atılır). Virgül ayraç değildir: "1,5 kg" tek ad. */
 export function splitNames(text: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const part of text.split(/[,;\n]/)) {
+  for (const part of text.split(/[;\n]/)) {
     const name = part.trim();
     const key = name.toLocaleLowerCase('tr');
     if (name === '' || seen.has(key)) continue;
@@ -26,8 +26,8 @@ export function splitNames(text: string): string[] {
 }
 
 /**
- * Hızlı giriş: adı yaz, Enter'a bas, eklendi (kutu açık kalır). Virgülle ayrılan her ad ayrı
- * özellik olur ("S, M, L, XL"). Renkli gruplarda hazır renk paleti vardır; renk seçilince adı boşsa
+ * Hızlı giriş: adı yaz, Enter'a bas, eklendi (kutu açık kalır). Noktalı virgülle ayrılan her ad ayrı
+ * özellik olur ("S; M; L; XL"). Renkli gruplarda hazır renk paleti vardır; renk seçilince adı boşsa
  * en yakın renk adı kendiliğinden yazılır. Resimli gruplarda resim gerektiği için form açılır.
  */
 export function QuickAddBar({ kind, onAdd, onOpenForm }: QuickAddBarProps) {
@@ -101,7 +101,7 @@ export function QuickAddBar({ kind, onAdd, onOpenForm }: QuickAddBarProps) {
           }}
           aria-label="Yeni özellik adı"
           placeholder={
-            kind === 'color' ? 'Yeni renk yaz…' : 'Yeni özellik yaz (S, M, L gibi virgülle çoğalt)…'
+            kind === 'color' ? 'Yeni renk yaz…' : 'Yeni özellik yaz (S; M; L gibi ; ile çoğalt)…'
           }
           maxLength={400}
           className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-ink-muted"
