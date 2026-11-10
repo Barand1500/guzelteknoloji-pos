@@ -967,7 +967,7 @@ function EmbeddedSettings({
   back?: string;
   description?: string;
 }) {
-  return <div className="min-w-0 space-y-4">{children}</div>;
+  return <div className="h-full min-w-0 space-y-4">{children}</div>;
 }
 
 function IntegrationGroupPage({ group }: { group: string }) {
@@ -1019,7 +1019,7 @@ function IntegrationGroupPage({ group }: { group: string }) {
         )}
         {group === 'iletisim' ? (
           <>
-            <div className="grid min-w-0 items-start gap-4 xl:grid-cols-2">
+            <div className="grid min-w-0 gap-4 xl:grid-cols-2">
               {['smtp', 'imap'].map((section) => (
                 <SettingsPageContent key={section} section={section} embedded />
               ))}
@@ -1149,7 +1149,7 @@ function SettingsPageContent({
       {!rows.loading && !rows.error && draftSource === rows.value && (
         <form
           aria-label={page.title}
-          className={`${panel} w-full space-y-5`}
+          className={`${panel} w-full ${embedded ? 'flex h-full flex-col gap-5' : 'space-y-5'}`}
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             void run(async () => {
@@ -1351,7 +1351,7 @@ function SettingsPageContent({
             </div>
           )}
           {can('settings', 'save') && (
-            <div className="flex flex-wrap gap-3">
+            <div className={`flex flex-wrap gap-3 ${embedded ? 'mt-auto' : ''}`}>
               <Button flow={false} type="submit" fullWidth={false} loading={busy}>
                 Kaydet
               </Button>
