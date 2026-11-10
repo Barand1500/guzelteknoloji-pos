@@ -11,7 +11,24 @@ import type {
   StockLookups,
 } from '../types';
 
+/** Başka üründe kullanılan kod/barkod: o ürünün kimliği, adı ve kodu. */
+export interface DuplicateHit {
+  id: string;
+  name: string;
+  code: string;
+}
+export interface DuplicateResult {
+  code: DuplicateHit | null;
+  barcode: DuplicateHit | null;
+}
+
 export interface StockService {
+  /** Kod/barkod başka bir üründe var mı (düzenlenen kartın kendisi sayılmaz). Kaydetmeden uyarmak içindir. */
+  checkDuplicate(params: {
+    code: string;
+    barcode: string;
+    excludeId?: string;
+  }): Promise<DuplicateResult>;
   getLookups(): Promise<StockLookups>;
   addOption(list: OptionListKey, label: string): Promise<SelectOption>;
   removeOption(list: OptionListKey, value: string): Promise<void>;
@@ -35,6 +52,11 @@ export interface StockService {
 }
 
 export const stockService: StockService = {
+  checkDuplicate: ({ code, barcode, excludeId }) => {
+    const query = new URLSearchParams({ kod: code, barkod: barcode });
+    if (excludeId) query.set('haric', excludeId);
+    return apiRequest(`/api/stok/kartlar/kontrol?${query.toString()}`);
+  },
   getLookups: () => apiRequest('/api/stok/secenekler'),
   addOption: (list, label) =>
     apiRequest('/api/stok/secenekler/ekle', { method: 'POST', body: { list, label } }),

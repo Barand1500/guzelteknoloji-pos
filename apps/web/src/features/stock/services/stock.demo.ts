@@ -27,6 +27,24 @@ export const resetDemoStock = () => {
 const fakeDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const demoStockService: StockService = {
+  async checkDuplicate({ code, barcode, excludeId }) {
+    const all = await productService.list();
+    const others = all.filter((p) => p.id !== excludeId);
+    const hit = (p: (typeof all)[number] | undefined) =>
+      p ? { id: p.id, name: p.name, code: p.code } : null;
+    const lower = (v: string) => v.trim().toLocaleLowerCase('tr');
+    return {
+      code: code.trim() ? hit(others.find((p) => lower(p.code) === lower(code))) : null,
+      barcode: barcode.trim()
+        ? hit(
+            others.find((p) =>
+              (p.barcodes ?? (p.barcode ? [p.barcode] : [])).some((b) => b === barcode.trim()),
+            ),
+          )
+        : null,
+    };
+  },
+
   async getLookups(): Promise<StockLookups> {
     await fakeDelay();
     const brands = (await demoBrandService.list())

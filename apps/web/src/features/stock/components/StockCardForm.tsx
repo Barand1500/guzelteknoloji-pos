@@ -17,6 +17,7 @@ import { demoStockService } from '../services/stock.demo';
 import type { StockCardDraft, StockExtraOptions, StockExtras, StockLookups } from '../types';
 import { DesktopStockLayout } from './DesktopStockLayout';
 import { MobileStockLayout } from './MobileStockLayout';
+import { DuplicateCheckProvider } from '../duplicate-check';
 import { StockSavedScreen } from './StockSavedScreen';
 import { VariantEditor } from './VariantEditor';
 import { useWorkspace } from '../../workspace/workspace-context';
@@ -325,7 +326,9 @@ function StockCardEditor({
           className="m-0 min-w-0 border-0 p-0"
           aria-busy={editor.saving}
         >
-          {wide ? <DesktopStockLayout editor={editor} /> : <MobileStockLayout editor={editor} />}
+          <DuplicateCheckProvider service={service} excludeId={cardId}>
+            {wide ? <DesktopStockLayout editor={editor} /> : <MobileStockLayout editor={editor} />}
+          </DuplicateCheckProvider>
           {cardId && !demo && loaded.extraOptions?.attributes ? (
             <VariantEditor
               cardId={cardId}
