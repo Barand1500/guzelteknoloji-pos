@@ -6,7 +6,7 @@ Alt sayfalar aynı tasarım sisteminin input, modal ve butonlarını kullanır.
 - Bir işletme sahibi ve işletmeye bağlı üyeler. Kişiler kendi doğrulanmış e-posta girişleriyle katılır.
 - Roller bölüm bazında Görüntüle, Kaydet, Sil. Kaydet/Sil, Görüntüle gerektirir. Sunucu zorunlu kontrol eder.
 - İşletme sahibinin erişimi kapatılamaz; işletmenin son yöneticisi kaybolmaz.
-- Ayarlar: Genel, Görseller ve Entegrasyonlar olarak gruplanır. SMTP, IMAP ve Google bağlantıları Entegrasyonlar altında ayrı sekmelerdir. Cloudflare, WhatsApp ve Google reCAPTCHA için henüz etkin olmayan sekmeler bulunur; bağlantı uygulanmış gibi gösterilmez. Sırlar normal ayar yanıtlarında geri döndürülmez.
+- Ayarlar: Genel, Görseller ve Entegrasyonlar olarak gruplanır. SMTP, IMAP, Google, Cloudflare Turnstile, Meta WhatsApp Cloud API ve Google reCAPTCHA v2 ayrı sekmelerdir. Sırlar normal ayar yanıtlarında geri döndürülmez.
 - Log: kullanıcı, zaman, bölüm, işlem, sonuç ve gizli olmayan alan değişiklikleri. Şifre/token/e-posta içerikleri kaydedilmez.
 - Görseller sekmesinden ürün, marka, kategori ve özellik görsellerinin kenarına bağlı beyaz fonu gösterimde temizlenebilir. Kapalı beyaz nesne detayları korunur. İşlem tarayıcıda, en fazla 1024 piksel önizleme üzerinden yapılır; özgün dosya değişmez. Ayar kapanınca özgün görsel gösterilir. Renkli veya karmaşık arka planları ayıran bir nesne segmentasyonu uygulanmaz.
 

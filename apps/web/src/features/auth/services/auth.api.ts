@@ -14,26 +14,26 @@ import { API_BASE_URL, ApiError, apiRequest } from '../../../lib/http';
  * ve ilgili form değişir.
  */
 export const authApi = {
-  async login(input: LoginInput): Promise<PublicUser> {
+  async login(input: LoginInput, challengeToken?: string): Promise<PublicUser> {
     const { user } = await apiRequest<MeResponse>('/api/auth/login', {
       method: 'POST',
-      body: input,
+      body: { ...input, ...(challengeToken ? { challengeToken } : {}) },
     });
     return user;
   },
 
   /** E-Posta ile Devam Et adım 1: hesap kayıtlıysa 'password', değilse kod gönderilir ('code'). */
-  emailStart(email: string): Promise<EmailStartResponse> {
+  emailStart(email: string, challengeToken?: string): Promise<EmailStartResponse> {
     return apiRequest<EmailStartResponse>('/api/auth/email/start', {
       method: 'POST',
-      body: { email },
+      body: { email, ...(challengeToken ? { challengeToken } : {}) },
     });
   },
 
-  async emailVerify(input: EmailVerifyInput): Promise<PublicUser> {
+  async emailVerify(input: EmailVerifyInput, challengeToken?: string): Promise<PublicUser> {
     const { user } = await apiRequest<MeResponse>('/api/auth/email/verify', {
       method: 'POST',
-      body: input,
+      body: { ...input, ...(challengeToken ? { challengeToken } : {}) },
     });
     return user;
   },

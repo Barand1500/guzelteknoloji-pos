@@ -60,7 +60,15 @@ export class WorkspaceSettings {
     return Buffer.concat([cipher.update(data), cipher.final()]).toString('utf8');
   }
   isSecret(key: string) {
-    return ['password', 'clientSecret', 'refreshToken', 'accessToken'].includes(key);
+    return [
+      'password',
+      'clientSecret',
+      'refreshToken',
+      'accessToken',
+      'secretKey',
+      'verifyToken',
+      'appSecret',
+    ].includes(key);
   }
   async values(businessId: number, section: string, includeSecrets = false) {
     const rows = await this.db.isletmeAyari.findMany({ where: { businessId, section } });
@@ -84,10 +92,11 @@ export class WorkspaceSettings {
     const fields = new Set<string>(
       SETTINGS_PAGES.find((p) => p.key === section)!.fields.map((f) => f.key),
     );
+    const values = Object.fromEntries(
+      rows.filter((r) => fields.has(r.key) && !this.isSecret(r.key)).map((r) => [r.key, r.value]),
+    );
     return {
-      values: Object.fromEntries(
-        rows.filter((r) => fields.has(r.key) && !this.isSecret(r.key)).map((r) => [r.key, r.value]),
-      ),
+      values,
       configured: rows.filter((r) => fields.has(r.key) && this.isSecret(r.key)).map((r) => r.key),
       googleConnected: section === 'google' && rows.some((r) => r.key === 'refreshToken'),
     };
@@ -134,6 +143,42 @@ export class WorkspaceSettings {
         throw new HttpError(400, 'VALIDATION_ERROR', 'Geçersiz bağlantı bilgisi.');
     }
     await this.db.$transaction(async (tx) => {
+      if (['cloudflare', 'recaptcha', 'whatsapp'].includes(section)) {
+        await tx.$queryRaw`SELECT id FROM isletmeler WHERE id = ${businessId} FOR UPDATE`;
+        const old = await tx.isletmeAyari.findMany({ where: { businessId, section } });
+        const combined: Record<string, string> = Object.fromEntries(
+          old.map((r) => [r.key, r.value]),
+        );
+        for (const key of input.clear) delete combined[key];
+        for (const [key, value] of Object.entries(input.values))
+          if (value || !this.isSecret(key)) combined[key] = value.trim();
+        const required =
+          section === 'whatsapp'
+            ? ['appId', 'appSecret', 'phoneNumberId', 'accessToken', 'verifyToken']
+            : ['siteKey', 'secretKey'];
+        if (combined.enabled === 'true' && required.some((key) => !combined[key]))
+          throw new HttpError(
+            400,
+            'VALIDATION_ERROR',
+            'Etkinleştirmeden önce bağlantı bilgilerini eksiksiz girin.',
+          );
+        if (section === 'whatsapp') {
+          for (const key of ['appId', 'phoneNumberId'])
+            if (combined[key] && !/^\d{5,30}$/.test(combined[key]))
+              throw new HttpError(
+                400,
+                'VALIDATION_ERROR',
+                'Meta kimlikleri yalnızca rakam içermeli.',
+              );
+        } else if (combined.enabled === 'true') {
+          const other = section === 'cloudflare' ? 'recaptcha' : 'cloudflare';
+          await tx.isletmeAyari.upsert({
+            where: { businessId_section_key: { businessId, section: other, key: 'enabled' } },
+            create: { businessId, section: other, key: 'enabled', value: 'false' },
+            update: { value: 'false' },
+          });
+        }
+      }
       if (section === 'google') {
         const oldId = await tx.isletmeAyari.findUnique({
           where: { businessId_section_key: { businessId, section, key: 'clientId' } },

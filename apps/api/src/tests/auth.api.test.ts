@@ -211,23 +211,27 @@ describe('CSP frame-src (gömülü destek formu)', () => {
     return String(res.headers['content-security-policy']);
   };
 
-  it("form adresi yoksa hiçbir iframe'e izin vermez", async () => {
-    expect(await csp()).toContain("frame-src 'none'");
+  it('form adresi yoksa yalnızca robot doğrulama sağlayıcılarının çerçevelerine izin verir', async () => {
+    expect((await csp()).split(';').find((value) => value.startsWith('frame-src '))).toBe(
+      'frame-src https://challenges.cloudflare.com https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/',
+    );
   });
 
   it("yalnızca yapılandırılan form origin'ine izin verir (yol ve sorgu eklenmez)", async () => {
     const header = await csp({
       VITE_SUPPORT_FORM_URL: 'https://destek.guzelteknoloji.com/form/destek?source=abc&embed=1',
     });
-    expect(header).toMatch(/frame-src https:\/\/destek\.guzelteknoloji\.com(;|$)/);
+    expect(header.split(';').find((value) => value.startsWith('frame-src '))).toContain(
+      ' https://destek.guzelteknoloji.com',
+    );
     expect(header).not.toContain('source=abc');
     // Sayfanın kendisi çerçevelenemez.
     expect(header).toContain("frame-ancestors 'none'");
   });
 
   it('https olmayan adresi yok sayar', async () => {
-    expect(await csp({ VITE_SUPPORT_FORM_URL: 'http://destek.example.com/form' })).toContain(
-      "frame-src 'none'",
+    expect(await csp({ VITE_SUPPORT_FORM_URL: 'http://destek.example.com/form' })).not.toContain(
+      'http://destek.example.com',
     );
   });
 });

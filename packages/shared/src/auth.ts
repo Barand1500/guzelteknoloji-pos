@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ChallengeConfig } from './workspace';
 
 /**
  * E-posta normalizasyonu: baştaki/sondaki boşluklar atılır ve tamamı küçük harfe çevrilir.
@@ -86,7 +87,7 @@ export const API_ERROR_CODES = [
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
 
 export interface ApiErrorBody {
-  error: { code: ApiErrorCode; message: string };
+  error: { code: ApiErrorCode; message: string; challenge?: ChallengeConfig };
 }
 
 /** Sosyal giriş callback'inin /login'e yönlendirirken eklediği `hata` parametresi değerleri. */

@@ -143,10 +143,7 @@ export function KasaPriceEditor({ row, unitLabel, lookups, onChange }: KasaPrice
           </span>
         </output>
         <p className="mt-1 text-sm text-ink-muted">
-          {block.vatIncluded ? 'KDV Hariç' : 'KDV Dahil'}{' '}
-          <b className="text-ink">
-            {formatMoney(block.vatIncluded ? totals.excl : totals.incl, block.currency)}
-          </b>
+          KDV Dahil <b className="text-ink">{formatMoney(totals.incl, block.currency)}</b>
           {margin !== null ? (
             <span className="font-semibold text-success">
               {' '}

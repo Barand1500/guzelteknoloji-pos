@@ -30,11 +30,11 @@ describe('ürün giriş kontrolleri', () => {
     }
     const user = userEvent.setup();
     render(<Form />);
-    await user.type(screen.getByLabelText('İskonto %'), '10+10{Enter}');
-    expect(screen.getByLabelText('İskonto %')).toHaveValue('20');
-    expect(screen.getByText(/KDV Dahil:/)).toHaveTextContent('96,00');
+    await user.type(screen.getByLabelText('İskonto %'), '20+20{Enter}');
+    expect(screen.getByLabelText('İskonto %')).toHaveValue('36');
+    expect(screen.getByText(/KDV Dahil:/)).toHaveTextContent('76,80');
     await user.click(screen.getByRole('radio', { name: 'Dahil' }));
-    expect(screen.getByText(/KDV Hariç:/)).toHaveTextContent('66,67');
+    expect(screen.getByText(/KDV Dahil:/)).toHaveTextContent('64,00');
   });
   it('barkodu ikinci kez eklemez; listeyi yalnızca göz penceresinde gösterir ve siler', async () => {
     function Form() {

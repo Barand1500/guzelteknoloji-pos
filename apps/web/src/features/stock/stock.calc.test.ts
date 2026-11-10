@@ -3,15 +3,23 @@ import { blockTotals, extraNet, shapeVolumeCm3, toInputValue, volumeToDesi } fro
 import { discountPercent } from '@gt/shared';
 
 describe('stok hesapları', () => {
-  it('10+10 iskontosunu yüzde 20 uygular ve iki KDV durumunda doğru tutarı hesaplar', () => {
-    expect(discountPercent('10+10')).toBe(20);
-    expect(discountPercent('10,5 + 2,5')).toBe(13);
-    expect(discountPercent('90+20')).toBeNull();
+  it('ardışık iskontoyu kalan tutara uygular ve iki KDV durumunda doğru hesaplar', () => {
+    expect(discountPercent('20+20')).toBe(36);
+    expect(discountPercent('10+10')).toBe(19);
+    expect(discountPercent('20+20+20')).toBe(48.8);
+    expect(discountPercent('10,5 + 2,5')).toBe(12.7375);
+    expect(discountPercent('90+20')).toBe(92);
+    expect(discountPercent('100+20')).toBe(100);
+    expect(discountPercent('101+20')).toBeNull();
     expect(discountPercent('10+')).toBeNull();
-    const price = { amount: '100', currency: 'TRY', discount: '10+10', vatRate: '20', extras: [] };
-    expect(blockTotals({ ...price, vatIncluded: false })).toEqual({ net: 80, excl: 80, incl: 96 });
-    expect(blockTotals({ ...price, vatIncluded: true }).excl).toBeCloseTo(66.666666);
-    expect(blockTotals({ ...price, vatIncluded: true }).incl).toBeCloseTo(80);
+    const price = { amount: '100', currency: 'TRY', discount: '20+20', vatRate: '20', extras: [] };
+    expect(blockTotals({ ...price, vatIncluded: false })).toEqual({
+      net: 64,
+      excl: 64,
+      incl: 76.8,
+    });
+    expect(blockTotals({ ...price, vatIncluded: true }).excl).toBeCloseTo(53.333333);
+    expect(blockTotals({ ...price, vatIncluded: true }).incl).toBeCloseTo(64);
   });
   it('prizma, küp ve silindir hacmini cm³ olarak hesaplar', () => {
     expect(shapeVolumeCm3('prizma', { a: 10, b: 20, c: 30 })).toBe(6000);

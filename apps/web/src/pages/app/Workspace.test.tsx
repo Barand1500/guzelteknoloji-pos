@@ -252,6 +252,11 @@ describe('Profil ve işletme ekranları', () => {
   it.each([
     ['imap', 'password', 'Şifre'],
     ['google', 'clientSecret', 'İstemci Anahtarı'],
+    ['cloudflare', 'secretKey', 'Secret Key'],
+    ['recaptcha', 'secretKey', 'Secret Key'],
+    ['whatsapp', 'appSecret', 'Uygulama Gizli Anahtarı'],
+    ['whatsapp', 'accessToken', 'Erişim Belirteci'],
+    ['whatsapp', 'verifyToken', 'Webhook Doğrulama Belirteci'],
   ])(
     '%s gizli alanı maskeli kalır ve gözle açılır; kaldırma seçeneği yoktur',
     async (section, field, label) => {
@@ -271,6 +276,28 @@ describe('Profil ve işletme ekranları', () => {
       expect(screen.getByLabelText(label!)).toHaveAttribute('type', 'text');
     },
   );
+  it('şifresiz hesapta mevcut şifre istemez; oluşturunca şifre değiştirmeye geçer', async () => {
+    const user = userEvent.setup();
+    let hasPassword = false;
+    const fetch = mockFetch({
+      ...login,
+      'GET /api/hesap': () => jsonResponse(200, { ...owner, hasPassword }),
+      'POST /api/hesap/profil/sifre': () => {
+        hasPassword = true;
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp('/uygulama/profil');
+    await user.click(await screen.findByRole('button', { name: 'Şifre Oluştur' }));
+    expect(screen.queryByLabelText('Mevcut Şifre')).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText('Yeni Şifre', { exact: true }), 'example-password');
+    await user.type(screen.getByLabelText('Yeni Şifre Tekrar'), 'example-password');
+    const dialog = screen.getByRole('dialog', { name: 'Şifre Oluştur' });
+    await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
+    await screen.findByRole('button', { name: 'Şifreyi Değiştir' });
+    const call = fetch.mock.calls.find(([url]) => String(url).endsWith('/profil/sifre'))!;
+    expect(JSON.parse(String(call[1]?.body))).toEqual({ current: '', password: 'example-password' });
+  });
   it('profilde yazılan yeni şifre göz düğmesiyle gösterilir', async () => {
     const user = userEvent.setup();
     mockFetch(login);
