@@ -26,6 +26,72 @@ const login = {
 beforeEach(() => sessionStorage.clear());
 
 describe('Profil ve işletme ekranları', () => {
+  it('entegrasyonları üç sekmede toplar; iletişimde SMTP, IMAP ve WhatsApp birlikte görünür', async () => {
+    const user = userEvent.setup();
+    const fetch = mockFetch({
+      ...login,
+      'GET /api/hesap/ayarlar/smtp': () => jsonResponse(200, { values: {}, configured: [] }),
+      'GET /api/hesap/ayarlar/imap': () => jsonResponse(200, { values: {}, configured: [] }),
+      'GET /api/hesap/ayarlar/whatsapp': () => jsonResponse(200, { values: {}, configured: [] }),
+      'POST /api/hesap/ayarlar/smtp': () => jsonResponse(200, {}),
+    });
+    renderApp('/uygulama/ayarlar/entegrasyonlar');
+    const nav = await screen.findByRole('navigation', { name: 'Entegrasyonlar' });
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['İletişim', 'Robot Doğrulama', 'Sosyal Giriş']);
+    const smtp = await screen.findByRole('form', { name: 'SMTP' });
+    await screen.findByRole('form', { name: 'IMAP' });
+    await screen.findByRole('form', { name: 'Meta WhatsApp Cloud API' });
+    await user.type(within(smtp).getByLabelText('Sunucu'), 'smtp.example.com');
+    await user.click(within(smtp).getByRole('button', { name: 'Kaydet' }));
+    expect(
+      fetch.mock.calls.filter(([, init]) => init?.method === 'POST').map(([url]) => url),
+    ).toEqual(['/api/hesap/ayarlar/smtp']);
+  });
+  it('birden fazla iletişim kartı kirliyken tek ayrılma uyarısı gösterir', async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      ...login,
+      ...Object.fromEntries(
+        ['smtp', 'imap', 'whatsapp'].map((section) => [
+          `GET /api/hesap/ayarlar/${section}`,
+          () => jsonResponse(200, { values: {}, configured: [] }),
+        ]),
+      ),
+    });
+    renderApp('/uygulama/ayarlar/iletisim');
+    await user.type(
+      within(await screen.findByRole('form', { name: 'SMTP' })).getByLabelText('Sunucu'),
+      'smtp.example.com',
+    );
+    await user.type(
+      within(await screen.findByRole('form', { name: 'IMAP' })).getByLabelText('Sunucu'),
+      'imap.example.com',
+    );
+    await user.click(screen.getByRole('link', { name: 'Robot Doğrulama' }));
+    expect(
+      await screen.findAllByRole('dialog', { name: 'Kaydedilmemiş Değişiklikler' }),
+    ).toHaveLength(1);
+  });
+  it('sosyal girişte Google bağlantısı ile Apple sunucu durumunu aynı sayfada gösterir', async () => {
+    mockFetch({
+      ...login,
+      'GET /api/hesap/ayarlar/google': () => jsonResponse(200, { values: {}, configured: [] }),
+      'GET /api/hesap/sosyal-giris': () =>
+        jsonResponse(200, {
+          google: true,
+          apple: true,
+          appleRedirect: 'https://pos.example.com/api/auth/apple/callback',
+        }),
+    });
+    renderApp('/uygulama/ayarlar/sosyal-giris');
+    await screen.findByRole('form', { name: 'Google' });
+    expect(await screen.findByText('Apple ile giriş yapılandırılmış.')).toBeInTheDocument();
+    expect(screen.getByText('https://pos.example.com/api/auth/apple/callback')).toBeInTheDocument();
+  });
   it('rol izinlerini topluca seçip temizler ve log yazma izinlerini kapalı tutar', async () => {
     const user = userEvent.setup();
     const fetch = mockFetch({
@@ -71,13 +137,14 @@ describe('Profil ve işletme ekranları', () => {
         ...login,
         'GET /api/hesap/ayarlar/smtp': () => jsonResponse(200, { values: {}, configured: [] }),
         'GET /api/hesap/ayarlar/imap': () => jsonResponse(200, { values: {}, configured: [] }),
+        'GET /api/hesap/ayarlar/images': () => jsonResponse(200, { values: {}, configured: [] }),
         'POST /api/hesap/ayarlar/smtp/test': () => (pending ? response : jsonResponse(200, {})),
       });
       renderApp('/uygulama/ayarlar/smtp');
       await user.click(await screen.findByRole('button', { name: 'Kayıtlı Bağlantıyı Test Et' }));
       if (!pending) await screen.findByText('Kayıtlı bağlantı doğrulandı. E-posta gönderilmedi.');
-      await user.click(screen.getByRole('link', { name: 'Gelen E-Posta (IMAP)' }));
-      await screen.findByRole('heading', { name: 'IMAP' });
+      await user.click(screen.getByRole('link', { name: 'Görseller' }));
+      await screen.findByRole('heading', { name: 'Görsel Ayarları', level: 2 });
       finish();
       await response;
       expect(
@@ -115,6 +182,7 @@ describe('Profil ve işletme ekranları', () => {
     expect(screen.getByRole('button', { name: 'Çıkış Yap' })).toBeVisible();
     await user.click(screen.getByRole('link', { name: 'Profil' }));
     expect(await screen.findByRole('heading', { name: 'Profil Bilgileri' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Önceki Sayfaya Dön' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
   it('Kaydet seçilince Görüntüle de açılır; rol izinleri API’ye gider', async () => {

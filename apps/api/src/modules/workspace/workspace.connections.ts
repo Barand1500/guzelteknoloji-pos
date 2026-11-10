@@ -191,7 +191,7 @@ export function workspaceGoogleReturn(
       return next();
     const token = readSessionToken(req, env);
     const session = token ? await auth.getSession(token) : null;
-    if (!session) return res.redirect(`${env.APP_URL}/uygulama/ayarlar/google?google=gecersiz`);
+    if (!session) return res.redirect(`${env.APP_URL}/uygulama/ayarlar/sosyal-giris?google=gecersiz`);
     const ctx = await new WorkspaceAccess(db).resolve(session.user);
     requirePermission(ctx, 'settings', 'save');
     await googleCallback(new WorkspaceSettings(db, env.COOKIE_SECRET), db, ctx, env, req, res);
@@ -248,7 +248,7 @@ export async function googleCallback(
   req: Request,
   res: Response,
 ) {
-  const destination = `${env.APP_URL}/uygulama/ayarlar/google`;
+  const destination = `${env.APP_URL}/uygulama/ayarlar/sosyal-giris`;
   const flowSchema = z.strictObject({
     state: z.string(),
     verifier: z.string(),

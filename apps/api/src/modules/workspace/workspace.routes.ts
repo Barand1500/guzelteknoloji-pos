@@ -93,6 +93,18 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
     await db.kullanici.update({ where: { kimlik: ctx.user.id }, data: { gorunenAd: displayName } });
     res.json({ name: displayName });
   });
+  router.get('/sosyal-giris', (_req, res) => {
+    requirePermission(ctxOf(res), 'settings', 'read');
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      google: !!env.google,
+      apple: !!env.apple,
+      googleRedirect:
+        env.google?.redirectUri ?? new URL('/api/auth/google/callback', env.APP_URL).href,
+      appleRedirect:
+        env.apple?.redirectUri ?? new URL('/api/auth/apple/callback', env.APP_URL).href,
+    });
+  });
   router.post(
     '/profil/sifre',
     createRateLimiter({ enabled: env.rateLimitEnabled, windowMs: 900000, limit: 8 }),

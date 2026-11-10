@@ -211,7 +211,7 @@ describe('Ayar sırları', () => {
     expect(auth.getSession).not.toHaveBeenCalled();
     const business = await request(server).get('/callback?state=business-state');
     expect(business.status).toBe(302);
-    expect(business.headers.location).toContain('/uygulama/ayarlar/google?google=gecersiz');
+    expect(business.headers.location).toContain('/uygulama/ayarlar/sosyal-giris?google=gecersiz');
   });
   it('posta bağlantı hatasını gizli yanıtları yansıtmadan açıklar', () => {
     expect(
