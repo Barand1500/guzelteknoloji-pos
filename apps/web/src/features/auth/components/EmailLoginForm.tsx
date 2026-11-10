@@ -152,7 +152,6 @@ function EmailStep({
         aria-busy={isSubmitting}
       >
         {serverError ? <Alert tone="error">{serverError}</Alert> : null}
-        {robot.widget}
         <TextField
           label="E-Posta"
           type="email"
@@ -173,6 +172,7 @@ function EmailStep({
         >
           Devam Et
         </Button>
+        {robot.widget}
       </form>
     </>
   );
@@ -227,7 +227,6 @@ function PasswordStep({
         aria-busy={isSubmitting}
       >
         {serverError ? <Alert tone="error">{serverError}</Alert> : null}
-        {robot.widget}
         {/* Şifre yöneticileri için kullanıcı adı alanı (görünmez). */}
         <input type="hidden" name="username" autoComplete="username" value={email} readOnly />
         <TextField
@@ -261,6 +260,7 @@ function PasswordStep({
         >
           Devam Et
         </Button>
+        {robot.widget}
       </form>
     </>
   );
@@ -351,7 +351,6 @@ function CodeStep({
       >
         {serverError ? <Alert tone="error">{serverError}</Alert> : null}
         {notice ? <Alert tone="info">{notice}</Alert> : null}
-        {robot.widget}
         <TextField
           label="Doğrulama Kodu"
           inputMode="numeric"
@@ -375,6 +374,7 @@ function CodeStep({
           >
             Devam Et
           </Button>
+          {robot.widget}
           <Button
             variant="ghost"
             flow={false}

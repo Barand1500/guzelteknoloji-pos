@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode, type FormEvent } from 'react';
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type FormEvent,
+} from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import {
   Image as ImageIcon,
@@ -57,7 +66,10 @@ function SettingsTabs({ pathname }: { pathname: string }) {
       key: 'entegrasyonlar',
       label: 'Entegrasyonlar',
       icon: Mail,
-      active: /\/(smtp|imap|google|cloudflare|whatsapp|recaptcha|entegrasyonlar)$/.test(pathname),
+      active:
+        /\/(smtp|imap|google|cloudflare|whatsapp|recaptcha|entegrasyonlar|iletisim|robot-dogrulama|sosyal-giris)$/.test(
+          pathname,
+        ),
     },
   ];
   return (
@@ -78,25 +90,26 @@ function SettingsTabs({ pathname }: { pathname: string }) {
       {tabs[2]?.active && (
         <nav aria-label="Entegrasyonlar" className="flex overflow-x-auto border-b border-line">
           {[
-            ['smtp', 'Giden E-Posta (SMTP)'],
-            ['imap', 'Gelen E-Posta (IMAP)'],
-            ['google', 'Google'],
-            ['cloudflare', 'Cloudflare'],
-            ['whatsapp', 'WhatsApp'],
-            ['recaptcha', 'Google reCAPTCHA'],
+            ['iletisim', 'İletişim'],
+            ['robot-dogrulama', 'Robot Doğrulama'],
+            ['sosyal-giris', 'Sosyal Giriş'],
           ].map(([key, label]) => (
             <Link
               key={key}
               to={`/uygulama/ayarlar/${key}`}
               aria-current={
                 pathname.endsWith(`/${key}`) ||
-                (key === 'smtp' && pathname.endsWith('/entegrasyonlar'))
+                (key === 'iletisim' && /\/(smtp|imap|whatsapp|entegrasyonlar)$/.test(pathname)) ||
+                (key === 'robot-dogrulama' && /\/(cloudflare|recaptcha)$/.test(pathname)) ||
+                (key === 'sosyal-giris' && pathname.endsWith('/google'))
                   ? 'page'
                   : undefined
               }
               className={tabStyle(
                 pathname.endsWith(`/${key}`) ||
-                  (key === 'smtp' && pathname.endsWith('/entegrasyonlar')),
+                  (key === 'iletisim' && /\/(smtp|imap|whatsapp|entegrasyonlar)$/.test(pathname)) ||
+                  (key === 'robot-dogrulama' && /\/(cloudflare|recaptcha)$/.test(pathname)) ||
+                  (key === 'sosyal-giris' && pathname.endsWith('/google')),
               )}
             >
               {label}
@@ -861,7 +874,7 @@ function RoleForm({
 }
 
 export function SettingsIndexPage({ integrations = false }: { integrations?: boolean }) {
-  return <SettingsPage initialSection={integrations ? 'smtp' : 'general'} />;
+  return <SettingsPage initialSection={integrations ? 'iletisim' : 'general'} />;
 }
 
 interface FullSettings extends SettingsResult {
@@ -939,9 +952,140 @@ function SecretSettingField({
 export function SettingsPage({ initialSection = 'general' }: { initialSection?: string }) {
   const { section: parameter } = useParams();
   const section = parameter ?? initialSection;
+  if (['iletisim', 'robot-dogrulama', 'sosyal-giris'].includes(section))
+    return <IntegrationGroupPage key={section} group={section} />;
   return <SettingsPageContent key={section} section={section} />;
 }
-function SettingsPageContent({ section }: { section: string }) {
+const IntegrationDirtyContext = createContext<((section: string, dirty: boolean) => void) | null>(
+  null,
+);
+
+function EmbeddedSettings({
+  children,
+}: {
+  children: ReactNode;
+  back?: string;
+  description?: string;
+}) {
+  return <div className="min-w-0 space-y-4">{children}</div>;
+}
+
+function IntegrationGroupPage({ group }: { group: string }) {
+  const [dirty, setDirty] = useState<Record<string, boolean>>({});
+  const reportDirty = useCallback((section: string, value: boolean) => {
+    setDirty((previous) =>
+      previous[section] === value ? previous : { ...previous, [section]: value },
+    );
+  }, []);
+  const [params] = useSearchParams();
+  const robot = params.get('saglayici') === 'recaptcha' ? 'recaptcha' : 'cloudflare';
+  const sections =
+    group === 'iletisim'
+      ? ['smtp', 'imap', 'whatsapp']
+      : group === 'sosyal-giris'
+        ? ['google']
+        : [robot];
+  return (
+    <Frame
+      description={
+        group === 'iletisim'
+          ? 'E-posta ve WhatsApp bağlantılarınızı yönetin.'
+          : group === 'robot-dogrulama'
+            ? 'Girişte kullanılacak robot doğrulama sağlayıcısını yapılandırın.'
+            : 'Google ve Apple hesabıyla giriş bağlantıları.'
+      }
+    >
+      <IntegrationDirtyContext.Provider value={reportDirty}>
+        <UnsavedChanges dirty={Object.values(dirty).some(Boolean)} />
+        {group === 'robot-dogrulama' && (
+          <div className="space-y-3">
+            <nav aria-label="Robot doğrulama sağlayıcısı" className="flex flex-wrap gap-2">
+              {(['cloudflare', 'recaptcha'] as const).map((provider) => (
+                <Link
+                  key={provider}
+                  to={`/uygulama/ayarlar/robot-dogrulama?saglayici=${provider}`}
+                  aria-current={robot === provider ? 'page' : undefined}
+                  className={`inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-semibold ${robot === provider ? 'border-brand-700 bg-brand-50 text-brand-ink' : 'border-line text-ink-muted'}`}
+                >
+                  {provider === 'cloudflare' ? 'Cloudflare Turnstile' : 'Google reCAPTCHA'}
+                </Link>
+              ))}
+            </nav>
+            <p className="text-sm text-ink-muted">
+              Aynı anda yalnızca bir sağlayıcı kullanılır. Birini etkinleştirip kaydettiğinizde
+              diğeri kapanır.
+            </p>
+          </div>
+        )}
+        {group === 'iletisim' ? (
+          <>
+            <div className="grid min-w-0 items-start gap-4 xl:grid-cols-2">
+              {['smtp', 'imap'].map((section) => (
+                <SettingsPageContent key={section} section={section} embedded />
+              ))}
+            </div>
+            <SettingsPageContent section="whatsapp" embedded />
+          </>
+        ) : (
+          sections.map((section) => (
+            <SettingsPageContent key={section} section={section} embedded />
+          ))
+        )}
+        {group === 'sosyal-giris' && <SocialLoginStatus />}
+      </IntegrationDirtyContext.Provider>
+    </Frame>
+  );
+}
+
+function SocialLoginStatus() {
+  const state = useRows<{
+    google: boolean;
+    apple: boolean;
+    appleRedirect: string;
+    googleRedirect: string;
+  }>('/sosyal-giris', {
+    google: false,
+    apple: false,
+    appleRedirect: '',
+    googleRedirect: '',
+  });
+  return (
+    <section className={`${panel} space-y-4`}>
+      <h2 className="text-xl font-extrabold">Apple ile Giriş</h2>
+      <LoadState {...state} retry={state.reload} />
+      {!state.loading && !state.error && (
+        <>
+          <p className="font-semibold">
+            {state.value.apple
+              ? 'Apple ile giriş yapılandırılmış.'
+              : 'Apple ile giriş henüz yapılandırılmamış.'}
+          </p>
+          <p className="text-sm text-ink-muted">
+            Apple giriş ayarları sunucudaki APPLE_CLIENT_ID ve APPLE_CLIENT_SECRET ile yönetilir.
+          </p>
+          <p className="text-sm text-ink-muted">Apple Developer dönüş adresi:</p>
+          <p className="break-all font-mono text-xs">{state.value.appleRedirect}</p>
+          <p className="text-sm text-ink-muted">
+            Google ile genel giriş{' '}
+            {state.value.google
+              ? 'sunucuda yapılandırılmıştır'
+              : 'sunucuda henüz yapılandırılmamıştır'}
+            . Yukarıdaki işletme bağlantısı ayrı kaydedilir.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
+function SettingsPageContent({
+  section,
+  embedded = false,
+}: {
+  section: string;
+  embedded?: boolean;
+}) {
+  const reportDirty = useContext(IntegrationDirtyContext);
   const page = SETTINGS_PAGES.find((p) => p.key === section);
   const { can, refresh } = useWorkspace();
   const rows = useRows<FullSettings>(`/ayarlar/${page?.key ?? 'general'}`, {
@@ -956,6 +1100,14 @@ function SettingsPageContent({ section }: { section: string }) {
   const [params] = useSearchParams();
   const [challengeToken, setChallengeToken] = useState('');
   const [challengeRevision, setChallengeRevision] = useState(0);
+  const dirty =
+    !busy &&
+    !!page &&
+    page.fields.some((field) => (draft[field.key] ?? '') !== (rows.value.values[field.key] ?? ''));
+  useEffect(() => {
+    reportDirty?.(section, dirty);
+    return () => reportDirty?.(section, false);
+  }, [reportDirty, section, dirty]);
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(() => {
@@ -987,14 +1139,16 @@ function SettingsPageContent({ section }: { section: string }) {
       setBusy(false);
     }
   };
+  const Layout = embedded ? EmbeddedSettings : Frame;
   return (
-    <Frame
+    <Layout
       back={section === 'general' ? '/uygulama/ayarlar' : '/uygulama/ayarlar/entegrasyonlar'}
       description={page.description}
     >
       <LoadState {...rows} retry={rows.reload} />
       {!rows.loading && !rows.error && draftSource === rows.value && (
         <form
+          aria-label={page.title}
           className={`${panel} w-full space-y-5`}
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
@@ -1006,12 +1160,14 @@ function SettingsPageContent({ section }: { section: string }) {
             });
           }}
         >
-          <UnsavedChanges
-            dirty={
-              !busy &&
-              page.fields.some((f) => (draft[f.key] ?? '') !== (rows.value.values[f.key] ?? ''))
-            }
-          />
+          {!embedded && (
+            <UnsavedChanges
+              dirty={
+                !busy &&
+                page.fields.some((f) => (draft[f.key] ?? '') !== (rows.value.values[f.key] ?? ''))
+              }
+            />
+          )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-extrabold">{page.title}</h2>
             {page.fields.some((f) => f.key === 'enabled') && (
@@ -1032,6 +1188,7 @@ function SettingsPageContent({ section }: { section: string }) {
               </fieldset>
             )}
           </div>
+          {embedded && <p className="text-sm text-ink-muted">{page.description}</p>}
           {rows.value.source && (
             <p className="text-xs text-ink-muted">
               Kullanılan ayar:{' '}
@@ -1263,7 +1420,7 @@ function SettingsPageContent({ section }: { section: string }) {
       {section === 'whatsapp' && !rows.loading && !rows.error && can('settings', 'save') && (
         <WhatsAppMessageForm />
       )}
-    </Frame>
+    </Layout>
   );
 }
 

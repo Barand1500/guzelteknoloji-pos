@@ -16,6 +16,7 @@ async function widgets(page: Page) {
 const user = { id: '1', displayName: 'Yunus', email: 'user@example.com', avatarUrl: null };
 for (const width of [390, 1440])
   test(`entegrasyon ayarları ${width}px`, async ({ page }, info) => {
+    test.setTimeout(60000);
     await page.setViewportSize({ width, height: 1000 });
     await widgets(page);
     await page.route('**/api/**', async (route) => {
@@ -34,7 +35,13 @@ for (const width of [390, 1440])
           path.includes('whatsapp') ? '' : 'verified-widget-token',
         );
         body = { message: 'Bağlantı doğrulandı.' };
-      } else if (path.includes('/ayarlar/'))
+      } else if (path.endsWith('/sosyal-giris'))
+        body = {
+          google: true,
+          apple: true,
+          appleRedirect: 'https://pos.example.com/api/auth/apple/callback',
+        };
+      else if (path.includes('/ayarlar/'))
         body = path.endsWith('/whatsapp')
           ? {
               values: {
@@ -63,6 +70,42 @@ for (const width of [390, 1440])
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       ).toBe(true);
       await page.screenshot({ path: info.outputPath(`${section}.png`), fullPage: true });
+    }
+    for (const group of ['iletisim', 'robot-dogrulama', 'sosyal-giris']) {
+      await page.goto(`/uygulama/ayarlar/${group}`);
+      await expect(
+        page.getByRole('navigation', { name: 'Entegrasyonlar', exact: true }).getByRole('link'),
+      ).toHaveCount(3);
+      if (group === 'iletisim') {
+        await expect(page.getByRole('form', { name: 'SMTP', exact: true })).toBeVisible();
+        await expect(page.getByRole('form', { name: 'IMAP', exact: true })).toBeVisible();
+        await expect(
+          page.getByRole('form', { name: 'Meta WhatsApp Cloud API', exact: true }),
+        ).toBeVisible();
+      } else if (group === 'robot-dogrulama') {
+        await page.getByRole('link', { name: 'Google reCAPTCHA', exact: true }).click();
+        await expect(
+          page.getByRole('form', { name: 'Google reCAPTCHA', exact: true }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole('form', { name: 'Cloudflare Turnstile', exact: true }),
+        ).toHaveCount(0);
+      } else
+        await expect(
+          page.getByText('Apple ile giriş yapılandırılmış.', { exact: true }),
+        ).toBeVisible();
+      for (const theme of ['dark', 'light']) {
+        await page
+          .getByRole('button', {
+            name: theme === 'dark' ? 'Gece Moduna Geç' : 'Gündüz Moduna Geç',
+            exact: true,
+          })
+          .click();
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        ).toBe(true);
+        await page.screenshot({ path: info.outputPath(`${group}-${theme}.png`), fullPage: true });
+      }
     }
   });
 

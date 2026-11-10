@@ -1,5 +1,7 @@
 # İşletme entegrasyonları
 
+Ayarlar → Entegrasyonlar üç sayfada düzenlenir: **İletişim** (SMTP, IMAP, WhatsApp), **Robot Doğrulama** (Cloudflare veya reCAPTCHA) ve **Sosyal Giriş** (Google işletme bağlantısı ve Apple genel giriş durumu). İletişim kartları ayrı kaydedilir ve test edilir; grup içindeki kaydedilmemiş değişiklikler tek ayrılma uyarısıyla korunur. Apple genel giriş anahtarları sunucudaki `.env` üzerinden yönetilir; bu düzenleme Apple için işletmeye özel anahtar kaydı eklemez. Eski bağlantı adresleri çalışmaya devam eder, Google bağlantı dönüşü Sosyal Giriş sayfasına gider.
+
 Anahtarlar mevcut `isletme_ayarlari` tablosunda ayrı satırlarda saklanır; yeni migration gerekmez. Uygulama gizli anahtarı, erişim belirteci, webhook belirteci ve robot doğrulama gizli anahtarları mevcut AES-256-GCM şifrelemesini kullanır. Normal GET yanıtları bunları içermez. Göz düğmesi Ayarlar/Kaydet yetkisiyle, `no-store` yanıtıyla çalışır; loglara gizli değer yazılmaz.
 
 ## Cloudflare Turnstile / Google reCAPTCHA
