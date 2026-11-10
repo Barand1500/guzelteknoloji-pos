@@ -1,4 +1,4 @@
-import { ChevronLeft, Plus, Sparkles } from 'lucide-react';
+import { ChevronLeft, Sparkles } from 'lucide-react';
 import { usePublishAddAction } from '../../app-shell/save-action';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -185,16 +185,6 @@ export function DealsView() {
             label="Fırsat ara"
             placeholder="Fırsat ara…"
           />
-        </div>
-        <div className="hidden md:block">
-          <Button
-            fullWidth={false}
-            flow={false}
-            onClick={openAdd}
-            leadingIcon={<Plus className="size-5" aria-hidden="true" />}
-          >
-            Fırsat Ekle
-          </Button>
         </div>
       </div>
 

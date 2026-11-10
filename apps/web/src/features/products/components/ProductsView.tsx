@@ -1,11 +1,4 @@
-import {
-  FileSpreadsheet,
-  Images,
-  ListChecks,
-  SlidersHorizontal,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import { FileSpreadsheet, Images, ListChecks, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../../../components/ui/Button';
@@ -52,9 +45,9 @@ const MAX_SEGMENTS = 4;
  * (sabit "Fiyat 1/2/3" yok); dörtten fazla liste varsa hangilerinin görüneceği seçilir.
  * "Ekle" mevcut stok kartı oluşturma ekranını açar.
  */
-/** Geniş ekranda üst çubuktaki küçük kısayol düğmesi. */
-const SHORTCUT =
-  'inline-flex min-h-7 items-center justify-center gap-1.5 rounded-full border border-field-border px-3.5 text-xs font-semibold text-ink-muted transition-colors hover:border-brand-500 hover:text-ink';
+/** Geniş ekranda üst çubuktaki simgeli araç düğmesi (süzgeç düğmesiyle aynı ölçü). */
+const TOOL =
+  'flex size-12 shrink-0 items-center justify-center rounded-full border border-field-border text-ink-muted transition-colors hover:border-brand-500 hover:text-brand-ink';
 
 export function ProductsView() {
   const desktop = useMediaQuery('(min-width: 64rem)');
@@ -325,27 +318,33 @@ export function ProductsView() {
             </span>
           ) : null}
         </button>
+        {/* Geniş ekranda süzgeç düğmesiyle aynı boyutta, yalnızca simgeli üç yuvarlak düğme (adı üzerine gelince çıkar). */}
         <div className="hidden items-center gap-2.5 lg:flex">
-          <Button
-            fullWidth={false}
-            flow={false}
-            variant="outline"
+          <button
+            type="button"
             onClick={() => setImportOpen(true)}
-            leadingIcon={<FileSpreadsheet className="size-5" aria-hidden="true" />}
+            aria-label="Excel ile Yükle"
+            title="Excel ile Yükle"
+            className={TOOL}
           >
-            Excel ile Yükle
-          </Button>
-          {/* Ürün eklemek alt çubuktaki "+" düğmesiyle yapılır; yerinde iki kısayol alt alta durur. */}
-          <div className="flex flex-col gap-1.5">
-            <Link to={DEALS_PATH} className={SHORTCUT}>
-              <Sparkles className="size-3.5" aria-hidden="true" />
-              Fırsat Yönetimi
-            </Link>
-            <Link to={BULK_IMAGES_PATH} className={SHORTCUT}>
-              <Images className="size-3.5" aria-hidden="true" />
-              Toplu Görsel
-            </Link>
-          </div>
+            <FileSpreadsheet className="size-5" aria-hidden="true" />
+          </button>
+          <Link
+            to={DEALS_PATH}
+            aria-label="Fırsat Yönetimi"
+            title="Fırsat Yönetimi"
+            className={TOOL}
+          >
+            <Sparkles className="size-5" aria-hidden="true" />
+          </Link>
+          <Link
+            to={BULK_IMAGES_PATH}
+            aria-label="Toplu Görsel"
+            title="Toplu Görsel"
+            className={TOOL}
+          >
+            <Images className="size-5" aria-hidden="true" />
+          </Link>
         </div>
       </div>
 
