@@ -1,12 +1,12 @@
 import { Check, Copy, MoreHorizontal, Pencil } from 'lucide-react';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import {
-  COST_VIEW,
   currencyOf,
   formatMoney,
   grossOf,
   listPricesOf,
   moneyOrDash,
+  netOf,
   vatOf,
   type PriceView,
   type ProductItem,
@@ -54,13 +54,15 @@ export function ProductRow({
 }: ProductRowProps) {
   const lists = listPricesOf(product);
   const shown = grossOf(product, priceView);
-  // Kâr: ilk fiyat listesinin satışı ile alış aynı para birimindeyse hesaplanır.
-  const first = lists[0];
+  const first = lists.find((l) => l.id === priceView.replace(/^cost:/, '')) ?? lists[0];
+  const buyView = `cost:${first?.id ?? ''}`;
+  const buy = netOf(product, buyView);
   const margin =
-    product.cost > 0 &&
+    buy !== null &&
+    buy > 0 &&
     first?.net != null &&
-    currencyOf(product, first.id) === currencyOf(product, COST_VIEW)
-      ? Math.round(((first.net - product.cost) / product.cost) * 100)
+    currencyOf(product, first.id) === currencyOf(product, buyView)
+      ? Math.round(((first.net - buy) / buy) * 100)
       : null;
 
   return (
@@ -137,22 +139,28 @@ export function ProductRow({
                 key={list.id}
                 className={[
                   'min-w-0 rounded-2xl bg-surface-raised px-1 py-2',
-                  list.id === priceView ? 'ring-2 ring-brand-600' : '',
+                  list.id === priceView.replace(/^cost:/, '') ? 'ring-2 ring-brand-600' : '',
                 ].join(' ')}
               >
                 <dt className="truncate text-[0.6875rem] font-semibold text-ink-muted">
                   {list.name}
                 </dt>
                 <dd className="text-sm font-extrabold">
-                  {moneyOrDash(grossOf(product, list.id), currencyOf(product, list.id))}
+                  {moneyOrDash(
+                    grossOf(product, priceView.startsWith('cost:') ? `cost:${list.id}` : list.id),
+                    currencyOf(
+                      product,
+                      priceView.startsWith('cost:') ? `cost:${list.id}` : list.id,
+                    ),
+                  )}
                 </dd>
               </div>
             ))}
           </dl>
           <p className="px-1 text-xs text-ink-muted">
             KDV %{vatOf(product, priceView)} dahil
-            {product.cost > 0
-              ? ` · Alış ${formatMoney(product.cost, currencyOf(product, COST_VIEW))}${margin !== null ? ` · Kâr %${margin}` : ''}`
+            {buy !== null
+              ? ` · Alış ${formatMoney(buy, currencyOf(product, buyView))}${margin !== null ? ` · Kâr %${margin}` : ''}`
               : ''}
           </p>
           <div className="flex flex-wrap items-center justify-between gap-x-4">

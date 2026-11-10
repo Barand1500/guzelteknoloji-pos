@@ -124,11 +124,19 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
     expect(screen.getAllByRole('article')).toHaveLength(2);
     await user.type(screen.getAllByLabelText('Barkod')[0]!, '8690001');
     await user.click(screen.getAllByRole('button', { name: 'Barkod Ekle' })[0]!);
+    await screen.findByRole('button', { name: 'Barkodları görüntüle (1)' });
 
     // PERAKENDE listesine geçilince aynı iki birim ve barkod orada da vardır; fiyat boştur.
     await user.click(screen.getByRole('tab', { name: 'PERAKENDE' }));
     expect(screen.getAllByRole('article')).toHaveLength(2);
-    expect(within(screen.getAllByRole('article')[0]!).getByText('8690001')).toBeInTheDocument();
+    await user.click(
+      within(screen.getAllByRole('article')[0]!).getByRole('button', {
+        name: 'Barkodları görüntüle (1)',
+      }),
+    );
+    const barcodes = screen.getByRole('dialog', { name: 'Barkodlar' });
+    expect(within(barcodes).getByText('8690001')).toBeInTheDocument();
+    await user.click(within(barcodes).getByRole('button', { name: 'Kapat' }));
     expect(screen.getAllByLabelText('Satış Fiyatı')[0]).toHaveValue('');
 
     // Perakendeye birim eklenirse FİYAT listesinde de görünür.

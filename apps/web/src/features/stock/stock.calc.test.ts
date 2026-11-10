@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { blockTotals, extraNet, shapeVolumeCm3, toInputValue, volumeToDesi } from './stock.calc';
+import { discountPercent } from '@gt/shared';
 
 describe('stok hesapları', () => {
+  it('10+10 iskontosunu yüzde 20 uygular ve iki KDV durumunda doğru tutarı hesaplar', () => {
+    expect(discountPercent('10+10')).toBe(20);
+    expect(discountPercent('10,5 + 2,5')).toBe(13);
+    expect(discountPercent('90+20')).toBeNull();
+    expect(discountPercent('10+')).toBeNull();
+    const price = { amount: '100', currency: 'TRY', discount: '10+10', vatRate: '20', extras: [] };
+    expect(blockTotals({ ...price, vatIncluded: false })).toEqual({ net: 80, excl: 80, incl: 96 });
+    expect(blockTotals({ ...price, vatIncluded: true }).excl).toBeCloseTo(66.666666);
+    expect(blockTotals({ ...price, vatIncluded: true }).incl).toBeCloseTo(80);
+  });
   it('prizma, küp ve silindir hacmini cm³ olarak hesaplar', () => {
     expect(shapeVolumeCm3('prizma', { a: 10, b: 20, c: 30 })).toBe(6000);
     expect(shapeVolumeCm3('kup', { a: 10, b: 0, c: 0 })).toBe(1000);

@@ -5,6 +5,7 @@ import {
   productItemSeeds,
 } from '../../../mocks/product.mock';
 import { categorySeeds } from '../../../mocks/category.mock';
+import { demoCategoryService } from '../../categories/services/category.demo';
 import { brandSeeds } from '../../../mocks/brand.mock';
 import { parseImport, parseNumber, type RawImportRow } from '../import.csv';
 import {
@@ -118,7 +119,15 @@ export const demoProductService = {
       page,
       pageSize: query.pageSize,
       priceLists: priceListsOf(items),
-      filterOptions: productFilterOptions(items),
+      filterOptions: {
+        ...productFilterOptions(items),
+        categories: (await demoCategoryService.list()).map((c) => ({
+          id: c.id,
+          name: c.name,
+          parentId: c.parentId,
+          active: c.active,
+        })),
+      },
     };
   },
   async count(query: ProductPageQuery) {
@@ -247,15 +256,33 @@ export const demoProductService = {
       let skipped = 0;
       const next = items.map((p) => {
         if (!ids.includes(p.id)) return p;
+        const list = p.listPrices?.find((l) => l.id === price.listeId);
         if (price.yon === 'alis') {
-          const cost = p.cost > 0 ? newExclPrice(p.cost, p.costVatRate ?? p.vatRate, change) : null;
+          const cost =
+            list?.purchase?.net == null
+              ? null
+              : newExclPrice(list.purchase.net, list.purchase.vatRate, change);
           if (cost === null) {
             skipped++;
             return p;
           }
-          return { ...p, cost };
+          return {
+            ...p,
+            ...(p.listPrices?.[0]?.id === list!.id ? { cost } : {}),
+            listPrices: p.listPrices!.map((l) =>
+              l.id === list!.id
+                ? {
+                    ...l,
+                    purchase: {
+                      ...l.purchase!,
+                      net: cost,
+                      gross: Math.round(cost * (1 + l.purchase!.vatRate / 100) * 100) / 100,
+                    },
+                  }
+                : l,
+            ),
+          };
         }
-        const list = p.listPrices?.find((l) => l.id === price.listeId);
         if (!list || list.net === null) {
           skipped++;
           return p;

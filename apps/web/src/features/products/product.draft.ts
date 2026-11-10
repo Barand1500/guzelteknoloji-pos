@@ -36,9 +36,15 @@ export function draftFromProduct(p: ProductItem): StockCardDraft {
     const row = createUnitRow(true);
     row.purchase = {
       ...row.purchase,
-      amount: p.cost ? text(p.cost) : '',
-      currency: purchaseCurrency,
-      vatRate: String(p.costVatRate ?? p.vatRate),
+      amount: list.purchase
+        ? list.purchase.net === null
+          ? ''
+          : text(list.purchase.net)
+        : p.cost
+          ? text(p.cost)
+          : '',
+      currency: list.purchase?.currency ?? purchaseCurrency,
+      vatRate: String(list.purchase?.vatRate ?? p.costVatRate ?? p.vatRate),
     };
     row.sale = {
       ...row.sale,
@@ -80,6 +86,12 @@ export function patchFromDraft(draft: StockCardDraft, lookups: StockLookups): Pa
       net: entered ? Math.round(blockTotals(row.sale).excl * 1e6) / 1e6 : null,
       vatRate: row ? num(row.sale.vatRate, 20) : 20,
       currency: row?.sale.currency ?? 'TRY',
+      purchase: {
+        net: row && row.purchase.amount !== '' ? blockTotals(row.purchase).excl : null,
+        gross: row && row.purchase.amount !== '' ? blockTotals(row.purchase).incl : null,
+        vatRate: row ? num(row.purchase.vatRate, 20) : 20,
+        currency: row?.purchase.currency ?? 'TRY',
+      },
     };
   });
   const first = main(listPrices[0]?.id ?? 'fiyat');

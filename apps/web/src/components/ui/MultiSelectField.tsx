@@ -10,6 +10,8 @@ export interface MultiOption {
   depth?: number;
   /** Aramada gösterilen üst yol ("Üst › Alt" için "Üst"). */
   path?: string;
+  parentId?: string | null;
+  active?: boolean;
 }
 
 interface MultiSelectFieldProps {
@@ -49,6 +51,7 @@ export function MultiSelectField({
   const listId = `${id}-panel`;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pos, setPos] = useState<{
     left: number;
     width: number;
@@ -62,12 +65,40 @@ export function MultiSelectField({
   const panelRef = useRef<HTMLDivElement>(null);
   const phone = !useMediaQuery('(min-width: 48rem)');
 
+  const tree = useMemo(() => {
+    if (!options.some((o) => o.parentId)) return options;
+    const result: MultiOption[] = [];
+    const seen = new Set<string>();
+    const visit = (o: MultiOption, depth: number, path: string, parentActive = true) => {
+      if (seen.has(o.id)) return;
+      seen.add(o.id);
+      const active = parentActive && o.active !== false;
+      result.push({ ...o, depth, path, active });
+      options
+        .filter((child) => child.parentId === o.id)
+        .forEach((child) => visit(child, depth + 1, path ? `${path} › ${o.name}` : o.name, active));
+    };
+    options
+      .filter((o) => !o.parentId || !options.some((parent) => parent.id === o.parentId))
+      .forEach((o) => visit(o, 0, ''));
+    options.filter((o) => !seen.has(o.id)).forEach((o) => visit(o, 0, ''));
+    return result;
+  }, [options]);
   const visible = useMemo(
     () =>
-      query
-        ? options.filter((o) => fold(`${o.path ?? ''} ${o.name}`).includes(fold(query)))
-        : options,
-    [options, query],
+      tree.filter((o) => {
+        if (query) return fold(`${o.path ?? ''} ${o.name}`).includes(fold(query));
+        let parent = o.parentId;
+        const seen = new Set<string>([o.id]);
+        while (parent && !seen.has(parent)) {
+          if (!options.some((p) => p.id === parent)) break;
+          seen.add(parent);
+          if (!expanded.has(parent)) return false;
+          parent = options.find((p) => p.id === parent)?.parentId;
+        }
+        return true;
+      }),
+    [tree, query, expanded, options],
   );
   const chosen = options.filter((o) => value.includes(o.id));
   const toggle = (optionId: string) =>
@@ -232,10 +263,32 @@ export function MultiSelectField({
                     visible.map((o) => {
                       const on = value.includes(o.id);
                       return (
-                        <li key={o.id}>
+                        <li key={o.id} className="flex items-center">
+                          {options.some((child) => child.parentId === o.id) && (
+                            <button
+                              type="button"
+                              aria-label={`${o.name} alt kategorileri`}
+                              aria-expanded={expanded.has(o.id)}
+                              onClick={() =>
+                                setExpanded((old) => {
+                                  const next = new Set(old);
+                                  if (next.has(o.id)) next.delete(o.id);
+                                  else next.add(o.id);
+                                  return next;
+                                })
+                              }
+                              className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl hover:bg-surface-muted"
+                            >
+                              <ChevronDown
+                                className={`size-4 ${expanded.has(o.id) ? '' : '-rotate-90'}`}
+                              />
+                            </button>
+                          )}
                           <button
                             type="button"
                             role="checkbox"
+                            aria-label={query && o.path ? `${o.path} › ${o.name}` : o.name}
+                            aria-description={o.active === false ? 'Pasif kategori' : undefined}
                             aria-checked={on}
                             onClick={() => toggle(o.id)}
                             style={
@@ -244,8 +297,12 @@ export function MultiSelectField({
                                 : undefined
                             }
                             className={[
-                              'flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-xl px-3 text-left text-base hover:bg-surface-muted',
-                              on ? 'bg-brand-50 font-semibold text-brand-ink' : 'text-ink',
+                              'flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-xl px-3 text-left text-base hover:bg-surface-muted',
+                              o.active === false
+                                ? 'text-ink-muted'
+                                : on
+                                  ? 'bg-brand-50 font-semibold text-brand-ink'
+                                  : 'text-ink',
                             ].join(' ')}
                           >
                             {o.depth && !query ? (
@@ -260,6 +317,11 @@ export function MultiSelectField({
                               ) : null}
                               <span className={o.depth || on ? '' : 'font-semibold'}>{o.name}</span>
                             </span>
+                            {o.active === false && (
+                              <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-xs text-ink-muted">
+                                Pasif
+                              </span>
+                            )}
                             {on ? <Check className="size-4 shrink-0" aria-hidden="true" /> : null}
                           </button>
                         </li>

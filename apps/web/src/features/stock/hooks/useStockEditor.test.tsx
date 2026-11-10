@@ -39,6 +39,13 @@ it('birim/barkod ortak, fiyatlar ayrı kalır; ekleme ve silme tüm listelere ya
   expect(result.current.draft.units.perakende![0]!.sale.amount).toBe('150');
   act(() => result.current.addRow());
   const secondId = result.current.rows[1]!.id;
+  act(() =>
+    result.current.updateRow(secondId, {
+      barcodes: [{ id: 'duplicate', type: 'EAN13', code: '8691234567890' }],
+    }),
+  );
+  expect(result.current.rows[1]!.barcodes).toEqual([]);
+  expect(result.current.saveError).toContain('başka bir birimde');
   act(() => result.current.updateRow(secondId, { unit: 'koli', multiplier: '12' }));
   expect(result.current.draft.units.fiyat![1]!.multiplier).toBe('12');
   act(() => result.current.setActiveList('toptan'));

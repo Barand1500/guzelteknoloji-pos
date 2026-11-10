@@ -1,4 +1,5 @@
 import { Segmented } from '../../../components/ui/Segmented';
+import { discountPercent } from '@gt/shared';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import { blockTotals, formatMoney } from '../stock.calc';
@@ -31,8 +32,10 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
           {title}
         </p>
         <p className="text-sm text-ink-muted">
-          KDV Dahil:{' '}
-          <span className="font-bold text-ink">{formatMoney(totals.incl, data.currency)}</span>
+          {data.vatIncluded ? 'KDV Hariç:' : 'KDV Dahil:'}{' '}
+          <span className="font-bold text-ink">
+            {formatMoney(data.vatIncluded ? totals.excl : totals.incl, data.currency)}
+          </span>
         </p>
       </div>
       {/* Telefonda 6 sütun (2 alan/satır), md+ ekranda 12 sütunla 2 sıkı satır. */}
@@ -56,9 +59,20 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
         <div className="col-span-3 md:col-span-4">
           <TextField
             label="İskonto %"
-            numeric="decimal"
+            inputMode="text"
             value={data.discount}
             onChange={(e) => onChange({ discount: e.target.value })}
+            error={
+              discountPercent(data.discount) === null
+                ? 'İskonto toplamı 0–100 arasında olmalı. Örnek: 10+10.'
+                : undefined
+            }
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              const result = discountPercent(data.discount);
+              if (result !== null) onChange({ discount: String(result).replace('.', ',') });
+            }}
           />
         </div>
         <div className="col-span-3 md:col-span-4">

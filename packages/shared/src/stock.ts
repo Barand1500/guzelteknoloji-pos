@@ -101,18 +101,35 @@ const percentage = decimal.refine(
   (v) => v === '' || Number(v) <= 100,
   'Oran 0–100 arasında olmalı.',
 );
+/** Toplanan iskonto oranı: 10+10 = %20. İfade hiçbir zaman kod olarak çalıştırılmaz. */
+export function discountPercent(value: string): number | null {
+  if (value.trim() === '') return 0;
+  const parts = value.split('+').map((part) => part.trim().replace(',', '.'));
+  if (parts.length > 20 || parts.some((part) => !/^\d{1,3}(\.\d{1,6})?$/.test(part))) return null;
+  const sum = Math.round(parts.reduce((total, part) => total + Number(part), 0) * 1e6) / 1e6;
+  return sum <= 100 ? sum : null;
+}
+const discount = z
+  .string()
+  .trim()
+  .max(200)
+  .refine(
+    (v) => discountPercent(v) !== null,
+    'İskonto toplamı 0–100 arasında olmalı. Örnek: 10+10.',
+  )
+  .transform((v) => (v === '' ? '' : String(discountPercent(v))));
 const currency = z.enum(['TRY', 'USD', 'EUR'], { error: 'Geçerli bir para birimi seçin.' });
 const extraPriceSchema = z.strictObject({
   id: text(100),
   note: text(250),
   amount: decimal,
-  discount: percentage,
+  discount,
   currency,
 });
 const priceSchema = z.strictObject({
   amount: decimal,
   currency,
-  discount: percentage,
+  discount,
   vatRate: percentage,
   vatIncluded: z.boolean(),
   extras: z.array(extraPriceSchema).max(30, 'En fazla 30 ek fiyat eklenebilir.'),

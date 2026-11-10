@@ -82,6 +82,9 @@ export function useWorkspace() {
   if (!ctx) throw new Error('WorkspaceProvider gerekli');
   return ctx;
 }
+export function useImageAppearance(page: string) {
+  return useContext(Context)?.data?.imageAppearance?.[page] === 'true';
+}
 
 /** Ortak kontroller mevcut sayfanın yetkisini kullanır; giriş ekranında işletme kapsamı yoktur. */
 export function useWorkspacePermission(action: PermissionAction) {

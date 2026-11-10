@@ -895,6 +895,10 @@ export class PrismaStockRepository implements StockRepository {
               sales[2]?.paraBirimi ?? 'TRY',
             ],
             listPrices: priceLists.map((list) => {
+              const buy = prices.find(
+                (p) => p.fiyatYonu === 'alis' && p.fiyatListesi.kimlik === list.kimlik,
+              );
+              const buyNet = buy ? calculatedPrices(buy).excludingVat : null;
               const sale = prices.find(
                 (p) => p.fiyatYonu === 'satis' && p.fiyatListesi.kimlik === list.kimlik,
               );
@@ -903,6 +907,19 @@ export class PrismaStockRepository implements StockRepository {
                 id: String(list.kimlik),
                 code: list.secenekKodu,
                 name: list.secenekAdi,
+                purchase: {
+                  net: buyNet === null ? null : Number(buyNet),
+                  gross:
+                    buyNet === null
+                      ? null
+                      : Number(
+                          new Prisma.Decimal(buyNet)
+                            .mul(new Prisma.Decimal(1).plus((buy?.kdvOrani ?? ZERO).div(100)))
+                            .toDecimalPlaces(2),
+                        ),
+                  vatRate: Number(buy?.kdvOrani ?? 0),
+                  currency: buy?.paraBirimi ?? 'TRY',
+                },
                 // Girilmemiş fiyat 0 değil boştur ("—").
                 net: excluding === null ? null : Number(excluding),
                 gross:
@@ -935,9 +952,14 @@ export class PrismaStockRepository implements StockRepository {
                     await tx.kategori.findMany({
                       where: { kullaniciId: Number(userId) },
                       orderBy: [{ ad: 'asc' }, { id: 'asc' }],
-                      select: { id: true, ad: true },
+                      select: { id: true, ad: true, ustId: true, etkin: true },
                     })
-                  ).map((c) => ({ id: String(c.id), name: c.ad })),
+                  ).map((c) => ({
+                    id: String(c.id),
+                    name: c.ad,
+                    parentId: c.ustId == null ? null : String(c.ustId),
+                    active: c.etkin,
+                  })),
                   brands: (
                     await tx.marka.findMany({
                       where: { kullaniciKimligi: Number(userId) },

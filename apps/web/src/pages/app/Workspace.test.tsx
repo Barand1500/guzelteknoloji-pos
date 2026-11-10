@@ -35,6 +35,7 @@ describe('Profil ve işletme ekranları', () => {
     });
     renderApp('/uygulama/roller');
     await user.click(await screen.findByRole('button', { name: 'Rol Ekle' }));
+    expect(screen.queryByText(/Kaydet: yeni kayıt/)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Tümünü Seç' }));
     expect(screen.getByRole('checkbox', { name: 'Ürünler Sil' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Log Kayıtları Görüntüle' })).toBeChecked();

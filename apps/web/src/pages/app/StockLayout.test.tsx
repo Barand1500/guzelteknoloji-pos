@@ -29,9 +29,9 @@ describe('Stok kartı: Fiyat ve Birimler düzeni', () => {
     expect(within(header).getByLabelText('Çarpan')).toBeInTheDocument();
 
     await user.type(within(group).getByLabelText('Barkod'), '8690001{Enter}');
-    expect(within(unit).getByRole('list', { name: 'Eklenen barkodlar' })).toHaveTextContent(
-      '8690001',
-    );
+    expect(within(unit).queryByRole('list', { name: 'Eklenen barkodlar' })).not.toBeInTheDocument();
+    await user.click(await within(unit).findByRole('button', { name: 'Barkodları görüntüle (1)' }));
+    expect(screen.getByRole('list', { name: 'Eklenen barkodlar' })).toHaveTextContent('8690001');
   });
 
   it('Birim Açıklama ve Ek Alış/Satış Fiyatları kalktı; KDV Dahil büyük D ile yazılır', async () => {

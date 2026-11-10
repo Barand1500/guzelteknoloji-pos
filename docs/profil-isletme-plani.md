@@ -6,9 +6,9 @@ Alt sayfalar aynı tasarım sisteminin input, modal ve butonlarını kullanır.
 - Bir işletme sahibi ve işletmeye bağlı üyeler. Kişiler kendi doğrulanmış e-posta girişleriyle katılır.
 - Roller bölüm bazında Görüntüle, Kaydet, Sil. Kaydet/Sil, Görüntüle gerektirir. Sunucu zorunlu kontrol eder.
 - İşletme sahibinin erişimi kapatılamaz; işletmenin son yöneticisi kaybolmaz.
-- Ayarlar: genel, entegrasyonlar, SMTP, IMAP, Google ayrı sayfalardır. Sırlar şifrelenir ve geri döndürülmez.
+- Ayarlar: Genel, Görseller ve Entegrasyonlar olarak gruplanır. SMTP, IMAP ve Google bağlantıları Entegrasyonlar altında ayrı sekmelerdir. Cloudflare, WhatsApp ve Google reCAPTCHA için henüz etkin olmayan sekmeler bulunur; bağlantı uygulanmış gibi gösterilmez. Sırlar normal ayar yanıtlarında geri döndürülmez.
 - Log: kullanıcı, zaman, bölüm, işlem, sonuç ve gizli olmayan alan değişiklikleri. Şifre/token/e-posta içerikleri kaydedilmez.
-- Görseller sekmesinden ürün, marka, kategori ve özellik görsel kutularının zemini ayrı ayrı şeffaf yapılabilir. Özgün dosyadaki fonu otomatik silme bu ayardan ayrıdır ve henüz eklenmemiştir.
+- Görseller sekmesinden ürün, marka, kategori ve özellik görsellerinin kenarına bağlı beyaz fonu gösterimde temizlenebilir. Kapalı beyaz nesne detayları korunur. İşlem tarayıcıda, en fazla 1024 piksel önizleme üzerinden yapılır; özgün dosya değişmez. Ayar kapanınca özgün görsel gösterilir. Renkli veya karmaşık arka planları ayıran bir nesne segmentasyonu uygulanmaz.
 
 Mevcut katalog kayıtlarının kullanıcı bağlantıları korunur. İşletmenin veri sahibi eski işletme sahibidir; üyeler sunucunun belirlediği bu ortak veri kapsamını kullanır. Kimlik doğrulama daima gerçek kullanıcıya aittir. İstemcinin veri sahibi kimliği seçmesine izin verilmez.
 
@@ -32,4 +32,4 @@ Gizli entegrasyon değerleri AES-256-GCM ile şifrelenir. Anahtar `COOKIE_SECRET
 
 Loglar kullanıcı arayüzünden değiştirilemez veya silinemez. Yazma isteklerinde başlangıç kaydı, yanıt tamamlandığında sonuç kaydı tutulur; bu son güncelleme alan işlemiyle aynı veritabanı transaction'ında değildir. Beklenmedik kapanmada kayıt “İşleniyor” durumunda kalabilir. Alan değişiklikleri boyut sınırlarıyla özetlenir; tam veritabanı geçmişi veya giriş denemeleri günlüğü değildir. Şifreler ve tokenlar loglanmaz.
 
-Sunucuya yayın sonrası migration uygulanmalı; sahip hesabı, yetkili/yetkisiz personel, davetle katılma ve gerçek entegrasyon bağlantıları sunucuda kontrol edilmelidir. Görsel arka plan temizleme sonraki aşamaya bırakılmıştır. Şeffaf zemin tercihleri mevcut `isletme_ayarlari` tablosunda `bolum=images` ve sayfa başına ayrı anahtar/satır ile saklanır; ek migration gerekmez. Hesap bilgileriyle tüm kullanıcılara görünüm tercihleri iletilir, yalnızca Ayarlar/Kaydet yetkisi olanlar değiştirir.
+Sunucuya yayın sonrası mevcut migration'lar uygulanmalı; sahip hesabı, yetkili/yetkisiz personel, davetle katılma ve gerçek entegrasyon bağlantıları sunucuda kontrol edilmelidir. Beyaz fon temizleme tercihleri mevcut `isletme_ayarlari` tablosunda `bolum=images` ve sayfa başına ayrı anahtar/satır ile saklanır; bu düzenleme ek migration gerektirmez. Hesap bilgileriyle tüm kullanıcılara görünüm tercihleri iletilir, yalnızca Ayarlar/Kaydet yetkisi olanlar değiştirir.

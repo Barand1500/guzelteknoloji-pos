@@ -2,8 +2,8 @@ import { useWorkspacePermission } from '../../workspace/workspace-context';
 import { Check, ChevronDown, Copy, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
+import { Segmented } from '../../../components/ui/Segmented';
 import {
-  COST_VIEW,
   currencyOf,
   formatMoney,
   grossOf,
@@ -18,11 +18,13 @@ import { StockBadge } from './StockBadge';
 
 interface ProductTableProps {
   products: ProductItem[];
-  /** Başlıktan seçilebilen fiyat görünümleri: kullanıcının fiyat listeleri ve Alış (kendi adlarıyla). */
+  /** Başlıktan seçilebilen fiyat listeleri. Alış/Satış ayrıca seçilir. */
   priceOptions: PriceColumn[];
   /** Tabloda şu an gösterilen fiyat görünümü (varsayılan: ilk liste). */
   priceView: string;
   onPriceView: (id: string) => void;
+  priceDirection: string;
+  onPriceDirection: (direction: string) => void;
   selected: ReadonlySet<string>;
   onToggleSelect: (id: string) => void;
   onToggleAll: (select: boolean) => void;
@@ -38,7 +40,7 @@ interface ProductTableProps {
 /**
  * Masaüstü tablo görünümü. Tabloda TEK fiyat sütunu vardır (varsayılan ilk liste, ör. FİYAT); çok
  * sayıda fiyat listesi olsa da tablo kalabalıklaşmaz:
- * - sütun başlığındaki küçük seçiciyle sütunda hangi listenin (ya da Alış'ın) görüneceği değişir;
+ * - sütun başlığındaki liste ve Alış/Satış seçimleriyle gösterilen tutar değişir;
  * - bir fiyatın ÜZERİNE GELİNCE (ya da klavyeyle odaklanınca) o ürünün tüm fiyat listeleri bir
  *   küçük kartta açılır.
  * İşlemler (Düzenle, Kopya Oluştur, Sil) doğrudan simgelerdir; resme çift tıklayınca görseller açılır.
@@ -48,6 +50,8 @@ export function ProductTable({
   priceOptions,
   priceView,
   onPriceView,
+  priceDirection,
+  onPriceDirection,
   selected,
   onToggleSelect,
   onToggleAll,
@@ -78,7 +82,22 @@ export function ProductTable({
             <th className="p-3">Ürün</th>
             <th className="p-3">Kod · Tip</th>
             <th className="p-3 text-right">
-              <PriceHeader options={priceOptions} value={priceView} onChange={onPriceView} />
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <PriceHeader
+                  options={priceOptions}
+                  value={priceView.replace(/^cost:/, '')}
+                  onChange={onPriceView}
+                />
+                <Segmented
+                  label="Fiyat yönü"
+                  value={priceDirection}
+                  onChange={onPriceDirection}
+                  options={[
+                    { value: 'alis', label: 'Alış' },
+                    { value: 'satis', label: 'Satış' },
+                  ]}
+                />
+              </div>
             </th>
             <th className="p-3">Stok</th>
             <th className="p-3 text-center">Stok Takibi</th>
@@ -299,6 +318,7 @@ function PriceCell({
   view: string;
   options: PriceColumn[];
 }) {
+  options = options.map((o) => ({ ...o, id: view.startsWith('cost:') ? `cost:${o.id}` : o.id }));
   const net = netOf(product, view);
   const currency = currencyOf(product, view);
   // Kart yalnızca üzerine gelince ya da odaklanınca çizilir (satır başına fazladan öğe yok).
@@ -355,24 +375,6 @@ function PriceCell({
                 </div>
               );
             })}
-            {/* Alış'ın altında: ürünün satış fiyatı (ilk liste). */}
-            {options.some((o) => o.id === COST_VIEW) && options[0] ? (
-              <div className="flex items-baseline justify-between gap-3 px-2 py-1">
-                <dt className="text-xs font-bold text-ink-muted">Satış</dt>
-                <dd className="text-right text-sm font-bold">
-                  {moneyOrDash(grossOf(product, options[0].id), currencyOf(product, options[0].id))}
-                  {netOf(product, options[0].id) === null ? null : (
-                    <span className="block text-[0.6875rem] font-medium text-ink-muted">
-                      KDV Hariç{' '}
-                      {formatMoney(
-                        netOf(product, options[0].id)!,
-                        currencyOf(product, options[0].id),
-                      )}
-                    </span>
-                  )}
-                </dd>
-              </div>
-            ) : null}
           </dl>
         </div>
       ) : null}

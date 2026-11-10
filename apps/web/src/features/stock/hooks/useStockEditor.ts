@@ -171,6 +171,21 @@ export function useStockEditor(
     setDraft((d) => ({ ...d, units: syncUnits({ ...d.units, [listId]: next }, listId) }));
 
   const updateRow = (rowId: string, patch: Partial<UnitRow>) => {
+    if (
+      patch.barcodes?.some((b) =>
+        rows.some(
+          (r) =>
+            r.id !== rowId &&
+            r.barcodes.some(
+              (other) =>
+                other.code.toLocaleLowerCase('en-US') === b.code.toLocaleLowerCase('en-US'),
+            ),
+        ),
+      )
+    ) {
+      setSaveError('Bu barkod başka bir birimde zaten eklenmiş.');
+      return;
+    }
     if (patch.isMain === true) {
       const next = rebaseUnits(rows, rowId);
       if (!next) {

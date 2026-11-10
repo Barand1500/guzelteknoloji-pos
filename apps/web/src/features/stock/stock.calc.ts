@@ -1,4 +1,5 @@
 import type { PriceBlockData, StockCardDraft, UnitRow } from './types';
+import { discountPercent } from '@gt/shared';
 
 /** "12,5" ve "12.5" ikisi de kabul edilir; geçersiz/boş değer 0 sayılır. */
 export function parseNumber(text: string): number {
@@ -21,7 +22,7 @@ export interface BlockTotals {
 
 /** Fiyat bloğundan net / KDV hariç / KDV dahil tutarları hesaplar. */
 export function blockTotals(block: PriceBlockData): BlockTotals {
-  const net = parseNumber(block.amount) * (1 - parseNumber(block.discount) / 100);
+  const net = parseNumber(block.amount) * (1 - (discountPercent(block.discount) ?? 0) / 100);
   const rate = parseNumber(block.vatRate) / 100;
   const excl = block.vatIncluded ? net / (1 + rate) : net;
   return { net, excl, incl: excl * (1 + rate) };
@@ -38,7 +39,7 @@ export function marginPercent(row: UnitRow): number | null {
 
 /** Ek fiyatın iskonto sonrası net tutarı. */
 export function extraNet(amount: string, discount: string): number {
-  return parseNumber(amount) * (1 - parseNumber(discount) / 100);
+  return parseNumber(amount) * (1 - (discountPercent(discount) ?? 0) / 100);
 }
 
 export type Shape = 'prizma' | 'kup' | 'silindir';

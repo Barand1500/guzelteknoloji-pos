@@ -71,6 +71,7 @@ export const productItemSeeds: ProductItem[] = productSeeds.map((seed, i) => {
       id: list.id,
       code: list.id,
       name: list.name,
+      purchase: { net: row.cost, vatRate: 20, currency: i < 6 ? 'USD' : 'TRY' },
       net: row.p[k] ?? null,
       vatRate: 20,
       currency: i < 6 ? 'USD' : 'TRY',

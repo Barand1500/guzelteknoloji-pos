@@ -53,13 +53,11 @@ function SettingsTabs({ pathname }: { pathname: string }) {
     },
     { key: 'images', label: 'Görseller', icon: ImageIcon, active: pathname.endsWith('/images') },
     {
-      key: 'smtp',
-      label: 'Giden E-Posta (SMTP)',
+      key: 'entegrasyonlar',
+      label: 'Entegrasyonlar',
       icon: Mail,
-      active: /\/(smtp|entegrasyonlar)$/.test(pathname),
+      active: /\/(smtp|imap|google|cloudflare|whatsapp|recaptcha|entegrasyonlar)$/.test(pathname),
     },
-    { key: 'imap', label: 'Gelen E-Posta (IMAP)', icon: Mail, active: pathname.endsWith('/imap') },
-    { key: 'google', label: 'Google', icon: ShieldCheck, active: pathname.endsWith('/google') },
   ];
   return (
     <div className="space-y-1">
@@ -76,6 +74,35 @@ function SettingsTabs({ pathname }: { pathname: string }) {
           </Link>
         ))}
       </nav>
+      {tabs[2]?.active && (
+        <nav aria-label="Entegrasyonlar" className="flex overflow-x-auto border-b border-line">
+          {[
+            ['smtp', 'Giden E-Posta (SMTP)'],
+            ['imap', 'Gelen E-Posta (IMAP)'],
+            ['google', 'Google'],
+            ['cloudflare', 'Cloudflare'],
+            ['whatsapp', 'WhatsApp'],
+            ['recaptcha', 'Google reCAPTCHA'],
+          ].map(([key, label]) => (
+            <Link
+              key={key}
+              to={`/uygulama/ayarlar/${key}`}
+              aria-current={
+                pathname.endsWith(`/${key}`) ||
+                (key === 'smtp' && pathname.endsWith('/entegrasyonlar'))
+                  ? 'page'
+                  : undefined
+              }
+              className={tabStyle(
+                pathname.endsWith(`/${key}`) ||
+                  (key === 'smtp' && pathname.endsWith('/entegrasyonlar')),
+              )}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }
@@ -802,10 +829,6 @@ function RoleForm({
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-ink-muted">
-        Kaydet: yeni kayıt ve düzenleme. Sil: kayıt kaldırma. Kaydet veya Sil açılınca Görüntüle de
-        açılır.
-      </p>
     </FormSheet>
   );
 }
@@ -888,6 +911,21 @@ function SecretSettingField({
 export function SettingsPage({ initialSection = 'general' }: { initialSection?: string }) {
   const { section: parameter } = useParams();
   const section = parameter ?? initialSection;
+  if (['cloudflare', 'whatsapp', 'recaptcha'].includes(section))
+    return (
+      <Frame>
+        <div className={panel}>
+          <h2 className="text-xl font-extrabold">
+            {
+              { cloudflare: 'Cloudflare', whatsapp: 'WhatsApp', recaptcha: 'Google reCAPTCHA' }[
+                section
+              ]
+            }
+          </h2>
+          <p className="mt-3 text-sm text-ink-muted">Bu entegrasyon henüz kullanıma açılmadı.</p>
+        </div>
+      </Frame>
+    );
   return <SettingsPageContent key={section} section={section} />;
 }
 function SettingsPageContent({ section }: { section: string }) {
@@ -972,8 +1010,8 @@ function SettingsPageContent({ section }: { section: string }) {
           )}
           {section === 'images' && (
             <p className="text-sm text-ink-muted">
-              Açık olduğunda görsel kutusunun zemini şeffaf olur. Dosyanın içindeki beyaz veya
-              renkli fon değişmez; özgün görsel korunur.
+              Açık olduğunda görselin kenarlarına bağlı beyaz arka plan temizlenir. Özgün dosya
+              korunur; kapattığınızda özgün görsel gösterilir.
             </p>
           )}
           {error && <Alert tone="error">{error}</Alert>}

@@ -1,3 +1,4 @@
+import { CatalogImage } from '../../../components/ui/CatalogImage';
 import { ImagePlus, RefreshCw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from '../../../components/ui/Alert';
@@ -118,7 +119,8 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
   const current = product.imageUrls ?? [];
 
   return (
-    <Sheet permission="save"
+    <Sheet
+      permission="save"
       open
       onClose={onClose}
       size="lg"
@@ -142,7 +144,8 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
             <ul className="flex flex-wrap gap-2.5">
               {current.map((url, index) => (
                 <li key={url} className="relative">
-                  <img
+                  <CatalogImage
+                    page="products"
                     src={url}
                     alt={`Mevcut görsel ${index + 1}`}
                     className={[
@@ -206,7 +209,8 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
             <ul className="flex flex-wrap gap-2.5">
               {picked.map((p) => (
                 <li key={p.id} className="relative">
-                  <img
+                  <CatalogImage
+                    page="products"
                     src={p.url}
                     alt={p.name}
                     className="size-20 rounded-2xl border border-line bg-surface-muted object-cover"

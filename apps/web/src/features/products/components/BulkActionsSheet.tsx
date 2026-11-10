@@ -248,9 +248,10 @@ export function BulkActionsSheet({
       yuvarla: rounding,
     };
     return items.map((p) => {
-      const list = isCost ? undefined : p.listPrices?.find((l) => l.id === listId);
-      const excl = isCost ? (p.cost > 0 ? p.cost : null) : (list?.net ?? null);
-      const rate = isCost ? (p.costVatRate ?? p.vatRate) : (list?.vatRate ?? p.vatRate);
+      const list = p.listPrices?.find((l) => l.id === listId);
+      const price = isCost ? list?.purchase : list;
+      const excl = price?.net ?? null;
+      const rate = price?.vatRate ?? p.vatRate;
       if (excl === null) return { p, old: null, next: null as number | null, negative: false };
       const toBasis = vat === 'dahil' ? 1 + rate / 100 : 1;
       const next = amountOk ? newExclPrice(excl, rate, change) : excl;

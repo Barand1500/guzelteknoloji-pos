@@ -141,7 +141,7 @@ describe('Ürün listesinde dinamik fiyat listeleri', () => {
     const options = within(screen.getByRole('listbox', { name: 'Fiyat listeleri' }))
       .getAllByRole('option')
       .map((o) => o.textContent);
-    expect(options).toEqual(['FİYAT', 'PERAKENDE', 'TOPTAN', 'Alış']);
+    expect(options).toEqual(['FİYAT', 'PERAKENDE', 'TOPTAN']);
   });
 
   it('kullanıcı yeni liste (BARAN) açınca başlıktan seçilir; fiyatı olmayana "—" yazar', async () => {
@@ -174,18 +174,18 @@ describe('Ürün listesinde dinamik fiyat listeleri', () => {
       expect(within(card).getByText(name)).toBeInTheDocument();
   });
 
-  it('telefonda dörtten fazla seçenek açılır listeye döner; yeni liste seçilebilir', async () => {
+  it('telefonda üçten fazla liste açılır kutuya döner; fiyat yönü ayrı kalır', async () => {
     await addBaranProduct(450);
     const user = await openProducts(true);
     const select = await screen.findByRole('combobox', { name: 'Listede gösterilecek fiyat' });
     await user.click(select);
     const options = screen.getAllByRole('option').map((o) => o.textContent);
-    expect(options).toEqual(['FİYAT', 'PERAKENDE', 'TOPTAN', 'BARAN', 'Alış']);
+    expect(options).toEqual(['FİYAT', 'PERAKENDE', 'TOPTAN', 'BARAN']);
     await user.click(screen.getByRole('option', { name: 'BARAN' }));
     // Eski ürünün BARAN fiyatı yok; satırın sağında "—" ve liste adı görünür.
     const row = screen.getByRole('button', { name: `${NAME_1} ayrıntılarını aç` });
     expect(within(row).getByText('—')).toBeInTheDocument();
-    expect(within(row).getByText('BARAN · KDV Dahil')).toBeInTheDocument();
+    expect(within(row).getByText('BARAN · Satış · KDV Dahil')).toBeInTheDocument();
   });
 
   it('telefonda açılan satır tüm listeleri kendi adlarıyla gösterir', async () => {

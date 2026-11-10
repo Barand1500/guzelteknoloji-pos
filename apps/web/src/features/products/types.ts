@@ -18,6 +18,7 @@ export interface ListPrice {
   vatRate: number;
   /** ISO para birimi kodu (TRY, USD, EUR). */
   currency: string;
+  purchase?: { net: number | null; gross?: number | null; vatRate: number; currency: string };
 }
 
 export interface ProductItem {
@@ -109,7 +110,7 @@ export interface ProductPageQuery {
   pageSize: number;
 }
 export interface ProductFilterOptions {
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; parentId?: string | null; active?: boolean }[];
   brands: { id: string; name: string }[];
 }
 export interface ProductPage {
@@ -185,25 +186,46 @@ export function priceListsOf(products: ProductItem[]): PriceColumn[] {
 }
 
 const listOf = (p: ProductItem, view: PriceView) =>
-  listPricesOf(p).find((list) => list.id === view);
+  listPricesOf(p).find((list) => list.id === view.replace(/^cost:/, ''));
+
+const purchaseOf = (p: ProductItem, view: PriceView) =>
+  view.startsWith('cost:') ? listOf(p, view)?.purchase : undefined;
 
 /** Seçili fiyat görünümüne göre KDV HARİÇ tutar; fiyat girilmemişse `null` ("—"). */
 export const netOf = (p: ProductItem, view: PriceView): number | null =>
-  view === COST_VIEW ? (p.cost > 0 ? p.cost : null) : (listOf(p, view)?.net ?? null);
+  view.startsWith('cost:')
+    ? (purchaseOf(p, view)?.net ?? null)
+    : view === COST_VIEW
+      ? p.cost > 0
+        ? p.cost
+        : null
+      : (listOf(p, view)?.net ?? null);
 
 export const vatOf = (p: ProductItem, view: PriceView): number =>
-  (view === COST_VIEW ? p.costVatRate : listOf(p, view)?.vatRate) ?? p.vatRate;
+  (view.startsWith('cost:')
+    ? purchaseOf(p, view)?.vatRate
+    : view === COST_VIEW
+      ? p.costVatRate
+      : listOf(p, view)?.vatRate) ?? p.vatRate;
 
 export const currencyOf = (p: ProductItem, view: PriceView): string =>
   symbol(
-    (view === COST_VIEW ? p.costCurrency : listOf(p, view)?.currency) ??
+    (view.startsWith('cost:')
+      ? purchaseOf(p, view)?.currency
+      : view === COST_VIEW
+        ? p.costCurrency
+        : listOf(p, view)?.currency) ??
       CODE_OF[p.currency] ??
       'TRY',
   );
 
 /** KDV dahil tutar; fiyat girilmemişse `null`. */
 export function grossOf(p: ProductItem, view: PriceView): number | null {
-  const list = view === COST_VIEW ? undefined : listOf(p, view);
+  const list = view.startsWith('cost:')
+    ? purchaseOf(p, view)
+    : view === COST_VIEW
+      ? undefined
+      : listOf(p, view);
   if (list?.gross !== undefined) return list.gross;
   const net = netOf(p, view);
   return net === null ? null : withVat(net, vatOf(p, view));

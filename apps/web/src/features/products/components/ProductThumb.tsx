@@ -1,3 +1,4 @@
+import { CatalogImage } from '../../../components/ui/CatalogImage';
 import { Package, ZoomIn } from 'lucide-react';
 import type { ProductItem } from '../types';
 
@@ -21,7 +22,12 @@ export function ProductThumb({ product, size = 'sm', onZoom, hoverPreview }: Pro
         className={`flex size-full items-center justify-center overflow-hidden rounded-2xl bg-surface-muted ${box}`}
       >
         {product.imageUrl ? (
-          <img src={product.imageUrl} alt="" className="size-full object-cover" />
+          <CatalogImage
+            page="products"
+            src={product.imageUrl}
+            alt=""
+            className="size-full object-cover"
+          />
         ) : (
           <Package className="size-5 text-ink-muted" aria-hidden="true" />
         )}
@@ -45,7 +51,12 @@ export function ProductThumb({ product, size = 'sm', onZoom, hoverPreview }: Pro
           aria-hidden="true"
           className="pointer-events-none absolute top-1/2 left-full z-30 ml-3 hidden size-52 -translate-y-1/2 overflow-hidden rounded-3xl border border-line bg-surface-raised shadow-card group-hover/thumb:block"
         >
-          <img src={product.imageUrl} alt="" className="size-full object-cover" />
+          <CatalogImage
+            page="products"
+            src={product.imageUrl}
+            alt=""
+            className="size-full object-cover"
+          />
         </span>
       ) : null}
     </span>

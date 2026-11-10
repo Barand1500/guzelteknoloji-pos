@@ -4,6 +4,7 @@ import type { DuplicateResult, StockService } from './services/stock.service';
 type Check = (values: { code: string; barcode: string }) => Promise<DuplicateResult>;
 
 const DuplicateCheckContext = createContext<Check | null>(null);
+export const useDuplicateCheck = () => useContext(DuplicateCheckContext);
 
 /**
  * Stok kartı formu için kod/barkod çakışma denetimi sağlayıcısı. Düzenlemede kartın kendisi

@@ -174,7 +174,7 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
     await user.hover(cell);
     const card = await screen.findByRole('tooltip');
-    for (const name of ['FİYAT', 'PERAKENDE', 'TOPTAN', 'Alış'])
+    for (const name of ['FİYAT', 'PERAKENDE', 'TOPTAN'])
       expect(within(card).getByText(name)).toBeInTheDocument();
     expect(within(card).getAllByText(/KDV Hariç/).length).toBeGreaterThan(0);
     await user.unhover(cell);

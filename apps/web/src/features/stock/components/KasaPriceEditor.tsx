@@ -1,7 +1,8 @@
 import { Delete } from 'lucide-react';
+import { discountPercent } from '@gt/shared';
 import { useState, type ReactNode } from 'react';
 import { Segmented } from '../../../components/ui/Segmented';
-import { blockTotals, formatMoney, marginPercent, parseNumber } from '../stock.calc';
+import { blockTotals, formatMoney, marginPercent } from '../stock.calc';
 import type { PriceBlockData, StockLookups, UnitRow } from '../types';
 
 type Side = 'purchase' | 'sale';
@@ -28,6 +29,7 @@ const MAX_DECIMALS = 2;
 
 /** "1250,5" → "1.250,5" (yalnızca ekranda gösterim için). */
 function groupThousands(raw: string): string {
+  if (raw.includes('+')) return raw.split('+').map(groupThousands).join('+');
   const [integer = '', decimals] = raw.replace('.', ',').split(',');
   const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return decimals === undefined && !raw.includes(',') && !raw.includes('.')
@@ -61,11 +63,24 @@ export function KasaPriceEditor({ row, unitLabel, lookups, onChange }: KasaPrice
 
   /** Tuşa basılınca değeri günceller (yalnızca rakam, tek virgül, en çok 2 ondalık). */
   const press = (key: string) => {
+    if (key === '+' && target === 'discount') {
+      if (editing && !editing.endsWith('+')) patchBlock({ discount: `${editing}+` });
+      return;
+    }
+    if (key === 'enter' && target === 'discount') {
+      const result = discountPercent(editing);
+      if (result !== null) patchBlock({ discount: String(result).replace('.', ',') });
+      return;
+    }
     let next = editing;
     if (key === 'back') {
       next = editing.slice(0, -1);
     } else if (key === ',') {
-      if (editing.includes(',') || editing.includes('.')) return;
+      if (
+        (editing.split('+').at(-1) ?? '').includes(',') ||
+        (editing.split('+').at(-1) ?? '').includes('.')
+      )
+        return;
       next = `${editing === '' ? '0' : editing},`;
     } else if (key === '00') {
       if (editing === '' || editing === '0') next = editing === '' ? '0' : editing;
@@ -74,9 +89,9 @@ export function KasaPriceEditor({ row, unitLabel, lookups, onChange }: KasaPrice
       next = editing === '0' ? key : `${editing}${key}`;
     }
     if (next.length > MAX_LENGTH) return;
-    const decimals = next.split(/[,.]/)[1];
+    const decimals = next.split('+').at(-1)?.split(/[,.]/)[1];
     if (decimals !== undefined && decimals.length > MAX_DECIMALS) return;
-    if (target === 'discount' && parseNumber(next) > 100) return;
+    if (target === 'discount' && discountPercent(next) === null) return;
     patchBlock(target === 'amount' ? { amount: next } : { discount: next });
   };
 
@@ -128,7 +143,10 @@ export function KasaPriceEditor({ row, unitLabel, lookups, onChange }: KasaPrice
           </span>
         </output>
         <p className="mt-1 text-sm text-ink-muted">
-          KDV Dahil <b className="text-ink">{formatMoney(totals.incl, block.currency)}</b>
+          {block.vatIncluded ? 'KDV Hariç' : 'KDV Dahil'}{' '}
+          <b className="text-ink">
+            {formatMoney(block.vatIncluded ? totals.excl : totals.incl, block.currency)}
+          </b>
           {margin !== null ? (
             <span className="font-semibold text-success">
               {' '}
@@ -215,7 +233,17 @@ export function KasaPriceEditor({ row, unitLabel, lookups, onChange }: KasaPrice
         {['7', '8', '9'].map((d) => key(d, d, () => press(d)))}
         {key('comma', ',', () => press(','), 'bg-brand-50 text-brand-ink', 'Virgül')}
         {key('0', '0', () => press('0'))}
-        {key('00', '00', () => press('00'), 'bg-brand-50 text-brand-ink')}
+        {target === 'discount'
+          ? key('plus', '+', () => press('+'), 'bg-brand-50 text-brand-ink', 'İskonto ekle')
+          : key('00', '00', () => press('00'), 'bg-brand-50 text-brand-ink')}
+        {target === 'discount' &&
+          key(
+            'enter',
+            'Enter',
+            () => press('enter'),
+            'col-span-4 bg-brand-700 text-white',
+            'İskontoyu hesapla',
+          )}
       </div>
     </section>
   );

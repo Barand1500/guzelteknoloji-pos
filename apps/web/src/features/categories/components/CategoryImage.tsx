@@ -1,3 +1,4 @@
+import { CatalogImage } from '../../../components/ui/CatalogImage';
 import type { Category } from '../types';
 
 /** Görseli olmayan kategoriler için sıcak tonlarda, ada göre seçilen rozetler (renkler temadan). */
@@ -37,7 +38,12 @@ export function CategoryImage({
         data-image-frame="categories"
         className={`flex shrink-0 items-center justify-center overflow-hidden bg-white p-1.5 ring-1 ring-line ${className}`}
       >
-        <img src={category.imageUrl} alt="" className="max-h-full max-w-full object-contain" />
+        <CatalogImage
+          page="categories"
+          src={category.imageUrl}
+          alt=""
+          className="max-h-full max-w-full object-contain"
+        />
       </span>
     );
   }

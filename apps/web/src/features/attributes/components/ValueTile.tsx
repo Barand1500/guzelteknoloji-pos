@@ -1,3 +1,4 @@
+import { CatalogImage } from '../../../components/ui/CatalogImage';
 import { Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { SortableTileContext } from '../../../components/ui/SortableGrid';
@@ -158,7 +159,8 @@ export function ValueTile({ value, kind, sortable, onUpdate, onDelete }: ValueTi
           className="shrink-0"
         >
           {value.imageUrl ? (
-            <img
+            <CatalogImage
+              page="attributes"
               data-image-frame="attributes"
               src={value.imageUrl}
               alt=""

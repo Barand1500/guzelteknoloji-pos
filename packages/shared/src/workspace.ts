@@ -54,7 +54,7 @@ export const SETTINGS_PAGES = [
   {
     key: 'images',
     title: 'Görsel Ayarları',
-    description: 'Şeffaf görsellerin hangi sayfalarda zeminsiz gösterileceğini seçin.',
+    description: 'Görsellerin beyaz arka planının hangi sayfalarda temizleneceğini seçin.',
     fields: [
       { key: 'products', label: 'Ürünlerde Şeffaf Zemin', type: 'boolean' },
       { key: 'brands', label: 'Markalarda Şeffaf Zemin', type: 'boolean' },

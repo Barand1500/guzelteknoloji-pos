@@ -1,3 +1,4 @@
+import { CatalogImage } from '../../../components/ui/CatalogImage';
 import { FileSpreadsheet, Images, ListChecks, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -35,8 +36,8 @@ import { UndoToast } from '../../../components/ui/UndoToast';
 import { ProductRow } from './ProductRow';
 import { ProductTable } from './ProductTable';
 
-/** Segment seçici en çok 4 seçenek taşır; fazlasında açılır liste kullanılır. */
-const MAX_SEGMENTS = 4;
+/** Dar ekranda üçten fazla fiyat listesi açılır kutuda gösterilir. */
+const MAX_SEGMENTS = 3;
 
 /**
  * Ürün Liste ekranı. Telefonda sıkı satırlar: dokununca satır açılıp tüm fiyat listeleri, stok/satış
@@ -77,6 +78,7 @@ export function ProductsView() {
   const [selectionBusy, setSelectionBusy] = useState(false);
   const selectionRevision = useRef(0);
   const [priceView, setPriceView] = useState<PriceView>('');
+  const [priceDirection, setPriceDirection] = useState('satis');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -114,16 +116,14 @@ export function ProductsView() {
   };
 
   const viewOptions = useMemo(
-    () => [
-      ...priceLists.map((l) => ({ value: l.id, label: l.name })),
-      { value: COST_VIEW, label: 'Alış' },
-    ],
+    () => [...priceLists.map((l) => ({ value: l.id, label: l.name }))],
     [priceLists],
   );
   // Seçili görünüm artık yoksa (liste silindi) ilk listeye dönülür.
-  const activeView = viewOptions.some((o) => o.value === priceView)
+  const activeList = viewOptions.some((o) => o.value === priceView)
     ? priceView
     : (viewOptions[0]?.value ?? COST_VIEW);
+  const activeView = priceDirection === 'alis' ? `cost:${activeList}` : activeList;
   const filterCount = activeFilterCount(filters);
   const visible = products;
   const paging = {
@@ -251,6 +251,8 @@ export function ProductsView() {
         priceOptions={viewOptions.map((o) => ({ id: o.value, name: o.label }))}
         priceView={activeView}
         onPriceView={setPriceView}
+        priceDirection={priceDirection}
+        onPriceDirection={setPriceDirection}
         selected={selected}
         onToggleSelect={toggleSelect}
         onToggleAll={(on) =>
@@ -279,7 +281,7 @@ export function ProductsView() {
             <ProductRow
               product={p}
               priceView={activeView}
-              viewName={viewOptions.find((o) => o.value === activeView)?.label ?? ''}
+              viewName={`${viewOptions.find((o) => o.value === activeList)?.label ?? ''} · ${priceDirection === 'alis' ? 'Alış' : 'Satış'}`}
               expanded={!selecting && expandedId === p.id}
               selecting={selecting}
               selected={selected.has(p.id)}
@@ -431,7 +433,7 @@ export function ProductsView() {
       {desktop ? null : viewOptions.length <= MAX_SEGMENTS ? (
         <Segmented
           label="Listede gösterilecek fiyat"
-          value={activeView}
+          value={activeList}
           options={viewOptions}
           onChange={setPriceView}
         />
@@ -439,11 +441,22 @@ export function ProductsView() {
         <SelectField
           label="Listede gösterilecek fiyat"
           options={viewOptions}
-          value={activeView}
+          value={activeList}
           onChange={setPriceView}
         />
       )}
 
+      {!desktop && (
+        <Segmented
+          label="Fiyat yönü"
+          value={priceDirection}
+          onChange={setPriceDirection}
+          options={[
+            { value: 'alis', label: 'Alış' },
+            { value: 'satis', label: 'Satış' },
+          ]}
+        />
+      )}
       {content}
 
       {!loading && visible.length > 0 ? (
@@ -581,7 +594,8 @@ export function ProductsView() {
       {zoomProduct ? (
         <Sheet open onClose={() => setZoomFor(null)} title={zoomProduct.name} size="md">
           {zoomProduct.imageUrl ? (
-            <img
+            <CatalogImage
+              page="products"
               src={zoomProduct.imageUrl}
               alt={zoomProduct.name}
               className="mx-auto aspect-square w-full max-w-sm rounded-3xl object-cover"

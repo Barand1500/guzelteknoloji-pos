@@ -1,3 +1,4 @@
+import { CatalogImage } from '../../../components/ui/CatalogImage';
 import type { Brand } from '../types';
 
 /** Logosu olmayan markalar için sıcak tonlarda, ada göre seçilen rozetler (renkler temadan). */
@@ -44,7 +45,12 @@ export function BrandLogo({
         data-image-frame="brands"
         className={`flex shrink-0 items-center justify-center bg-white p-1.5 ring-1 ring-line ${SIZES[size]}`}
       >
-        <img src={brand.logoUrl} alt="" className="max-h-full max-w-full object-contain" />
+        <CatalogImage
+          page="brands"
+          src={brand.logoUrl}
+          alt=""
+          className="max-h-full max-w-full object-contain"
+        />
       </span>
     );
   }
