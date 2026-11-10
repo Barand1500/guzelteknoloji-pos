@@ -84,7 +84,7 @@ export function RobotChallenge({
         setStatus('Robot doğrulamasının tamamlanması bekleniyor.');
         id = api.render(element, {
           sitekey: config.siteKey,
-          size: 'compact',
+          size: element.clientWidth > 0 && element.clientWidth < 304 ? 'compact' : 'normal',
           theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
           callback: (token: string) => {
             if (active) {
