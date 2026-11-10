@@ -6,6 +6,8 @@ import { useDealService } from '../services/deal.service';
 import { Alert } from '../../../components/ui/Alert';
 import { dataError } from '../../../lib/catalog-data';
 import type { Deal, DealProductRef } from '../types';
+import { OverlapNotes, overlapNotes } from '../overlap';
+import { DealBulkAssign } from './DealBulkAssign';
 import { BrandLogo } from '../../brands/components/BrandLogo';
 
 interface DealProductsPanelProps {
@@ -34,6 +36,7 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
   const [error, setError] = useState<string | null>(null);
   const saving = useRef(false);
   const [products, setProducts] = useState<DealProductRef[] | null>(null);
+  const [allDeals, setAllDeals] = useState<Deal[]>([]);
   const [tab, setTab] = useState<Tab>('in');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('free');
@@ -53,6 +56,10 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
           setProducts([]);
         }
       });
+    void dealService
+      .list()
+      .then((list) => active && setAllDeals(list))
+      .catch(() => undefined);
     const pending = timers.current;
     return () => {
       active = false;
@@ -139,8 +146,9 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
       return next;
     });
 
-  const addPicked = async () => {
-    const ids = [...picked];
+  const addPicked = () => addIds([...picked]);
+
+  const addIds = async (ids: string[]) => {
     if (ids.length === 0) return;
     if (!(await apply(ids, true))) return;
     setPicked(new Set());
@@ -219,6 +227,17 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
             label={tab === 'in' ? 'Fırsattaki ürünlerde ara' : 'Eklenecek ürünü ara'}
             placeholder="Ad, stok kodu veya barkod"
           />
+
+          {tab === 'add' ? (
+            <DealBulkAssign
+              deal={deal}
+              refs={products}
+              allDeals={allDeals}
+              onAdd={async (ids) => {
+                await addIds(ids);
+              }}
+            />
+          ) : null}
 
           {tab === 'add' ? (
             <div role="radiogroup" aria-label="Ürün süzgeci" className="flex flex-wrap gap-2">
@@ -343,6 +362,20 @@ export function DealProductsPanel({ deal, onAssign, onUnassign }: DealProductsPa
               </ul>
             </>
           )}
+
+          {tab === 'add' && picked.size > 0 ? (
+            <OverlapNotes notes={overlapNotes(deal, allDeals, products, picked)} />
+          ) : null}
+          {tab === 'in' ? (
+            <OverlapNotes
+              notes={overlapNotes(
+                deal,
+                allDeals,
+                products,
+                mine.map((p) => p.id),
+              )}
+            />
+          ) : null}
 
           <div className="flex-1" />
 

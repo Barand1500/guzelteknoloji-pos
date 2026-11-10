@@ -217,6 +217,7 @@ export function DealsView() {
           saveError={error}
           onAssign={assign}
           onUnassign={unassign}
+          takenNames={deals.filter((d) => d.id !== editing?.id).map((d) => d.name)}
           onClose={() => setForm(null)}
         />
       ) : null}

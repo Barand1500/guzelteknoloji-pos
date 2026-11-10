@@ -6,7 +6,7 @@ import { Sheet } from '../../../components/ui/Sheet';
 import { Switch } from '../../../components/ui/Switch';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
 import { TextField } from '../../../components/ui/TextField';
-import { emptyDealDraft, type Deal, type DealDraft } from '../types';
+import { emptyDealDraft, suggestDealName, type Deal, type DealDraft } from '../types';
 import { DealIconPicker } from './DealIconPicker';
 import { DealPlacePicker } from './DealPlacePicker';
 import { DealProductsPanel } from './DealProductsPanel';
@@ -19,6 +19,8 @@ interface DealFormSheetProps {
   onAssign: (dealId: string, productIds: string[]) => Promise<void>;
   onUnassign: (dealId: string, productIds: string[]) => Promise<void>;
   onClose: () => void;
+  /** Diğer fırsatların adları (ad önerisi çakışmasın diye). */
+  takenNames?: string[];
 }
 
 const NAME_REQUIRED = 'Fırsat adı gerekli.';
@@ -37,6 +39,7 @@ export function DealFormSheet({
   onAssign,
   onUnassign,
   onClose,
+  takenNames = [],
 }: DealFormSheetProps) {
   const [panelOpen, setPanelOpen] = useState(false);
   const productsButton = useRef<HTMLButtonElement>(null);
@@ -55,20 +58,25 @@ export function DealFormSheet({
   const set = <K extends keyof DealDraft>(key: K, value: DealDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
+  const suggestion = suggestDealName(draft, takenNames);
+
   const submit = async () => {
-    const missingName = draft.name.trim() === '';
+    // Ad boş bırakılırsa öneri kullanılır.
+    const name = draft.name.trim() === '' ? suggestion : draft.name.trim();
+    const missingName = false;
     // Ürün resminde gösterilecekse rozetin görseli (ikon) şarttır.
     const missingIcon = draft.showOnImage && !draft.iconUrl;
     if (missingName) setNameError(NAME_REQUIRED);
     if (missingIcon) setIconError(ICON_REQUIRED);
     if (missingName || missingIcon) return;
     setSaving(true);
-    await onSave({ ...draft, name: draft.name.trim() });
+    await onSave({ ...draft, name });
     setSaving(false);
   };
 
   return (
-    <Sheet permission="save"
+    <Sheet
+      permission="save"
       open
       onClose={onClose}
       title={deal ? 'Fırsatı Düzenle' : 'Fırsat Ekle'}
@@ -102,6 +110,15 @@ export function DealFormSheet({
             setNameError(undefined);
           }}
         />
+        {draft.name.trim() === '' ? (
+          <button
+            type="button"
+            onClick={() => set('name', suggestion)}
+            className="-mt-3 inline-flex min-h-10 items-center gap-1.5 self-start rounded-full bg-brand-50 px-3.5 text-sm font-semibold text-brand-ink"
+          >
+            Öneri: <b>{suggestion}</b>
+          </button>
+        ) : null}
 
         <div className="flex flex-col gap-3">
           <p className="text-sm font-semibold">İkon</p>
