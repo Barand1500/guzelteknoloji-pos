@@ -977,14 +977,12 @@ function IntegrationGroupPage({ group }: { group: string }) {
       previous[section] === value ? previous : { ...previous, [section]: value },
     );
   }, []);
-  const [params] = useSearchParams();
-  const robot = params.get('saglayici') === 'recaptcha' ? 'recaptcha' : 'cloudflare';
   const sections =
     group === 'iletisim'
       ? ['smtp', 'imap', 'whatsapp']
       : group === 'sosyal-giris'
         ? ['google']
-        : [robot];
+        : ['cloudflare', 'recaptcha'];
   return (
     <Frame
       description={
@@ -997,26 +995,6 @@ function IntegrationGroupPage({ group }: { group: string }) {
     >
       <IntegrationDirtyContext.Provider value={reportDirty}>
         <UnsavedChanges dirty={Object.values(dirty).some(Boolean)} />
-        {group === 'robot-dogrulama' && (
-          <div className="space-y-3">
-            <nav aria-label="Robot doğrulama sağlayıcısı" className="flex flex-wrap gap-2">
-              {(['cloudflare', 'recaptcha'] as const).map((provider) => (
-                <Link
-                  key={provider}
-                  to={`/uygulama/ayarlar/robot-dogrulama?saglayici=${provider}`}
-                  aria-current={robot === provider ? 'page' : undefined}
-                  className={`inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-semibold ${robot === provider ? 'border-brand-700 bg-brand-50 text-brand-ink' : 'border-line text-ink-muted'}`}
-                >
-                  {provider === 'cloudflare' ? 'Cloudflare Turnstile' : 'Google reCAPTCHA'}
-                </Link>
-              ))}
-            </nav>
-            <p className="text-sm text-ink-muted">
-              Aynı anda yalnızca bir sağlayıcı kullanılır. Birini etkinleştirip kaydettiğinizde
-              diğeri kapanır.
-            </p>
-          </div>
-        )}
         {group === 'iletisim' ? (
           <>
             <div className="grid min-w-0 gap-4 xl:grid-cols-2">
@@ -1025,6 +1003,17 @@ function IntegrationGroupPage({ group }: { group: string }) {
               ))}
             </div>
             <SettingsPageContent section="whatsapp" embedded />
+          </>
+        ) : group === 'robot-dogrulama' ? (
+          <>
+            <p className="text-sm text-ink-muted">
+              Robot doğrulamada aynı anda yalnızca bir sağlayıcı etkin olabilir. Etkinleştirip kaydettiğinizde diğeri kapanır.
+            </p>
+            <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+              {sections.map((section) => (
+                <SettingsPageContent key={section} section={section} embedded />
+              ))}
+            </div>
           </>
         ) : (
           sections.map((section) => (

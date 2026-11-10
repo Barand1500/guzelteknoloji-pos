@@ -83,13 +83,12 @@ for (const width of [390, 1440])
           page.getByRole('form', { name: 'Meta WhatsApp Cloud API', exact: true }),
         ).toBeVisible();
       } else if (group === 'robot-dogrulama') {
-        await page.getByRole('link', { name: 'Google reCAPTCHA', exact: true }).click();
         await expect(
           page.getByRole('form', { name: 'Google reCAPTCHA', exact: true }),
         ).toBeVisible();
         await expect(
           page.getByRole('form', { name: 'Cloudflare Turnstile', exact: true }),
-        ).toHaveCount(0);
+        ).toBeVisible();
       } else
         await expect(
           page.getByText('Apple ile giriş yapılandırılmış.', { exact: true }),
