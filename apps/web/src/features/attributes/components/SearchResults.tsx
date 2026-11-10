@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { AttrGroup, AttrTemplate, AttrValue } from '../types';
+import { CatalogImage } from '../../../components/ui/CatalogImage';
 
 export interface SearchHits {
   templates: AttrTemplate[];
@@ -106,7 +107,8 @@ export function SearchResults({ hits, onOpenTemplate, onOpenGroup }: SearchResul
                     style={{ backgroundColor: value.color ?? '#9ca3af' }}
                   />
                 ) : group.kind === 'image' && value.imageUrl ? (
-                  <img
+                  <CatalogImage
+                    page="attributes"
                     src={value.imageUrl}
                     alt=""
                     className="size-7 shrink-0 rounded-lg object-cover"

@@ -15,6 +15,9 @@ it('birim/barkod ortak, fiyatlar ayrı kalır; ekleme ve silme tüm listelere ya
     checkDuplicate: vi.fn().mockResolvedValue({ code: null, barcode: null }),
     addOption: vi.fn(),
     removeOption: vi.fn(),
+    renameOption: vi
+      .fn()
+      .mockImplementation(async (list, value, label) => ({ value, label, removable: true })),
     get: vi.fn(),
     getExtraOptions: vi.fn(),
     getExtras: vi.fn(),

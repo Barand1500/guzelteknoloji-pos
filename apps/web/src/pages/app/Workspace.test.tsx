@@ -41,7 +41,7 @@ describe('Profil ve işletme ekranları', () => {
       within(nav)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['İletişim', 'Robot Doğrulama', 'Sosyal Giriş']);
+    ).toEqual(['İletişim', 'Doğrulama', 'Hızlı Giriş']);
     const smtp = await screen.findByRole('form', { name: 'SMTP' });
     await screen.findByRole('form', { name: 'IMAP' });
     await screen.findByRole('form', { name: 'Meta WhatsApp Cloud API' });
@@ -71,7 +71,7 @@ describe('Profil ve işletme ekranları', () => {
       within(await screen.findByRole('form', { name: 'IMAP' })).getByLabelText('Sunucu'),
       'imap.example.com',
     );
-    await user.click(screen.getByRole('link', { name: 'Robot Doğrulama' }));
+    await user.click(screen.getByRole('link', { name: 'Doğrulama' }));
     expect(
       await screen.findAllByRole('dialog', { name: 'Kaydedilmemiş Değişiklikler' }),
     ).toHaveLength(1);

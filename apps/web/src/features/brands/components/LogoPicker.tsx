@@ -1,6 +1,7 @@
 import { ImagePlus, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { Alert } from '../../../components/ui/Alert';
+import { CatalogImage } from '../../../components/ui/CatalogImage';
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
@@ -105,8 +106,12 @@ export function LogoPicker({
       >
         {value ? (
           // Logo zemini her zaman açık renk: siyah logolar koyu temada da okunur.
-          <span className="flex size-full items-center justify-center bg-white p-4">
-            <img
+          <span
+            data-image-frame={noun === 'Logo' ? 'brands' : 'categories'}
+            className="flex size-full items-center justify-center bg-white p-4"
+          >
+            <CatalogImage
+              page={noun === 'Logo' ? 'brands' : 'categories'}
               src={value}
               alt={noun === 'Logo' ? `${name || 'Marka'} logosu` : `${name || 'Kategori'} görseli`}
               className="max-h-full max-w-full object-contain"

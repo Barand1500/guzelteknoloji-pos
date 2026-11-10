@@ -8,16 +8,26 @@ interface PriceTabsProps {
   onSelect: (id: string) => void;
   onAdd: (label: string) => void;
   onRemove: (id: string) => void;
+  onRename: (id: string, label: string) => void;
 }
 
 /**
  * Fiyat adı sekmeleri (FİYAT, PERAKENDE, TOPTAN…). Sondaki "+" satır içinde bir yazı kutusuna
  * dönüşür: adı yaz, Enter'a bas — yeni sekme hazır. Ayrı pencere açılmaz.
  */
-export function PriceTabs({ lists, activeId, onSelect, onAdd, onRemove }: PriceTabsProps) {
+export function PriceTabs({
+  lists,
+  activeId,
+  onSelect,
+  onAdd,
+  onRemove,
+  onRename,
+}: PriceTabsProps) {
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const finishingEdit = useRef(false);
 
   useEffect(() => {
     if (adding) inputRef.current?.focus();
@@ -34,6 +44,14 @@ export function PriceTabs({ lists, activeId, onSelect, onAdd, onRemove }: PriceT
     <div role="tablist" aria-label="Fiyat adı" className="flex flex-wrap items-center gap-2">
       {lists.map((list) => {
         const active = list.value === activeId;
+        const finishEdit = (commit: boolean) => {
+          if (finishingEdit.current) return;
+          finishingEdit.current = true;
+          const label = text.trim();
+          if (commit && label && label !== list.label) onRename(list.value, label);
+          setEditing(null);
+          setText('');
+        };
         return (
           <span
             key={list.value}
@@ -42,18 +60,42 @@ export function PriceTabs({ lists, activeId, onSelect, onAdd, onRemove }: PriceT
               active ? 'bg-brand-700 text-white shadow-soft' : 'bg-surface-muted text-ink',
             ].join(' ')}
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onSelect(list.value)}
-              className={[
-                'min-h-10 rounded-full pl-4 text-sm font-bold tracking-wide',
-                list.removable ? 'pr-1' : 'pr-4',
-              ].join(' ')}
-            >
-              {list.label}
-            </button>
+            {editing === list.value ? (
+              <input
+                autoFocus
+                value={text}
+                aria-label={`${list.label} fiyat adını düzenle`}
+                className="h-10 w-36 rounded-full bg-surface-muted px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-brand-600/40"
+                onChange={(e) => setText(e.target.value)}
+                onBlur={() => finishEdit(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    finishEdit(true);
+                  }
+                  if (e.key === 'Escape') finishEdit(false);
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onDoubleClick={() => {
+                  if (!list.removable) return;
+                  finishingEdit.current = false;
+                  setText(list.label);
+                  setEditing(list.value);
+                }}
+                onClick={() => onSelect(list.value)}
+                className={[
+                  'min-h-10 rounded-full pl-4 text-sm font-bold tracking-wide',
+                  list.removable ? 'pr-1' : 'pr-4',
+                ].join(' ')}
+              >
+                {list.label}
+              </button>
+            )}
             {list.removable ? (
               <button
                 type="button"

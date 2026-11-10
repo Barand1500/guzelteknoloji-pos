@@ -1,4 +1,4 @@
-import { Eye, Plus, ScanBarcode, X } from 'lucide-react';
+import { Check, CircleAlert, Eye, Pencil, Plus, ScanBarcode, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Sheet } from '../../../components/ui/Sheet';
 import { useDuplicateCheck } from '../duplicate-check';
@@ -23,6 +23,9 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
   const [viewing, setViewing] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCode, setEditCode] = useState('');
+  const [editType, setEditType] = useState('');
   const lock = useRef(false);
   const check = useDuplicateCheck();
 
@@ -123,9 +126,13 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
 
       <DuplicateNote kind="barcode" value={code} />
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
+        >
+          <CircleAlert className="size-5 shrink-0" />
           {error}
-        </p>
+        </div>
       )}
       {scanning ? (
         <BarcodeScanSheet
@@ -141,16 +148,84 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
 
       {viewing ? (
         <Sheet open title="Barkodlar" onClose={() => setViewing(false)}>
+          <div className="mb-3 rounded-2xl border border-line bg-surface p-3 text-xs font-bold uppercase tracking-wide text-ink-muted">
+            Tür · Barkod · Durum
+          </div>
           <ul className="flex flex-col gap-2" aria-label="Eklenen barkodlar">
             {barcodes.map((b, index) => (
               <li
                 key={b.id}
-                className="inline-flex min-h-9 items-center gap-2 rounded-full bg-surface-muted py-1 pr-1 pl-3 text-sm"
+                onDoubleClick={() => {
+                  setEditingId(b.id);
+                  setEditCode(b.code);
+                  setEditType(b.type);
+                }}
+                className="grid min-h-14 grid-cols-[minmax(5rem,0.7fr)_minmax(0,2fr)_auto_auto_auto] items-center gap-3 rounded-2xl border border-line bg-surface-raised px-3 py-2 text-sm"
               >
-                <span className="font-semibold text-ink-muted">
-                  {b.type === 'none' ? 'Barkod' : b.type}
-                </span>
-                <span className="min-w-0 break-all font-mono text-ink">{b.code}</span>
+                {editingId === b.id ? (
+                  <>
+                    <SelectField
+                      label="Tür"
+                      options={types}
+                      value={editType}
+                      onChange={setEditType}
+                    />
+                    <TextField
+                      label="Barkod"
+                      value={editCode}
+                      onChange={(e) => setEditCode(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      aria-label="Barkodu kaydet"
+                      className="rounded-full p-2 text-brand-ink hover:bg-brand-50"
+                      onClick={() => {
+                        const normalized = editCode.trim();
+                        if (
+                          !normalized ||
+                          barcodes.some(
+                            (x) =>
+                              x.id !== b.id &&
+                              x.code.toLocaleLowerCase('en-US') ===
+                                normalized.toLocaleLowerCase('en-US'),
+                          )
+                        ) {
+                          setError('Bu barkod zaten eklenmiş veya boş.');
+                          return;
+                        }
+                        onChange(
+                          barcodes.map((x) =>
+                            x.id === b.id ? { ...x, code: normalized, type: editType } : x,
+                          ),
+                        );
+                        setEditingId(null);
+                        setError('');
+                      }}
+                    >
+                      <Check className="size-5" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold text-ink-muted">
+                      {b.type === 'none' ? 'Barkod' : b.type}
+                    </span>
+                    <span className="min-w-0 break-all font-mono text-ink">{b.code}</span>
+                    <button
+                      type="button"
+                      aria-label={`${b.code} düzenle`}
+                      title="Çift tıklayarak da düzenleyebilirsiniz"
+                      onClick={() => {
+                        setEditingId(b.id);
+                        setEditCode(b.code);
+                        setEditType(b.type);
+                      }}
+                      className="inline-flex size-8 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                  </>
+                )}
                 {index === 0 ? (
                   <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-ink">
                     Ana

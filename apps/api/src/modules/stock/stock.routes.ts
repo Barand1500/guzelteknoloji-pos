@@ -65,6 +65,17 @@ export function createStockRouter(
     await repo.removeOption(res.locals.stockUserId as string, list, value);
     res.status(204).end();
   });
+  router.post('/secenekler/duzenle', async (req, res) => {
+    const { list, value, label } = parse(
+      z.strictObject({
+        list: z.enum(['priceLists']),
+        value: z.string().min(1).max(100),
+        label: z.string().trim().min(1).max(80),
+      }),
+      req.body,
+    );
+    res.json(await repo.renameOption(res.locals.stockUserId as string, list, value, label));
+  });
   router.post('/kartlar', async (req, res) => {
     const input = parse(stockSaveSchema, req.body);
     res.status(201).json(await repo.create(res.locals.stockUserId as string, input));
