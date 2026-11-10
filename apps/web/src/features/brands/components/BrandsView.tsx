@@ -1,4 +1,6 @@
-import { ImagePlus, Tag } from 'lucide-react';
+import { Images, Tag } from 'lucide-react';
+import { Link } from 'react-router';
+import { BULK_LOGOS_PATH } from '../../../config/navigation';
 import { usePublishAddAction } from '../../app-shell/save-action';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../../components/ui/Button';
@@ -12,7 +14,6 @@ import { useBrands } from '../hooks/useBrands';
 import type { Brand, BrandDraft } from '../types';
 import { BrandFormSheet } from './BrandFormSheet';
 import { BrandMergeSheet } from './BrandMergeSheet';
-import { BulkLogoSheet } from './BulkLogoSheet';
 import { BrandProductsSheet } from './BrandProductsSheet';
 import { BrandRow } from './BrandRow';
 
@@ -54,7 +55,6 @@ export function BrandsView() {
   // Satırdaki "Ürünler" işlemi: yalnızca ürünler penceresi (düzenleme formu açılmaz).
   const [productsFor, setProductsFor] = useState<string | null>(null);
   const [mergeFor, setMergeFor] = useState<string | null>(null);
-  const [bulkLogos, setBulkLogos] = useState(false);
   const [deleting, setDeleting] = useState<Brand | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -99,20 +99,6 @@ export function BrandsView() {
     await merge(brand.id, targetId);
     setMergeFor(null);
     showNotice(`${brand.name}, ${brandNames[targetId] ?? 'hedef marka'} ile birleştirildi.`);
-  };
-
-  const applyLogo = async (brand: Brand, logoUrl: string) => {
-    await save(
-      {
-        name: brand.name,
-        description: brand.description,
-        logoUrl,
-        active: brand.active,
-        seoTitle: brand.seoTitle,
-        seoDescription: brand.seoDescription,
-      },
-      brand.id,
-    );
   };
 
   const confirmDelete = async () => {
@@ -204,17 +190,14 @@ export function BrandsView() {
               placeholder="Marka ara…"
             />
           </div>
-          <button
-            type="button"
-            onClick={() => setBulkLogos(true)}
-            aria-label="Toplu logo yükle"
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-line bg-surface-raised px-4 font-semibold text-ink transition-colors hover:border-brand-500 hover:text-brand-ink"
+          <Link
+            to={BULK_LOGOS_PATH}
+            aria-label="Toplu Logo"
+            title="Toplu Logo"
+            className="flex size-12 shrink-0 items-center justify-center rounded-full border border-field-border text-ink-muted transition-colors hover:border-brand-500 hover:text-brand-ink"
           >
-            <ImagePlus className="size-5" aria-hidden="true" />
-            <span className="hidden sm:inline" aria-hidden="true">
-              Toplu Logo
-            </span>
-          </button>
+            <Images className="size-5" aria-hidden="true" />
+          </Link>
         </div>
 
         <p className="px-2 text-sm text-ink-muted">
@@ -316,9 +299,6 @@ export function BrandsView() {
           onMerge={(targetId) => mergeInto(mergeBrand, targetId)}
           onClose={() => setMergeFor(null)}
         />
-      ) : null}
-      {bulkLogos ? (
-        <BulkLogoSheet brands={brands} onApply={applyLogo} onClose={() => setBulkLogos(false)} />
       ) : null}
       {productsBrand ? (
         <BrandProductsSheet
