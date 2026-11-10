@@ -50,11 +50,12 @@ for (const width of [390, 1440])
     });
     await page.goto('/uygulama/roller');
     await expect(page.getByText('Mağaza Personeli', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Profil Menüsü', exact: true }).click();
-    await expect(page.getByRole('dialog', { name: 'Profil Menüsü' })).toBeVisible();
+    await page.getByRole('link', { name: 'Profil', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Profil Bilgileri' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Çıkış Yap', exact: true })).toBeVisible();
-    await page.screenshot({ path: info.outputPath('profile-menu.png') });
-    await page.keyboard.press('Escape');
+    await page.screenshot({ path: info.outputPath('profile-back.png') });
+    await page.getByRole('link', { name: 'Önceki Sayfaya Dön', exact: true }).click();
+    await expect(page).toHaveURL(/\/roller$/);
     await page.getByRole('button', { name: 'Mağaza Personeli düzenle' }).click();
     await expect(page.getByRole('checkbox', { name: 'Ürünler Kaydet' })).toBeChecked();
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -69,18 +70,13 @@ for (const width of [390, 1440])
     await page.getByRole('link', { name: 'Görseller', exact: true }).click();
     await expect(page.getByRole('switch', { name: 'Markalarda Şeffaf Zemin' })).toBeVisible();
     await page.screenshot({ path: info.outputPath('image-settings.png') });
-    await page.getByRole('button', { name: 'Profil Menüsü' }).click();
-    await page
-      .getByRole('dialog', { name: 'Profil Menüsü' })
-      .getByRole('link', { name: /Yunus/ })
-      .click();
+    await page.getByRole('link', { name: 'Profil', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Profil Bilgileri' })).toBeVisible();
     await page.screenshot({ path: info.outputPath('profile-page.png') });
-    await page.getByRole('button', { name: 'Profil Menüsü' }).click();
-    await page
-      .getByRole('dialog', { name: 'Profil Menüsü' })
-      .getByRole('link', { name: /Log/ })
-      .click();
+    await page.locator('body').click({ position: { x: 2, y: 2 } });
+    await page.keyboard.press('Backspace');
+    await expect(page).toHaveURL(/\/ayarlar\/images$/);
+    await page.goto('/uygulama/loglar');
     await expect(page.getByText('Henüz işlem kaydı yok.', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Süz', exact: true })).toHaveCount(0);
     await page.screenshot({ path: info.outputPath('logs-page.png') });
