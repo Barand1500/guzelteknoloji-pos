@@ -379,7 +379,6 @@ export function SectionMenu() {
                           {pagesOf(shown).map((page, i) => (
                             <Tile
                               key={page.id}
-                              siblings={shown.pages}
                               page={page}
                               soon={shown.soon}
                               index={i}
@@ -397,7 +396,6 @@ export function SectionMenu() {
                         {results.map(({ page, section }, i) => (
                           <Tile
                             key={`${section.id}-${page.id}`}
-                            siblings={section.pages}
                             page={page}
                             soon={section.soon}
                             index={i}

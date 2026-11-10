@@ -187,7 +187,6 @@ export function PhoneMenu({
                   <Tile
                     key={`${section.id}-${page.id}`}
                     page={page}
-                    siblings={section.pages}
                     soon={section.soon}
                     index={i}
                     onGo={close}
@@ -208,7 +207,6 @@ export function PhoneMenu({
                   <Tile
                     key={page.id}
                     page={page}
-                    siblings={shown.pages}
                     soon={shown.soon}
                     index={i}
                     onGo={close}
