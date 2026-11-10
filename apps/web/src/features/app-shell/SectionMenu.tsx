@@ -318,9 +318,9 @@ export function SectionMenu() {
                   </label>
                 </div>
 
-                <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] border-t border-line md:grid-cols-[14rem_minmax(0,1fr)] md:grid-rows-1">
+                <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] border-t border-line md:grid-cols-[14rem_minmax(0,1fr)] md:grid-rows-1">
                   {/* Kategoriler (telefonda yatay kayar) */}
-                  <div className="flex min-h-0 flex-col md:border-r md:border-line">
+                  <div className="flex min-h-0 min-w-0 flex-col md:border-r md:border-line">
                     <p className="hidden px-6 pt-5 pb-3 text-xs font-extrabold tracking-wider text-ink-muted md:block">
                       KATEGORİLER
                     </p>
@@ -374,7 +374,7 @@ export function SectionMenu() {
                   <div
                     role="tabpanel"
                     aria-label={q === '' ? shown.label : 'Arama sonuçları'}
-                    className="min-h-0 overflow-y-auto p-5 md:p-6"
+                    className="min-h-0 min-w-0 overflow-y-auto p-4 md:p-6"
                   >
                     {q === '' ? (
                       <>
