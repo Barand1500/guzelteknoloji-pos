@@ -305,3 +305,19 @@ html[data-transparent-attributes='true'] [data-image-frame='attributes'] {
 body[data-sortable-dragging] [data-zoom-card] {
   display: none !important;
 }
+
+/* Silme geri alma bildirimi: kalan süreyi gösteren çubuk sağdan sola azalır. */
+@keyframes undo-progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*='undo-progress'] {
+    animation: none !important;
+    width: 100%;
+  }
+}

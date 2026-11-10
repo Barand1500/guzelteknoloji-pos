@@ -114,8 +114,12 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     const bar = screen.getByRole('toolbar', { name: 'Toplu işlemler' });
     expect(within(bar).getByText('2 seçili')).toBeInTheDocument();
     await user.click(within(bar).getByRole('button', { name: 'İşlemler' }));
-    const menu = await screen.findByRole('dialog', { name: 'Seçilenler (2)' });
-    await user.click(within(menu).getByRole('button', { name: 'Satışa kapat' }));
+    const menu = await screen.findByRole('dialog', { name: 'Toplu İşlem · 2 ürün' });
+    await user.click(within(menu).getByRole('button', { name: /Satış Durumu/ }));
+    const step = await screen.findByRole('dialog', { name: 'Toplu satış durumu' });
+    await user.click(within(step).getByRole('radio', { name: /Satışa Kapat/ }));
+    await user.click(within(step).getByRole('button', { name: 'Devam' }));
+    await user.click(within(step).getByRole('button', { name: 'Onaylıyorum' }));
     const list = await productService.list();
     expect(list.filter((p) => !p.salesOpen).map((p) => p.id)).toEqual(
       expect.arrayContaining(['p1', 'p2']),
@@ -123,14 +127,32 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     expect(await screen.findByText('2 ürün satışa kapatıldı.')).toBeInTheDocument();
   });
 
-  it('satırdaki Sil simgesiyle silinir; onay ister', async () => {
+  it('satırdaki Sil simgesi ürünü hemen gizler; "Geri Al" ile geri gelir, basılmazsa süre sonunda silinir', async () => {
     const user = await openProducts();
     await user.click(screen.getByRole('button', { name: `${NAME_1} ürününü sil` }));
-    expect(await screen.findByText(`${NAME_1} Silinsin Mi?`)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Sil' }));
-    await waitFor(() => expect(document.querySelector('tr[data-product-id="p1"]')).toBeNull());
-    expect((await productService.list()).some((p) => p.id === 'p1')).toBe(false);
+    const toast = await screen.findByRole('status');
+    expect(toast).toHaveTextContent(`${NAME_1} silindi.`);
+    expect(toast).toHaveTextContent('Geri almak ister misiniz?');
+    expect(document.querySelector('tr[data-product-id="p1"]')).toBeNull();
+    // Henüz kalıcı silinmedi.
+    expect((await productService.list()).some((p) => p.id === 'p1')).toBe(true);
+
+    await user.click(within(toast).getByRole('button', { name: 'Geri Al' }));
+    expect(document.querySelector('tr[data-product-id="p1"]')).not.toBeNull();
+    expect(screen.queryByText('Geri almak ister misiniz?')).not.toBeInTheDocument();
+    expect((await productService.list()).some((p) => p.id === 'p1')).toBe(true);
   });
+
+  it('geri alınmazsa süre dolunca ürün kalıcı silinir', async () => {
+    const user = await openProducts();
+    await user.click(screen.getByRole('button', { name: `${NAME_1} ürününü sil` }));
+    await screen.findByText('Geri almak ister misiniz?');
+    await waitFor(
+      async () => expect((await productService.list()).some((p) => p.id === 'p1')).toBe(false),
+      { timeout: 9000 },
+    );
+    expect(screen.queryByText('Geri almak ister misiniz?')).not.toBeInTheDocument();
+  }, 15000);
 
   it('satırda ⋮ menüsü yoktur: Düzenle, Kopya Oluştur ve Sil doğrudan simgedir', async () => {
     await openProducts();
@@ -339,5 +361,110 @@ describe('Excel dosyası okuma', () => {
     const parsed = parseImport(sampleImportCsv());
     expect(parsed.missingColumns).toEqual([]);
     expect(parsed.rows).toHaveLength(2);
+  });
+});
+
+describe('Toplu işlem sihirbazı', () => {
+  async function openBulk(user: Awaited<ReturnType<typeof openProducts>>, ...ids: string[]) {
+    for (const id of ids) {
+      const row = document.querySelector(`tr[data-product-id="${id}"]`) as HTMLElement;
+      await user.click(within(row).getByRole('checkbox'));
+    }
+    await user.click(
+      within(screen.getByRole('toolbar', { name: 'Toplu işlemler' })).getByRole('button', {
+        name: 'İşlemler',
+      }),
+    );
+    return screen.findByRole('dialog', { name: `Toplu İşlem · ${ids.length} ürün` });
+  }
+
+  it('önce işlem kutucukları gelir; bir işleme girince "Geri" ile menüye dönülür', async () => {
+    const user = await openProducts();
+    const menu = await openBulk(user, 'p1', 'p2');
+    for (const name of [
+      /Fiyat Güncelle/,
+      /Fırsat/,
+      /Kategori/,
+      /Marka/,
+      /Satış Durumu/,
+      /Stok Takibi/,
+    ])
+      expect(within(menu).getByRole('button', { name })).toBeInTheDocument();
+    expect(within(menu).getByRole('button', { name: 'Seçilenleri Sil' })).toBeInTheDocument();
+
+    await user.click(within(menu).getByRole('button', { name: /Marka/ }));
+    const step = await screen.findByRole('dialog', { name: 'Toplu marka' });
+    expect(within(step).getByRole('list', { name: 'Adımlar' })).toBeInTheDocument();
+    await user.click(within(step).getByRole('button', { name: 'Geri' }));
+    expect(await screen.findByRole('dialog', { name: 'Toplu İşlem · 2 ürün' })).toBeInTheDocument();
+  });
+
+  it('fiyat: işlem → KDV → önizleme (eski/yeni fiyat) → onay; yüzde artırma uygulanır', async () => {
+    const user = await openProducts();
+    const before = (await productService.list()).find((p) => p.id === 'p1')!;
+    const net = before.listPrices![0]!.net!;
+    const menu = await openBulk(user, 'p1', 'p2');
+    await user.click(within(menu).getByRole('button', { name: /Fiyat Güncelle/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Toplu fiyat güncelle' });
+
+    // 1) Fiyat ve işlem
+    expect(within(dialog).getByRole('button', { name: 'Devam' })).toBeDisabled();
+    await user.click(within(dialog).getByRole('radio', { name: 'Zam' }));
+    await user.click(within(dialog).getByRole('radio', { name: '% Yüzde' }));
+    await user.type(within(dialog).getByLabelText('Yüzde (%)'), '10');
+    // Yuvarlama kapalıyken adım seçenekleri yoktur; açınca dört adım çıkar.
+    expect(within(dialog).queryByRole('radio', { name: /0,50 ₺/ })).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('switch', { name: 'Yuvarlama' }));
+    expect(within(dialog).getByRole('radio', { name: /0,10 ₺/ })).toBeInTheDocument();
+    expect(within(dialog).getByRole('radio', { name: /1 ₺/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await user.click(within(dialog).getByRole('switch', { name: 'Yuvarlama' })); // kapat
+    await user.click(within(dialog).getByRole('button', { name: 'Devam' }));
+
+    // 2) KDV dahil mi hariç mi
+    expect(within(dialog).getByRole('radio', { name: /KDV Dahil/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await user.click(within(dialog).getByRole('radio', { name: /KDV Hariç/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Devam' }));
+
+    // 3) Önizleme
+    expect(within(dialog).getByText('%10 zam')).toBeInTheDocument();
+    const list = within(dialog).getByRole('list', { name: 'Önizleme' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    await user.click(within(dialog).getByRole('button', { name: 'Onaylıyorum' }));
+    expect(await screen.findByText(/üründe fiyat güncellendi/)).toBeInTheDocument();
+    const after = (await productService.list()).find((p) => p.id === 'p1')!;
+    expect(after.listPrices![0]!.net!).toBeCloseTo(net * 1.1, 4);
+  });
+
+  it('fırsat: listeden seçilir, özet cümle ve ürünler gösterilir, onayla eklenir', async () => {
+    const user = await openProducts();
+    const menu = await openBulk(user, 'p3');
+    await user.click(within(menu).getByRole('button', { name: /^Fırsat/ }));
+    const step = await screen.findByRole('dialog', { name: 'Toplu fırsat' });
+    expect(within(step).getByRole('button', { name: 'Devam' })).toBeDisabled();
+    await user.click(await within(step).findByRole('radio', { name: 'Yeni Ürünler' }));
+    await user.click(within(step).getByRole('button', { name: 'Devam' }));
+    expect(within(step).getByText(/“Yeni Ürünler” fırsatı eklenecek/)).toBeInTheDocument();
+    await user.click(within(step).getByRole('button', { name: 'Onaylıyorum' }));
+    expect(await screen.findByText('1 ürün için fırsat eklendi.')).toBeInTheDocument();
+    expect((await productService.list()).find((p) => p.id === 'p3')!.dealIds).toContain('yeni');
+  });
+
+  it('kategori: arama kutulu düz liste (açılır kutu yok); seçilen kategoriye eklenir', async () => {
+    const user = await openProducts();
+    const menu = await openBulk(user, 'p3');
+    await user.click(within(menu).getByRole('button', { name: /^Kategori/ }));
+    const step = await screen.findByRole('dialog', { name: 'Toplu kategori' });
+    expect(within(step).queryByRole('combobox')).not.toBeInTheDocument();
+    await user.click(await within(step).findByRole('radio', { name: 'Dokunmatik POS' }));
+    await user.click(within(step).getByRole('button', { name: 'Devam' }));
+    await user.click(within(step).getByRole('button', { name: 'Onaylıyorum' }));
+    expect(await screen.findByText('1 ürün kategoriye eklendi.')).toBeInTheDocument();
+    expect((await productService.list()).find((p) => p.id === 'p3')!.categoryIds).toContain('pos');
   });
 });

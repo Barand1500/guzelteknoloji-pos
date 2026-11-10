@@ -9,6 +9,8 @@ import { brandSeeds } from '../../../mocks/brand.mock';
 import { parseImport, parseNumber, type RawImportRow } from '../import.csv';
 import {
   priceListsOf,
+  type BulkRequest,
+  type BulkResult,
   type ImportPreview,
   type ImportRow,
   type ListPrice,
@@ -17,6 +19,7 @@ import {
   type ProductPage,
 } from '../types';
 import { filterDemoProducts, productFilterOptions } from '../product.query';
+import { newExclPrice, type BulkPriceChange } from '../bulk-price';
 
 /**
  * Ürün verisine erişimin TEK kapısı. Şimdilik bellekte tutulan sahte veri (sayfa yenilenince
@@ -186,6 +189,89 @@ export const demoProductService = {
   async setSales(ids: string[], on: boolean): Promise<void> {
     await wait(0);
     items = items.map((p) => (ids.includes(p.id) ? { ...p, salesOpen: on } : p));
+  },
+
+  async bulk(ids: string[], request: BulkRequest): Promise<BulkResult> {
+    await wait(0);
+    const target = items.filter((p) => ids.includes(p.id));
+    if (request.islem === 'firsat_ekle' || request.islem === 'firsat_kaldir') {
+      const id = request.firsatId;
+      items = items.map((p) =>
+        !ids.includes(p.id)
+          ? p
+          : {
+              ...p,
+              dealIds:
+                request.islem === 'firsat_ekle'
+                  ? p.dealIds.includes(id)
+                    ? p.dealIds
+                    : [...p.dealIds, id]
+                  : p.dealIds.filter((d) => d !== id),
+            },
+      );
+    } else if (request.islem === 'kategori_ekle' || request.islem === 'kategori_kaldir') {
+      const id = request.kategoriId;
+      const name = categorySeeds.find((c) => c.id === id)?.name ?? id;
+      items = items.map((p) => {
+        if (!ids.includes(p.id)) return p;
+        const has = p.categoryIds.includes(id);
+        if (request.islem === 'kategori_ekle' && !has)
+          return {
+            ...p,
+            categoryIds: [...p.categoryIds, id],
+            categoryNames: [...p.categoryNames, name],
+          };
+        if (request.islem === 'kategori_kaldir' && has) {
+          const at = p.categoryIds.indexOf(id);
+          return {
+            ...p,
+            categoryIds: p.categoryIds.filter((c) => c !== id),
+            categoryNames: p.categoryNames.filter((_, i) => i !== at),
+          };
+        }
+        return p;
+      });
+    } else if (request.islem === 'marka_ata') {
+      const brand = brandSeeds.find((b) => b.id === request.markaId);
+      items = items.map((p) =>
+        ids.includes(p.id) ? { ...p, brandId: brand?.id ?? null, brandName: brand?.name ?? '' } : p,
+      );
+    } else {
+      const price = request as Extract<BulkRequest, { islem: 'fiyat_guncelle' }>;
+      const change: BulkPriceChange = {
+        mod: price.mod,
+        value: Number(price.deger.replace(',', '.')),
+        kdv: price.kdv,
+        yuvarla: price.yuvarla,
+      };
+      let skipped = 0;
+      const next = items.map((p) => {
+        if (!ids.includes(p.id)) return p;
+        if (price.yon === 'alis') {
+          const cost = p.cost > 0 ? newExclPrice(p.cost, p.costVatRate ?? p.vatRate, change) : null;
+          if (cost === null) {
+            skipped++;
+            return p;
+          }
+          return { ...p, cost };
+        }
+        const list = p.listPrices?.find((l) => l.id === price.listeId);
+        if (!list || list.net === null) {
+          skipped++;
+          return p;
+        }
+        const net = newExclPrice(list.net, list.vatRate, change);
+        if (net === null)
+          throw new Error('Bazı ürünlerde fiyat sıfırın altına düşer. İşlem yapılmadı.');
+        return {
+          ...p,
+          listPrices: p.listPrices!.map((l) => (l.id === list.id ? { ...l, net } : l)),
+        };
+      });
+      items = next;
+      return { affected: target.length - skipped, skipped };
+    }
+    return { affected: target.length };
   },
 
   async remove(ids: string[]): Promise<void> {

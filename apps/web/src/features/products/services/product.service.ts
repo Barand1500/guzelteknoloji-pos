@@ -3,6 +3,8 @@ import { imageAddress, useDataService } from '../../../lib/catalog-data';
 import { demoProductService } from './product.demo';
 import {
   priceListsOf,
+  type BulkRequest,
+  type BulkResult,
   type ProductItem,
   type ImportPreview,
   type ProductPage,
@@ -146,6 +148,20 @@ export const productService = {
     apiRequest<void>('/api/stok/kartlar/toplu', {
       method: 'POST',
       body: { ids: ids.map(Number), islem: on ? 'stok_ac' : 'stok_kapat' },
+    }),
+  bulk: (ids: string[], request: BulkRequest) =>
+    apiRequest<BulkResult>('/api/stok/kartlar/toplu', {
+      method: 'POST',
+      body: {
+        ids: ids.map(Number),
+        ...request,
+        ...('firsatId' in request ? { firsatId: Number(request.firsatId) } : {}),
+        ...('kategoriId' in request ? { kategoriId: Number(request.kategoriId) } : {}),
+        ...('markaId' in request
+          ? { markaId: request.markaId === null ? null : Number(request.markaId) }
+          : {}),
+        ...('listeId' in request ? { listeId: Number(request.listeId) } : {}),
+      },
     }),
   setSales: (ids: string[], on: boolean) =>
     apiRequest<void>('/api/stok/kartlar/toplu', {
