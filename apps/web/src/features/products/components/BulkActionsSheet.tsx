@@ -440,7 +440,7 @@ export function BulkActionsSheet({
     body = (
       <div className="flex flex-col gap-3">
         {/* Altı eşit boyutlu kutucuk: 2 sütun × 3 satır, hepsi aynı yükseklikte ve aynı hizada. */}
-        <ul className="grid auto-rows-fr grid-cols-2 gap-3">
+        <ul className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-3">
           {TILES.map(({ id, title, hint, icon: Icon }) => (
             <li key={id} className="flex">
               <button
@@ -772,7 +772,7 @@ export function BulkActionsSheet({
       onClose={onClose}
       title={flow ? META[flow].title : `Toplu İşlem · ${count} ürün`}
       {...(flow ? { description: subtitle[stepKey] ?? '' } : {})}
-      size="md"
+      size="lg"
     >
       <div className="flex flex-col gap-5">
         {flow ? (
