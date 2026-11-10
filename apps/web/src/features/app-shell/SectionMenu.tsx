@@ -38,8 +38,11 @@ function Tile({
   soon,
   onGo,
   index,
+  siblings,
 }: {
   page: SectionPage;
+  /** Aynı bölümdeki sayfalar: yolu bir kardeşin başıysa tam eşleşme aranır. */
+  siblings: readonly SectionPage[];
   soon?: boolean;
   onGo: () => void;
   index: number;
@@ -49,6 +52,7 @@ function Tile({
     <li style={{ animationDelay: `${Math.min(index, 12) * 30}ms` }} className="animate-rise-in">
       <NavLink
         to={page.path}
+        end={siblings.some((o) => o.id !== page.id && o.path.startsWith(page.path + '/'))}
         data-tile=""
         onClick={onGo}
         className={({ isActive }) =>
@@ -394,6 +398,7 @@ export function SectionMenu() {
                           {pagesOf(shown).map((page, i) => (
                             <Tile
                               key={page.id}
+                              siblings={shown.pages}
                               page={page}
                               soon={shown.soon}
                               index={i}
@@ -411,6 +416,7 @@ export function SectionMenu() {
                         {results.map(({ page, section }, i) => (
                           <Tile
                             key={`${section.id}-${page.id}`}
+                            siblings={section.pages}
                             page={page}
                             soon={section.soon}
                             index={i}

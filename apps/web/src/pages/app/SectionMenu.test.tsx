@@ -100,4 +100,17 @@ describe('Üst menü (bölüm gezgini)', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog', { name: 'Ana menü' })).not.toBeInTheDocument();
   });
+
+  it('iç içe yollarda yalnızca bulunulan sayfa kartı seçili görünür (İade/Değişim)', async () => {
+    const user = await open('/uygulama/siparisler/iade');
+    await user.click(screen.getByRole('button', { name: 'Ana menü' }));
+    const panel = await screen.findByRole('tabpanel', { name: 'Siparişler' });
+    expect(within(panel).getByRole('link', { name: /İade\/Değişim/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(panel).getByRole('link', { name: /Gelen Siparişler/ })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
 });
