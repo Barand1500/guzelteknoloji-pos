@@ -1,4 +1,4 @@
-import { Camera, RefreshCw } from 'lucide-react';
+import { Camera, Flashlight, FlashlightOff, RefreshCw, SwitchCamera } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
@@ -13,7 +13,7 @@ interface BarcodeScanSheetProps {
   onClose: () => void;
 }
 
-/** zxing biçim adı → formdaki barkod türü. */
+/** Okuyucunun biçim adı (zxing `EAN_13`, tarayıcı `ean_13`) → formdaki barkod türü. */
 const FORMAT_TO_TYPE: Record<string, string> = {
   EAN_13: 'EAN13',
   EAN_8: 'EAN8',
@@ -23,6 +23,18 @@ const FORMAT_TO_TYPE: Record<string, string> = {
   CODE_93: 'CODE93',
   CODE_128: 'CODE128',
 };
+const typeOf = (format: string) => FORMAT_TO_TYPE[format.toUpperCase()] ?? null;
+
+/** Tarayıcının yerleşik okuyucusunun (BarcodeDetector) denenecek biçimleri. */
+const NATIVE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93'];
+
+interface NativeDetector {
+  detect(source: HTMLVideoElement): Promise<{ rawValue: string; format: string }[]>;
+}
+interface NativeDetectorCtor {
+  new (options: { formats: string[] }): NativeDetector;
+  getSupportedFormats?: () => Promise<string[]>;
+}
 
 type Phase =
   | { kind: 'starting' }
@@ -43,31 +55,134 @@ function cameraMessage(error: unknown): string {
 }
 
 /**
- * Kamerayla barkod okuma penceresi (telefonda da bilgisayarda da). Kamera açılır, barkod görününce
- * okunur; sonra "Doğru mu?" ekranı gelir: kullanıcı değeri düzeltebilir, "Tekrar Tara" diyebilir ya
- * da "Kullan" ile barkod kutusunu doldurur. Okuyucu (zxing) ilk açılışta yüklenir; ana pakete girmez.
+ * Kamerayla barkod okuma penceresi (telefonda da bilgisayarda da). Kamera YÜKSEK çözünürlükte
+ * (1080p) ve sürekli odakla açılır (düşük çözünürlük ince çizgili barkodları okunmaz yapar).
+ * Tarayıcının yerleşik okuyucusu (BarcodeDetector: Chrome/Edge/Android) varsa o kullanılır; yoksa
+ * zxing (ilk açılışta yüklenir, "daha çok dene" modunda). Okununca "Doğru mu?" ekranı gelir: değer
+ * düzeltilebilir, "Tekrar Tara" denebilir ya da "Kullan" ile barkod kutusu doldurulur. Karanlıkta el
+ * feneri (destekleyen cihazda) ve birden çok kamera varsa kamera değiştirme düğmesi çıkar.
  */
 export function BarcodeScanSheet({ typeValues, onUse, onClose }: BarcodeScanSheetProps) {
   const video = useRef<HTMLVideoElement>(null);
   const stop = useRef<(() => void) | null>(null);
+  const track = useRef<MediaStreamTrack | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: 'starting' });
   const [attempt, setAttempt] = useState(0);
   const [edited, setEdited] = useState('');
+  const [devices, setDevices] = useState<string[]>([]);
+  const [deviceIndex, setDeviceIndex] = useState<number | null>(null);
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
 
   const release = useCallback(() => {
     stop.current?.();
     stop.current = null;
   }, []);
 
+  const deviceId = deviceIndex === null ? undefined : devices[deviceIndex];
+
   useEffect(() => {
     let cancelled = false;
+    let timer = 0;
+    let controls: { stop(): void } | null = null;
+    let media: MediaStream | null = null;
+    const stopAll = () => {
+      window.clearTimeout(timer);
+      controls?.stop();
+      controls = null;
+      media?.getTracks().forEach((t) => t.stop());
+      media = null;
+      track.current = null;
+    };
+    stop.current = stopAll;
+
+    const finish = (text: string, format: string) => {
+      if (cancelled) return;
+      stopAll();
+      navigator.vibrate?.(30);
+      setEdited(text);
+      setTorchOn(false);
+      setPhase({ kind: 'found', code: text, type: typeOf(format) });
+    };
+
     void (async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) throw new Error('kamera yok');
+        media = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            ...(deviceId
+              ? { deviceId: { exact: deviceId } }
+              : { facingMode: { ideal: 'environment' } }),
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+        });
+        if (cancelled) return stopAll();
+        const videoTrack = media.getVideoTracks()[0] ?? null;
+        track.current = videoTrack;
+        // Sürekli odak (destekleyen kameralarda) ve el feneri desteği.
+        try {
+          await videoTrack?.applyConstraints({
+            advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet],
+          });
+        } catch {
+          /* Bu kamera odak ayarını desteklemiyor; normal devam. */
+        }
+        const caps = videoTrack?.getCapabilities?.() as { torch?: boolean } | undefined;
+        setTorchSupported(Boolean(caps?.torch));
+        void navigator.mediaDevices
+          .enumerateDevices()
+          .then((list) => {
+            if (!cancelled)
+              setDevices(
+                list.filter((d) => d.kind === 'videoinput' && d.deviceId).map((d) => d.deviceId),
+              );
+          })
+          .catch(() => undefined);
+
+        const element = video.current;
+        if (!element) return stopAll();
+        element.srcObject = media;
+        await element.play();
+        if (cancelled) return;
+        setPhase({ kind: 'scanning' });
+
+        // 1) Tarayıcının yerleşik okuyucusu: hızlı ve doğru.
+        const Native = (window as unknown as { BarcodeDetector?: NativeDetectorCtor })
+          .BarcodeDetector;
+        let detector: NativeDetector | null = null;
+        if (Native) {
+          try {
+            const supported = (await Native.getSupportedFormats?.()) ?? NATIVE_FORMATS;
+            const formats = NATIVE_FORMATS.filter((f) => supported.includes(f));
+            if (formats.length) detector = new Native({ formats });
+          } catch {
+            detector = null;
+          }
+        }
+        if (detector) {
+          const active = detector;
+          const loop = async () => {
+            if (cancelled) return;
+            try {
+              const codes = await active.detect(element);
+              const first = codes[0];
+              if (first?.rawValue) return finish(first.rawValue, first.format);
+            } catch {
+              /* Kare okunamadı; sonraki karede tekrar denenir. */
+            }
+            timer = window.setTimeout(() => void loop(), 80);
+          };
+          void loop();
+          return;
+        }
+
+        // 2) Yedek: zxing ("daha çok dene" modunda, yalnızca ürün barkodu biçimleriyle).
         const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all(
           [import('@zxing/browser'), import('@zxing/library')],
         );
-        if (cancelled || !video.current) return;
+        if (cancelled) return;
         const hints = new Map();
         hints.set(DecodeHintType.POSSIBLE_FORMATS, [
           BarcodeFormat.EAN_13,
@@ -78,39 +193,44 @@ export function BarcodeScanSheet({ typeValues, onUse, onClose }: BarcodeScanShee
           BarcodeFormat.CODE_39,
           BarcodeFormat.CODE_93,
         ]);
-        const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 120 });
-        const controls = await reader.decodeFromConstraints(
-          { video: { facingMode: { ideal: 'environment' } }, audio: false },
-          video.current,
-          (result) => {
-            if (!result || cancelled) return;
-            const format = BarcodeFormat[result.getBarcodeFormat()];
-            const type = FORMAT_TO_TYPE[format] ?? null;
-            release();
-            navigator.vibrate?.(30);
-            setEdited(result.getText());
-            setPhase({ kind: 'found', code: result.getText(), type });
-          },
-        );
-        if (cancelled) controls.stop();
-        else {
-          stop.current = () => controls.stop();
-          setPhase({ kind: 'scanning' });
-        }
+        hints.set(DecodeHintType.TRY_HARDER, true);
+        const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 60 });
+        controls = await reader.decodeFromVideoElement(element, (result) => {
+          if (result) finish(result.getText(), BarcodeFormat[result.getBarcodeFormat()] ?? '');
+        });
+        if (cancelled) stopAll();
       } catch (error) {
+        stopAll();
         if (!cancelled) setPhase({ kind: 'error', message: cameraMessage(error) });
       }
     })();
+
     return () => {
       cancelled = true;
-      release();
+      stopAll();
     };
-  }, [attempt, release]);
+  }, [attempt, deviceId]);
 
   const retry = () => {
     setPhase({ kind: 'starting' });
     setAttempt((n) => n + 1);
   };
+  const toggleTorch = () => {
+    const next = !torchOn;
+    void track.current
+      ?.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] })
+      .then(() => setTorchOn(next))
+      .catch(() => undefined);
+  };
+  const switchCamera = () => {
+    release();
+    setPhase({ kind: 'starting' });
+    setTorchOn(false);
+    setDeviceIndex(
+      (i) => ((i ?? Math.max(0, devices.indexOf(deviceId ?? ''))) + 1) % devices.length,
+    );
+  };
+
   const found = phase.kind === 'found' ? phase : null;
   const finalType = found?.type && typeValues.includes(found.type) ? found.type : null;
 
@@ -126,32 +246,70 @@ export function BarcodeScanSheet({ typeValues, onUse, onClose }: BarcodeScanShee
         {phase.kind === 'error' ? <Alert tone="error">{phase.message}</Alert> : null}
 
         {found ? null : (
-          <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-ink">
-            <video
-              ref={video}
-              muted
-              playsInline
-              aria-label="Kamera görüntüsü"
-              className="size-full object-cover"
-            />
-            {phase.kind === 'scanning' ? (
-              // Hedef çerçeve + tarama çizgisi
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 flex items-center justify-center"
-              >
-                <span className="relative h-2/5 w-4/5 rounded-2xl border-2 border-white/80">
-                  <span className="absolute inset-x-2 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-brand-500" />
+          <>
+            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-ink">
+              <video
+                ref={video}
+                muted
+                playsInline
+                aria-label="Kamera görüntüsü"
+                className="size-full object-cover"
+              />
+              {phase.kind === 'scanning' ? (
+                // Hedef çerçeve + tarama çizgisi
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                >
+                  <span className="relative h-2/5 w-4/5 rounded-2xl border-2 border-white/80">
+                    <span className="absolute inset-x-2 top-1/2 h-0.5 -translate-y-1/2 animate-pulse bg-brand-500" />
+                  </span>
                 </span>
-              </span>
+              ) : null}
+              {phase.kind === 'starting' ? (
+                <span className="absolute inset-0 flex items-center justify-center gap-2 text-sm font-semibold text-white">
+                  <Camera className="size-5" aria-hidden="true" />
+                  Kamera açılıyor…
+                </span>
+              ) : null}
+              {phase.kind === 'scanning' && (torchSupported || devices.length > 1) ? (
+                <span className="absolute right-3 bottom-3 flex gap-2">
+                  {torchSupported ? (
+                    <button
+                      type="button"
+                      onClick={toggleTorch}
+                      aria-label={torchOn ? 'El fenerini kapat' : 'El fenerini aç'}
+                      aria-pressed={torchOn}
+                      className="flex size-11 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur"
+                    >
+                      {torchOn ? (
+                        <FlashlightOff className="size-5" aria-hidden="true" />
+                      ) : (
+                        <Flashlight className="size-5" aria-hidden="true" />
+                      )}
+                    </button>
+                  ) : null}
+                  {devices.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={switchCamera}
+                      aria-label="Kamerayı değiştir"
+                      className="flex size-11 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur"
+                    >
+                      <SwitchCamera className="size-5" aria-hidden="true" />
+                    </button>
+                  ) : null}
+                </span>
+              ) : null}
+            </div>
+            {phase.kind === 'scanning' ? (
+              <p className="text-sm leading-relaxed text-ink-muted">
+                Barkodu çerçevenin ortasına getirin ve kamerayı <strong>15–20 cm</strong> uzakta,
+                sabit tutun. Işık yeterli olsun; ekrandaki barkodlar kâğıttakinden zor okunur.
+                Okunmazsa biraz yaklaşıp uzaklaşın ya da barkodu elle yazın.
+              </p>
             ) : null}
-            {phase.kind === 'starting' ? (
-              <span className="absolute inset-0 flex items-center justify-center gap-2 text-sm font-semibold text-white">
-                <Camera className="size-5" aria-hidden="true" />
-                Kamera açılıyor…
-              </span>
-            ) : null}
-          </div>
+          </>
         )}
 
         {found ? (
