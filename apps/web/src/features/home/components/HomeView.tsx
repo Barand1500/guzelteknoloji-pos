@@ -105,7 +105,7 @@ export function HomeView() {
                 <OrderStatusRing orders={data.orders} />
               </Card>
               <Card title="Son Siparişler" hint="En yeniden eskiye">
-                <RecentOrders orders={data.recentOrders.slice(0, 5)} />
+                <RecentOrders orders={data.recentOrders} />
               </Card>
             </div>
           </Block>
