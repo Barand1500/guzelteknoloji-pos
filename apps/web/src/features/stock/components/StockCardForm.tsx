@@ -6,6 +6,8 @@ import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { useSession } from '../../auth/hooks/session-context';
+import { useBrandService } from '../../brands/hooks/useBrandService';
+import { useCategoryService } from '../../categories/services/category.service';
 import { hasDevAccess } from '../../dev-login/devAccess';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { NextProductBar } from '../../products/components/NextProductBar';
@@ -17,7 +19,6 @@ import { DesktopStockLayout } from './DesktopStockLayout';
 import { MobileStockLayout } from './MobileStockLayout';
 import { StockSavedScreen } from './StockSavedScreen';
 import { VariantEditor } from './VariantEditor';
-import type { SideBoxId } from './StockSidePanel';
 import { useWorkspace } from '../../workspace/workspace-context';
 
 interface StockCardFormProps {
@@ -25,8 +26,6 @@ interface StockCardFormProps {
   cardId?: string;
   /** Verilirse bu kartın kopyası dolu gelir ama YENİ kayıt olarak kaydedilir. */
   copyFromId?: string;
-  /** Hangi yan kutu açık gelsin (kayıt sonrası ekrandan bir karta dokunulunca). */
-  initialBox?: SideBoxId;
 }
 
 /** Ekranın ihtiyaç duyduğu, sunucudan yüklenen her şey. */
@@ -40,7 +39,7 @@ interface Loaded {
 }
 
 /** Veriyi yükler; hazır olunca düzenleyiciyi gösterir (listeler yüklenmeden hook'lar kurulamaz). */
-export function StockCardForm({ cardId, copyFromId, initialBox }: StockCardFormProps = {}) {
+export function StockCardForm({ cardId, copyFromId }: StockCardFormProps = {}) {
   const { session } = useSession();
   const sourceId = cardId ?? copyFromId;
   // Test düğmesi kalır; gerçek kullanıcı asla sahte kayda yönlendirilmez.
@@ -123,7 +122,6 @@ export function StockCardForm({ cardId, copyFromId, initialBox }: StockCardFormP
       service={service}
       demo={demo}
       {...(cardId ? { cardId } : {})}
-      {...(initialBox ? { initialBox } : {})}
       mode={cardId ? 'edit' : copyFromId ? 'copy' : 'create'}
     />
   );
@@ -139,7 +137,6 @@ function StockCardEditor({
   demo,
   devUser,
   cardId,
-  initialBox,
   mode,
 }: {
   loaded: Loaded;
@@ -148,21 +145,26 @@ function StockCardEditor({
   /** Test kullanıcısı mı (değilse sahte listeden açılan deneme ürünüdür). */
   devUser: boolean;
   cardId?: string;
-  initialBox?: SideBoxId;
   mode: 'create' | 'edit' | 'copy';
 }) {
-  const {can}=useWorkspace();
+  const { can } = useWorkspace();
   const [variantState, setVariantState] = useState({
     dirty: false,
     busy: false,
     count: 0,
     quantity: '0',
   });
+  const brandService = useBrandService();
+  const categoryService = useCategoryService();
   const editor = useStockEditor(loaded.lookups, service, {
     ...(loaded.draft ? { initialDraft: loaded.draft } : {}),
     ...(loaded.extras ? { initialExtras: loaded.extras } : {}),
     ...(cardId ? { cardId } : {}),
     extraOptions: loaded.extraOptions,
+    quickAdd: {
+      createBrand: (draft) => brandService.create(draft),
+      createCategory: (draft) => categoryService.create(draft),
+    },
     stayOnSave: variantState.dirty,
     ...(variantState.count ? { variantStock: variantState.quantity } : {}),
   });
@@ -239,12 +241,10 @@ function StockCardEditor({
     <StockSavedScreen
       mode={mode}
       demo={demo}
-      name={editor.draft.name}
-      code={editor.draft.code}
-      brand={editor.lookups.brands.find((b) => b.value === editor.draft.brand)?.label ?? ''}
-      savedId={editor.savedId}
+      draft={editor.draft}
       extras={editor.extras}
       extraOptions={editor.extraOptions}
+      brand={editor.lookups.brands.find((b) => b.value === editor.draft.brand)?.label ?? ''}
       onNew={editor.startOver}
       onKeepEditing={editor.keepEditing}
     />
@@ -321,15 +321,11 @@ function StockCardEditor({
         ) : null}
         {editor.saveNotice && <Alert tone="info">{editor.saveNotice}</Alert>}
         <fieldset
-          disabled={editor.saving || variantState.busy || !can('products','save')}
+          disabled={editor.saving || variantState.busy || !can('products', 'save')}
           className="m-0 min-w-0 border-0 p-0"
           aria-busy={editor.saving}
         >
-          {wide ? (
-            <DesktopStockLayout editor={editor} initialBox={initialBox ?? null} />
-          ) : (
-            <MobileStockLayout editor={editor} initialBox={initialBox ?? null} />
-          )}
+          {wide ? <DesktopStockLayout editor={editor} /> : <MobileStockLayout editor={editor} />}
           {cardId && !demo && loaded.extraOptions?.attributes ? (
             <VariantEditor
               cardId={cardId}

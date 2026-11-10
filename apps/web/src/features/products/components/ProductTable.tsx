@@ -3,6 +3,7 @@ import { Check, ChevronDown, Copy, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import {
+  COST_VIEW,
   currencyOf,
   formatMoney,
   grossOf,
@@ -354,6 +355,24 @@ function PriceCell({
                 </div>
               );
             })}
+            {/* Alış'ın altında: ürünün satış fiyatı (ilk liste). */}
+            {options.some((o) => o.id === COST_VIEW) && options[0] ? (
+              <div className="flex items-baseline justify-between gap-3 px-2 py-1">
+                <dt className="text-xs font-bold text-ink-muted">Satış</dt>
+                <dd className="text-right text-sm font-bold">
+                  {moneyOrDash(grossOf(product, options[0].id), currencyOf(product, options[0].id))}
+                  {netOf(product, options[0].id) === null ? null : (
+                    <span className="block text-[0.6875rem] font-medium text-ink-muted">
+                      KDV Hariç{' '}
+                      {formatMoney(
+                        netOf(product, options[0].id)!,
+                        currencyOf(product, options[0].id),
+                      )}
+                    </span>
+                  )}
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </div>
       ) : null}

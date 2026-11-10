@@ -1,11 +1,15 @@
 import { Check, ChevronDown, Search, X } from 'lucide-react';
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 
 export interface MultiOption {
   id: string;
   name: string;
+  /** Ağaç görünümü için derinlik (0 = üst düzey); verilirse satır içeri girintilenir. */
+  depth?: number;
+  /** Aramada gösterilen üst yol ("Üst › Alt" için "Üst"). */
+  path?: string;
 }
 
 interface MultiSelectFieldProps {
@@ -16,6 +20,10 @@ interface MultiSelectFieldProps {
   onChange: (ids: string[]) => void;
   /** Hiçbiri seçili değilken tetikte yazan metin (varsayılan "Hepsi"). */
   emptyText?: string;
+  /** true: seçilenler çip olarak tetiğin İÇİNDE görünür (altta ayrı çip satırı çıkmaz). */
+  inlineChips?: boolean;
+  /** Listenin altına eklenen içerik (ör. hızlı ekleme formu). */
+  footer?: ReactNode;
 }
 
 const fold = (s: string) => s.toLocaleLowerCase('tr');
@@ -34,6 +42,8 @@ export function MultiSelectField({
   value,
   onChange,
   emptyText = 'Hepsi',
+  inlineChips = false,
+  footer,
 }: MultiSelectFieldProps) {
   const id = useId();
   const listId = `${id}-panel`;
@@ -53,7 +63,10 @@ export function MultiSelectField({
   const phone = !useMediaQuery('(min-width: 48rem)');
 
   const visible = useMemo(
-    () => (query ? options.filter((o) => fold(o.name).includes(fold(query))) : options),
+    () =>
+      query
+        ? options.filter((o) => fold(`${o.path ?? ''} ${o.name}`).includes(fold(query)))
+        : options,
     [options, query],
   );
   const chosen = options.filter((o) => value.includes(o.id));
@@ -133,9 +146,27 @@ export function MultiSelectField({
           onClick={() => (open ? closeList() : openList())}
           className="field-input flex items-center pr-11 text-left aria-expanded:border-brand-600"
         >
-          <span className={`truncate ${value.length === 0 ? 'text-ink-muted' : ''}`}>
-            {summary}
-          </span>
+          {inlineChips && chosen.length > 0 ? (
+            <span className="flex min-w-0 items-center gap-1.5">
+              {chosen.slice(0, 2).map((o) => (
+                <span
+                  key={o.id}
+                  className="max-w-[9rem] truncate rounded-full bg-brand-50 px-2.5 py-1 text-sm font-semibold text-brand-ink"
+                >
+                  {o.name}
+                </span>
+              ))}
+              {chosen.length > 2 ? (
+                <span className="shrink-0 rounded-full bg-brand-700 px-2 py-1 text-xs font-bold text-white">
+                  +{chosen.length - 2}
+                </span>
+              ) : null}
+            </span>
+          ) : (
+            <span className={`truncate ${value.length === 0 ? 'text-ink-muted' : ''}`}>
+              {summary}
+            </span>
+          )}
         </button>
         <label htmlFor={id} className="field-label" data-floated="true">
           {label}
@@ -207,12 +238,28 @@ export function MultiSelectField({
                             role="checkbox"
                             aria-checked={on}
                             onClick={() => toggle(o.id)}
+                            style={
+                              o.depth && !query
+                                ? { paddingLeft: `${0.75 + o.depth * 1.25}rem` }
+                                : undefined
+                            }
                             className={[
                               'flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-xl px-3 text-left text-base hover:bg-surface-muted',
                               on ? 'bg-brand-50 font-semibold text-brand-ink' : 'text-ink',
                             ].join(' ')}
                           >
-                            <span className="min-w-0 flex-1 truncate">{o.name}</span>
+                            {o.depth && !query ? (
+                              <span
+                                aria-hidden="true"
+                                className="-mt-2.5 inline-block h-4 w-3 shrink-0 rounded-bl-md border-b-2 border-l-2 border-line"
+                              />
+                            ) : null}
+                            <span className="min-w-0 flex-1 truncate">
+                              {query && o.path ? (
+                                <span className="font-normal text-ink-muted">{o.path} › </span>
+                              ) : null}
+                              <span className={o.depth || on ? '' : 'font-semibold'}>{o.name}</span>
+                            </span>
                             {on ? <Check className="size-4 shrink-0" aria-hidden="true" /> : null}
                           </button>
                         </li>
@@ -220,6 +267,7 @@ export function MultiSelectField({
                     })
                   )}
                 </ul>
+                {footer}
                 {value.length > 0 ? (
                   <div className="border-t border-line p-2">
                     <button
@@ -237,7 +285,7 @@ export function MultiSelectField({
           )
         : null}
 
-      {chosen.length > 0 ? (
+      {chosen.length > 0 && !inlineChips ? (
         <ul aria-label={`Seçili ${label.toLocaleLowerCase('tr')}`} className="flex flex-wrap gap-2">
           {chosen.slice(0, MAX_CHIPS).map((o) => (
             <li

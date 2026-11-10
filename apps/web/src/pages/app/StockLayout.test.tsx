@@ -1,6 +1,9 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
+import { demoProductService } from '../../features/products/services/product.demo';
+import { demoBrandService } from '../../features/brands/services/brand.demo';
+import { demoCategoryService } from '../../features/categories/services/category.demo';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
 
 afterEach(() => sessionStorage.clear());
@@ -55,14 +58,114 @@ describe('Alt çubuk: "+" düğmesi stok kartında Kaydet olur', () => {
   });
 });
 
-describe('Ürün Bilgisi: Kategori seçici', () => {
-  it('Kategori kutusundan seçilen kategori yan panelle ortaktır; Diğer Vergi alanı yoktur', async () => {
+describe('Ürün Bilgisi: Kategori seçici ve hızlı ekleme', () => {
+  it('Kategori kutusundan çoklu seçilir; seçilenler kutunun içinde çip olarak görünür; yan sekmede Kategori yoktur', async () => {
     const user = await openNewCard();
     expect(screen.queryByLabelText('Diğer Vergi Ekle')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Kategori' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Kategori' }));
     const group = screen.getByRole('group', { name: 'Kategori seçenekleri' });
-    const first = within(group).getAllByRole('checkbox')[0]!;
-    await user.click(first);
-    expect(first).toBeChecked();
+    await user.click(within(group).getByRole('checkbox', { name: 'Dokunmatik POS' }));
+    expect(within(group).getByRole('checkbox', { name: 'Dokunmatik POS' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Kategori' })).toHaveTextContent('Dokunmatik POS');
+  });
+
+  it('Marka: listede olmayan marka adı yazılıp hemen eklenir ve seçilir', async () => {
+    const user = await openNewCard();
+    await user.click(screen.getByRole('combobox', { name: 'Marka' }));
+    await user.type(screen.getByPlaceholderText('Yeni marka adı…'), 'Yepyeni Marka{Enter}');
+    expect(await screen.findByRole('combobox', { name: 'Marka' })).toHaveTextContent(
+      'Yepyeni Marka',
+    );
+    expect((await demoBrandService.list()).some((b) => b.name === 'Yepyeni Marka')).toBe(true);
+  });
+
+  it('Kategori: üst kategori (isteğe bağlı) ve ad yazılınca eklenir ve seçili gelir', async () => {
+    const user = await openNewCard();
+    await user.click(screen.getByRole('button', { name: 'Kategori' }));
+    await user.click(screen.getByRole('button', { name: 'Yeni kategori ekle' }));
+    await user.click(screen.getByRole('button', { name: 'Üst kategori seç' }));
+    await user.click(screen.getByRole('option', { name: 'Dokunmatik POS' }));
+    expect(screen.getByRole('button', { name: 'Üst kategori seç' })).toHaveTextContent(
+      'Dokunmatik POS',
+    );
+    await user.type(screen.getByLabelText('Yeni kategori adı'), 'Yeni Alt Grup{Enter}');
+    const group = screen.getByRole('group', { name: 'Kategori seçenekleri' });
+    expect(await within(group).findByRole('checkbox', { name: 'Yeni Alt Grup' })).toBeChecked();
+    const created = (await demoCategoryService.list()).find((c) => c.name === 'Yeni Alt Grup');
+    expect(created?.parentId).toBe('pos');
+  });
+});
+
+describe('Ürün Bilgisi: Fırsat ekle / Özellik ekle satırı', () => {
+  it('yan sekme yoktur; satırdaki bağlantılar altta seçim alanı açar, seçim sayısı yanında görünür', async () => {
+    const user = await openNewCard();
+    expect(screen.queryByRole('tablist', { name: 'Yan sekmeler' })).not.toBeInTheDocument();
+    const deal = screen.getByRole('button', { name: 'Fırsat ekle' });
+    const attr = screen.getByRole('button', { name: 'Özellik ekle' });
+    expect(deal).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('switch', { name: 'Yeni Ürünler fırsatı' })).not.toBeInTheDocument();
+
+    await user.click(deal);
+    expect(deal).toHaveAttribute('aria-expanded', 'true');
+    const pill = screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' });
+    expect(pill).toHaveAttribute('aria-checked', 'false');
+    await user.click(pill);
+    expect(pill).toHaveAttribute('aria-checked', 'true');
+    expect(deal).toHaveTextContent('1');
+
+    // Özellik açılınca fırsat alanı kapanır (tek alan açık).
+    await user.click(attr);
+    expect(attr).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('switch', { name: 'Yeni Ürünler fırsatı' })).not.toBeInTheDocument();
+  });
+
+  it('kaydedilince seçilen fırsat ürüne yazılır', async () => {
+    const user = await openNewCard();
+    await user.type(screen.getByLabelText('Ürün Kodu'), 'HIZLI-1');
+    await user.type(screen.getByLabelText('Ürün Adı'), 'Hızlı Ürün');
+    await user.click(screen.getByRole('button', { name: 'Fırsat ekle' }));
+    await user.click(screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' }));
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
+    const saved = (await demoProductService.list()).find((p) => p.code === 'HIZLI-1');
+    expect(saved?.dealIds).toEqual(['yeni']);
+  });
+});
+
+describe('Özellik ekle: gruplar açılır kapanır', () => {
+  it('gruplar başta kapalıdır; grup açılınca değerleri çıkar, seçim kapalıyken de özette görünür', async () => {
+    const user = await openNewCard();
+    await user.click(screen.getByRole('button', { name: 'Özellik ekle' }));
+    // Başta hiçbir grubun değeri görünmez.
+    expect(screen.queryByRole('checkbox', { name: 'Siyah' })).not.toBeInTheDocument();
+    const group = screen.getByRole('button', { name: /^Renk/ });
+    expect(group).toHaveAttribute('aria-expanded', 'false');
+    await user.click(group);
+    await user.click(screen.getByRole('checkbox', { name: 'Siyah' }));
+    await user.click(screen.getByRole('button', { name: /^Renk/ })); // kapat
+    expect(screen.queryByRole('checkbox', { name: 'Siyah' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Renk/ })).toHaveTextContent('Siyah');
+  });
+});
+
+describe('Kayıt sonrası ekran: ürün önizlemesi', () => {
+  it('ürün bilgisi, fiyat, fırsat ve seçilen özellikler alt alta özetlenir', async () => {
+    const user = await openNewCard();
+    await user.type(screen.getByLabelText('Ürün Kodu'), 'ONIZ-1');
+    await user.type(screen.getByLabelText('Ürün Adı'), 'Önizleme Ürünü');
+    await user.click(screen.getByRole('button', { name: 'Fırsat ekle' }));
+    await user.click(screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' }));
+    await user.click(screen.getByRole('button', { name: 'Özellik ekle' }));
+    await user.click(screen.getByRole('button', { name: /^Renk/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Siyah' }));
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+
+    expect(await screen.findByText('Deneme tamamlandı!')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ürün önizlemesi')).toBeInTheDocument();
+    expect(screen.getByText('Önizleme Ürünü')).toBeInTheDocument();
+    expect(screen.getByText('Renk:')).toBeInTheDocument();
+    expect(screen.getAllByText('Siyah').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Yeni Ürünler').length).toBeGreaterThan(0);
   });
 });

@@ -3,7 +3,6 @@ import { usePublishSaveAction } from '../../app-shell/save-action';
 import type { StockEditor } from '../hooks/useStockEditor';
 import { BasicInfoSection } from './BasicInfoSection';
 import { PriceTabs } from './PriceTabs';
-import { StockSidePanel, useSidePanel, type SideBoxId } from './StockSidePanel';
 import { UnitCard } from './UnitCard';
 
 /** Bölüm kartı görünümü (iki kartta ortak). */
@@ -11,20 +10,13 @@ const cardClass =
   'relative animate-rise-in rounded-[1.75rem] border border-line bg-surface-raised p-5 shadow-soft focus-within:z-20 tablet:p-7';
 
 /**
- * Geniş ekran düzeni (xl+): "Ürün Bilgisi" ve "Fiyat ve Birimler" kartları tam genişlikte; sağ
- * kenarda dikey sekmeler (Özet, Kategori, Fırsat, Özellik) tıklanınca sola doğru panel açar.
- * Sayfada Kaydet düğmesi yoktur: alt çubuktaki "+" düğmesi bu ekranda "Kaydet"e dönüşür.
- * Panellerdeki seçimler (kategori, fırsat, özellik) doğrudan karta eklenir, aynı Kaydet ile kaydedilir. Telefon/tablet düzeni: MobileStockLayout.
+ * Geniş ekran düzeni (xl+): "Ürün Bilgisi" ve "Fiyat ve Birimler" kartları tam genişlikte.
+ * Fırsat ve özellik, Ürün Bilgisi kartının altındaki "Fırsat ekle / Özellik ekle" satırından
+ * (QuickExtras) eklenir; yan panel yoktur. Sayfada Kaydet düğmesi yoktur: alt çubuktaki "+"
+ * düğmesi bu ekranda "Kaydet"e dönüşür. Telefon/tablet düzeni: MobileStockLayout.
  */
-export function DesktopStockLayout({
-  editor,
-  initialBox,
-}: {
-  editor: StockEditor;
-  initialBox: SideBoxId | null;
-}) {
+export function DesktopStockLayout({ editor }: { editor: StockEditor }) {
   const { rows, lists, lookups, saving } = editor;
-  const panel = useSidePanel(initialBox);
 
   // Alt çubuktaki "+" → "Kaydet" (kaydedildi ekranında tekrar "+").
   usePublishSaveAction(editor.saved ? null : { onSave: () => void editor.save(), saving });
@@ -73,8 +65,6 @@ export function DesktopStockLayout({
           Birim Ekle
         </button>
       </section>
-
-      <StockSidePanel editor={editor} panel={panel} />
     </div>
   );
 }

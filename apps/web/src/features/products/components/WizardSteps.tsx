@@ -17,7 +17,7 @@ export function WizardSteps({ steps, current }: WizardStepsProps) {
           <li
             key={name}
             aria-current={current === n ? 'step' : undefined}
-            className="flex flex-1 items-center gap-2"
+            className={`flex items-center gap-2 ${i < steps.length - 1 ? 'flex-1' : 'shrink-0'}`}
           >
             <span
               className={[

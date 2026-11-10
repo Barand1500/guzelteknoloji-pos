@@ -18,6 +18,8 @@ import {
   type UnitRow,
 } from '../types';
 import { useOptionList } from './useOptionList';
+import { emptyBrandDraft, type Brand } from '../../brands/types';
+import { emptyCategoryDraft, type Category, type CategoryDraft } from '../../categories/types';
 
 /**
  * Stok kartı düzenleyicisinin TÜM durumu ve işlemleri tek yerde. Masaüstü ve telefon düzenleri
@@ -35,6 +37,11 @@ export interface StockEditorOptions {
   initialExtras?: StockExtras;
   /** Kategori/fırsat seçenekleri; `null` ise bu kutular sunucuya bağlı değildir (kilitli). */
   extraOptions?: StockExtraOptions | null;
+  /** Formdan hızlı marka/kategori ekleme; verilmezse ilgili "yeni ekle" çalışmaz. */
+  quickAdd?: {
+    createBrand: (draft: typeof emptyBrandDraft) => Promise<Brand>;
+    createCategory: (draft: CategoryDraft) => Promise<Category>;
+  };
 }
 
 export function useStockEditor(
@@ -92,7 +99,55 @@ export function useStockEditor(
       return JSON.stringify({ ...saved, draft: { ...saved.draft, stockQuantity: quantity } });
     });
   }, []);
-  const extraOptions = options.extraOptions ?? null;
+  // Hızlı ekleme: formdan çıkmadan yeni marka / kategori. Eklenenler listeye hemen girer.
+  const quickAdd = options.quickAdd;
+  const [brandList, setBrandList] = useState(lookups.brands);
+  const [addedCategories, setAddedCategories] = useState<Category[]>([]);
+  const baseExtraOptions = options.extraOptions ?? null;
+  const extraOptions = baseExtraOptions
+    ? {
+        ...baseExtraOptions,
+        categories: [
+          ...baseExtraOptions.categories,
+          ...addedCategories.filter((c) => !baseExtraOptions.categories.some((o) => o.id === c.id)),
+        ],
+      }
+    : null;
+  /** Yeni marka ekler (aynı ad varsa onu seçer) ve forma seçili getirir. */
+  const addBrand = async (name: string) => {
+    const label = name.trim();
+    if (label === '' || !quickAdd) return;
+    const same = brandList.find(
+      (b) => b.label.toLocaleLowerCase('tr') === label.toLocaleLowerCase('tr'),
+    );
+    try {
+      const target = same ?? (await quickAdd.createBrand({ ...emptyBrandDraft, name: label }));
+      const option = 'label' in target ? target : { value: target.id, label: target.name };
+      if (!same) setBrandList((list) => [...list, option]);
+      setDraft((d) => ({ ...d, brand: option.value }));
+    } catch (error) {
+      onError(error);
+    }
+  };
+  /** Yeni kategori ekler (üst kategori boş olabilir) ve ürüne seçili ekler. */
+  const addCategory = async (name: string, parentId: string | null) => {
+    const label = name.trim();
+    if (label === '' || !quickAdd) return;
+    try {
+      const created = await quickAdd.createCategory({
+        ...emptyCategoryDraft(parentId),
+        name: label,
+      });
+      setAddedCategories((list) => [...list, created]);
+      setExtras((e) =>
+        e.categoryIds.includes(created.id)
+          ? e
+          : { ...e, categoryIds: [...e.categoryIds, created.id] },
+      );
+    } catch (error) {
+      onError(error);
+    }
+  };
   const toggleExtra = (key: 'categoryIds' | 'dealIds', id: string) =>
     setExtras((e) => ({
       ...e,
@@ -251,7 +306,9 @@ export function useStockEditor(
   };
 
   return {
-    lookups,
+    lookups: { ...lookups, brands: brandList },
+    addBrand,
+    addCategory,
     variantStock: options.variantStock,
     syncVariantQuantity,
     lists: { stockTypes, vatDepartments, stockKinds, units, priceLists },

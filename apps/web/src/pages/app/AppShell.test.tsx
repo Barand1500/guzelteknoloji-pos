@@ -45,10 +45,8 @@ describe('Geçici test girişi ve uygulama kabuğu', () => {
 
     await user.type(await screen.findByLabelText('Ürün Kodu'), 'A-1');
     await user.type(screen.getByLabelText('Ürün Adı'), 'Deneme Ürünü');
-    // Canlı önizleme (sağ kenardaki Özet sekmesi) yazdıkça güncellenir.
-    await user.click(screen.getByRole('tab', { name: 'Özet' }));
-    expect(screen.getByLabelText('Kart önizlemesi')).toHaveTextContent('Deneme Ürünü');
-    await user.click(screen.getByRole('button', { name: 'Paneli kapat' }));
+    // Sağ kenarda dikey sekme yoktur (fırsat/özellik Ürün Bilgisi kartının altındadır).
+    expect(screen.queryByRole('tablist', { name: 'Yan sekmeler' })).not.toBeInTheDocument();
 
     // Özel açılır liste: aç, seç.
     await user.click(screen.getByRole('combobox', { name: 'Marka' }));
