@@ -280,7 +280,7 @@ function StockCardEditor({
       )}
       <div
         hidden={editor.saved}
-        className={editor.saved ? 'hidden' : 'flex min-w-0 flex-col gap-4 pr-10 sm:pr-12'}
+        className={editor.saved ? 'hidden' : 'flex min-w-0 flex-col gap-4'}
       >
         {mode === 'create' ? null : (
           <div className="flex flex-wrap items-center gap-3">
