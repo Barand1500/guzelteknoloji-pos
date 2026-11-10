@@ -155,7 +155,7 @@ export const SECTIONS: readonly Section[] = [
       `${APP_BASE}/profil`,
     ],
   },
-  soon('bildirimler', 'Mobil Bildirimler', BellRing, 45, 'Anlık bildirimler'),
+  soon('bildirimler', 'Bildirimler', BellRing, 45, 'Anlık bildirimler'),
   soon('seo', 'Seo', Search, 140, 'Arama motoru ayarları'),
 ];
 
