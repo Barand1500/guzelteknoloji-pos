@@ -69,15 +69,17 @@ for (const width of [390, 1440])
     await page.getByRole('link', { name: 'Görseller', exact: true }).click();
     await expect(page.getByRole('switch', { name: 'Markalarda Şeffaf Zemin' })).toBeVisible();
     await page.screenshot({ path: info.outputPath('image-settings.png') });
+    await page.getByRole('button', { name: 'Profil Menüsü' }).click();
     await page
-      .getByRole('navigation', { name: 'Hesap sayfaları' })
-      .getByRole('link', { name: 'Yunus', exact: true })
+      .getByRole('dialog', { name: 'Profil Menüsü' })
+      .getByRole('link', { name: /Yunus/ })
       .click();
     await expect(page.getByRole('heading', { name: 'Profil Bilgileri' })).toBeVisible();
     await page.screenshot({ path: info.outputPath('profile-page.png') });
+    await page.getByRole('button', { name: 'Profil Menüsü' }).click();
     await page
-      .getByRole('navigation', { name: 'Hesap sayfaları' })
-      .getByRole('link', { name: 'Log Kayıtları', exact: true })
+      .getByRole('dialog', { name: 'Profil Menüsü' })
+      .getByRole('link', { name: /Log/ })
       .click();
     await expect(page.getByText('Henüz işlem kaydı yok.', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Süz', exact: true })).toHaveCount(0);

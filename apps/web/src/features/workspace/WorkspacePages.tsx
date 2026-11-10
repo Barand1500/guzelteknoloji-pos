@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type FormEvent } from 'react';
-import { Link, NavLink, useLocation, useParams, useSearchParams } from 'react-router';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import {
-  UserRound,
   Image as ImageIcon,
-  Users,
-  History,
   Pencil,
   Plus,
   Trash2,
@@ -40,18 +37,10 @@ const post = <T,>(path: string, body: unknown = {}) =>
   apiRequest<T>(base + path, { method: 'POST', body });
 const iconButton =
   'inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-40';
-const panel = 'rounded-2xl border border-line bg-surface p-4 sm:p-5';
-const accountTabs = [
-  { path: '/uygulama/profil', label: 'Profil', icon: UserRound, resource: null },
-  { path: '/uygulama/kullanicilar', label: 'Kullanıcılar', icon: Users, resource: 'users' },
-  { path: '/uygulama/roller', label: 'Roller', icon: ShieldCheck, resource: 'roles' },
-  { path: '/uygulama/ayarlar', label: 'Ayarlar', icon: Settings, resource: 'settings' },
-  { path: '/uygulama/loglar', label: 'Log Kayıtları', icon: History, resource: 'logs' },
-] as const;
+const panel = 'rounded-3xl border border-line bg-surface-raised p-4 sm:p-6';
 const tabStyle = (active: boolean) =>
   `flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors ${active ? 'border-brand-700 text-brand-ink' : 'border-transparent text-ink-muted hover:text-ink'}`;
 function SettingsTabs({ pathname }: { pathname: string }) {
-  const email = /\/(smtp|imap|entegrasyonlar)$/.test(pathname);
   const tabs = [
     {
       key: 'general',
@@ -60,7 +49,13 @@ function SettingsTabs({ pathname }: { pathname: string }) {
       active: pathname.endsWith('/ayarlar') || pathname.endsWith('/general'),
     },
     { key: 'images', label: 'Görseller', icon: ImageIcon, active: pathname.endsWith('/images') },
-    { key: 'smtp', label: 'E-Posta', icon: Mail, active: email },
+    {
+      key: 'smtp',
+      label: 'Giden E-Posta (SMTP)',
+      icon: Mail,
+      active: /\/(smtp|entegrasyonlar)$/.test(pathname),
+    },
+    { key: 'imap', label: 'Gelen E-Posta (IMAP)', icon: Mail, active: pathname.endsWith('/imap') },
     { key: 'google', label: 'Google', icon: ShieldCheck, active: pathname.endsWith('/google') },
   ];
   return (
@@ -78,16 +73,6 @@ function SettingsTabs({ pathname }: { pathname: string }) {
           </Link>
         ))}
       </nav>
-      {email && (
-        <nav aria-label="E-Posta ayarları" className="flex overflow-x-auto border-b border-line">
-          <Link className={tabStyle(!pathname.endsWith('/imap'))} to="/uygulama/ayarlar/smtp">
-            Giden E-Posta (SMTP)
-          </Link>
-          <Link className={tabStyle(pathname.endsWith('/imap'))} to="/uygulama/ayarlar/imap">
-            Gelen E-Posta (IMAP)
-          </Link>
-        </nav>
-      )}
     </div>
   );
 }
@@ -100,22 +85,10 @@ function Frame({
   back?: string;
   description?: string;
 }) {
-  const { demo, can, data } = useWorkspace();
+  const { demo } = useWorkspace();
   const { pathname } = useLocation();
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4 rounded-3xl border border-line bg-surface-raised p-4 sm:p-6">
-      <nav aria-label="Hesap sayfaları" className="flex overflow-x-auto border-b border-line">
-        {accountTabs
-          .filter((t) => !t.resource || can(t.resource))
-          .map((t) => (
-            <NavLink key={t.path} to={t.path} className={({ isActive }) => tabStyle(isActive)}>
-              <t.icon className="size-4 shrink-0" />
-              <span className="max-w-48 truncate">
-                {t.resource === null ? data?.user.name || 'Hesabım' : t.label}
-              </span>
-            </NavLink>
-          ))}
-      </nav>
+    <div className="flex w-full min-w-0 flex-col gap-4">
       {pathname.includes('/ayarlar') && <SettingsTabs pathname={pathname} />}
       {description && <p className="text-sm text-ink-muted">{description}</p>}
       {demo ? (
@@ -399,7 +372,7 @@ export function UsersPage() {
       <LoadState {...rows} retry={rows.reload} />
       {error && <Alert tone="error">{error}</Alert>}
       {!rows.loading && !rows.error && (
-        <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+        <div className="overflow-x-auto rounded-2xl border border-line bg-surface-raised">
           <table className="w-full min-w-[38rem] text-left text-sm">
             <thead className="border-b border-line text-xs text-ink-muted">
               <tr>
@@ -603,7 +576,7 @@ export function RolesPage() {
       </div>
       <LoadState {...rows} retry={rows.reload} />
       {error && <Alert tone="error">{error}</Alert>}
-      <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+      <div className="overflow-hidden rounded-2xl border border-line bg-surface-raised">
         {rows.value.map((r) => (
           <div
             key={r.id}
@@ -1043,7 +1016,7 @@ export function LogsPage() {
   return (
     <Frame description="İşletmedeki işlemler ve değişiklikler">
       <LoadState {...rows} retry={rows.reload} />
-      <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+      <div className="overflow-x-auto rounded-2xl border border-line bg-surface-raised">
         <table className="w-full min-w-[42rem] text-left text-sm">
           <thead className="border-b border-line text-xs text-ink-muted">
             <tr>
@@ -1080,7 +1053,7 @@ export function LogsPage() {
           <p className="p-8 text-center text-sm text-ink-muted">Henüz işlem kaydı yok.</p>
         )}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4 text-sm text-ink-muted">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface-raised p-4 text-sm text-ink-muted">
         <span>{rows.value.total} kayıt</span>
         <div className="flex items-center gap-3">
           <Button
