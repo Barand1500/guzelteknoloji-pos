@@ -74,6 +74,8 @@ export function SectionMenu() {
   const [query, setQuery] = useState('');
   const trigger = useRef<HTMLButtonElement>(null);
   const searchBox = useRef<HTMLInputElement>(null);
+  // Panel, düğmenin hemen altına (sol kenarı düğmeyle aynı hizada) açılır.
+  const [anchor, setAnchor] = useState({ top: 64, left: 16 });
 
   // Menü açılınca arama kutusu hazır olsun.
   useEffect(() => {
@@ -141,7 +143,9 @@ export function SectionMenu() {
       <button
         ref={trigger}
         type="button"
-        onClick={() => {
+        onClick={(e) => {
+          const box = e.currentTarget.getBoundingClientRect();
+          setAnchor({ top: Math.round(box.bottom + 10), left: Math.round(box.left) });
           setPreview(current.id);
           setQuery('');
           setOpen((v) => !v);
@@ -163,14 +167,20 @@ export function SectionMenu() {
               className="fixed inset-0 z-50"
               role="dialog"
               aria-label="Ana menü"
-              aria-modal="true"
+              aria-modal="false"
             >
+              {/* Görünmez yakalayıcı: panelin dışına dokunmak kapatır (ekran kararmaz). */}
+              <div className="absolute inset-0" onClick={close} aria-hidden="true" />
               <div
-                className="absolute inset-0 animate-fade-in bg-ink/45 backdrop-blur-sm"
-                onClick={close}
-                aria-hidden="true"
-              />
-              <div className="absolute inset-x-0 top-0 mx-auto flex h-[min(34rem,92dvh)] w-full max-w-3xl animate-rise-in flex-col overflow-hidden rounded-b-3xl border border-t-0 border-line bg-surface-raised shadow-card md:top-4 md:rounded-3xl md:border-t">
+                style={
+                  {
+                    top: anchor.top,
+                    height: `min(32rem, calc(100dvh - ${anchor.top}px - 0.75rem))`,
+                    '--menu-left': `${anchor.left}px`,
+                  } as React.CSSProperties
+                }
+                className="absolute inset-x-3 flex origin-top-left animate-pop flex-col overflow-hidden rounded-3xl border border-brand-600/60 bg-surface-raised shadow-card md:inset-x-auto md:left-[var(--menu-left)] md:w-[45rem] md:max-w-[calc(100vw-2rem)]"
+              >
                 {/* Başlık + kapat */}
                 <div className="flex items-center gap-3 px-4 pt-4 md:px-5">
                   <h2 className="flex-1 text-lg font-extrabold tracking-tight">Başlat Menüsü</h2>
