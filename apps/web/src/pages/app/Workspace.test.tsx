@@ -26,6 +26,38 @@ const login = {
 beforeEach(() => sessionStorage.clear());
 
 describe('Profil ve işletme ekranları', () => {
+  it('rol izinlerini topluca seçip temizler ve log yazma izinlerini kapalı tutar', async () => {
+    const user = userEvent.setup();
+    const fetch = mockFetch({
+      ...login,
+      'GET /api/hesap/roller': () => jsonResponse(200, []),
+      'POST /api/hesap/roller': () => jsonResponse(200, { id: 1 }),
+    });
+    renderApp('/uygulama/roller');
+    await user.click(await screen.findByRole('button', { name: 'Rol Ekle' }));
+    await user.click(screen.getByRole('button', { name: 'Tümünü Seç' }));
+    expect(screen.getByRole('checkbox', { name: 'Ürünler Sil' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Log Kayıtları Görüntüle' })).toBeChecked();
+    expect(
+      screen.queryByRole('checkbox', { name: 'Log Kayıtları Kaydet' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Log Kayıtları Sil' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Seçimi Temizle' }));
+    for (const box of screen.getAllByRole('checkbox')) expect(box).not.toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Tümünü Seç' }));
+    await user.type(screen.getByLabelText('Rol Adı'), 'Yönetici');
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const call = fetch.mock.calls.find(
+      ([url, init]) => String(url).endsWith('/hesap/roller') && init?.method === 'POST',
+    )!;
+    expect(JSON.parse(String(call[1]?.body)).permissions).toContainEqual({
+      resource: 'logs',
+      read: true,
+      save: false,
+      delete: false,
+    });
+  });
   it.each([false, true])(
     'bağlantı bildirimi başka ayar sayfasına taşınmaz (bekleyen: %s)',
     async (pending) => {
@@ -264,7 +296,14 @@ describe('Profil ve işletme ekranları', () => {
               target: '3',
               time: new Date().toISOString(),
               status: 'Başarılı',
-              changes: [{ field: 'Ürün Adı', before: 'Eski Ürün', after: 'Yeni Ürün' }],
+              changes: [
+                { field: 'Ürün Adı', before: 'Eski Ürün', after: 'Yeni Ürün' },
+                { field: 'Birimler[1].stokKartiKimligi', before: null, after: '14' },
+                { field: 'markaKimligi', before: null, after: '13' },
+                { field: 'Birimler[1].kimlik', before: null, after: '38' },
+                { field: 'Birimler[1].Sıra', before: null, after: '0' },
+                { field: 'Satış Açık', before: 'false', after: 'true' },
+              ],
             },
           ],
         }),
@@ -272,9 +311,12 @@ describe('Profil ve işletme ekranları', () => {
     renderApp('/uygulama/loglar');
     expect(screen.queryByRole('button', { name: 'Süz' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Başlangıç')).not.toBeInTheDocument();
-    await user.click(await screen.findByRole('button', { name: 'Kaydet · #3' }));
+    await user.click(await screen.findByRole('button', { name: 'Kaydet' }));
     const detail = screen.getByRole('dialog', { name: 'Ürünler · Kaydet' });
     expect(within(detail).getByText('Eski Ürün')).toBeVisible();
     expect(within(detail).getByText('Yeni Ürün')).toBeVisible();
+    expect(within(detail).getByText('Evet')).toBeVisible();
+    expect(within(detail).getByText('Hayır')).toBeVisible();
+    expect(within(detail).queryByText(/kimli|Sıra|true|false/)).not.toBeInTheDocument();
   });
 });
