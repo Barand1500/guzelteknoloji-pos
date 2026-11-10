@@ -25,8 +25,7 @@ const ACTION_WIDTH = 68;
 const placement = (d: Deal) =>
   d.showOnImage ? `${positionLabel(d.position)} · ${sizeLabel(d.size)}` : 'Yalnızca etiket';
 
-const subtitle = (d: Deal) =>
-  `${placement(d)} · ${d.productCount} ürün${d.active ? '' : ' · Pasif'}`;
+const subtitle = (d: Deal) => `${placement(d)}${d.active ? '' : ' · Pasif'}`;
 
 /** Telefonda bir fırsat satırı: ürün önizlemesi, ad, yer/boyut, anahtar; sola kaydırınca işlemler. */
 function PhoneRow({
@@ -152,9 +151,6 @@ function WideRow({
           <p className="truncate text-sm text-ink-muted">Ürün resminde: {placement(deal)}</p>
         </div>
       </div>
-      <span className="hidden shrink-0 rounded-full bg-surface-muted px-3 py-1 text-sm font-semibold text-ink-muted sm:inline">
-        {deal.productCount} ürün
-      </span>
       <ToggleSwitch label={`${deal.name} aktif`} checked={deal.active} onChange={onToggle} />
       <div className="flex shrink-0 items-center">
         <button

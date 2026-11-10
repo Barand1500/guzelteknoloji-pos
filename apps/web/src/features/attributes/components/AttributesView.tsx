@@ -24,7 +24,9 @@ import {
 } from '../types';
 import { AttributeRow } from './AttributeRow';
 import { GroupFormSheet } from './GroupFormSheet';
+import { colorByName } from '../color-names';
 import { QuickAddBar } from './QuickAddBar';
+import { SearchResults, type SearchHits } from './SearchResults';
 import { TemplateFormSheet } from './TemplateFormSheet';
 import { ValueFormSheet } from './ValueFormSheet';
 import { ValueTile, type ValuePatch } from './ValueTile';
@@ -128,18 +130,45 @@ export function AttributesView() {
   const templates = attrs.templates;
   const groups = template ? groupsOf(template.id) : [];
   const values = group ? valuesOf(group.id) : [];
-  const visibleTemplates = searching ? templates.filter((t) => matches(t.name)) : templates;
-  const visibleGroups = searching ? groups.filter((g) => matches(g.name)) : groups;
-  const visibleValues = searching
-    ? values.filter((v) => matches(v.name) || matches(v.code))
-    : values;
+  const visibleTemplates = templates;
+  const visibleGroups = groups;
+  const visibleValues = values;
 
-  const visibleCount =
-    level === 'templates'
+  // Arama her seviyede TÜM ağaçta çalışır: şablon, grup ve özellikler birlikte bulunur.
+  const hits: SearchHits = { templates: [], groups: [], values: [] };
+  if (searching) {
+    hits.templates = templates.filter((t) => matches(t.name));
+    for (const g of attrs.groups) {
+      const t = attrs.templateById.get(g.templateId);
+      if (t && matches(g.name)) hits.groups.push({ group: g, template: t });
+    }
+    for (const v of attrs.values) {
+      const g = attrs.groupById.get(v.groupId);
+      const t = g ? attrs.templateById.get(g.templateId) : undefined;
+      if (g && t && (matches(v.name) || matches(v.code)))
+        hits.values.push({ value: v, group: g, template: t });
+    }
+  }
+  const hitCount = hits.templates.length + hits.groups.length + hits.values.length;
+
+  const visibleCount = searching
+    ? hitCount
+    : level === 'templates'
       ? visibleTemplates.length
       : level === 'groups'
         ? visibleGroups.length
         : visibleValues.length;
+
+  // Varyant önizlemesi: "Renk × Beden: 5 × 4 = 20 varyant".
+  const variantGroups = groups.filter((g) => g.variant && g.valueCount > 0);
+  const variantPreview =
+    variantGroups.length === 0
+      ? null
+      : `${variantGroups.map((g) => g.name).join(' × ')}: ${variantGroups
+          .map((g) => g.valueCount)
+          .join(
+            ' × ',
+          )}${variantGroups.length > 1 ? ` = ${variantGroups.reduce((n, g) => n * g.valueCount, 1)}` : ''} varyant`;
 
   const categoryName = (id: string) => cats.byId.get(id)?.name ?? '';
 
@@ -205,23 +234,68 @@ export function AttributesView() {
   };
 
   /** Hızlı giriş: adı yaz, Enter. Hata varsa mesaj döndürülür (kutu açık kalır). */
-  const quickAdd = async (name: string, color: string | null): Promise<string | null> => {
+  const quickAdd = async (names: string[], color: string | null): Promise<string | null> => {
     if (!group) return null;
-    if (values.some((v) => fold(v.name).trim() === fold(name).trim()))
-      return 'Bu grupta aynı adda bir özellik zaten var.';
+    const taken = new Set(values.map((v) => fold(v.name).trim()));
+    const fresh = names.filter((n) => !taken.has(fold(n).trim()));
+    const skipped = names.length - fresh.length;
+    if (fresh.length === 0)
+      return names.length > 1
+        ? 'Bu özelliklerin hepsi grupta zaten var.'
+        : 'Bu grupta aynı adda bir özellik zaten var.';
+    let added = 0;
     try {
-      await attrs.saveValue(group.id, { code: slugify(name), name, color, imageUrl: null });
-      showNotice(`${name} eklendi.`);
-      return null;
+      for (const name of fresh) {
+        // Birden çok renk yazıldıysa adı tanınan renkler kendi rengini alır.
+        const own = color !== null && names.length > 1 ? (colorByName(name) ?? color) : color;
+        await attrs.saveValue(group.id, { code: slugify(name), name, color: own, imageUrl: null });
+        added++;
+      }
     } catch (error) {
+      if (added > 0) showNotice(`${added} özellik eklendi.`);
       return dataError(error);
     }
+    const summary =
+      fresh.length === 1
+        ? `${fresh[0]} eklendi.`
+        : fresh.length <= 4
+          ? `${fresh.join(', ')} eklendi.`
+          : `${fresh.length} özellik eklendi.`;
+    showNotice(skipped > 0 ? `${summary} ${skipped} tanesi zaten vardı.` : summary);
+    return null;
+  };
+
+  /** Şablonu gruplarıyla ve özellikleriyle kopyalar: "Ad (Kopya)", doluysa "(Kopya 2)". */
+  const copyTemplate = (t: AttrTemplate) => {
+    setSwipeOpenId(null);
+    const taken = new Set(templates.map((x) => fold(x.name)));
+    let name = `${t.name} (Kopya)`;
+    for (let n = 2; taken.has(fold(name)); n++) name = `${t.name} (Kopya ${n})`;
+    void run(async () => {
+      await attrs.copyTemplate(name, t);
+      showNotice(`${name} oluşturuldu.`);
+    }, 'Kopyalanamadı.');
+  };
+
+  // Silinecek özelliği kullanan ürünler ("Şu ürünlerden kalkacak").
+  const [usage, setUsage] = useState<{
+    total: number;
+    products: { id: string; name: string }[];
+  } | null>(null);
+  const askDeleteValue = (v: AttrValue) => {
+    setUsage(null);
+    setDeleting({ type: 'value', item: v });
+    attrs
+      .valueProducts(v.id)
+      .then(setUsage)
+      .catch(() => undefined);
   };
 
   const confirmDelete = async () => {
     if (!deleting) return;
     const target = deleting;
     setDeleting(null);
+    setUsage(null);
     setSwipeOpenId(null);
     setForm(null);
     await run(async () => {
@@ -314,6 +388,14 @@ export function AttributesView() {
         text="Yukarıdaki kutuya adı yazıp Enter'a basarak ilk özelliği ekle."
       />
     );
+  } else if (searching) {
+    content = (
+      <SearchResults
+        hits={hits}
+        onOpenTemplate={(id) => goTo(id)}
+        onOpenGroup={(templateId, groupId) => goTo(templateId, groupId)}
+      />
+    );
   } else if (level === 'templates') {
     content = (
       <SortableList
@@ -334,6 +416,7 @@ export function AttributesView() {
               open: `${t.name} şablonunu aç`,
               edit: `${t.name} şablonunu düzenle`,
               remove: `${t.name} şablonunu sil`,
+              copy: `${t.name} şablonunu kopyala`,
             }}
             tags={
               <>
@@ -355,6 +438,7 @@ export function AttributesView() {
               </>
             }
             onOpen={() => goTo(t.id)}
+            onCopy={() => copyTemplate(t)}
             onEdit={() => {
               setSwipeOpenId(null);
               setForm({ type: 'template', id: t.id });
@@ -420,7 +504,7 @@ export function AttributesView() {
             kind={group.kind}
             sortable={ctx}
             onUpdate={(patch) => updateValue(v, patch)}
-            onDelete={() => setDeleting({ type: 'value', item: v })}
+            onDelete={() => askDeleteValue(v)}
           />
         )}
       />
@@ -428,7 +512,7 @@ export function AttributesView() {
   }
 
   const hint = searching
-    ? 'Arama sırasında sıralama kapalıdır.'
+    ? 'Tüm şablon, grup ve özellikler aranıyor.'
     : level === 'values'
       ? phone
         ? 'Çift dokununca adı değişir · çöp kutusu siler · basılı tutup sürükleyerek sırala.'
@@ -460,13 +544,7 @@ export function AttributesView() {
             value={query}
             onChange={setQuery}
             label="Özellik ara"
-            placeholder={
-              level === 'templates'
-                ? 'Şablon ara…'
-                : level === 'groups'
-                  ? 'Grup ara…'
-                  : 'Özellik ara…'
-            }
+            placeholder="Şablon, grup veya özellik ara…"
           />
         </div>
       </div>
@@ -518,6 +596,7 @@ export function AttributesView() {
           onEdit={() => setForm({ type: 'template', id: template.id })}
           editLabel="Şablonu Düzenle"
         >
+          {variantPreview ? <Tag>{variantPreview}</Tag> : null}
           {template.allProducts ? (
             <Tag tone="green">Tüm ürünlerde kullanılır</Tag>
           ) : (
@@ -605,8 +684,29 @@ export function AttributesView() {
         description={deleting ? deleteText(deleting) : ''}
         confirmLabel="Sil"
         onConfirm={() => void confirmDelete()}
-        onClose={() => setDeleting(null)}
-      />
+        onClose={() => {
+          setDeleting(null);
+          setUsage(null);
+        }}
+      >
+        {deleting?.type === 'value' && usage && usage.total > 0 ? (
+          <div className="mb-4 flex flex-col gap-2 rounded-2xl bg-danger-soft p-3 text-sm">
+            <p className="font-bold text-danger">Şu ürünlerden kalkacak ({usage.total})</p>
+            <ul className="flex flex-col gap-1">
+              {usage.products.slice(0, 8).map((p) => (
+                <li key={p.id} className="truncate">
+                  {p.name}
+                </li>
+              ))}
+            </ul>
+            {usage.total > Math.min(usage.products.length, 8) ? (
+              <p className="text-ink-muted">
+                +{usage.total - Math.min(usage.products.length, 8)} ürün daha
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </ConfirmSheet>
     </div>
   );
 }

@@ -218,10 +218,76 @@ describe('Özellikler ekranı', () => {
     expect(left.values.some((v) => v.groupId === 'g-os')).toBe(false);
   });
 
-  it('arama bulunulan seviyede çalışır ve sıralamayı kapatır', async () => {
+  it('arama tüm ağaçta çalışır: şablon, grup ve özellikler yerleriyle birlikte bulunur', async () => {
     const user = await openAttributes();
-    await user.type(screen.getByRole('searchbox', { name: 'Özellik ara' }), 'fiziksel');
-    expect(ids('Şablonlar')).toEqual(['t-fiziksel']);
-    expect(screen.getByText('Arama sırasında sıralama kapalıdır.')).toBeInTheDocument();
+    await user.type(screen.getByRole('searchbox', { name: 'Özellik ara' }), 'siyah');
+    const section = await screen.findByRole('region', { name: 'Özellikler' });
+    expect(within(section).getByText('Siyah')).toBeInTheDocument();
+    expect(within(section).getByText('Fiziksel Özellikler › Renk')).toBeInTheDocument();
+    await user.click(within(section).getByRole('button', { name: /Siyah/ }));
+    expect(await screen.findByRole('list', { name: 'Özellikler' })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Özellik ara' })).toHaveValue('');
+  });
+
+  it('toplu ekleme: virgülle ayrılan her ad ayrı özellik olur; var olan atlanır', async () => {
+    const user = await openAttributes('/uygulama/ozellikler?s=t-pos&g=g-os', 'Özellikler');
+    const box = screen.getByRole('textbox', { name: 'Yeni özellik adı' });
+    await user.type(box, 'S, M, L, XL, S{Enter}');
+    await waitFor(() => expect(ids('Özellikler')).toHaveLength(8));
+    expect(screen.getByText('S, M, L, XL eklendi.')).toBeInTheDocument();
+    await user.type(box, 'M, XXL{Enter}');
+    await waitFor(() => expect(ids('Özellikler')).toHaveLength(9));
+    expect(screen.getByText('XXL eklendi. 1 tanesi zaten vardı.')).toBeInTheDocument();
+  });
+
+  it('renkli grupta hazır palet: renk seçilince adı otomatik yazılır, toplu renklerde adı tanınan kendi rengini alır', async () => {
+    const user = await openAttributes('/uygulama/ozellikler?s=t-fiziksel&g=g-renk', 'Özellikler');
+    const box = screen.getByRole('textbox', { name: 'Yeni özellik adı' });
+    await user.click(screen.getByRole('button', { name: 'Renk Turkuaz' }));
+    expect(box).toHaveValue('Turkuaz');
+    await user.click(screen.getByRole('button', { name: 'Renk Lacivert' }));
+    expect(box).toHaveValue('Lacivert');
+    await user.clear(box);
+    await user.type(box, 'Pembe, Bej{Enter}');
+    await waitFor(() => expect(ids('Özellikler')).toHaveLength(11));
+    const values = (await attributeService.snapshot()).values;
+    expect(values.find((v) => v.name === 'Pembe')?.color).toBe('#ec4899');
+    expect(values.find((v) => v.name === 'Bej')?.color).toBe('#dfbfa5');
+  });
+
+  it('şablon kopyalanır: gruplar ve özellikler birlikte gelir', async () => {
+    const user = await openAttributes();
+    await user.click(screen.getByRole('button', { name: 'Dokunmatik POS şablonunu kopyala' }));
+    expect(await screen.findByText('Dokunmatik POS (Kopya) oluşturuldu.')).toBeInTheDocument();
+    const snap = await attributeService.snapshot();
+    const copy = snap.templates.find((t) => t.name === 'Dokunmatik POS (Kopya)')!;
+    const original = snap.templates.find((t) => t.name === 'Dokunmatik POS')!;
+    const copyGroups = snap.groups.filter((g) => g.templateId === copy.id);
+    expect(copyGroups.map((g) => g.name)).toEqual(
+      snap.groups.filter((g) => g.templateId === original.id).map((g) => g.name),
+    );
+    expect(copy.categoryIds).toEqual(original.categoryIds);
+    expect(snap.values.filter((v) => copyGroups.some((g) => g.id === v.groupId))).toHaveLength(
+      snap.values.filter((v) =>
+        snap.groups.some((g) => g.templateId === original.id && g.id === v.groupId),
+      ).length,
+    );
+  });
+
+  it('şablon kartında varyant önizlemesi çıkar', async () => {
+    await openAttributes('/uygulama/ozellikler?s=t-fiziksel', 'Gruplar');
+    expect(screen.getByText('Renk: 9 varyant')).toBeInTheDocument();
+  });
+
+  it('kullanılan özelliği silerken "Şu ürünlerden kalkacak" listesi gösterilir', async () => {
+    vi.spyOn(attributeService, 'valueProducts').mockResolvedValue({
+      total: 10,
+      products: [{ id: 'p1', code: 'K1', name: 'Hızlı Terazi' }],
+    });
+    const user = await openAttributes('/uygulama/ozellikler?s=t-pos&g=g-ram', 'Özellikler');
+    await user.click(screen.getByRole('button', { name: '8 GB özelliğini sil' }));
+    expect(await screen.findByText('Şu ürünlerden kalkacak (10)')).toBeInTheDocument();
+    expect(screen.getByText('Hızlı Terazi')).toBeInTheDocument();
+    expect(screen.getByText('+9 ürün daha')).toBeInTheDocument();
   });
 });

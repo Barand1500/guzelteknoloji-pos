@@ -2,8 +2,8 @@ import { apiRequest } from '../../../lib/http';
 import { imageAddress, imagePayload, useDataService } from '../../../lib/catalog-data';
 import { demoAttributeService } from './attribute.demo';
 import type { GroupDraft, TemplateDraft, ValueDraft } from '../types';
-export type { AttributeSnapshot } from './attribute.demo';
-import type { AttributeSnapshot } from './attribute.demo';
+export type { AttributeSnapshot, ValueUsage } from './attribute.demo';
+import type { AttributeSnapshot, ValueUsage } from './attribute.demo';
 const base = '/api/ozellikler';
 const saveId = async (path: string, body: unknown) =>
   (await apiRequest<{ id: string }>(base + path, { method: 'POST', body })).id;
@@ -37,6 +37,7 @@ export const attributeService = {
     await saveId('/degerler/' + id, val(draft));
   },
   removeValue: (id: string) => post('/degerler/' + id + '/sil'),
+  valueProducts: (id: string) => apiRequest<ValueUsage>(base + '/degerler/' + id + '/urunler'),
   reorderValues: (groupId: string, ids: string[]) => post('/degerler/sirala', { groupId, ids }),
 };
 export const useAttributeService = () => useDataService(attributeService, demoAttributeService);

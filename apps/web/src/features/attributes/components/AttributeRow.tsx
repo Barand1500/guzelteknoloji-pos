@@ -1,4 +1,4 @@
-import { ChevronRight, GripVertical, Pencil, Trash2 } from 'lucide-react';
+import { ChevronRight, Copy, GripVertical, Pencil, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { SortableRowContext } from '../../../components/ui/SortableList';
 import { SwipeRow } from '../../../components/ui/SwipeRow';
@@ -10,7 +10,7 @@ interface AttributeRowProps {
   /** Satırın adının altındaki küçük etiketler (kategoriler, anahtarlar, sayılar). */
   tags: ReactNode;
   /** Ekran okuyucu etiketleri (ör. "Dokunmatik POS şablonunu aç"). */
-  labels: { open: string; edit: string; remove: string };
+  labels: { open: string; edit: string; remove: string; copy?: string };
   /** true: telefon düzeni (sola kaydırınca işlemler çıkar); false: masaüstü/tablet. */
   phone: boolean;
   sortable: SortableRowContext;
@@ -19,6 +19,8 @@ interface AttributeRowProps {
   onSwipeOpenChange: (open: boolean) => void;
   onOpen: () => void;
   onEdit: () => void;
+  /** Verilirse satırda "Kopyala" işlemi görünür (şablonlarda). */
+  onCopy?: () => void;
   onDelete: () => void;
 }
 
@@ -57,6 +59,7 @@ export function AttributeRow(props: AttributeRowProps) {
     onSwipeOpenChange,
     onOpen,
     onEdit,
+    onCopy,
     onDelete,
   } = props;
 
@@ -96,7 +99,7 @@ export function AttributeRow(props: AttributeRowProps) {
         <SwipeRow
           open={swipeOpen}
           onOpenChange={onSwipeOpenChange}
-          actionsWidth={ACTION_WIDTH * 2}
+          actionsWidth={ACTION_WIDTH * (onCopy ? 3 : 2)}
           actions={
             <>
               <button
@@ -107,6 +110,16 @@ export function AttributeRow(props: AttributeRowProps) {
                 <Pencil className="size-5" aria-hidden="true" />
                 Düzenle
               </button>
+              {onCopy ? (
+                <button
+                  type="button"
+                  onClick={onCopy}
+                  className={`${actionClass} bg-ink text-surface`}
+                >
+                  <Copy className="size-5" aria-hidden="true" />
+                  Kopyala
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={onDelete}
@@ -153,6 +166,17 @@ export function AttributeRow(props: AttributeRowProps) {
         >
           <Pencil className="size-5" aria-hidden="true" />
         </button>
+        {onCopy ? (
+          <button
+            type="button"
+            onClick={onCopy}
+            aria-label={labels.copy}
+            title="Kopyala"
+            className={iconButton}
+          >
+            <Copy className="size-5" aria-hidden="true" />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onDelete}

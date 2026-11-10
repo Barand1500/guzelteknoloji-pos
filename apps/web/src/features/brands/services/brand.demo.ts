@@ -54,6 +54,16 @@ export const demoBrandService = {
     products = products.map((p) => (p.brandId === id ? { ...p, brandId: null } : p));
   },
 
+  /** Markayı hedefin içine birleştirir: ürünleri hedefe geçer, kaynak silinir. */
+  async merge(id: string, targetId: string): Promise<void> {
+    await wait(0);
+    if (id === targetId) throw new Error('Bir marka kendisiyle birleştirilemez.');
+    if (!rows.some((r) => r.id === id) || !rows.some((r) => r.id === targetId))
+      throw new Error('Marka bulunamadı.');
+    rows = rows.filter((r) => r.id !== id);
+    products = products.map((p) => (p.brandId === id ? { ...p, brandId: targetId } : p));
+  },
+
   /** Verilen kimlik sırasını kalıcı yapar. */
   async reorder(ids: string[]): Promise<void> {
     await wait(0);

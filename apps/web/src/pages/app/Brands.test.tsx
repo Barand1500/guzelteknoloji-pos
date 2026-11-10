@@ -185,6 +185,59 @@ describe('Markalar ekranı (masaüstü)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('benzer ad uyarısı: "alatel" yazınca ALATEL zaten var denir, kayıt kapanır, var olan açılır', async () => {
+    const user = await openBrands();
+    await user.click(screen.getAllByRole('button', { name: 'Marka Ekle' })[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Marka Ekle' });
+    await user.type(within(dialog).getByLabelText('Marka Adı'), 'Alatel ');
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('ALATEL zaten var');
+    expect(within(dialog).getByRole('button', { name: 'Kaydet' })).toBeDisabled();
+    await user.click(within(dialog).getByRole('button', { name: 'ALATEL markasını aç' }));
+    expect(await screen.findByRole('dialog', { name: 'Markayı Düzenle' })).toBeInTheDocument();
+  });
+
+  it('Birleştir: hedef seçilir, ürünler hedefe geçer, kaynak silinir', async () => {
+    const user = await openBrands();
+    const before = await brandService.listProducts();
+    const moved = before.filter((p) => p.brandId === 'bmx').length;
+    const targetBefore = before.filter((p) => p.brandId === 'bmt').length;
+    await user.click(
+      screen.getByRole('button', { name: 'BMX markasını başka bir markayla birleştir' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Markayı Birleştir' });
+    const confirm = within(dialog).getByRole('button', { name: 'Birleştir' });
+    expect(confirm).toBeDisabled();
+    await user.click(within(dialog).getByRole('radio', { name: 'BMT' }));
+    await user.click(confirm);
+    expect(await screen.findByText('BMX, BMT ile birleştirildi.')).toBeInTheDocument();
+    expect(names()).not.toContain('bmx');
+    const after = await brandService.listProducts();
+    expect(after.filter((p) => p.brandId === 'bmt')).toHaveLength(targetBefore + moved);
+  });
+
+  it('Toplu logo: Toplu Görsel ile aynı sayfa düzeni; adı eşleşen logolar yüklenir', async () => {
+    const user = await openBrands();
+    await user.click(screen.getByRole('link', { name: 'Toplu Logo' }));
+    await screen.findByRole('navigation', { name: 'Sayfa yolu' });
+    await user.upload(screen.getByLabelText('Logo dosyaları seç'), [
+      new File(['x'], 'alatel.png', { type: 'image/png' }),
+      new File(['x'], 'Logo-CAS.png', { type: 'image/png' }),
+      new File(['x'], 'bilinmeyen.png', { type: 'image/png' }),
+    ]);
+    await user.click(screen.getByRole('button', { name: 'Eşleştir' }));
+    const list = await screen.findByRole('list', { name: 'Eşleşen markalar' });
+    expect(within(list).getByText('ALATEL')).toBeInTheDocument();
+    expect(screen.getByText('2 marka eşleşti')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Eşleşmeyen dosyalar' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Marka Seç' }));
+    await user.click(await screen.findByRole('radio', { name: 'BMT' }));
+    await user.click(screen.getByRole('button', { name: '3 Logoyu Yükle' }));
+    expect(await screen.findByText('3 markanın logosu güncellendi.')).toBeInTheDocument();
+    const saved = await brandService.list();
+    for (const id of ['alatel', 'cas', 'bmt'])
+      expect(saved.find((x) => x.id === id)!.logoUrl).toMatch(/^data:image[/]png/);
+  });
+
   it('sayfalama yoktur: tüm markalar tek listede görünür', async () => {
     await openBrands();
     expect(screen.queryByLabelText('Sayfada Kaç Marka')).not.toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { Boxes, GripVertical, Pencil, Trash2 } from 'lucide-react';
+import { Boxes, GripVertical, Merge, Pencil, Trash2 } from 'lucide-react';
 import { SwipeRow } from '../../../components/ui/SwipeRow';
 import type { SortableRowContext } from '../../../components/ui/SortableList';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
@@ -18,6 +18,7 @@ interface BrandRowProps {
   /** Logoya çift tıklama: düzenleme penceresi logo seçici açık olarak gelir. */
   onEditLogo: () => void;
   onAssign: () => void;
+  onMerge: () => void;
   onDelete: () => void;
   onToggle: (active: boolean) => void;
 }
@@ -34,6 +35,7 @@ function PhoneRow({
   onSwipeOpenChange,
   onEdit,
   onAssign,
+  onMerge,
   onDelete,
   onToggle,
 }: BrandRowProps) {
@@ -44,7 +46,7 @@ function PhoneRow({
       <SwipeRow
         open={swipeOpen}
         onOpenChange={onSwipeOpenChange}
-        actionsWidth={ACTION_WIDTH * 3}
+        actionsWidth={ACTION_WIDTH * 4}
         actions={
           <>
             <button
@@ -62,6 +64,14 @@ function PhoneRow({
             >
               <Boxes className="size-5" aria-hidden="true" />
               Ürünler
+            </button>
+            <button
+              type="button"
+              onClick={onMerge}
+              className={`${actionClass} bg-ink text-surface`}
+            >
+              <Merge className="size-5" aria-hidden="true" />
+              Birleştir
             </button>
             <button
               type="button"
@@ -112,6 +122,7 @@ function WideRow({
   onEdit,
   onEditLogo,
   onAssign,
+  onMerge,
   onDelete,
   onToggle,
 }: BrandRowProps) {
@@ -178,6 +189,15 @@ function WideRow({
           className={iconButton}
         >
           <Boxes className="size-5" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={onMerge}
+          aria-label={`${brand.name} markasını başka bir markayla birleştir`}
+          title="Birleştir"
+          className={iconButton}
+        >
+          <Merge className="size-5" aria-hidden="true" />
         </button>
         <button
           type="button"

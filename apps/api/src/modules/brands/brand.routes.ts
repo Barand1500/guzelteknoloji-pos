@@ -92,6 +92,14 @@ export function createBrandRouter(env: Env, service: AuthService, repo: PrismaBr
     );
     res.status(204).end();
   });
+  router.post('/:id/birlestir', async (req, res) => {
+    await repo.merge(
+      res.locals.brandUserId as string,
+      parse(brandKeySchema, req.params.id),
+      parse(z.object({ targetId: brandKeySchema }).strict(), req.body).targetId,
+    );
+    res.status(204).end();
+  });
   router.post('/:id/sil', async (req, res) => {
     await repo.remove(res.locals.brandUserId as string, parse(brandKeySchema, req.params.id));
     res.status(204).end();

@@ -7,6 +7,7 @@ export interface BrandService {
   update(id: string, draft: BrandDraft): Promise<Brand>;
   setActive(id: string, active: boolean): Promise<void>;
   remove(id: string): Promise<void>;
+  merge(id: string, targetId: string): Promise<void>;
   reorder(ids: string[]): Promise<void>;
   listProducts(): Promise<ProductRef[]>;
   assignProducts(id: string, productIds: string[]): Promise<void>;
@@ -33,6 +34,8 @@ export const brandService: BrandService = {
   setActive: (id, active) =>
     apiRequest(path(id) + '/aktiflik', { method: 'POST', body: { active } }),
   remove: (id) => apiRequest(path(id) + '/sil', { method: 'POST' }),
+  merge: (id, targetId) =>
+    apiRequest(path(id) + '/birlestir', { method: 'POST', body: { targetId } }),
   reorder: (ids) => apiRequest('/api/markalar/sirala', { method: 'POST', body: { ids } }),
   listProducts: () => apiRequest('/api/markalar/urunler'),
   assignProducts: (id, productIds) =>

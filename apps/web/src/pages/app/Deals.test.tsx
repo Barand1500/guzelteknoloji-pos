@@ -112,12 +112,65 @@ describe('Fırsat Yönetimi ekranı', () => {
     await waitFor(() => expect(ids()).toHaveLength(7));
   });
 
-  it('boş adla kaydetmeyi engeller', async () => {
+  it('ad boş bırakılınca konumdan öneri çıkar; tıklanınca yazılır', async () => {
+    const user = await openDeals();
+    await user.click(screen.getAllByRole('button', { name: 'Fırsat Ekle' })[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Fırsat Ekle' });
+    // Üst Sol "Yeni Ürünler" rozetinin yeri ama ad farklı olduğundan öneri doğrudan konum adıdır.
+    await user.click(within(dialog).getByRole('button', { name: /Öneri: Üst Sol Rozeti/ }));
+    expect(within(dialog).getByLabelText('Fırsat Adı')).toHaveValue('Üst Sol Rozeti');
+    expect(within(dialog).queryByRole('button', { name: /Öneri:/ })).not.toBeInTheDocument();
+  });
+
+  it('boş ad engellenmez (öneri kullanılır); ikon yoksa ikon uyarısı çıkar', async () => {
     const user = await openDeals();
     await user.click(screen.getAllByRole('button', { name: 'Fırsat Ekle' })[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Fırsat Ekle' });
     await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
-    expect(within(dialog).getByText('Fırsat adı gerekli.')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Rozet olarak kullanılacak bir ikon yükleyin.'),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText('Fırsat adı gerekli.')).not.toBeInTheDocument();
+  });
+
+  it('rozet çakışması: aynı konumdaki aktif fırsatlar üst üste biner uyarısı verir', async () => {
+    const { overlapNotes } = await import('../../features/deals/overlap');
+    const deals = await dealService.list();
+    const refs = await dealService.listProducts();
+    const target = deals.find((d) => d.id === 'indirim-30')!;
+    const notes = overlapNotes(target, deals, refs, new Set(refs.map((r) => r.id)));
+    expect(notes.join(' ')).toMatch(/%20 İndirim/);
+    expect(notes[0]).toContain('Alt Sol konumunda');
+    expect(notes[0]).toContain('üst üste biner');
+    // Ürün resminde gösterilmeyen fırsat çakışmaz.
+    expect(
+      overlapNotes(
+        { ...target, showOnImage: false },
+        deals,
+        refs,
+        refs.map((r) => r.id),
+      ),
+    ).toEqual([]);
+  });
+
+  it('Marka veya kategoriyle ekle: seçilen markanın ürünleri tek seferde eklenir', async () => {
+    const user = await openDeals();
+    await user.click(
+      screen.getByRole('button', { name: /Çok Satanlar fırsatının ürünlerini yönet/ }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: /Çok Satanlar · Ürünler/ });
+    await user.click(await within(dialog).findByRole('tab', { name: 'Ürün Ekle' }));
+    await user.click(
+      await within(dialog).findByRole('button', { name: 'Marka veya kategoriyle ekle' }),
+    );
+    await user.click(await within(dialog).findByRole('radio', { name: /^FLEXYPOS/ }));
+    expect(within(dialog).getByText(/ürün$/, { selector: 'b' })).toBeInTheDocument();
+    const before = (await dealService.list()).find((d) => d.id === 'cok-satan')!.productCount;
+    await user.click(within(dialog).getByRole('button', { name: /Ürünü Ekle$/ }));
+    await waitFor(async () => {
+      const after = (await dealService.list()).find((d) => d.id === 'cok-satan')!.productCount;
+      expect(after).toBeGreaterThan(before);
+    });
   });
 
   it('klavyeyle (tutamak + ok) sıra değiştirilir', async () => {

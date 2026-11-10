@@ -51,6 +51,18 @@ export const SIZES: { value: DealSize; label: string }[] = [
 export const positionLabel = (p: DealPosition) => POSITIONS.find((x) => x.value === p)?.label ?? '';
 export const sizeLabel = (s: DealSize) => SIZES.find((x) => x.value === s)?.label ?? '';
 
+/** Ad boş bırakılırsa önerilen ad: ürün resminde gösteriliyorsa konumdan ("Üst Sol Rozeti"), değilse "Etiket". */
+export function suggestDealName(
+  look: Pick<DealDraft, 'showOnImage' | 'position'>,
+  taken: readonly string[] = [],
+): string {
+  const base = look.showOnImage ? `${positionLabel(look.position)} Rozeti` : 'Etiket';
+  const used = new Set(taken.map((n) => n.toLocaleLowerCase('tr').trim()));
+  let name = base;
+  for (let n = 2; used.has(name.toLocaleLowerCase('tr')); n++) name = `${base} ${n}`;
+  return name;
+}
+
 export const emptyDealDraft = (): DealDraft => ({
   name: '',
   iconUrl: null,
