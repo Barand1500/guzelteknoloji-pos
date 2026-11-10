@@ -37,13 +37,27 @@ function ShellContent() {
       delete root.dataset.theme;
     };
   }, [mode]);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const pages = ['products', 'brands', 'categories', 'attributes'];
+    for (const page of pages)
+      root.setAttribute(
+        `data-transparent-${page}`,
+        String(data?.imageAppearance?.[page] === 'true'),
+      );
+    return () => {
+      for (const page of pages) root.removeAttribute(`data-transparent-${page}`);
+    };
+  }, [data?.imageAppearance]);
 
   return (
     <div data-theme={mode} className="min-h-dvh bg-surface text-ink">
       <TopBar />
       {/* pb-32: alttaki yüzen çubuğun içeriği kapatmaması için boşluk */}
       <main className="mx-auto w-full max-w-[120rem] px-4 pt-5 pb-32 tablet:px-8 2xl:px-12">
-        {!loading && data && pathname.endsWith('/stok-karti/yeni') && !can('products','save') ? <Navigate to={can('products')?'/uygulama/urunler':'/uygulama/profil'} replace /> : loading ? (
+        {!loading && data && pathname.endsWith('/stok-karti/yeni') && !can('products', 'save') ? (
+          <Navigate to={can('products') ? '/uygulama/urunler' : '/uygulama/profil'} replace />
+        ) : loading ? (
           <p role="status" className="py-12 text-center text-ink-muted">
             Yükleniyor…
           </p>

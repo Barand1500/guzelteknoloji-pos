@@ -159,6 +159,7 @@ export function ValueTile({ value, kind, sortable, onUpdate, onDelete }: ValueTi
         >
           {value.imageUrl ? (
             <img
+              data-image-frame="attributes"
               src={value.imageUrl}
               alt=""
               className="size-9 rounded-xl bg-white object-contain ring-1 ring-line"

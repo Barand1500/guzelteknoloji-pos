@@ -54,6 +54,7 @@ export const PAGE_TITLES: Record<string, string> = {
   [`${APP_BASE}/roller`]: 'Roller',
   [`${APP_BASE}/ayarlar`]: 'Ayarlar',
   [`${APP_BASE}/ayarlar/general`]: 'Genel Ayarlar',
+  [`${APP_BASE}/ayarlar/images`]: 'Görsel Ayarları',
   [`${APP_BASE}/ayarlar/entegrasyonlar`]: 'Entegrasyonlar',
   [`${APP_BASE}/ayarlar/smtp`]: 'SMTP Ayarları',
   [`${APP_BASE}/ayarlar/imap`]: 'IMAP Ayarları',

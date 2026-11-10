@@ -37,7 +37,11 @@ describe('Profil ve işletme ekranları', () => {
       within(menu)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Profil', 'Kullanıcılar', 'Roller', 'Ayarlar', 'Log Kayıtları']);
+    ).toEqual(['YunusGüzel İşletme', 'Kullanıcılar', 'Roller', 'Ayarlar', 'Log Kayıtları']);
+    expect(within(menu).getByRole('link', { name: /Yunus/ })).toHaveAttribute(
+      'href',
+      '/uygulama/profil',
+    );
     expect(within(menu).getByRole('button', { name: 'Çıkış Yap' })).toBeVisible();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -132,6 +136,30 @@ describe('Profil ve işletme ekranları', () => {
     )!;
     expect(JSON.parse(String(call[1]?.body)).values.password).toBe('new-secret');
   });
+  it('şeffaflık seçimini kaydeder ve işletmenin görsel görünümünü yeniler', async () => {
+    const user = userEvent.setup();
+    let saved = false;
+    const fetch = mockFetch({
+      ...login,
+      'GET /api/hesap': () =>
+        jsonResponse(200, { ...owner, imageAppearance: { brands: String(saved) } }),
+      'GET /api/hesap/ayarlar/images': () =>
+        jsonResponse(200, { values: { brands: String(saved) }, configured: [] }),
+      'POST /api/hesap/ayarlar/images': () => {
+        saved = true;
+        return jsonResponse(200, {});
+      },
+    });
+    renderApp('/uygulama/ayarlar/images');
+    await user.click(await screen.findByRole('switch', { name: 'Markalarda Şeffaf Zemin' }));
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await screen.findByText('Ayarlar kaydedildi.');
+    expect(document.documentElement).toHaveAttribute('data-transparent-brands', 'true');
+    const call = fetch.mock.calls.find(
+      ([url, init]) => String(url).endsWith('/ayarlar/images') && init?.method === 'POST',
+    )!;
+    expect(JSON.parse(String(call[1]?.body)).values.brands).toBe('true');
+  });
   it('log ayrıntısında eski ve yeni değeri gösterir', async () => {
     const user = userEvent.setup();
     mockFetch({
@@ -154,6 +182,8 @@ describe('Profil ve işletme ekranları', () => {
         }),
     });
     renderApp('/uygulama/loglar');
+    expect(screen.queryByRole('button', { name: 'Süz' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Başlangıç')).not.toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Kaydet · #3' }));
     const detail = screen.getByRole('dialog', { name: 'Ürünler · Kaydet' });
     expect(within(detail).getByText('Eski Ürün')).toBeVisible();

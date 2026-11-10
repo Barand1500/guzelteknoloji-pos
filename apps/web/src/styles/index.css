@@ -2,6 +2,13 @@
 @import 'tailwindcss';
 @import './theme.css';
 
+html[data-transparent-products='true'] [data-image-frame='products'],
+html[data-transparent-brands='true'] [data-image-frame='brands'],
+html[data-transparent-categories='true'] [data-image-frame='categories'],
+html[data-transparent-attributes='true'] [data-image-frame='attributes'] {
+  background-color: transparent;
+}
+
 /*
  * Düzen kırılımları (birbirini dışlayacak şekilde yükseklik koşullu):
  *  - varsayılan: mobil dikey (üst tanıtım ~1/3, alt giriş paneli)

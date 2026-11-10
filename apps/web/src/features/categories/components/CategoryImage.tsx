@@ -34,6 +34,7 @@ export function CategoryImage({
   if (category.imageUrl) {
     return (
       <span
+        data-image-frame="categories"
         className={`flex shrink-0 items-center justify-center overflow-hidden bg-white p-1.5 ring-1 ring-line ${className}`}
       >
         <img src={category.imageUrl} alt="" className="max-h-full max-w-full object-contain" />

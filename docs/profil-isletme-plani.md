@@ -8,7 +8,7 @@ Alt sayfalar aynı tasarım sisteminin input, modal ve butonlarını kullanır.
 - İşletme sahibinin erişimi kapatılamaz; işletmenin son yöneticisi kaybolmaz.
 - Ayarlar: genel, entegrasyonlar, SMTP, IMAP, Google ayrı sayfalardır. Sırlar şifrelenir ve geri döndürülmez.
 - Log: kullanıcı, zaman, bölüm, işlem, sonuç ve gizli olmayan alan değişiklikleri. Şifre/token/e-posta içerikleri kaydedilmez.
-- Görsel arka plan temizleme/şeffaflık davranışı kullanıcıyla ayrıca netleştirilecek; bu aşamada eklenmez.
+- Görseller sekmesinden ürün, marka, kategori ve özellik görsel kutularının zemini ayrı ayrı şeffaf yapılabilir. Özgün dosyadaki fonu otomatik silme bu ayardan ayrıdır ve henüz eklenmemiştir.
 
 Mevcut katalog kayıtlarının kullanıcı bağlantıları korunur. İşletmenin veri sahibi eski işletme sahibidir; üyeler sunucunun belirlediği bu ortak veri kapsamını kullanır. Kimlik doğrulama daima gerçek kullanıcıya aittir. İstemcinin veri sahibi kimliği seçmesine izin verilmez.
 
@@ -24,4 +24,4 @@ Gizli entegrasyon değerleri AES-256-GCM ile şifrelenir. Anahtar `COOKIE_SECRET
 
 Loglar kullanıcı arayüzünden değiştirilemez veya silinemez. Yazma isteklerinde başlangıç kaydı, yanıt tamamlandığında sonuç kaydı tutulur; bu son güncelleme alan işlemiyle aynı veritabanı transaction'ında değildir. Beklenmedik kapanmada kayıt “İşleniyor” durumunda kalabilir. Alan değişiklikleri boyut sınırlarıyla özetlenir; tam veritabanı geçmişi veya giriş denemeleri günlüğü değildir. Şifreler ve tokenlar loglanmaz.
 
-Sunucuya yayın sonrası migration uygulanmalı; sahip hesabı, yetkili/yetkisiz personel, davetle katılma ve gerçek entegrasyon bağlantıları sunucuda kontrol edilmelidir. Görsel arka plan temizleme ve şeffaflık ayarları sonraki aşamaya bırakılmıştır.
+Sunucuya yayın sonrası migration uygulanmalı; sahip hesabı, yetkili/yetkisiz personel, davetle katılma ve gerçek entegrasyon bağlantıları sunucuda kontrol edilmelidir. Görsel arka plan temizleme sonraki aşamaya bırakılmıştır. Şeffaf zemin tercihleri mevcut `isletme_ayarlari` tablosunda `bolum=images` ve sayfa başına ayrı anahtar/satır ile saklanır; ek migration gerekmez. Hesap bilgileriyle tüm kullanıcılara görünüm tercihleri iletilir, yalnızca Ayarlar/Kaydet yetkisi olanlar değiştirir.

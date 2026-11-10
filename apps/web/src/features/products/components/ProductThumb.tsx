@@ -17,6 +17,7 @@ export function ProductThumb({ product, size = 'sm', onZoom, hoverPreview }: Pro
   return (
     <span className={`group/thumb relative inline-block shrink-0 ${box}`}>
       <span
+        data-image-frame={product.imageUrl ? 'products' : undefined}
         className={`flex size-full items-center justify-center overflow-hidden rounded-2xl bg-surface-muted ${box}`}
       >
         {product.imageUrl ? (
@@ -40,6 +41,7 @@ export function ProductThumb({ product, size = 'sm', onZoom, hoverPreview }: Pro
       ) : null}
       {hoverPreview && product.imageUrl ? (
         <span
+          data-image-frame="products"
           aria-hidden="true"
           className="pointer-events-none absolute top-1/2 left-full z-30 ml-3 hidden size-52 -translate-y-1/2 overflow-hidden rounded-3xl border border-line bg-surface-raised shadow-card group-hover/thumb:block"
         >

@@ -145,6 +145,28 @@ describe('İşletme yetkileri', () => {
 });
 
 describe('Ayar sırları', () => {
+  it('sayfa şeffaflığını ilişkili ayar satırına yazar, geçersiz değeri reddeder', async () => {
+    const upsert = vi.fn();
+    const tx = {
+      isletmeAyari: {
+        upsert,
+        findMany: vi.fn().mockResolvedValue([{ key: 'brands', value: 'true' }]),
+      },
+    };
+    const db = { ...tx, $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) };
+    const settings = new WorkspaceSettings(db as unknown as PrismaClient, 'key');
+    await expect(settings.save(1, 'images', { values: { brands: 'yes' } })).rejects.toMatchObject({
+      status: 400,
+    });
+    expect(upsert).not.toHaveBeenCalled();
+    const result = await settings.save(1, 'images', { values: { brands: 'true' } });
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: { businessId: 1, section: 'images', key: 'brands', value: 'true' },
+      }),
+    );
+    expect(result.values).toEqual({ brands: 'true' });
+  });
   it('şifreyi şifreler, geri açar ve değiştirilmiş şifreli veriyi reddeder', () => {
     const settings = new WorkspaceSettings({} as PrismaClient, 'test-key');
     const encrypted = settings.encrypt('smtp-secret');
