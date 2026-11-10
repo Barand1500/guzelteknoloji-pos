@@ -10,6 +10,7 @@ import { BulkLogosView } from '../features/brands/components/BulkLogosView';
 import { DealsPage } from '../pages/app/DealsPage';
 import { ProductsPage } from '../pages/app/ProductsPage';
 import { CategoriesPage } from '../pages/app/CategoriesPage';
+import { ComingSoonPage } from '../pages/app/ComingSoonPage';
 import { BrandsPage } from '../pages/app/BrandsPage';
 import { StockCardCreatePage } from '../pages/app/StockCardCreatePage';
 import { EMAIL_LOGIN_PATH, LOGIN_PATH, LoginPage } from '../pages/auth/LoginPage';
@@ -50,6 +51,17 @@ export function App() {
             <Route path="markalar" element={<BrandsPage />} />
             <Route path="markalar/toplu-logo" element={<BulkLogosView />} />
             <Route path="ozellikler" element={<AttributesPage />} />
+            {[
+              'anasayfa',
+              'siparisler',
+              'musteriler',
+              'kampanyalar',
+              'tanimlamalar',
+              'bildirimler',
+              'seo',
+            ].map((path) => (
+              <Route key={path} path={path} element={<ComingSoonPage />} />
+            ))}
             <Route path="profil" element={<ProfilePage />} />
             <Route path="kullanicilar" element={<UsersPage />} />
             <Route path="roller" element={<RolesPage />} />

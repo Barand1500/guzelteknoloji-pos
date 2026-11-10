@@ -58,12 +58,14 @@ export function DealFormSheet({
   const set = <K extends keyof DealDraft>(key: K, value: DealDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
-  const suggestion = suggestDealName(draft, takenNames);
+  // Ad önerisi yüklenen ikondan çıkar (dosya adı / SVG yazısı); ipucu yoksa öneri yoktur.
+  const [iconHint, setIconHint] = useState<string | null>(null);
+  const suggestion = suggestDealName(iconHint, takenNames);
 
   const submit = async () => {
     // Ad boş bırakılırsa öneri kullanılır.
-    const name = draft.name.trim() === '' ? suggestion : draft.name.trim();
-    const missingName = false;
+    const name = draft.name.trim() === '' ? (suggestion ?? '') : draft.name.trim();
+    const missingName = name === '';
     // Ürün resminde gösterilecekse rozetin görseli (ikon) şarttır.
     const missingIcon = draft.showOnImage && !draft.iconUrl;
     if (missingName) setNameError(NAME_REQUIRED);
@@ -110,7 +112,7 @@ export function DealFormSheet({
             setNameError(undefined);
           }}
         />
-        {draft.name.trim() === '' ? (
+        {draft.name.trim() === '' && suggestion ? (
           <button
             type="button"
             onClick={() => set('name', suggestion)}
@@ -125,7 +127,8 @@ export function DealFormSheet({
           <DealIconPicker
             value={draft.iconUrl}
             error={iconError}
-            onChange={(url) => {
+            onChange={(url, hint) => {
+              setIconHint(url ? (hint ?? null) : null);
               set('iconUrl', url);
               setIconError(undefined);
             }}

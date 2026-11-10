@@ -8,7 +8,8 @@ const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
 
 interface DealIconPickerProps {
   value: string | null;
-  onChange: (url: string | null) => void;
+  /** `hint`: yüklenen dosyanın adı (SVG ise içindeki yazılar da) — ad önerisi için. */
+  onChange: (url: string | null, hint?: string) => void;
   error?: string | undefined;
 }
 
@@ -41,8 +42,24 @@ export function DealIconPicker({ value, onChange, error }: DealIconPickerProps) 
       if (sequence.current === current) setProblem('İkon okunamadı. Tekrar seçin.');
     };
     reader.onload = () => {
-      if (sequence.current === current && typeof reader.result === 'string')
-        onChange(reader.result);
+      if (sequence.current !== current || typeof reader.result !== 'string') return;
+      const url = reader.result;
+      if (file.type !== 'image/svg+xml') {
+        onChange(url, file.name);
+        return;
+      }
+      // SVG rozetin içindeki yazılar da ipucudur (ör. "%10").
+      const text = new FileReader();
+      text.onerror = () => onChange(url, file.name);
+      text.onload = () => {
+        if (sequence.current !== current) return;
+        const inner = [...String(text.result).matchAll(/>([^<>]+)</g)]
+          .map((m) => m[1]!.trim())
+          .filter(Boolean)
+          .join(' ');
+        onChange(url, `${file.name} ${inner}`);
+      };
+      text.readAsText(file);
     };
     reader.readAsDataURL(file);
   };

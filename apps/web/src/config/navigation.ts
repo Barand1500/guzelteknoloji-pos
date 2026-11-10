@@ -70,5 +70,12 @@ export const PAGE_TITLES: Record<string, string> = {
   [DEALS_PATH]: 'Fırsatlar',
   [BULK_IMAGES_PATH]: 'Toplu Görsel',
   [BULK_LOGOS_PATH]: 'Toplu Logo',
+  [`${APP_BASE}/anasayfa`]: 'Anasayfa',
+  [`${APP_BASE}/siparisler`]: 'Siparişler',
+  [`${APP_BASE}/musteriler`]: 'Müşteriler',
+  [`${APP_BASE}/kampanyalar`]: 'Kampanyalar',
+  [`${APP_BASE}/tanimlamalar`]: 'Tanımlamalar',
+  [`${APP_BASE}/bildirimler`]: 'Mobil Bildirimler',
+  [`${APP_BASE}/seo`]: 'Seo',
   ...Object.fromEntries([...navLeft, ...navRight].map((i) => [i.path, i.label])),
 };

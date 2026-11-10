@@ -9,6 +9,7 @@ import { hasDevAccess, revokeDevAccess } from '../dev-login/devAccess';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useTheme } from '../theme/ThemeProvider';
 import { Greeting } from './Greeting';
+import { SectionMenu } from './SectionMenu';
 import { firstNameOf } from './greeting-text';
 
 const iconButton =
@@ -40,16 +41,10 @@ export function TopBar() {
 
   return (
     <header className="mx-auto flex w-full max-w-[120rem] items-center gap-3 px-4 pt-4 tablet:px-8 tablet:pt-6 2xl:px-12">
-      <span
-        aria-hidden="true"
-        className="flex size-10 items-center justify-center rounded-2xl bg-brand-700 text-sm font-extrabold text-white"
-      >
-        {brandConfig.monogram}
-      </span>
+      <SectionMenu />
+      {/* Sayfa başlığı görsel olarak üst menü düğmesine taşındı; ekran okuyucular için durur. */}
+      <h1 className="sr-only">{pageTitle(pathname) ?? brandConfig.name}</h1>
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-xl font-extrabold tracking-tight text-ink">
-          {pageTitle(pathname) ?? brandConfig.name}
-        </h1>
         {wide ? null : <Greeting name={name} className="text-xs" />}
       </div>
       <button
