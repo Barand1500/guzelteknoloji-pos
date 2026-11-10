@@ -44,6 +44,11 @@ const envSchema = z
     GOOGLE_CLIENT_ID: optionalString,
     GOOGLE_CLIENT_SECRET: optionalString,
     GOOGLE_REDIRECT_URI: z.url().optional(),
+    ROBOT_PROVIDER: z.enum(['none', 'cloudflare', 'recaptcha']).optional(),
+    TURNSTILE_SITE_KEY: optionalString,
+    TURNSTILE_SECRET_KEY: optionalString,
+    RECAPTCHA_SITE_KEY: optionalString,
+    RECAPTCHA_SECRET_KEY: optionalString,
 
     /** Giriş kodu e-postaları için SMTP. Geliştirmede boşsa kod API konsoluna yazılır. */
     SMTP_HOST: optionalString,
@@ -77,6 +82,19 @@ const envSchema = z
     RATE_LIMIT_ENABLED: booleanish.optional(),
   })
   .superRefine((env, ctx) => {
+    const provider = env.ROBOT_PROVIDER;
+    if (provider && provider !== 'none') {
+      const keys =
+        provider === 'cloudflare'
+          ? [env.TURNSTILE_SITE_KEY, env.TURNSTILE_SECRET_KEY]
+          : [env.RECAPTCHA_SITE_KEY, env.RECAPTCHA_SECRET_KEY];
+      if (keys.some((key) => !key))
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ROBOT_PROVIDER'],
+          message: 'Seçilen robot doğrulamasının site ve gizli anahtarını birlikte tanımlayın.',
+        });
+    }
     if (env.NODE_ENV === 'production' && !path.isAbsolute(env.UPLOADS_DIR)) {
       ctx.addIssue({
         code: 'custom',

@@ -10,7 +10,7 @@ import {
 } from '@gt/shared';
 import { ArrowLeft, Eye, EyeOff, Pencil } from 'lucide-react';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import type { z } from 'zod';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
@@ -117,18 +117,20 @@ function EmailStep({
   defaultEmail: string;
   onNext: (email: string, response: EmailStartResponse) => void;
 }) {
-  const robot = useRobotChallenge();
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
     setFocus,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<EmailStartInput>({
     resolver: zodResolver(emailStartSchema),
     mode: 'onTouched',
     defaultValues: { email: defaultEmail },
   });
+  const email = useWatch({ control, name: 'email' });
+  const robot = useRobotChallenge(email);
   useEffect(() => setFocus('email'), [setFocus]);
 
   const onSubmit = handleSubmit(async ({ email }) => {
@@ -165,6 +167,7 @@ function EmailStep({
         <Button
           type="submit"
           loading={isSubmitting}
+          disabled={robot.pending}
           loadingLabel="Kontrol Ediliyor…"
           className="mt-1"
         >
@@ -189,7 +192,7 @@ function PasswordStep({
   onChangeEmail: () => void;
   onSuccess: (user: PublicUser) => void;
 }) {
-  const robot = useRobotChallenge();
+  const robot = useRobotChallenge(email);
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -252,6 +255,7 @@ function PasswordStep({
         <Button
           type="submit"
           loading={isSubmitting}
+          disabled={robot.pending}
           loadingLabel="Giriş Yapılıyor…"
           className="mt-1"
         >
@@ -290,7 +294,7 @@ function CodeStep({
   onChangeEmail: () => void;
   onSuccess: (user: PublicUser) => void;
 }) {
-  const robot = useRobotChallenge();
+  const robot = useRobotChallenge(email);
   const [serverError, setServerError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
@@ -365,6 +369,7 @@ function CodeStep({
           <Button
             type="submit"
             loading={isSubmitting}
+            disabled={robot.pending}
             loadingLabel="Doğrulanıyor…"
             className="mt-1"
           >
@@ -376,7 +381,7 @@ function CodeStep({
             onClick={resend}
             loading={resending}
             loadingLabel="Gönderiliyor…"
-            disabled={remaining > 0}
+            disabled={remaining > 0 || robot.pending}
             className="min-h-11! py-2! text-sm! text-brand-700"
           >
             {remaining > 0 ? `Kodu Tekrar Gönder (${remaining} sn)` : 'Kodu Tekrar Gönder'}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChallengeConfig } from '@gt/shared';
-import { ApiError } from '../../../lib/http';
+import { ApiError, apiRequest } from '../../../lib/http';
 import { loginErrorMessage } from '../services/auth.messages';
 import { Button } from '../../../components/ui/Button';
 
@@ -152,18 +152,59 @@ export function RobotChallenge({
   );
 }
 
-export function useRobotChallenge() {
+export function useRobotChallenge(email?: string) {
+  const configKey = useRef('');
   const [config, setConfig] = useState<ChallengeConfig | null>(null);
   const [token, setToken] = useState('');
   const [revision, setRevision] = useState(0);
+  const [loadedEmail, setLoadedEmail] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(
+      () => {
+        void apiRequest<{ challenge: ChallengeConfig | null }>('/api/auth/robot', {
+          method: 'POST',
+          body: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? { email } : {},
+        })
+          .then((result) => {
+            if (!active || !result || !('challenge' in result)) return;
+            const key = result.challenge
+              ? `${result.challenge.provider}:${result.challenge.siteKey}`
+              : '';
+            if (configKey.current !== key) {
+              configKey.current = key;
+              setToken('');
+              setConfig(result.challenge);
+            }
+          })
+          .catch(() => {
+            /* Giriş uçları doğrulamayı sunucuda zorunlu tutmaya devam eder. */
+          })
+          .finally(() => {
+            if (active) setLoadedEmail(email ?? '');
+          });
+      },
+      email ? 350 : 0,
+    );
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [email]);
   return {
     token,
+    pending:
+      (!!config && !token) ||
+      (loadedEmail !== (email ?? '') && (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))),
     widget: config ? <RobotChallenge key={revision} config={config} onToken={setToken} /> : null,
     error: (error: unknown) => {
-      if (error instanceof ApiError && error.challenge) setConfig(error.challenge);
+      if (error instanceof ApiError && error.challenge) {
+        configKey.current = `${error.challenge.provider}:${error.challenge.siteKey}`;
+        setConfig(error.challenge);
+      }
       setToken('');
       setRevision((n) => n + 1);
-      return loginErrorMessage(error);
+      return error instanceof ApiError && error.challenge ? '' : loginErrorMessage(error);
     },
     reset: () => {
       setToken('');

@@ -69,15 +69,47 @@ export class WorkspaceChallenge {
   ) {
     this.settings = new WorkspaceSettings(db, env.COOKIE_SECRET);
   }
+  async resolve(email?: string) {
+    const member = email
+      ? await this.db.isletmeUyesi.findUnique({
+          where: { email: email.trim().toLowerCase() },
+          select: { businessId: true, active: true },
+        })
+      : null;
+    let explicitlyConfigured = false;
+    if (member?.active)
+      for (const provider of ['cloudflare', 'recaptcha'] as const) {
+        const values = await this.settings.values(member.businessId, provider, true);
+        explicitlyConfigured ||= values.enabled !== undefined;
+        if (values.enabled !== 'true') continue;
+        return { provider, values };
+      }
+    if (explicitlyConfigured) return null;
+    const provider = this.env.ROBOT_PROVIDER;
+    if (!provider || provider === 'none') return null;
+    return {
+      provider,
+      values: {
+        siteKey:
+          (provider === 'cloudflare' ? this.env.TURNSTILE_SITE_KEY : this.env.RECAPTCHA_SITE_KEY) ??
+          '',
+        secretKey:
+          (provider === 'cloudflare'
+            ? this.env.TURNSTILE_SECRET_KEY
+            : this.env.RECAPTCHA_SECRET_KEY) ?? '',
+      },
+    };
+  }
+  async publicConfig(email?: string): Promise<ChallengeConfig | null> {
+    const resolved = await this.resolve(email);
+    return resolved
+      ? { provider: resolved.provider, siteKey: resolved.values.siteKey ?? '' }
+      : null;
+  }
   async enforce(email: string, token: unknown, ip?: string) {
-    const member = await this.db.isletmeUyesi.findUnique({
-      where: { email: email.trim().toLowerCase() },
-      select: { businessId: true, active: true },
-    });
-    if (!member?.active) return;
-    for (const provider of ['cloudflare', 'recaptcha'] as const) {
-      const values = await this.settings.values(member.businessId, provider, true);
-      if (values.enabled !== 'true') continue;
+    const resolved = await this.resolve(email);
+    if (resolved) {
+      const { provider, values } = resolved;
       try {
         await verifyRobot(provider, values, token, new URL(this.env.APP_URL).hostname, ip);
       } catch (error) {
@@ -88,7 +120,6 @@ export class WorkspaceChallenge {
         failure.challenge = { provider, siteKey: values.siteKey ?? '' };
         throw failure;
       }
-      return;
     }
   }
 }
@@ -106,11 +137,7 @@ export async function whatsappRequest(
       'VALIDATION_ERROR',
       'WhatsApp entegrasyonunu etkinleştirin ve kaydedin.',
     );
-  if (
-    !/^\d{5,30}$/.test(values.phoneNumberId ?? '') ||
-    !values.accessToken ||
-    !values.appSecret
-  )
+  if (!/^\d{5,30}$/.test(values.phoneNumberId ?? '') || !values.accessToken || !values.appSecret)
     throw new HttpError(
       400,
       'VALIDATION_ERROR',
@@ -197,7 +224,11 @@ export function whatsappWebhook(db: PrismaClient, env: Env) {
       if (!timingSafeEqual(expected, Buffer.from(signature.slice(7), 'hex')))
         throw new HttpError(403, 'FORBIDDEN', 'Webhook imzası geçersiz.');
       let decoded: unknown;
-      try { decoded = JSON.parse(req.body.toString('utf8')); } catch { throw new HttpError(400,'VALIDATION_ERROR','Geçersiz webhook gövdesi.'); }
+      try {
+        decoded = JSON.parse(req.body.toString('utf8'));
+      } catch {
+        throw new HttpError(400, 'VALIDATION_ERROR', 'Geçersiz webhook gövdesi.');
+      }
       const payload = z
         .object({
           object: z.literal('whatsapp_business_account'),

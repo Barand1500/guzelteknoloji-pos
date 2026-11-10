@@ -48,6 +48,44 @@ function database(values: Record<string, string>, section = 'whatsapp') {
 }
 
 describe('işletme entegrasyonları', () => {
+  it('sunucu varsayılanını kullanır; işletmenin açık veya kapalı tercihi önceliklidir', async () => {
+    const env = {
+      ...testEnv(),
+      ROBOT_PROVIDER: 'cloudflare' as const,
+      TURNSTILE_SITE_KEY: 'server-public',
+      TURNSTILE_SECRET_KEY: 'server-secret',
+    };
+    const db = database({}, 'cloudflare');
+    const challenge = new WorkspaceChallenge(db as unknown as PrismaClient, env);
+    expect(await challenge.publicConfig()).toEqual({
+      provider: 'cloudflare',
+      siteKey: 'server-public',
+    });
+    expect(await challenge.publicConfig('user@example.com')).toEqual({
+      provider: 'cloudflare',
+      siteKey: 'server-public',
+    });
+    await expect(challenge.enforce('user@example.com', undefined)).rejects.toMatchObject({
+      challenge: { provider: 'cloudflare', siteKey: 'server-public' },
+    });
+    const own = new WorkspaceChallenge(
+      database(
+        { enabled: 'true', siteKey: 'own', secretKey: 'private' },
+        'recaptcha',
+      ) as unknown as PrismaClient,
+      env,
+    );
+    expect(await own.publicConfig('user@example.com')).toEqual({
+      provider: 'recaptcha',
+      siteKey: 'own',
+    });
+    const disabled = new WorkspaceChallenge(
+      database({ enabled: 'false' }, 'cloudflare') as unknown as PrismaClient,
+      env,
+    );
+    expect(await disabled.publicConfig('user@example.com')).toBeNull();
+    await expect(disabled.enforce('user@example.com', undefined)).resolves.toBeUndefined();
+  });
   it('yeni gizli anahtarları şifreli saklar ve normal okumada yalnızca tanımlı olduklarını döndürür', async () => {
     const db = database(whatsapp);
     const settings = new WorkspaceSettings(db as unknown as PrismaClient, testEnv().COOKIE_SECRET);

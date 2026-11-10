@@ -132,7 +132,11 @@ describe('E-Posta ile Devam Et', () => {
     expect(
       await screen.findByRole('button', { name: 'Geçerli bir e-posta adresi girin.' }),
     ).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) => init?.method === 'POST' && String(url) !== '/api/auth/robot',
+      ),
+    ).toBe(false);
   });
 
   it('ünleme tıklanınca hata kutusu açılır, Escape ile kapanır', async () => {
