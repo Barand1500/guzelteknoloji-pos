@@ -181,6 +181,8 @@ export function SortableGrid<T>({
       dragged.current = true;
       document.body.style.userSelect = 'none';
       document.addEventListener('touchmove', preventTouchScroll, { passive: false });
+      // Sürüklerken üstünden geçilen küçük resimlerin büyütme kartı açılmasın.
+      document.body.dataset.sortableDragging = '1';
       navigator.vibrate?.(12);
       latest.current.onDragStart?.();
       setDrag({ slots, id, index, over: index, dx: 0, dy: 0, dropping: false });
@@ -192,6 +194,7 @@ export function SortableGrid<T>({
       cancelAnimationFrame(raf);
       active = false;
       document.body.style.userSelect = previousSelect;
+      delete document.body.dataset.sortableDragging;
       document.removeEventListener('touchmove', preventTouchScroll);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
@@ -314,6 +317,9 @@ export function SortableGrid<T>({
               style={style}
               className={dragging ? 'rounded-3xl shadow-card' : ''}
               onPointerDown={(e) => startSession(e, id, index)}
+              // Resim/bağlantı üzerinde tarayıcının kendi "sürükle-bırak"ı başlamasın: başlarsa
+              // işaretçi olayları iptal olur ve kutucuk sıralanamaz.
+              onDragStart={(e) => e.preventDefault()}
               onContextMenu={(e) => {
                 if (drag || !disabled) e.preventDefault();
               }}

@@ -77,6 +77,59 @@ export function createStockRouter(
       await repo.selectIds(res.locals.stockUserId as string, parse(stockListQuery, req.query)),
     );
   });
+  // Kod/barkod çakışma kontrolü: formda yazarken "Bu kod kullanılıyor" uyarısı için (yalnızca okur).
+  if (db)
+    router.get('/kartlar/kontrol', async (req, res) => {
+      const q = parse(
+        z.strictObject({
+          kod: z.string().max(100).default(''),
+          barkod: z.string().max(128).default(''),
+          haric: z
+            .string()
+            .regex(/^[1-9][0-9]{0,9}$/)
+            .optional(),
+        }),
+        req.query,
+      );
+      const userId = Number(res.locals.stockUserId);
+      const except = q.haric ? { kimlik: { not: Number(q.haric) } } : {};
+      const code = q.kod.trim();
+      const barcode = q.barkod.trim();
+      const byCode = code
+        ? await db.stokKarti.findFirst({
+            where: { kullaniciKimligi: userId, stokKodu: code, ...except },
+            select: { kimlik: true, stokAdi: true, stokKodu: true },
+          })
+        : null;
+      const byBarcode = barcode
+        ? ((
+            await db.stokBarkodu.findFirst({
+              where: {
+                barkod: barcode,
+                stokBirimi: { stokKarti: { kullaniciKimligi: userId, ...except } },
+              },
+              select: {
+                stokBirimi: {
+                  select: {
+                    stokKarti: { select: { kimlik: true, stokAdi: true, stokKodu: true } },
+                  },
+                },
+              },
+            })
+          )?.stokBirimi.stokKarti ??
+          (
+            await db.stokVaryanti.findFirst({
+              where: { barkod: barcode, stokKarti: { kullaniciKimligi: userId, ...except } },
+              select: { stokKarti: { select: { kimlik: true, stokAdi: true, stokKodu: true } } },
+            })
+          )?.stokKarti ??
+          null)
+        : null;
+      const card = (
+        c: { kimlik: number; stokAdi: string | null; stokKodu: string | null } | null,
+      ) => (c ? { id: String(c.kimlik), name: c.stokAdi ?? '', code: c.stokKodu ?? '' } : null);
+      res.json({ code: card(byCode), barcode: card(byBarcode) });
+    });
   router.post('/kartlar/toplu', async (req, res) => {
     const input = parse(stockBulkSchema, req.body);
     const files =

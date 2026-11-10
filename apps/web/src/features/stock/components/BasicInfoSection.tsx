@@ -7,6 +7,7 @@ import type { StockEditor } from '../hooks/useStockEditor';
 import { countryOptions } from '../countries';
 import { flattenTree } from '../../categories/tree';
 import { CategoryQuickAdd } from './CategoryQuickAdd';
+import { DuplicateNote } from './DuplicateNote';
 import { QuickExtras } from './QuickExtras';
 
 /** Seçim kutusuna "Yeni ekle" + silme davranışını bağlar (ayrı pencere yok). */
@@ -107,7 +108,10 @@ export function BasicInfoSection({ editor }: { editor: StockEditor }) {
           {...editable(lists.stockTypes, 'ürün tipi', (v) => set('stockType', v))}
         />
       </div>
-      <div className="col-span-2 md:col-span-3 xl:col-span-4">{text('code', 'Ürün Kodu')}</div>
+      <div className="col-span-2 md:col-span-3 xl:col-span-4">
+        {text('code', 'Ürün Kodu')}
+        <DuplicateNote kind="code" value={draft.code} />
+      </div>
       <div className="col-span-2 md:col-span-6 xl:col-span-5">{text('name', 'Ürün Adı')}</div>
 
       {/* 2. satır: Marka, Menşei, Envanter Takibi, Kategori — dört eşit sütun. */}

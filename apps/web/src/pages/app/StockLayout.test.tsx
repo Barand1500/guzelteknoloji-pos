@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { demoProductService } from '../../features/products/services/product.demo';
@@ -187,5 +187,35 @@ describe('Fırsat/Özellik özeti: kapalıyken üzerine gelince', () => {
     const tip = screen.getByRole('tooltip');
     expect(within(tip).getByText('Renk:')).toBeInTheDocument();
     expect(within(tip).getByText('Siyah')).toBeInTheDocument();
+  });
+});
+
+describe('Anlık doğrulama ve kamerayla barkod', () => {
+  it('başka üründe kullanılan kod yazılırken uyarılır; ürüne git bağlantısı yeni sekmede açılır', async () => {
+    const user = await openNewCard();
+    await user.type(screen.getByLabelText('Ürün Kodu'), 'FLEXYPOS.FP-503');
+    const note = await screen.findByText(/Bu kod kullanılıyor:/, undefined, { timeout: 3000 });
+    expect(note).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /Ürüne git/ });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link.getAttribute('href')).toMatch(/\/stok-karti\/p1$/);
+
+    // Kullanılmayan kodda uyarı kalkar.
+    await user.clear(screen.getByLabelText('Ürün Kodu'));
+    await user.type(screen.getByLabelText('Ürün Kodu'), 'YEPYENI-KOD-1');
+    await waitFor(
+      () => expect(screen.queryByText(/Bu kod kullanılıyor:/)).not.toBeInTheDocument(),
+      {
+        timeout: 3000,
+      },
+    );
+  });
+
+  it('barkod kutusundaki kamera simgesi tarama penceresini açar; kamera yoksa anlaşılır mesaj verir', async () => {
+    const user = await openNewCard();
+    await user.click(screen.getByRole('button', { name: 'Kamerayla barkod oku' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Barkod Tara' });
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Kamera|kamera/);
+    expect(within(dialog).getByRole('button', { name: 'Tekrar Dene' })).toBeInTheDocument();
   });
 });

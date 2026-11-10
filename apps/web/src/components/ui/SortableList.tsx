@@ -319,6 +319,8 @@ export function SortableList<T>({
               style={style}
               className={dragging ? 'rounded-3xl shadow-card' : ''}
               onPointerDown={(e) => startSession(e, id, index)}
+              // Tarayıcının kendi resim sürüklemesi işaretçi oturumunu iptal etmesin.
+              onDragStart={(e) => e.preventDefault()}
               // Uzun basışta tarayıcının bağlam menüsü çıkmasın.
               onContextMenu={(e) => {
                 if (drag || !disabled) e.preventDefault();

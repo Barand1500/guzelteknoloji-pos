@@ -1,9 +1,11 @@
-import { Plus, X } from 'lucide-react';
+import { Plus, ScanBarcode, X } from 'lucide-react';
 import { useState } from 'react';
 import { SelectField, type SelectOption } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import { uid } from '../stock.rules';
 import type { BarcodeEntry } from '../types';
+import { BarcodeScanSheet } from './BarcodeScanSheet';
+import { DuplicateNote } from './DuplicateNote';
 
 interface BarcodeEditorProps {
   barcodes: BarcodeEntry[];
@@ -18,6 +20,7 @@ interface BarcodeEditorProps {
 export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps) {
   const [type, setType] = useState('EAN13');
   const [code, setCode] = useState('');
+  const [scanning, setScanning] = useState(false);
 
   const add = () => {
     const value = code.trim();
@@ -46,6 +49,17 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
             value={code}
             className="rounded-none!"
             onChange={(e) => setCode(e.target.value)}
+            trailing={
+              <button
+                type="button"
+                onClick={() => setScanning(true)}
+                aria-label="Kamerayla barkod oku"
+                title="Kamerayla barkod oku"
+                className="mr-1 inline-flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-ink"
+              >
+                <ScanBarcode className="size-5" aria-hidden="true" />
+              </button>
+            }
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -64,6 +78,19 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
           <Plus className="size-6" aria-hidden="true" />
         </button>
       </div>
+
+      <DuplicateNote kind="barcode" value={code} />
+      {scanning ? (
+        <BarcodeScanSheet
+          typeValues={types.map((t) => t.value)}
+          onClose={() => setScanning(false)}
+          onUse={(value, scannedType) => {
+            setCode(value);
+            if (scannedType) setType(scannedType);
+            setScanning(false);
+          }}
+        />
+      ) : null}
 
       {barcodes.length > 0 ? (
         <ul className="flex flex-wrap gap-2" aria-label="Eklenen barkodlar">

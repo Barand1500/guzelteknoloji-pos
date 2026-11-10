@@ -12,6 +12,7 @@ it('birim/barkod ortak, fiyatlar ayrı kalır; ekleme ve silme tüm listelere ya
   initial.units.perakende[0]!.sale.amount = '150';
   const service: StockService = {
     getLookups: vi.fn(),
+    checkDuplicate: vi.fn().mockResolvedValue({ code: null, barcode: null }),
     addOption: vi.fn(),
     removeOption: vi.fn(),
     get: vi.fn(),
