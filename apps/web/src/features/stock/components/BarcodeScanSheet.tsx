@@ -36,6 +36,24 @@ interface NativeDetectorCtor {
   getSupportedFormats?: () => Promise<string[]>;
 }
 
+/** EAN-13 / EAN-8 / UPC-A kontrol hanesi doğru mu? (Yanlış okumalar çoğunlukla burada elenir.) */
+export function checksumOk(text: string, format: string): boolean {
+  const kind = format.toUpperCase().replace('_', '');
+  const length = kind === 'EAN13' ? 13 : kind === 'EAN8' ? 8 : kind === 'UPCA' ? 12 : 0;
+  if (length === 0) return true; // diğer biçimlerde kontrol hanesi yoktur
+  if (text.length !== length || !/^[0-9]+$/.test(text)) return false;
+  const digits = [...text].map(Number);
+  const check = digits.pop()!;
+  // Sağdan sola: ilk hane ×3, sonraki ×1, ...
+  const sum = digits.reverse().reduce((acc, d, i) => acc + d * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === check;
+}
+
+/** Aynı değer üst üste bu kadar okunmadan kabul edilmez (tek karelik yanlış okumaları eler). */
+const CONFIRMATIONS = 3;
+/** İki okuma arası bu süreyi aşarsa sayaç sıfırlanır (ms). */
+const CONFIRM_WINDOW = 900;
+
 type Phase =
   | { kind: 'starting' }
   | { kind: 'scanning' }
@@ -96,6 +114,19 @@ export function BarcodeScanSheet({ typeValues, onUse, onClose }: BarcodeScanShee
     };
     stop.current = stopAll;
 
+    // Doğrulama: kontrol hanesi tutmalı ve aynı değer art arda N kez okunmalı.
+    let candidate = { text: '', count: 0, at: 0 };
+    const vote = (text: string, format: string) => {
+      if (cancelled || !checksumOk(text, format)) return false;
+      const now = Date.now();
+      candidate =
+        candidate.text === text && now - candidate.at < CONFIRM_WINDOW
+          ? { text, count: candidate.count + 1, at: now }
+          : { text, count: 1, at: now };
+      if (candidate.count < CONFIRMATIONS) return false;
+      finish(text, format);
+      return true;
+    };
     const finish = (text: string, format: string) => {
       if (cancelled) return;
       stopAll();
@@ -168,7 +199,7 @@ export function BarcodeScanSheet({ typeValues, onUse, onClose }: BarcodeScanShee
             try {
               const codes = await active.detect(element);
               const first = codes[0];
-              if (first?.rawValue) return finish(first.rawValue, first.format);
+              if (first?.rawValue && vote(first.rawValue, first.format)) return;
             } catch {
               /* Kare okunamadı; sonraki karede tekrar denenir. */
             }
@@ -196,7 +227,7 @@ export function BarcodeScanSheet({ typeValues, onUse, onClose }: BarcodeScanShee
         hints.set(DecodeHintType.TRY_HARDER, true);
         const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 60 });
         controls = await reader.decodeFromVideoElement(element, (result) => {
-          if (result) finish(result.getText(), BarcodeFormat[result.getBarcodeFormat()] ?? '');
+          if (result) vote(result.getText(), BarcodeFormat[result.getBarcodeFormat()] ?? '');
         });
         if (cancelled) stopAll();
       } catch (error) {
