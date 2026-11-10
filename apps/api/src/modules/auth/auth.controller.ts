@@ -25,6 +25,7 @@ import {
 import { GoogleLoginError, type AuthService } from './auth.service';
 import { toPublicUser, type RequestMeta } from './auth.types';
 import type { GoogleOidcClient } from './google.client';
+import type { WorkspaceChallenge } from '../workspace/workspace.integrations';
 import { setAppleFlow, readAppleFlow, clearAppleFlow } from './auth.cookies';
 
 export interface AuthControllerDeps {
@@ -33,13 +34,21 @@ export interface AuthControllerDeps {
   google: GoogleOidcClient | null;
   apple?: GoogleOidcClient | null;
   logger: Logger;
+  challenge?: WorkspaceChallenge;
 }
 
 function requestMeta(req: Request): RequestMeta {
   return { ipAddress: req.ip ?? null, userAgent: req.get('user-agent') ?? null };
 }
 
-export function createAuthController({ env, service, google, apple, logger }: AuthControllerDeps) {
+export function createAuthController({
+  env,
+  service,
+  google,
+  apple,
+  logger,
+  challenge,
+}: AuthControllerDeps) {
   const loginPageUrl = (error?: GoogleErrorCode) => {
     const url = new URL('/login', env.APP_URL);
     if (error) url.searchParams.set('hata', error);
@@ -54,12 +63,14 @@ export function createAuthController({ env, service, google, apple, logger }: Au
 
     async emailStart(req: Request, res: Response<EmailStartResponse>) {
       const { email } = emailStartSchema.parse(req.body);
+      await challenge?.enforce(email, req.body.challengeToken, req.ip);
       res.set('Cache-Control', 'no-store');
       res.json(await service.startEmail(email, requestMeta(req)));
     },
 
     async emailVerify(req: Request, res: Response<MeResponse>) {
       const { email, code } = emailVerifySchema.parse(req.body);
+      await challenge?.enforce(email, req.body.challengeToken, req.ip);
       const session = await service.verifyEmailCode(
         email,
         code,
@@ -107,6 +118,7 @@ export function createAuthController({ env, service, google, apple, logger }: Au
 
     async login(req: Request, res: Response<MeResponse>) {
       const input = loginSchema.parse(req.body);
+      await challenge?.enforce(input.email, req.body.challengeToken, req.ip);
       const session = await service.loginWithPassword(
         input,
         requestMeta(req),

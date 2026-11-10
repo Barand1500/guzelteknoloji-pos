@@ -1,4 +1,4 @@
-import type { ApiErrorBody, ApiErrorCode } from '@gt/shared';
+import type { ApiErrorBody, ApiErrorCode, ChallengeConfig } from '@gt/shared';
 
 /** Ayrı domain dağıtımında API adresi; tek origin'de boş bırakılır. */
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
@@ -10,6 +10,7 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: ApiErrorCode,
     message: string,
+    public readonly challenge?: ChallengeConfig,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -64,7 +65,12 @@ export async function apiRequest<T>(
 
   if (!response.ok) {
     if (isApiErrorBody(data)) {
-      throw new ApiError(response.status, data.error.code, data.error.message);
+      throw new ApiError(
+        response.status,
+        data.error.code,
+        data.error.message,
+        data.error.challenge,
+      );
     }
     throw new ApiError(response.status, 'INTERNAL_ERROR', 'Beklenmeyen bir hata oluştu.');
   }

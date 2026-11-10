@@ -28,6 +28,7 @@ import { createDealRouter } from './modules/catalog/deal.routes';
 import { createAttributeRouter } from './modules/catalog/attribute.routes';
 import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
+import { WorkspaceChallenge, whatsappWebhook } from './modules/workspace/workspace.integrations';
 import { workspaceGoogleReturn } from './modules/workspace/workspace.connections';
 import { createRateLimiter } from './middleware/rate-limit';
 
@@ -63,11 +64,25 @@ export function createApp(deps: AppDeps): Express {
           styleSrc: ["'self'"],
           // React'in satır içi style= nitelikleri (ör. hata kutusu oku) için; <style> blokları yine yasak.
           styleSrcAttr: ["'unsafe-inline'"],
-          scriptSrc: ["'self'"],
-          connectSrc: ["'self'"],
+          scriptSrc: [
+            "'self'",
+            'https://challenges.cloudflare.com',
+            'https://www.google.com/recaptcha/',
+            'https://www.gstatic.com/recaptcha/',
+          ],
+          connectSrc: [
+            "'self'",
+            'https://challenges.cloudflare.com',
+            'https://www.google.com/recaptcha/',
+          ],
           formAction: ["'self'", 'https://accounts.google.com'],
-          // Yalnızca yapılandırılan destek formu çerçevelenebilir; başka hiçbir iframe'e izin yok.
-          frameSrc: env.supportFormOrigin ? [env.supportFormOrigin] : ["'none'"],
+          // Destek formu ve robot doğrulama sağlayıcılarının çerçeveleri.
+          frameSrc: [
+            'https://challenges.cloudflare.com',
+            'https://www.google.com/recaptcha/',
+            'https://recaptcha.google.com/recaptcha/',
+            ...(env.supportFormOrigin ? [env.supportFormOrigin] : []),
+          ],
           frameAncestors: ["'none'"],
         },
       },
@@ -82,6 +97,8 @@ export function createApp(deps: AppDeps): Express {
   }
 
   app.use(requestLogger(logger));
+  if (deps.catalogDb) app.use('/api/webhooks/whatsapp', whatsappWebhook(deps.catalogDb, env));
+  app.use('/api/hesap/ayarlar', express.json({ limit: '32kb' }));
   app.use('/api/stok/gorseller/yukle', express.json({ limit: '7mb' }));
   app.use('/api/stok', express.json({ limit: '512kb' }));
   app.use('/api/markalar', express.json({ limit: '3mb' }));
@@ -124,6 +141,7 @@ export function createApp(deps: AppDeps): Express {
       apple:
         deps.apple !== undefined ? deps.apple : env.apple ? createAppleOidcClient(env.apple) : null,
       logger,
+      ...(deps.catalogDb ? { challenge: new WorkspaceChallenge(deps.catalogDb, env) } : {}),
     }),
   );
   if (deps.stockRepo)

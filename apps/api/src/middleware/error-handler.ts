@@ -17,7 +17,13 @@ export function errorHandler(logger: Logger): ErrorRequestHandler {
 
     if (error instanceof HttpError) {
       status = error.status;
-      body = { error: { code: error.code, message: error.message } };
+      body = {
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.challenge ? { challenge: error.challenge } : {}),
+        },
+      };
     } else if (error instanceof ZodError) {
       status = 400;
       body = {

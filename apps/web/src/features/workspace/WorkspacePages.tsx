@@ -34,6 +34,7 @@ import { useSession } from '../auth/hooks/session-context';
 import { useWorkspace } from './workspace-context';
 import { UnsavedChanges } from './UnsavedChanges';
 import { visibleLogChanges } from './log-display';
+import { RobotChallenge } from '../auth/components/RobotChallenge';
 
 const base = '/api/hesap';
 const post = <T,>(path: string, body: unknown = {}) =>
@@ -772,19 +773,21 @@ function RoleForm({
         await onSaved();
       }}
     >
-      <TextField
-        label="Rol Adı"
-        required
-        value={name}
-        maxLength={120}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <div className="flex justify-end">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <TextField
+            label="Rol Adı"
+            required
+            value={name}
+            maxLength={120}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
         <Button
           flow={false}
           variant="outline"
           fullWidth={false}
-          className="min-h-10 px-4 py-2 text-sm"
+          className="h-14 shrink-0 px-3 text-sm"
           onClick={selectAll}
         >
           {allSelected ? 'Seçimi Temizle' : 'Tümünü Seç'}
@@ -840,6 +843,7 @@ export function SettingsIndexPage({ integrations = false }: { integrations?: boo
 interface FullSettings extends SettingsResult {
   system?: { smtp: boolean; google: boolean };
   googleRedirect?: string;
+  webhookUrl?: string;
 }
 function SecretSettingField({
   label,
@@ -911,21 +915,6 @@ function SecretSettingField({
 export function SettingsPage({ initialSection = 'general' }: { initialSection?: string }) {
   const { section: parameter } = useParams();
   const section = parameter ?? initialSection;
-  if (['cloudflare', 'whatsapp', 'recaptcha'].includes(section))
-    return (
-      <Frame>
-        <div className={panel}>
-          <h2 className="text-xl font-extrabold">
-            {
-              { cloudflare: 'Cloudflare', whatsapp: 'WhatsApp', recaptcha: 'Google reCAPTCHA' }[
-                section
-              ]
-            }
-          </h2>
-          <p className="mt-3 text-sm text-ink-muted">Bu entegrasyon henüz kullanıma açılmadı.</p>
-        </div>
-      </Frame>
-    );
   return <SettingsPageContent key={section} section={section} />;
 }
 function SettingsPageContent({ section }: { section: string }) {
@@ -941,6 +930,8 @@ function SettingsPageContent({ section }: { section: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [params] = useSearchParams();
+  const [challengeToken, setChallengeToken] = useState('');
+  const [challengeRevision, setChallengeRevision] = useState(0);
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(() => {
@@ -997,7 +988,26 @@ function SettingsPageContent({ section }: { section: string }) {
               page.fields.some((f) => (draft[f.key] ?? '') !== (rows.value.values[f.key] ?? ''))
             }
           />
-          <h2 className="text-xl font-extrabold">{page.title}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-extrabold">{page.title}</h2>
+            {page.fields.some((f) => f.key === 'enabled') && (
+              <fieldset
+                disabled={busy || !can('settings', 'save')}
+                className="flex items-center gap-2 text-sm font-semibold"
+              >
+                <span>{draft.enabled === 'true' ? 'Etkin' : 'Kapalı'}</span>
+                <ToggleSwitch
+                  label={
+                    section === 'whatsapp'
+                      ? 'WhatsApp Entegrasyonunu Etkinleştir'
+                      : 'Doğrulamayı Etkinleştir'
+                  }
+                  checked={draft.enabled === 'true'}
+                  onChange={(value) => setDraft({ ...draft, enabled: String(value) })}
+                />
+              </fieldset>
+            )}
+          </div>
           {rows.value.source && (
             <p className="text-xs text-ink-muted">
               Kullanılan ayar:{' '}
@@ -1014,6 +1024,13 @@ function SettingsPageContent({ section }: { section: string }) {
               korunur; kapattığınızda özgün görsel gösterilir.
             </p>
           )}
+          {(section === 'cloudflare' || section === 'recaptcha') && (
+            <p className="text-sm text-ink-muted">
+              Site anahtarını ve gizli anahtarı sağlayıcınızdan alın; bu uygulamanın alan adını izin
+              verilen alanlara ekleyin. Birini etkinleştirdiğinizde diğeri kapanır. Bu ayar
+              işletmenize kayıtlı kullanıcıların e-posta girişinde uygulanır.
+            </p>
+          )}
           {error && <Alert tone="error">{error}</Alert>}
           {message && <Alert tone="info">{message}</Alert>}
           {params.has('google') && (
@@ -1027,58 +1044,110 @@ function SettingsPageContent({ section }: { section: string }) {
             disabled={!can('settings', 'save') || busy}
             className="grid gap-5 sm:grid-cols-2"
           >
-            {page.fields.map((f) => {
-              const type = 'type' in f ? f.type : undefined;
-              return (
-                <div key={f.key} className={f.key === 'address' ? 'sm:col-span-2' : ''}>
-                  {section === 'images' ? (
-                    <div className="flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-line px-4 py-3">
-                      <span className="font-semibold">{f.label}</span>
-                      <ToggleSwitch
+            {page.fields
+              .filter((f) => f.key !== 'enabled')
+              .map((f) => {
+                const type = 'type' in f ? f.type : undefined;
+                return (
+                  <div key={f.key} className={f.key === 'address' ? 'sm:col-span-2' : ''}>
+                    {section === 'images' ? (
+                      <div className="flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-line px-4 py-3">
+                        <span className="font-semibold">{f.label}</span>
+                        <ToggleSwitch
+                          label={f.label}
+                          checked={draft[f.key] === 'true'}
+                          onChange={(v) => setDraft({ ...draft, [f.key]: String(v) })}
+                        />
+                      </div>
+                    ) : type === 'boolean' ? (
+                      <SelectField
                         label={f.label}
-                        checked={draft[f.key] === 'true'}
-                        onChange={(v) => setDraft({ ...draft, [f.key]: String(v) })}
+                        value={draft[f.key] ?? 'false'}
+                        options={[
+                          { value: 'true', label: 'Evet' },
+                          {
+                            value: 'false',
+                            label: f.key === 'secure' ? 'Hayır (STARTTLS)' : 'Hayır',
+                          },
+                        ]}
+                        onChange={(v) => setDraft({ ...draft, [f.key]: v })}
                       />
-                    </div>
-                  ) : type === 'boolean' ? (
-                    <SelectField
-                      label={f.label}
-                      value={draft[f.key] ?? 'false'}
-                      options={[
-                        { value: 'true', label: 'Evet' },
-                        {
-                          value: 'false',
-                          label: f.key === 'secure' ? 'Hayır (STARTTLS)' : 'Hayır',
-                        },
-                      ]}
-                      onChange={(v) => setDraft({ ...draft, [f.key]: v })}
-                    />
-                  ) : type === 'secret' ? (
-                    <SecretSettingField
-                      key={`${section}/${f.key}`}
-                      label={f.label}
-                      value={draft[f.key]}
-                      configured={rows.value.configured.includes(f.key)}
-                      section={section}
-                      field={f.key}
-                      onChange={(value) => setDraft({ ...draft, [f.key]: value })}
-                    />
-                  ) : (
-                    <TextField
-                      label={f.label}
-                      value={draft[f.key] ?? ''}
-                      numeric={type === 'port' ? 'integer' : undefined}
-                      onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
-                    />
-                  )}
-                </div>
-              );
-            })}
+                    ) : type === 'secret' ? (
+                      <SecretSettingField
+                        key={`${section}/${f.key}`}
+                        label={f.label}
+                        value={draft[f.key]}
+                        configured={rows.value.configured.includes(f.key)}
+                        section={section}
+                        field={f.key}
+                        onChange={(value) => setDraft({ ...draft, [f.key]: value })}
+                      />
+                    ) : (
+                      <TextField
+                        label={f.label}
+                        value={draft[f.key] ?? ''}
+                        numeric={type === 'port' ? 'integer' : undefined}
+                        onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
+                      />
+                    )}
+                  </div>
+                );
+              })}
           </fieldset>
           {section === 'imap' && (
             <p className="text-sm text-ink-muted">
               IMAP bağlantısı TLS ile şifrelenir. Standart port 993’tür.
             </p>
+          )}
+          {(section === 'cloudflare' || section === 'recaptcha') &&
+            rows.value.values.siteKey &&
+            rows.value.configured.includes('secretKey') && (
+              <div className="space-y-3 rounded-2xl border border-line p-4">
+                <p className="text-sm font-semibold">Kayıtlı Anahtarlarla Doğrulama Testi</p>
+                <RobotChallenge
+                  key={challengeRevision}
+                  config={{ provider: section, siteKey: rows.value.values.siteKey }}
+                  onToken={setChallengeToken}
+                />
+                <Button
+                  flow={false}
+                  type="button"
+                  variant="outline"
+                  fullWidth={false}
+                  disabled={busy || !challengeToken || !can('settings', 'save')}
+                  onClick={() =>
+                    void run(async () => {
+                      try {
+                        const result = await post<{ message: string }>(`/ayarlar/${section}/test`, {
+                          challengeToken,
+                        });
+                        setMessage(result.message);
+                      } finally {
+                        setChallengeToken('');
+                        setChallengeRevision((n) => n + 1);
+                      }
+                    })
+                  }
+                >
+                  Doğrulamayı Test Et
+                </Button>
+              </div>
+            )}
+          {section === 'whatsapp' && (
+            <details className="space-y-3 rounded-2xl border border-line p-4">
+              <summary className="cursor-pointer text-sm font-semibold">
+                Gelen WhatsApp Kurulumu
+              </summary>
+              <p className="text-sm text-ink-muted">
+                Meta uygulamanızda bu adresi webhook olarak ekleyin. Doğrulama belirteci yukarıdaki
+                değerle aynı olmalı; messages alanına abone olun.
+              </p>
+              <p className="break-all font-mono text-xs">{rows.value.webhookUrl}</p>
+              <p className="text-xs text-ink-muted">
+                Webhook imzaları Uygulama Gizli Anahtarı ile doğrulanır. Mesaj içeriği saklanmaz;
+                gelen mesaj ve teslimat bildirimi sayıları loglanır.
+              </p>
+            </details>
           )}
           {(section === 'smtp' || section === 'imap') &&
             draft.allowInvalidCertificate === 'true' && (
@@ -1105,7 +1174,7 @@ function SettingsPageContent({ section }: { section: string }) {
               <Button flow={false} type="submit" fullWidth={false} loading={busy}>
                 Kaydet
               </Button>
-              {(section === 'smtp' || section === 'imap') && (
+              {(section === 'smtp' || section === 'imap' || section === 'whatsapp') && (
                 <Button
                   flow={false}
                   type="button"
@@ -1114,8 +1183,12 @@ function SettingsPageContent({ section }: { section: string }) {
                   disabled={busy}
                   onClick={() =>
                     void run(async () => {
-                      await post(`/ayarlar/${section}/test`);
-                      setMessage('Kayıtlı bağlantı doğrulandı. E-posta gönderilmedi.');
+                      const result = await post<{ message?: string }>(`/ayarlar/${section}/test`);
+                      setMessage(
+                        section === 'whatsapp'
+                          ? (result.message ?? 'Meta bağlantısı doğrulandı.')
+                          : 'Kayıtlı bağlantı doğrulandı. E-posta gönderilmedi.',
+                      );
                     })
                   }
                 >
@@ -1163,7 +1236,60 @@ function SettingsPageContent({ section }: { section: string }) {
           )}
         </form>
       )}
+      {section === 'whatsapp' && !rows.loading && !rows.error && can('settings', 'save') && (
+        <WhatsAppMessageForm />
+      )}
     </Frame>
+  );
+}
+
+function WhatsAppMessageForm() {
+  const [to, setTo] = useState('');
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState('');
+  const [error, setError] = useState('');
+  return (
+    <form
+      className={`${panel} space-y-4`}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (busy) return;
+        setBusy(true);
+        setResult('');
+        setError('');
+        void post<{ message: string }>('/ayarlar/whatsapp/mesaj', { to, text })
+          .then((value) => setResult(value.message))
+          .catch((failure) => setError(dataError(failure)))
+          .finally(() => setBusy(false));
+      }}
+    >
+      <h2 className="text-lg font-bold">WhatsApp Mesajı Gönder</h2>
+      <p className="text-sm text-ink-muted">
+        Mesaj, kayıtlı Meta hesabınızdan gönderilir. Serbest metin mesajları için alıcıyla Meta’nın
+        izin verdiği açık bir görüşme bulunmalı.
+      </p>
+      {result && <Alert tone="info">{result}</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
+      <TextField
+        label="Alıcı Telefon Numarası"
+        type="tel"
+        required
+        value={to}
+        onChange={(e) => setTo(e.target.value)}
+        maxLength={16}
+      />
+      <TextField
+        label="Mesaj"
+        required
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        maxLength={4096}
+      />
+      <Button flow={false} type="submit" loading={busy} fullWidth={false}>
+        Mesaj Gönder
+      </Button>
+    </form>
   );
 }
 

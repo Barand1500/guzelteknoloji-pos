@@ -32,9 +32,9 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
           {title}
         </p>
         <p className="text-sm text-ink-muted">
-          {data.vatIncluded ? 'KDV Hariç:' : 'KDV Dahil:'}{' '}
+          KDV Dahil:{' '}
           <span className="font-bold text-ink">
-            {formatMoney(data.vatIncluded ? totals.excl : totals.incl, data.currency)}
+            {formatMoney(totals.incl, data.currency)}
           </span>
         </p>
       </div>
@@ -64,7 +64,7 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
             onChange={(e) => onChange({ discount: e.target.value })}
             error={
               discountPercent(data.discount) === null
-                ? 'İskonto toplamı 0–100 arasında olmalı. Örnek: 10+10.'
+                ? 'Her iskonto oranı 0–100 arasında olmalı. Örnek: 20+20.'
                 : undefined
             }
             onKeyDown={(e) => {

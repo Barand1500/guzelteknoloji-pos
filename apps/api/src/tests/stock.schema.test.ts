@@ -3,11 +3,13 @@ import { stockDraftSchema } from '@gt/shared';
 import { stockFixture } from './stock.fixture';
 
 describe('Stok doğrulama', () => {
-  it('toplanan iskontoyu tek oran olarak kaydeder ve yüzde yüzü aşanı reddeder', () => {
+  it('ardışık iskontoyu eşdeğer tek oranla kaydeder; her oranı ayrı doğrular', () => {
     const draft = stockFixture();
-    draft.units.fiyat![0]!.sale.discount = '10+10';
-    expect(stockDraftSchema.parse(draft).units.fiyat![0]!.sale.discount).toBe('20');
+    draft.units.fiyat![0]!.sale.discount = '20+20';
+    expect(stockDraftSchema.parse(draft).units.fiyat![0]!.sale.discount).toBe('36');
     draft.units.fiyat![0]!.sale.discount = '90+20';
+    expect(stockDraftSchema.parse(draft).units.fiyat![0]!.sale.discount).toBe('92');
+    draft.units.fiyat![0]!.sale.discount = '101+20';
     expect(stockDraftSchema.safeParse(draft).success).toBe(false);
   });
   it('eksi stok miktarını kabul eder ve virgülü dönüştürür; fiyatı negatif yapmaz', () => {

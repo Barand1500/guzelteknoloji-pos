@@ -27,6 +27,7 @@ import {
 } from './workspace.connections';
 import { Prisma } from '../../generated/prisma/client';
 import { createRateLimiter } from '../../middleware/rate-limit';
+import { verifyRobot, whatsappRequest } from './workspace.integrations';
 
 const id = z.coerce.number().int().positive().max(2147483647);
 const name = z.string().trim().min(1, 'Ad girin.').max(120);
@@ -344,7 +345,9 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
     res.status(204).end();
   });
   const page = (value: unknown) =>
-    z.enum(['general', 'images', 'smtp', 'imap', 'google']).parse(value);
+    z
+      .enum(['general', 'images', 'smtp', 'imap', 'google', 'cloudflare', 'recaptcha', 'whatsapp'])
+      .parse(value);
   router.get('/ayarlar/:section', async (req, res) => {
     const ctx = ctxOf(res);
     requirePermission(ctx, 'settings', 'read');
@@ -368,6 +371,9 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
       : undefined;
     res.json({
       ...result,
+      ...(section === 'whatsapp'
+        ? { webhookUrl: new URL(`/api/webhooks/whatsapp/${ctx.business.id}`, env.APP_URL).href }
+        : {}),
       source,
       system: { smtp: !!env.smtp, google: !!env.google },
       googleRedirect: workspaceGoogleRedirect(
@@ -407,7 +413,28 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
   router.post('/ayarlar/:section/test', async (req, res) => {
     const ctx = ctxOf(res);
     requirePermission(ctx, 'settings', 'save');
-    const section = z.enum(['smtp', 'imap']).parse(req.params.section);
+    const section = z
+      .enum(['smtp', 'imap', 'cloudflare', 'recaptcha', 'whatsapp'])
+      .parse(req.params.section);
+    if (section === 'cloudflare' || section === 'recaptcha') {
+      await verifyRobot(
+        section,
+        await settings.values(ctx.business.id, section, true),
+        req.body?.challengeToken,
+        new URL(env.APP_URL).hostname,
+        req.ip,
+      );
+      return res.json({ message: 'Robot doğrulaması sunucuda başarıyla doğrulandı.' });
+    }
+    if (section === 'whatsapp') {
+      const result = await whatsappRequest(await settings.values(ctx.business.id, section, true));
+      note(res, 'WhatsApp Bağlantısı', null, 'Doğrulandı');
+      return res.json({
+        message: 'Meta WhatsApp bağlantısı doğrulandı. Mesaj gönderilmedi.',
+        phone: result.display_phone_number,
+        name: result.verified_name,
+      });
+    }
     const connection = await settings.effective(ctx.business.id, section, env);
     if (section === 'smtp' && connection.source === 'environment') await verifySmtp(env);
     else await testMailConnection(section, connection.values);
@@ -417,7 +444,9 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
     const ctx = ctxOf(res);
     requirePermission(ctx, 'settings', 'save');
     const section = page(req.params.section);
-    const key = z.enum(['password', 'clientSecret']).parse(req.params.key);
+    const key = z
+      .enum(['password', 'clientSecret', 'secretKey', 'accessToken', 'verifyToken', 'appSecret'])
+      .parse(req.params.key);
     if (!SETTINGS_PAGES.find((p) => p.key === section)!.fields.some((f) => f.key === key))
       throw new HttpError(400, 'VALIDATION_ERROR', 'Bu bölümde böyle bir gizli alan yok.');
     const values = await settings.values(ctx.business.id, section, true);
@@ -430,6 +459,32 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
     requirePermission(ctx, 'settings', 'save');
     res.json({ url: await googleConnect(settings, ctx, env, res) });
   });
+  router.post(
+    '/ayarlar/whatsapp/mesaj',
+    createRateLimiter({ enabled: env.rateLimitEnabled, windowMs: 60000, limit: 5 }),
+    async (req, res) => {
+      const ctx = ctxOf(res);
+      requirePermission(ctx, 'settings', 'save');
+      const message = z
+        .strictObject({
+          to: z
+            .string()
+            .trim()
+            .regex(
+              /^\+?[1-9]\d{7,14}$/,
+              'Telefon numarasını ülke koduyla girin. Örnek: +905xxxxxxxxx.',
+            ),
+          text: z.string().trim().min(1).max(4096),
+        })
+        .parse(req.body);
+      await whatsappRequest(await settings.values(ctx.business.id, 'whatsapp', true), message);
+      note(res, 'WhatsApp Mesajı', null, 'Meta tarafından kabul edildi');
+      res.json({
+        message:
+          'Mesaj Meta tarafından kabul edildi. Teslimat, alıcıya ve Meta kurallarına bağlıdır.',
+      });
+    },
+  );
   router.get('/google/callback', async (req, res) => {
     const ctx = ctxOf(res);
     requirePermission(ctx, 'settings', 'save');

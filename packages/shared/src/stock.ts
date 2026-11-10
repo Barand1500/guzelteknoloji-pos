@@ -101,13 +101,17 @@ const percentage = decimal.refine(
   (v) => v === '' || Number(v) <= 100,
   'Oran 0–100 arasında olmalı.',
 );
-/** Toplanan iskonto oranı: 10+10 = %20. İfade hiçbir zaman kod olarak çalıştırılmaz. */
+/** Ardışık iskonto: her oran kalan tutara uygulanır; 20+20 = %36. */
 export function discountPercent(value: string): number | null {
   if (value.trim() === '') return 0;
   const parts = value.split('+').map((part) => part.trim().replace(',', '.'));
-  if (parts.length > 20 || parts.some((part) => !/^\d{1,3}(\.\d{1,6})?$/.test(part))) return null;
-  const sum = Math.round(parts.reduce((total, part) => total + Number(part), 0) * 1e6) / 1e6;
-  return sum <= 100 ? sum : null;
+  if (
+    parts.length > 20 ||
+    parts.some((part) => !/^\d{1,12}(\.\d{1,6})?$/.test(part) || Number(part) > 100)
+  )
+    return null;
+  const remaining = parts.reduce((factor, part) => factor * (1 - Number(part) / 100), 1);
+  return Math.round((1 - remaining) * 100 * 1e6) / 1e6;
 }
 const discount = z
   .string()
@@ -115,7 +119,7 @@ const discount = z
   .max(200)
   .refine(
     (v) => discountPercent(v) !== null,
-    'İskonto toplamı 0–100 arasında olmalı. Örnek: 10+10.',
+    'Her iskonto oranı 0–100 arasında olmalı. Örnek: 20+20.',
   )
   .transform((v) => (v === '' ? '' : String(discountPercent(v))));
 const currency = z.enum(['TRY', 'USD', 'EUR'], { error: 'Geçerli bir para birimi seçin.' });

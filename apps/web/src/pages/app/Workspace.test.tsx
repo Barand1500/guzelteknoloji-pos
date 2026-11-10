@@ -252,6 +252,11 @@ describe('Profil ve işletme ekranları', () => {
   it.each([
     ['imap', 'password', 'Şifre'],
     ['google', 'clientSecret', 'İstemci Anahtarı'],
+    ['cloudflare', 'secretKey', 'Secret Key'],
+    ['recaptcha', 'secretKey', 'Secret Key'],
+    ['whatsapp', 'appSecret', 'Uygulama Gizli Anahtarı'],
+    ['whatsapp', 'accessToken', 'Erişim Belirteci'],
+    ['whatsapp', 'verifyToken', 'Webhook Doğrulama Belirteci'],
   ])(
     '%s gizli alanı maskeli kalır ve gözle açılır; kaldırma seçeneği yoktur',
     async (section, field, label) => {

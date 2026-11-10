@@ -16,7 +16,7 @@ import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import { TextField } from '../../../components/ui/TextField';
 import { authApi } from '../services/auth.api';
-import { loginErrorMessage } from '../services/auth.messages';
+import { useRobotChallenge } from './RobotChallenge';
 
 /**
  * "E-Posta ile Devam Et" akışı (ürün kararı):
@@ -117,6 +117,7 @@ function EmailStep({
   defaultEmail: string;
   onNext: (email: string, response: EmailStartResponse) => void;
 }) {
+  const robot = useRobotChallenge();
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -133,9 +134,9 @@ function EmailStep({
   const onSubmit = handleSubmit(async ({ email }) => {
     setServerError(null);
     try {
-      onNext(email, await authApi.emailStart(email));
+      onNext(email, await authApi.emailStart(email, robot.token));
     } catch (error) {
-      setServerError(loginErrorMessage(error));
+      setServerError(robot.error(error));
     }
   });
 
@@ -149,6 +150,7 @@ function EmailStep({
         aria-busy={isSubmitting}
       >
         {serverError ? <Alert tone="error">{serverError}</Alert> : null}
+        {robot.widget}
         <TextField
           label="E-Posta"
           type="email"
@@ -187,6 +189,7 @@ function PasswordStep({
   onChangeEmail: () => void;
   onSuccess: (user: PublicUser) => void;
 }) {
+  const robot = useRobotChallenge();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -204,9 +207,9 @@ function PasswordStep({
   const onSubmit = handleSubmit(async ({ password }) => {
     setServerError(null);
     try {
-      onSuccess(await authApi.login({ email, password }));
+      onSuccess(await authApi.login({ email, password }, robot.token));
     } catch (error) {
-      setServerError(loginErrorMessage(error));
+      setServerError(robot.error(error));
     }
   });
 
@@ -221,6 +224,7 @@ function PasswordStep({
         aria-busy={isSubmitting}
       >
         {serverError ? <Alert tone="error">{serverError}</Alert> : null}
+        {robot.widget}
         {/* Şifre yöneticileri için kullanıcı adı alanı (görünmez). */}
         <input type="hidden" name="username" autoComplete="username" value={email} readOnly />
         <TextField
@@ -286,6 +290,7 @@ function CodeStep({
   onChangeEmail: () => void;
   onSuccess: (user: PublicUser) => void;
 }) {
+  const robot = useRobotChallenge();
   const [serverError, setServerError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
@@ -306,9 +311,9 @@ function CodeStep({
     setServerError(null);
     setNotice(null);
     try {
-      onSuccess(await authApi.emailVerify({ email, code }));
+      onSuccess(await authApi.emailVerify({ email, code }, robot.token));
     } catch (error) {
-      setServerError(loginErrorMessage(error));
+      setServerError(robot.error(error));
     }
   });
 
@@ -317,13 +322,14 @@ function CodeStep({
     setNotice(null);
     setResending(true);
     try {
-      const response = await authApi.emailStart(email);
+      const response = await authApi.emailStart(email, robot.token);
       if (response.step === 'code') {
         resetCountdown(response.resendAfterSeconds);
+        robot.reset();
         setNotice('Yeni kod gönderildi.');
       }
     } catch (error) {
-      setServerError(loginErrorMessage(error));
+      setServerError(robot.error(error));
     } finally {
       setResending(false);
     }
@@ -341,6 +347,7 @@ function CodeStep({
       >
         {serverError ? <Alert tone="error">{serverError}</Alert> : null}
         {notice ? <Alert tone="info">{notice}</Alert> : null}
+        {robot.widget}
         <TextField
           label="Doğrulama Kodu"
           inputMode="numeric"
