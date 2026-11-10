@@ -12,6 +12,7 @@ import { useCategories } from '../hooks/useCategories';
 import { pathTo } from '../tree';
 import type { Category, CategoryDraft } from '../types';
 import { CategoryFormSheet } from './CategoryFormSheet';
+import { CategoryMergeSheet } from './CategoryMergeSheet';
 import { CategoryMoveSheet } from './CategoryMoveSheet';
 import { CategoryProductsSheet } from './CategoryProductsSheet';
 import { CategoryRow } from './CategoryRow';
@@ -21,9 +22,10 @@ const fold = (s: string) => s.toLocaleLowerCase('tr');
 type FormState = {
   categoryId: string | null;
   parentId: string | null;
-  /** true: açılışta görsel seçici hemen açılır. */
-  pickImage?: boolean;
 } | null;
+
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 /**
  * Kategoriler ekranı. Ağaç, klasör gibi gezilir: bir kategoriye dokununca içine girilir, üstte
@@ -55,6 +57,7 @@ export function CategoriesView() {
   const [form, setForm] = useState<FormState>(null);
   const [productsFor, setProductsFor] = useState<string | null>(null);
   const [moveFor, setMoveFor] = useState<string | null>(null);
+  const [mergeFor, setMergeFor] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Category | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number>(undefined);
@@ -89,6 +92,7 @@ export function CategoriesView() {
   const editing = form?.categoryId ? (byId.get(form.categoryId) ?? null) : null;
   const productsCategory = productsFor ? (byId.get(productsFor) ?? null) : null;
   const moveCategory = moveFor ? (byId.get(moveFor) ?? null) : null;
+  const mergeCategory = mergeFor ? (byId.get(mergeFor) ?? null) : null;
 
   const saveCategory = async (draft: CategoryDraft) => {
     const wasEditing = editing;
@@ -122,10 +126,68 @@ export function CategoriesView() {
     pathText: pathText(c),
     onOpen: () => goTo(c.id),
   });
-  const openEdit = (c: Category, pickImage = false) => {
+  const openEdit = (c: Category) => {
     setSwipeOpenId(null);
-    setForm({ categoryId: c.id, parentId: c.parentId, pickImage });
+    setForm({ categoryId: c.id, parentId: c.parentId });
   };
+
+  // Görsele çift tıklama: pencere açılmadan doğrudan dosya seçici açılır, seçilen görsel kaydedilir.
+  const imageInput = useRef<HTMLInputElement>(null);
+  const imageTarget = useRef<Category | null>(null);
+  const pickImageFor = (c: Category) => {
+    setSwipeOpenId(null);
+    imageTarget.current = c;
+    imageInput.current?.click();
+  };
+  const takeImage = (file: File | undefined) => {
+    const category = imageTarget.current;
+    imageTarget.current = null;
+    if (!file || !category) return;
+    if (!IMAGE_TYPES.includes(file.type)) {
+      showNotice('Yalnızca görsel dosyaları (PNG, JPG, WebP, SVG) yükleyebilirsiniz.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      showNotice('Görsel en çok 2 MB olabilir.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => showNotice('Görsel okunamadı. Tekrar seçin.');
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') return;
+      cats
+        .save(
+          {
+            parentId: category.parentId,
+            name: category.name,
+            description: category.description,
+            imageUrl: reader.result,
+            active: category.active,
+            hidden: category.hidden,
+            seoTitle: category.seoTitle,
+            seoDescription: category.seoDescription,
+          },
+          category.id,
+        )
+        .then(() => showNotice(`${category.name} görseli güncellendi.`))
+        .catch((e: unknown) => showNotice(e instanceof Error ? e.message : 'Kaydedilemedi.'));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Backspace: bir üst seviyeye çıkar (yazı alanında ya da pencere açıkken çalışmaz).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Backspace' || e.ctrlKey || e.metaKey || e.altKey || !current) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      e.preventDefault();
+      goTo(current.parentId);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  });
   const openMove = (c: Category) => {
     setSwipeOpenId(null);
     setMoveFor(c.id);
@@ -140,6 +202,17 @@ export function CategoriesView() {
       showNotice(error instanceof Error ? error.message : 'Taşınamadı.');
       throw error;
     }
+  };
+  const openMerge = (c: Category) => {
+    setSwipeOpenId(null);
+    setMergeFor(c.id);
+  };
+  const mergeInto = async (c: Category, targetId: string) => {
+    await cats.merge(c.id, targetId);
+    setMergeFor(null);
+    // Birleştirilen kategorinin içindeysek hedefin içine geçilir.
+    if (path.some((p) => p.id === c.id)) goTo(targetId);
+    showNotice(`${c.name}, ${byId.get(targetId)?.name ?? ''} ile birleştirildi.`);
   };
   const openProducts = (c: Category) => {
     setSwipeOpenId(null);
@@ -197,9 +270,10 @@ export function CategoriesView() {
             swipeOpen={swipeOpenId === c.id}
             onSwipeOpenChange={(open) => setSwipeOpenId(open ? c.id : null)}
             onEdit={() => openEdit(c)}
-            onEditImage={() => openEdit(c, true)}
+            onEditImage={() => pickImageFor(c)}
             onAssign={() => openProducts(c)}
             onMove={() => openMove(c)}
+            onMerge={() => openMerge(c)}
             onDelete={() => setDeleting(c)}
             onToggle={(active) => cats.toggleActive(c.id, active)}
           />
@@ -210,6 +284,18 @@ export function CategoriesView() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      <input
+        ref={imageInput}
+        type="file"
+        accept={IMAGE_TYPES.join(',')}
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Kategori görseli seç"
+        onChange={(e) => {
+          takeImage(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
       {cats.error ? (
         <Alert tone="error">
           {cats.error}
@@ -333,7 +419,6 @@ export function CategoriesView() {
           saveError={cats.error}
           onMove={(id, parentId) => cats.move(id, parentId)}
           onClose={() => setForm(null)}
-          pickImage={form.pickImage === true}
         />
       ) : null}
       {productsCategory ? (
@@ -344,6 +429,15 @@ export function CategoriesView() {
           onAssign={cats.assign}
           onUnassign={cats.unassign}
           onClose={() => setProductsFor(null)}
+        />
+      ) : null}
+      {mergeCategory ? (
+        <CategoryMergeSheet
+          key={mergeCategory.id}
+          category={mergeCategory}
+          categories={categories}
+          onMerge={(targetId) => mergeInto(mergeCategory, targetId)}
+          onClose={() => setMergeFor(null)}
         />
       ) : null}
       {moveCategory ? (

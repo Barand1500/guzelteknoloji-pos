@@ -23,8 +23,6 @@ interface CategoryFormSheetProps {
   /** Mevcut kategoriyi hemen taşır (Kaydet'ten bağımsız). */
   onMove: (categoryId: string, parentId: string | null) => Promise<void>;
   onClose: () => void;
-  /** true: pencere açılınca görsel dosya seçici hemen açılır (listede görsele çift tıklanınca). */
-  pickImage?: boolean;
 }
 
 const ROOT = '';
@@ -45,7 +43,6 @@ export function CategoryFormSheet({
   saveError,
   onMove,
   onClose,
-  pickImage = false,
 }: CategoryFormSheetProps) {
   // Yan panel: yalnızca taşıma.
   const [panel, setPanel] = useState<'move' | null>(null);
@@ -95,7 +92,8 @@ export function CategoryFormSheet({
   };
 
   return (
-    <Sheet permission="save"
+    <Sheet
+      permission="save"
       open
       onClose={onClose}
       title={category ? 'Kategoriyi Düzenle' : 'Kategori Ekle'}
@@ -136,7 +134,6 @@ export function CategoryFormSheet({
             onChange={(url) => set('imageUrl', url)}
             noun="Görsel"
             hint="800×800 oranı önerilir"
-            autoPick={pickImage}
           />
           <div className="flex flex-col gap-4">
             <TextField

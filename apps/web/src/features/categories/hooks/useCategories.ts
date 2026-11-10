@@ -12,6 +12,7 @@ export function useCategories() {
     state.perform(() => (id ? service.update(id, draft) : service.create(draft)));
   const move = (id: string, parentId: string | null) =>
     state.perform(() => service.move(id, parentId));
+  const merge = (id: string, targetId: string) => state.perform(() => service.merge(id, targetId));
   const remove = (id: string) => state.perform(() => service.remove(id));
   const assign = (id: string, ids: string[]) =>
     state.perform(() => service.assignProducts(id, ids));
@@ -38,6 +39,7 @@ export function useCategories() {
     refresh: state.refresh,
     save,
     move,
+    merge,
     remove,
     assign,
     unassign,

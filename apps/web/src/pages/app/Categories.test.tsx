@@ -80,16 +80,79 @@ describe('Kategoriler ekranı', () => {
     expect(within(dialog).getByLabelText('SEO Başlığı')).toBeInTheDocument();
   });
 
-  it('görsele çift tıklayınca kategoriye girmez; düzenleme açılır ve görsel seçici çalışır', async () => {
+  it('görsele çift tıklayınca pencere açılmadan doğrudan görsel seçici çalışır; kategoriye girilmez', async () => {
     const click = vi.spyOn(HTMLInputElement.prototype, 'click');
     const user = await openCategories();
     await user.dblClick(screen.getAllByTitle('Görseli değiştirmek için çift tıklayın')[0]!);
-    await screen.findByRole('dialog', { name: 'Kategoriyi Düzenle' });
     expect(click).toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Kategoriyi Düzenle' })).not.toBeInTheDocument();
     click.mockRestore();
     // Kategorinin içine girilmedi (yol çubuğunda yalnızca "Tümü").
     const path = screen.getByRole('navigation', { name: 'Kategori yolu' });
     expect(within(path).getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('seçilen görsel doğrudan kaydedilir', async () => {
+    const user = await openCategories();
+    const file = new File(['x'], 'logo.png', { type: 'image/png' });
+    await user.dblClick(screen.getAllByTitle('Görseli değiştirmek için çift tıklayın')[0]!);
+    await user.upload(screen.getByLabelText('Kategori görseli seç'), file);
+    expect(await screen.findByText('OT/VT Ürünleri görseli güncellendi.')).toBeInTheDocument();
+    const saved = (await categoryService.list()).find((c) => c.id === 'otvt')!;
+    expect(saved.imageUrl).toMatch(/^data:image\/png/);
+  });
+
+  it('Backspace bir üst seviyeye çıkarır; yazı alanında çalışmaz', async () => {
+    const user = await openCategories();
+    await user.click(screen.getByRole('button', { name: 'OT/VT Ürünleri kategorisini aç' }));
+    await screen.findByRole('navigation', { name: 'Kategori yolu' });
+    expect(
+      within(screen.getByRole('navigation', { name: 'Kategori yolu' })).getAllByRole('button')
+        .length,
+    ).toBeGreaterThan(1);
+    // Arama kutusundayken Backspace yolu değiştirmez.
+    await user.click(screen.getByRole('searchbox', { name: 'Kategori ara' }));
+    await user.keyboard('{Backspace}');
+    expect(
+      within(screen.getByRole('navigation', { name: 'Kategori yolu' })).getAllByRole('button')
+        .length,
+    ).toBeGreaterThan(1);
+    // Sayfaya dönünce (kutudan çıkınca) bir üst seviyeye çıkar.
+    (document.activeElement as HTMLElement).blur();
+    await user.keyboard('{Backspace}');
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('navigation', { name: 'Kategori yolu' })).getAllByRole('button'),
+      ).toHaveLength(1),
+    );
+    expect(ids()).toEqual(['otvt', 'tartim', 'cagri', 'sarf', 'yazilim']);
+  });
+
+  it('Birleştir: hedef seçilir, ürünler ve alt kategoriler hedefe geçer, kaynak silinir', async () => {
+    const user = await openCategories();
+    const before = await categoryService.list();
+    const source = before.find((c) => c.id === 'cagri')!;
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Çağrı Sistemleri kategorisini başka bir kategoriyle birleştir',
+      }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Kategoriyi Birleştir' });
+    const confirm = within(dialog).getByRole('button', { name: 'Birleştir' });
+    expect(confirm).toBeDisabled();
+    // Kendisi hedef listesinde yoktur.
+    expect(
+      within(dialog).queryByRole('radio', { name: 'Çağrı Sistemleri' }),
+    ).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('radio', { name: 'Sarf Malzemeler' }));
+    await user.click(confirm);
+    expect(
+      await screen.findByText('Çağrı Sistemleri, Sarf Malzemeler ile birleştirildi.'),
+    ).toBeInTheDocument();
+    const after = await categoryService.list();
+    expect(after.some((c) => c.id === 'cagri')).toBe(false);
+    expect(source.name).toBe('Çağrı Sistemleri');
+    expect(ids()).not.toContain('cagri');
   });
 
   it('arama tüm ağaçta çalışır ve yolu gösterir', async () => {

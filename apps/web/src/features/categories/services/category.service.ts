@@ -14,6 +14,9 @@ export const categoryService = {
     dto(await apiRequest(path(id), { method: 'POST', body: payload(draft) })),
   move: (id: string, parentId: string | null) =>
     apiRequest<void>(path(id) + '/tasi', { method: 'POST', body: { parentId } }),
+  /** Kategoriyi hedefin içine birleştirir (ürünler ve alt kategoriler hedefe taşınır, kaynak silinir). */
+  merge: (id: string, targetId: string) =>
+    apiRequest<void>(path(id) + '/birlestir', { method: 'POST', body: { targetId } }),
   setActive: (id: string, active: boolean) =>
     apiRequest<void>(path(id) + '/aktiflik', { method: 'POST', body: { active } }),
   remove: (id: string) => apiRequest<void>(path(id) + '/sil', { method: 'POST' }),

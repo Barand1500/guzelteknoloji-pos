@@ -79,6 +79,21 @@ export const demoCategoryService = {
     rows = [...rows.filter((r) => r.id !== id), { ...current, parentId }];
   },
 
+  /** Kategoriyi hedefin içine birleştirir: ürünleri ve alt kategorileri hedefe geçer, kaynak silinir. */
+  async merge(id: string, targetId: string): Promise<void> {
+    await wait(0);
+    if (id === targetId) throw new Error('Bir kategori kendisiyle birleştirilemez.');
+    const source = rows.find((r) => r.id === id);
+    const target = rows.find((r) => r.id === targetId);
+    if (!source || !target) throw new Error('Kategori bulunamadı.');
+    rows = rows
+      .filter((r) => r.id !== id)
+      .map((r) =>
+        r.parentId === id ? { ...r, parentId: r.id === targetId ? source.parentId : targetId } : r,
+      );
+    products = products.map((p) => (p.categoryId === id ? { ...p, categoryId: targetId } : p));
+  },
+
   async setActive(id: string, active: boolean): Promise<void> {
     await wait(0);
     rows = rows.map((r) => (r.id === id ? { ...r, active } : r));

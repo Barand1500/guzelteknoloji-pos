@@ -218,6 +218,56 @@ export class CategoryRepository {
     });
   }
 
+  /**
+   * `sourceId` kategorisini `targetId` içine birleştirir: ürünleri hedefe de eklenir, doğrudan alt
+   * kategorileri hedefin altına taşınır, sonra kaynak silinir. Hedef kaynağın kendi alt kategorisiyse
+   * hedef kaynağın bulunduğu yere çıkar. Alt kategori adı çakışırsa işlem hiç yapılmaz.
+   */
+  async merge(user: number, sourceId: number, targetId: number) {
+    if (sourceId === targetId)
+      throw new HttpError(400, 'VALIDATION_ERROR', 'Bir kategori kendisiyle birleştirilemez.');
+    const file = await this.write(user, async (tx) => {
+      const source = await this.find(tx, user, sourceId);
+      const target = await this.find(tx, user, targetId);
+      const children = await tx.kategori.findMany({
+        where: { kullaniciId: user, ustId: sourceId },
+        orderBy: { sira: 'asc' },
+      });
+      // Önce tüm çakışmalar denetlenir (hiçbir şey yazılmadan).
+      for (const child of children)
+        await this.checkName(
+          tx,
+          user,
+          child.id === targetId ? source.ustId : targetId,
+          child.ad,
+          child.id,
+        );
+      for (const child of children) {
+        const parentId = child.id === targetId ? source.ustId : targetId;
+        await tx.kategori.update({
+          where: { id: child.id },
+          data: { ustId: parentId, sira: await this.last(tx, user, parentId) },
+        });
+      }
+      const links = await tx.stokKartiKategori.findMany({
+        where: { kategoriId: sourceId },
+        select: { stokKartiId: true },
+      });
+      const productIds = [...new Set(links.map((l) => l.stokKartiId))];
+      if (productIds.length) {
+        await tx.stokKartiKategori.createMany({
+          data: productIds.map((stokKartiId) => ({ stokKartiId, kategoriId: target.id })),
+          skipDuplicates: true,
+        });
+        await tx.stokKartiKategori.deleteMany({ where: { kategoriId: sourceId } });
+        await this.checkProductAttributes(tx, productIds);
+      }
+      await tx.kategori.delete({ where: { id: sourceId } });
+      return source.gorselDosyasi;
+    });
+    if (file) await this.storage.remove(file).catch(() => undefined);
+  }
+
   async setActive(user: number, id: number, active: boolean) {
     await this.write(user, async (tx) => {
       await this.find(tx, user, id);

@@ -64,6 +64,15 @@ export function createCatalogRouter(env: Env, auth: AuthService, db: PrismaClien
     await repo.move(res.locals.catalogUserId as number, categoryKey.parse(req.params.id), parentId);
     res.status(204).end();
   });
+  router.post('/:id/birlestir', async (req, res) => {
+    const { targetId } = z.strictObject({ targetId: categoryKey }).parse(req.body);
+    await repo.merge(
+      res.locals.catalogUserId as number,
+      categoryKey.parse(req.params.id),
+      targetId,
+    );
+    res.status(204).end();
+  });
   router.post('/:id/aktiflik', async (req, res) => {
     const { active } = z.strictObject({ active: z.boolean() }).parse(req.body);
     await repo.setActive(

@@ -4,6 +4,7 @@ import {
   EyeOff,
   FolderInput,
   GripVertical,
+  Merge,
   Pencil,
   Trash2,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ interface CategoryRowProps {
   onEdit: () => void;
   onAssign: () => void;
   onMove: () => void;
+  onMerge: () => void;
   onDelete: () => void;
   onToggle: (active: boolean) => void;
 }
@@ -45,6 +47,7 @@ function PhoneRow(props: CategoryRowProps) {
     onEdit,
     onAssign,
     onMove,
+    onMerge,
     onDelete,
   } = props;
   const actionClass =
@@ -54,7 +57,7 @@ function PhoneRow(props: CategoryRowProps) {
       <SwipeRow
         open={swipeOpen}
         onOpenChange={onSwipeOpenChange}
-        actionsWidth={ACTION_WIDTH * 4}
+        actionsWidth={ACTION_WIDTH * 5}
         actions={
           <>
             <button
@@ -80,6 +83,14 @@ function PhoneRow(props: CategoryRowProps) {
             >
               <FolderInput className="size-5" aria-hidden="true" />
               Taşı
+            </button>
+            <button
+              type="button"
+              onClick={onMerge}
+              className={`${actionClass} bg-ink text-surface`}
+            >
+              <Merge className="size-5" aria-hidden="true" />
+              Birleştir
             </button>
             <button
               type="button"
@@ -149,6 +160,7 @@ function WideRow(props: CategoryRowProps) {
     onEdit,
     onAssign,
     onMove,
+    onMerge,
     onDelete,
   } = props;
   const iconButton =
@@ -242,6 +254,15 @@ function WideRow(props: CategoryRowProps) {
           className={iconButton}
         >
           <FolderInput className="size-5" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={onMerge}
+          aria-label={`${category.name} kategorisini başka bir kategoriyle birleştir`}
+          title="Birleştir"
+          className={iconButton}
+        >
+          <Merge className="size-5" aria-hidden="true" />
         </button>
         <button
           type="button"
