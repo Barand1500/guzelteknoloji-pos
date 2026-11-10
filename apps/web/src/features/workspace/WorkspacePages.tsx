@@ -1471,7 +1471,7 @@ function WhatsAppMessageForm() {
         label="Alıcı Telefon Numarası"
         type="tel"
         autoComplete="tel"
-        hint="Örnek: +90 541 258 44 72"
+        hint="Örnek: +90 5XX XXX XX XX"
         required
         value={to}
         onChange={(e) => setTo(e.target.value)}
