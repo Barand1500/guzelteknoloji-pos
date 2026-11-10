@@ -25,7 +25,7 @@ describe('Üst menü (bölüm gezgini)', () => {
     await user.click(trigger);
     const menu = await screen.findByRole('dialog', { name: 'Ana menü' });
     const tabs = within(menu).getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent?.replace('Buradasın', ''))).toEqual([
+    expect(tabs.map((t) => t.textContent?.replace(/[0-9—]+$/, ''))).toEqual([
       'Anasayfa',
       'Siparişler',
       'Müşteriler',
@@ -68,5 +68,17 @@ describe('Üst menü (bölüm gezgini)', () => {
     );
     expect(await screen.findByRole('heading', { name: 'Siparişler' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Ana gezinme' })).not.toBeInTheDocument();
+  });
+
+  it('arama tüm bölümlerin sayfalarında çalışır', async () => {
+    const user = await open('/uygulama/urunler');
+    await user.click(screen.getByRole('button', { name: 'Ana menü' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Menüde ara' }), 'rol');
+    const panel = screen.getByRole('tabpanel', { name: 'Arama sonuçları' });
+    expect(within(panel).getByRole('link', { name: /Roller/ })).toBeInTheDocument();
+    expect(within(panel).queryByRole('link', { name: /Markalar/ })).not.toBeInTheDocument();
+    await user.clear(screen.getByRole('searchbox', { name: 'Menüde ara' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Menüde ara' }), 'zzz');
+    expect(screen.getByText(/ile eşleşen sayfa yok/)).toBeInTheDocument();
   });
 });
