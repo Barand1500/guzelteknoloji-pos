@@ -53,11 +53,27 @@ describe('Anasayfa', () => {
     await user.click(await screen.findByRole('tab', { name: 'Fiyat Alarmı' }));
     expect(
       within(screen.getByRole('list', { name: 'Ürünler' })).getAllByRole('listitem'),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
+    expect(screen.getByText('1. SIRA')).toBeInTheDocument();
   });
 
   it('üst menüde Anasayfa gerçek sayfadır ("Yakında" değil)', async () => {
     await openHome();
     expect(screen.getByRole('button', { name: 'Ana menü' })).toHaveTextContent('Anasayfa');
+  });
+
+  it('son siparişler sayfalanır: 5 sipariş, ileri/geri düğmeleri', async () => {
+    const user = await openHome();
+    const list = await screen.findByRole('list', { name: 'Son siparişler' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(5);
+    const prev = screen.getByRole('button', { name: 'Önceki sayfa' });
+    expect(prev).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Sonraki sayfa' }));
+    expect(
+      within(screen.getByRole('navigation', { name: 'Sipariş sayfaları' })).getByText('2'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Önceki sayfa' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Sonraki sayfa' }));
+    expect(screen.getByRole('button', { name: 'Sonraki sayfa' })).toBeDisabled();
   });
 });

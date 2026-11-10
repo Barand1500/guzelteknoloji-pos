@@ -76,6 +76,14 @@ const recentOrders: RecentOrder[] = [
   order('2025000042', '2026-09-22T10:27:00', 'Murat Sarı', 9090.58, 'delivered'),
   order('2025000041', '2026-09-16T16:48:00', 'Murat Sarı', 9357.77, 'cancelled'),
   order('2025000040', '2026-09-11T10:11:00', 'Aykut Kartal', 84797.63, 'delivered'),
+  order('2025000039', '2026-09-08T09:40:00', 'Murat Kaygısız', 29045.57, 'delivered'),
+  order('2025000038', '2026-08-31T09:41:00', 'Murat Kaygısız', 3241.2, 'delivered'),
+  order('2025000037', '2026-08-27T11:14:00', 'Murat Kaygısız', 15620, 'delivered'),
+  order('2025000036', '2026-08-24T16:07:00', 'Havale Sarı', 39695.68, 'pending'),
+  order('2025000035', '2026-08-24T09:55:00', 'Ayşe Demir', 23807.68, 'delivered'),
+  order('2025000034', '2026-08-18T13:20:00', 'Kasa Market', 8420, 'cancelled'),
+  order('2025000033', '2026-08-12T15:02:00', 'Ege Teknoloji', 51230.4, 'delivered'),
+  order('2025000032', '2026-08-05T12:30:00', 'Bora Ticaret', 6780, 'delivered'),
 ];
 
 const payments: PaymentMethod[] = [
