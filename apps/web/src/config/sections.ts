@@ -5,6 +5,7 @@ import {
   Images,
   LayoutTemplate,
   Package,
+  Repeat2,
   ScrollText,
   Search,
   Settings,
@@ -113,7 +114,33 @@ export const SECTIONS: readonly Section[] = [
     soon: false,
     pages: [p('anasayfa', 'Anasayfa', `${APP_BASE}/anasayfa`, Home, 'Günün özeti')],
   },
-  soon('siparisler', 'Siparişler', ShoppingBag, 28, 'Gelen siparişler'),
+  (() => {
+    const gelen = p(
+      'siparisler',
+      'Gelen Siparişler',
+      `${APP_BASE}/siparisler`,
+      ShoppingBag,
+      'Tüm siparişler',
+    );
+    const iade = p(
+      'iade',
+      'İade/Değişim',
+      `${APP_BASE}/siparisler/iade`,
+      Repeat2,
+      'İade ve değişim talepleri',
+    );
+    return {
+      id: 'siparisler',
+      label: 'Siparişler',
+      icon: ShoppingBag,
+      hue: 28,
+      tagline: 'Siparişler ve iadeler',
+      home: gelen.path,
+      pages: [gelen, iade],
+      dock: { left: [gelen], right: [iade] },
+      paths: [`${APP_BASE}/siparisler`],
+    } satisfies Section;
+  })(),
   soon('musteriler', 'Müşteriler', UserCog, 172, 'Müşteri listesi'),
   {
     id: 'urunler',

@@ -11,6 +11,7 @@ import { ProductsPage } from '../pages/app/ProductsPage';
 import { CategoriesPage } from '../pages/app/CategoriesPage';
 import { ComingSoonPage } from '../pages/app/ComingSoonPage';
 import { HomePage } from '../pages/app/HomePage';
+import { OrdersPage, ReturnsPage } from '../pages/app/OrdersPage';
 import { BrandsPage } from '../pages/app/BrandsPage';
 import { StockCardCreatePage } from '../pages/app/StockCardCreatePage';
 import { EMAIL_LOGIN_PATH, LOGIN_PATH, LoginPage } from '../pages/auth/LoginPage';
@@ -50,12 +51,12 @@ export function App() {
             <Route path="kategoriler" element={<CategoriesPage />} />
             <Route path="markalar" element={<BrandsPage />} />
             <Route path="ozellikler" element={<AttributesPage />} />
-            {['siparisler', 'musteriler', 'kampanyalar', 'tanimlamalar', 'bildirimler', 'seo'].map(
-              (path) => (
-                <Route key={path} path={path} element={<ComingSoonPage />} />
-              ),
-            )}
+            {['musteriler', 'kampanyalar', 'tanimlamalar', 'bildirimler', 'seo'].map((path) => (
+              <Route key={path} path={path} element={<ComingSoonPage />} />
+            ))}
             <Route path="anasayfa" element={<HomePage />} />
+            <Route path="siparisler" element={<OrdersPage />} />
+            <Route path="siparisler/iade" element={<ReturnsPage />} />
             <Route path="profil" element={<ProfilePage />} />
             <Route path="kullanicilar" element={<UsersPage />} />
             <Route path="roller" element={<RolesPage />} />
