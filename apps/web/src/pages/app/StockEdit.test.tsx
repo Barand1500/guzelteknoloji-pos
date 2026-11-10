@@ -177,9 +177,9 @@ describe('Stok kartı ekranı: ekle, düzenle ve kopya aynı ekrandır', () => {
     expect(list.at(-1)?.prices).toEqual([265, 275, 375]);
   });
 
-  it('Ürün Ekle: boş açılır, kaydedince listeye yeni ürün düşer', async () => {
+  it('Alt çubuktaki "+": boş açılır, kaydedince listeye yeni ürün düşer', async () => {
     const user = await openList();
-    await user.click(screen.getByRole('button', { name: 'Ürün Ekle' }));
+    await user.click(screen.getByRole('link', { name: 'Yeni Stok Kartı' }));
     expect(await screen.findByLabelText('Ürün Kodu')).toHaveValue('');
     expect(screen.getByRole('heading', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
     await user.type(screen.getByLabelText('Ürün Kodu'), 'NEW-1');

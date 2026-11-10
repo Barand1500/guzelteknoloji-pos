@@ -1,4 +1,4 @@
-import { Plus, Tag } from 'lucide-react';
+import { Tag } from 'lucide-react';
 import { usePublishAddAction } from '../../app-shell/save-action';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../../components/ui/Button';
@@ -177,18 +177,6 @@ export function BrandsView() {
               label="Marka ara"
               placeholder="Marka ara…"
             />
-          </div>
-          {/* Düğme kendi display sınıfını taşıdığı için gizleme bir kapla yapılır */}
-          <div className="hidden md:block">
-            <Button
-              fullWidth={false}
-              flow={false}
-              onClick={openAdd}
-
-              leadingIcon={<Plus className="size-5" aria-hidden="true" />}
-            >
-              Marka Ekle
-            </Button>
           </div>
         </div>
 

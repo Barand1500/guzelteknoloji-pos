@@ -1,4 +1,4 @@
-import { ChevronLeft, FolderTree, Plus } from 'lucide-react';
+import { ChevronLeft, FolderTree } from 'lucide-react';
 import { usePublishAddAction } from '../../app-shell/save-action';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
@@ -226,16 +226,6 @@ export function CategoriesView() {
             label="Kategori ara"
             placeholder="Tüm kategorilerde ara…"
           />
-        </div>
-        <div className="hidden md:block">
-          <Button
-            fullWidth={false}
-            flow={false}
-            onClick={openAdd}
-            leadingIcon={<Plus className="size-5" aria-hidden="true" />}
-          >
-            {addLabel}
-          </Button>
         </div>
       </div>
 

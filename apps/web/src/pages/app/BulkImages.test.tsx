@@ -46,7 +46,7 @@ describe('Toplu Görsel Yükleme', () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
     renderApp('/uygulama/urunler');
-    await user.click(await screen.findByRole('link', { name: 'Toplu Görsel' }));
+    await user.click((await screen.findAllByRole('link', { name: 'Toplu Görsel' }))[0]!);
     expect(await screen.findByLabelText('Görsel dosyaları seç')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Toplu Görsel' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ürünler sayfasına dön' })).toBeInTheDocument();

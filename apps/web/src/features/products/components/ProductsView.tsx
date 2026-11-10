@@ -2,7 +2,6 @@ import {
   FileSpreadsheet,
   Images,
   ListChecks,
-  Plus,
   SlidersHorizontal,
   Sparkles,
   X,
@@ -53,6 +52,10 @@ const MAX_SEGMENTS = 4;
  * (sabit "Fiyat 1/2/3" yok); dörtten fazla liste varsa hangilerinin görüneceği seçilir.
  * "Ekle" mevcut stok kartı oluşturma ekranını açar.
  */
+/** Geniş ekranda üst çubuktaki küçük kısayol düğmesi. */
+const SHORTCUT =
+  'inline-flex min-h-7 items-center justify-center gap-1.5 rounded-full border border-field-border px-3.5 text-xs font-semibold text-ink-muted transition-colors hover:border-brand-500 hover:text-ink';
+
 export function ProductsView() {
   const desktop = useMediaQuery('(min-width: 64rem)');
   const navigate = useNavigate();
@@ -332,14 +335,17 @@ export function ProductsView() {
           >
             Excel ile Yükle
           </Button>
-          <Button
-            fullWidth={false}
-            flow={false}
-            onClick={() => navigate(STOCK_CREATE_PATH)}
-            leadingIcon={<Plus className="size-5" aria-hidden="true" />}
-          >
-            Ürün Ekle
-          </Button>
+          {/* Ürün eklemek alt çubuktaki "+" düğmesiyle yapılır; yerinde iki kısayol alt alta durur. */}
+          <div className="flex flex-col gap-1.5">
+            <Link to={DEALS_PATH} className={SHORTCUT}>
+              <Sparkles className="size-3.5" aria-hidden="true" />
+              Fırsat Yönetimi
+            </Link>
+            <Link to={BULK_IMAGES_PATH} className={SHORTCUT}>
+              <Images className="size-3.5" aria-hidden="true" />
+              Toplu Görsel
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -372,14 +378,14 @@ export function ProductsView() {
         )}
         <Link
           to={DEALS_PATH}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-field-border px-3.5 text-sm font-semibold text-ink-muted transition-colors hover:border-brand-500 hover:text-ink"
+          className="inline-flex min-h-10 lg:hidden items-center gap-1.5 rounded-full border border-field-border px-3.5 text-sm font-semibold text-ink-muted transition-colors hover:border-brand-500 hover:text-ink"
         >
           <Sparkles className="size-4" aria-hidden="true" />
           Fırsatlar
         </Link>
         <Link
           to={BULK_IMAGES_PATH}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-field-border px-3.5 text-sm font-semibold text-ink-muted transition-colors hover:border-brand-500 hover:text-ink"
+          className="inline-flex min-h-10 lg:hidden items-center gap-1.5 rounded-full border border-field-border px-3.5 text-sm font-semibold text-ink-muted transition-colors hover:border-brand-500 hover:text-ink"
         >
           <Images className="size-4" aria-hidden="true" />
           Toplu Görsel
