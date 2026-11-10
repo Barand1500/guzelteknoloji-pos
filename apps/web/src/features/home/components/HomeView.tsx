@@ -60,7 +60,7 @@ export function HomeView() {
         : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-8">
+    <div className="flex w-full min-w-0 flex-col gap-8">
       {error ? (
         <Alert tone="error">
           {error}
@@ -105,7 +105,7 @@ export function HomeView() {
                 <OrderStatusRing orders={data.orders} />
               </Card>
               <Card title="Son Siparişler" hint="En yeniden eskiye">
-                <RecentOrders orders={data.recentOrders} />
+                <RecentOrders orders={data.recentOrders.slice(0, 5)} />
               </Card>
             </div>
           </Block>

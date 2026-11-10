@@ -117,7 +117,12 @@ export function HomeHero({
       />
 
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold text-white/85">
+        {data?.sample ? (
+          <span className="absolute top-4 left-5 rounded-full bg-black/25 px-2.5 py-0.5 text-[0.6875rem] font-bold tracking-wide">
+            ÖRNEK VERİ
+          </span>
+        ) : null}
+        <p className={`text-sm font-semibold text-white/85 ${data?.sample ? 'mt-6' : ''}`}>
           {greetingFor(hour)}
           {name ? `, ${name}` : ''}
         </p>

@@ -158,8 +158,8 @@ export function OrderStatusRing({ orders }: { orders: HomeData['orders'] }) {
   const percent = total === 0 ? 0 : (orders.delivered / total) * 100;
   let offset = 0;
   return (
-    <div className="flex flex-col items-center gap-5 sm:flex-row sm:justify-around">
-      <div className="relative size-44 shrink-0">
+    <div className="flex flex-1 flex-col items-center justify-center gap-6">
+      <div className="relative size-52 shrink-0">
         <svg viewBox="0 0 120 120" className="size-full -rotate-90" aria-hidden="true">
           <circle
             cx="60"
@@ -198,24 +198,25 @@ export function OrderStatusRing({ orders }: { orders: HomeData['orders'] }) {
           <span className="text-xs font-semibold text-ink-muted">teslim edildi</span>
         </div>
       </div>
-      <ul className="grid w-full max-w-xs gap-2.5">
-        <li className="flex items-baseline justify-between px-1">
-          <span className="text-sm font-semibold text-ink-muted">Toplam sipariş</span>
-          <b className="text-2xl font-extrabold">
-            <CountUp value={total} />
-          </b>
-        </li>
+      <ul className="grid w-full grid-cols-3 gap-2.5">
         {parts.map((p) => (
-          <li
-            key={p.id}
-            className="flex items-center gap-3 rounded-2xl bg-surface-muted/70 px-3.5 py-2.5"
-          >
-            <span className={`size-2.5 rounded-full bg-current ${p.color}`} />
-            <span className="flex-1 text-sm font-semibold">{p.label}</span>
-            <b>{p.value}</b>
+          <li key={p.id} className="min-w-0 rounded-2xl bg-surface-muted/70 px-3 py-3 text-center">
+            <p className="flex items-center justify-center gap-1.5 text-xs font-bold text-ink-muted">
+              <span className={`size-2 rounded-full bg-current ${p.color}`} />
+              <span className="truncate">{p.label}</span>
+            </p>
+            <p className="mt-1 text-2xl font-extrabold tracking-tight">
+              <CountUp value={p.value} />
+            </p>
+            <p className="text-xs text-ink-muted">
+              %{total === 0 ? 0 : Math.round((p.value / total) * 100)}
+            </p>
           </li>
         ))}
       </ul>
+      <p className="text-sm font-semibold text-ink-muted">
+        Toplam <b className="text-ink">{total}</b> sipariş
+      </p>
     </div>
   );
 }
