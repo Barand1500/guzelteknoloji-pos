@@ -1,8 +1,11 @@
 import { Search, Settings, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { NavLink, useLocation } from 'react-router';
-import { SECTIONS, sectionFor, type Section, type SectionPage } from '../../config/sections';
+import { useLocation } from 'react-router';
+import { useMediaQuery } from '../../lib/useMediaQuery';
+import { SECTIONS, sectionFor, type Section } from '../../config/sections';
+import { Tile } from './MenuTile';
+import { PhoneMenu } from './PhoneMenu';
 import { pageResource, useWorkspace } from '../workspace/workspace-context';
 
 const fold = (s: string) => s.toLocaleLowerCase('tr');
@@ -32,42 +35,6 @@ function MenuGlyph({ open }: { open: boolean }) {
   );
 }
 
-/** Menüdeki bir sayfa karesi: yuvarlak köşeli simge kutusu ve altında ad. */
-function Tile({
-  page,
-  soon,
-  onGo,
-  index,
-}: {
-  page: SectionPage;
-  soon?: boolean;
-  onGo: () => void;
-  index: number;
-}) {
-  const Icon = page.icon;
-  return (
-    <li style={{ animationDelay: `${Math.min(index, 12) * 30}ms` }} className="animate-rise-in">
-      <NavLink
-        to={page.path}
-        data-tile=""
-        onClick={onGo}
-        className={({ isActive }) =>
-          [
-            'group flex h-full min-h-32 flex-col items-center justify-center gap-3 rounded-2xl border p-4 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-500 hover:shadow-soft',
-            isActive ? 'border-brand-600 bg-brand-50' : 'border-line bg-surface',
-          ].join(' ')
-        }
-      >
-        <span className="flex size-12 items-center justify-center rounded-xl bg-surface-muted text-ink transition-colors group-hover:bg-brand-50 group-hover:text-brand-ink">
-          <Icon className="size-5" aria-hidden="true" />
-        </span>
-        <span className="text-sm leading-tight font-bold">{page.label}</span>
-        {soon ? <span className="-mt-1.5 text-xs text-ink-muted">Yakında</span> : null}
-      </NavLink>
-    </li>
-  );
-}
-
 /**
  * Üst menü ("Başlat Menüsü"): sol üstteki animasyonlu düğme, aramalı bir panel açar. Solda
  * KATEGORİLER (bölümler, sayfa sayılarıyla), sağda seçili bölümün sayfaları kare kutular olarak
@@ -77,6 +44,8 @@ function Tile({
 export function SectionMenu() {
   const { pathname } = useLocation();
   const { can } = useWorkspace();
+  // Telefonda menü alttan açılan kadranlı bir sayfadır; geniş ekranda düğmenin altına açılan panel.
+  const phone = !useMediaQuery('(min-width: 48rem)');
   const current = sectionFor(pathname);
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState<string>(current.id);
@@ -86,10 +55,10 @@ export function SectionMenu() {
   // Panel, düğmenin hemen altına (sol kenarı düğmeyle aynı hizada) açılır.
   const [anchor, setAnchor] = useState({ top: 64, left: 16 });
 
-  // Menü açılınca arama kutusu hazır olsun.
+  // Menü açılınca (geniş ekranda) arama kutusu hazır olsun; telefonda klavye açılmasın.
   useEffect(() => {
-    if (open) searchBox.current?.focus();
-  }, [open]);
+    if (open && !phone) searchBox.current?.focus();
+  }, [open, phone]);
 
   const close = () => {
     setOpen(false);
@@ -246,7 +215,23 @@ export function SectionMenu() {
         </span>
       </button>
 
-      {open
+      {open && phone
+        ? createPortal(
+            <PhoneMenu
+              current={current}
+              preview={preview}
+              onPreview={setPreview}
+              query={query}
+              onQuery={setQuery}
+              close={close}
+              pagesOf={pagesOf}
+              results={results}
+            />,
+            document.body,
+          )
+        : null}
+
+      {open && !phone
         ? createPortal(
             <div
               className="fixed inset-0 z-50"
@@ -394,6 +379,7 @@ export function SectionMenu() {
                           {pagesOf(shown).map((page, i) => (
                             <Tile
                               key={page.id}
+                              siblings={shown.pages}
                               page={page}
                               soon={shown.soon}
                               index={i}
@@ -411,6 +397,7 @@ export function SectionMenu() {
                         {results.map(({ page, section }, i) => (
                           <Tile
                             key={`${section.id}-${page.id}`}
+                            siblings={section.pages}
                             page={page}
                             soon={section.soon}
                             index={i}
