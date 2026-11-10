@@ -38,6 +38,7 @@ function DockLink({ item }: { item: NavItem }) {
  * Ortadaki düğme sayfaya göre değişir (bkz. save-action.ts): stok kartında yalnızca disket simgeli
  * "Kaydet"; Fırsatlar/Kategoriler/Markalar/Özellikler sayfalarında o sayfanın "Ekle" penceresini
  * (Özelliklerde derinliğe göre Şablon/Grup/Özellik) açan "+"; diğer sayfalarda yeni stok kartı "+".
+ * Sayfa değişince düğme yeniden çizilir ve her sayfada aynı dönme animasyonuyla belirir.
  */
 export function Dock() {
   const { can } = useWorkspace();
@@ -104,6 +105,7 @@ export function Dock() {
         {save ? (
           can('products', 'save') ? (
             <button
+              key={pathname}
               type="button"
               onClick={save.onSave}
               disabled={save.saving}
@@ -121,6 +123,7 @@ export function Dock() {
         ) : add ? (
           can(pageResource(pathname) ?? 'products', 'save') ? (
             <button
+              key={pathname}
               type="button"
               onClick={add.onAdd}
               aria-label={add.label}
@@ -132,9 +135,10 @@ export function Dock() {
           ) : null
         ) : can('products', 'save') ? (
           <NavLink
+            key={pathname}
             to={STOCK_CREATE_PATH}
             aria-label="Yeni Stok Kartı"
-            className="-mt-7 mx-1 flex size-14 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white shadow-soft ring-4 ring-surface-raised transition-transform duration-200 hover:scale-105 active:scale-95 md:mt-0 md:ring-0"
+            className="-mt-7 mx-1 flex size-14 shrink-0 animate-turn-in items-center justify-center rounded-full bg-brand-700 text-white shadow-soft ring-4 ring-surface-raised transition-transform duration-200 hover:scale-105 active:scale-95 md:mt-0 md:ring-0"
           >
             <Plus className="size-7" aria-hidden="true" />
           </NavLink>
