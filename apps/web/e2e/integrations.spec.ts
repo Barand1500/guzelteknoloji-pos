@@ -94,7 +94,9 @@ for (const provider of ['cloudflare', 'recaptcha'])
           loggedIn = true;
           body = { user };
         } else body = { step: 'password' };
-      } else if (path === '/api/hesap')
+      } else if (path === '/api/auth/robot')
+        body = { challenge: { provider, siteKey: 'public-site' } };
+      else if (path === '/api/hesap')
         body = {
           business: { id: 1, name: 'Test' },
           user: { id: 1, name: 'Test', email: user.email },
@@ -107,11 +109,9 @@ for (const provider of ['cloudflare', 'recaptcha'])
     });
     await page.goto('/login/e-posta');
     await page.getByLabel('E-Posta', { exact: true }).fill(user.email);
-    await page.getByRole('button', { name: 'Devam Et', exact: true }).click();
     await page.getByRole('button', { name: 'Robot doğrulamasını tamamla' }).click();
     await page.getByRole('button', { name: 'Devam Et', exact: true }).click();
     await page.getByLabel('Şifre', { exact: true }).fill('password-123');
-    await page.getByRole('button', { name: 'Devam Et', exact: true }).click();
     await page.getByRole('button', { name: 'Robot doğrulamasını tamamla' }).click();
     await page.getByRole('button', { name: 'Devam Et', exact: true }).click();
     await expect(page).toHaveURL(/\/uygulama\/stok-karti\/yeni$/);

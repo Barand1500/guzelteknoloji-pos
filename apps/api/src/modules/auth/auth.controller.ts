@@ -56,6 +56,13 @@ export function createAuthController({
   };
 
   return {
+    async robotConfig(req: Request, res: Response) {
+      const email = req.body?.email;
+      if (email !== undefined && !emailStartSchema.safeParse({ email }).success)
+        throw new HttpError(400, 'VALIDATION_ERROR', 'Geçerli e-posta adresi girin.');
+      res.set('Cache-Control', 'no-store');
+      res.json({ challenge: (await challenge?.publicConfig(email)) ?? null });
+    },
     providers(_req: Request, res: Response<ProvidersResponse>) {
       // Apple ile giriş arayüzde vardır ama henüz yapılandırılmamıştır (Apple Developer hesabı gerekir).
       res.json({ google: google !== null, apple: Boolean(apple) });

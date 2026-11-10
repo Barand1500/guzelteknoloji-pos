@@ -34,6 +34,11 @@ export function createAuthRouter(deps: AuthControllerDeps): Router {
   });
 
   router.get('/providers', controller.providers);
+  router.post(
+    '/robot',
+    createRateLimiter({ enabled, windowMs: 60000, limit: 60 }),
+    controller.robotConfig,
+  );
   router.post('/email/start', emailStartIpLimiter, emailStartAccountLimiter, controller.emailStart);
   router.post('/email/verify', loginIpLimiter, emailVerifyLimiter, controller.emailVerify);
   router.get('/apple', googleLimiter, controller.appleStart);

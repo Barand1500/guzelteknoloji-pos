@@ -106,6 +106,7 @@ describe('E-Posta ile Devam Et', () => {
   }
   const submitEmail = async (ue: ReturnType<typeof userEvent.setup>, email: string) => {
     await ue.type(screen.getByLabelText('E-Posta'), email);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
   };
 
@@ -121,6 +122,7 @@ describe('E-Posta ile Devam Et', () => {
   it('boş ve geçersiz e-postada hata gösterir (ünlem düğmesi), istek göndermez', async () => {
     const fetchMock = mockFetch(anonymousRoutes);
     const ue = await openEmailForm();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
     expect(
       await screen.findByRole('button', { name: 'E-posta adresinizi girin.' }),
@@ -128,16 +130,22 @@ describe('E-Posta ile Devam Et', () => {
     expect(screen.getByLabelText('E-Posta')).toHaveAttribute('aria-invalid', 'true');
 
     await ue.type(screen.getByLabelText('E-Posta'), 'gecersiz-adres');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
     expect(
       await screen.findByRole('button', { name: 'Geçerli bir e-posta adresi girin.' }),
     ).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) => init?.method === 'POST' && String(url) !== '/api/auth/robot',
+      ),
+    ).toBe(false);
   });
 
   it('ünleme tıklanınca hata kutusu açılır, Escape ile kapanır', async () => {
     mockFetch(anonymousRoutes);
     const ue = await openEmailForm();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
     const icon = await screen.findByRole('button', { name: 'E-posta adresinizi girin.' });
     expect(icon).toHaveAttribute('aria-expanded', 'false');
@@ -171,6 +179,7 @@ describe('E-Posta ile Devam Et', () => {
     expect(screen.getByLabelText('Şifre')).toHaveFocus();
 
     await ue.type(screen.getByLabelText('Şifre'), 'Dogru-Sifre-123');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
     const busy = await screen.findByRole('button', { name: 'Giriş Yapılıyor…' });
     expect(busy).toBeDisabled();
@@ -211,6 +220,7 @@ describe('E-Posta ile Devam Et', () => {
     const ue = await openEmailForm();
     await submitEmail(ue, 'kullanici@example.com');
     await ue.type(await screen.findByLabelText('Şifre'), 'yanlis-sifre');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('E-Posta veya şifre hatalı');
   });
@@ -251,6 +261,7 @@ describe('E-Posta ile Devam Et', () => {
     // Geri sayım bitmeden "tekrar gönder" kapalıdır.
     expect(screen.getByRole('button', { name: /Kodu Tekrar Gönder \(\d+ sn\)/ })).toBeDisabled();
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
     expect(await screen.findByRole('heading', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
   });
@@ -266,6 +277,7 @@ describe('E-Posta ile Devam Et', () => {
     const ue = await openEmailForm();
     await submitEmail(ue, 'yeni@example.com');
     await ue.type(await screen.findByLabelText('Doğrulama Kodu'), '000000');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Kod hatalı ya da süresi dolmuş');
   });
@@ -279,6 +291,7 @@ describe('E-Posta ile Devam Et', () => {
     const ue = await openEmailForm();
     await submitEmail(ue, 'yeni@example.com');
     await ue.type(await screen.findByLabelText('Doğrulama Kodu'), '123');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
     expect(
       await screen.findByRole('button', { name: 'Kod 6 haneli olmalıdır.' }),
@@ -311,6 +324,7 @@ describe('E-Posta ile Devam Et', () => {
   it('erişilebilirlik ihlali içermez (hata durumunda da)', async () => {
     mockFetch(anonymousRoutes);
     const ue = await openEmailForm();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
     await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
     await screen.findByRole('button', { name: 'E-posta adresinizi girin.' });
     expect(await axeViolations(document.body)).toEqual([]);

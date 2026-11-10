@@ -39,6 +39,7 @@ export function mockFetch(routes: Record<string, Handler>) {
 }
 
 export const anonymousRoutes: Record<string, Handler> = {
+  'POST /api/auth/robot': () => jsonResponse(200, { challenge: null }),
   'GET /api/ozellikler': () => jsonResponse(200, { templates: [], groups: [], values: [] }),
   'GET /api/kategoriler': () => jsonResponse(200, []),
   'GET /api/firsatlar': () => jsonResponse(200, []),

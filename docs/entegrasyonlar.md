@@ -6,7 +6,7 @@ Anahtarlar mevcut `isletme_ayarlari` tablosunda ayrı satırlarda saklanır; yen
 
 Cloudflare için Turnstile anahtarlarını, Google için reCAPTCHA **v2 checkbox** anahtarlarını girin. Uygulamanın alan adını sağlayıcının izin verilen alanlarına ekleyin. Anahtarları önce kapalı durumda kaydedip ekrandaki doğrulama testini tamamlayabilirsiniz. Bir sağlayıcıyı etkinleştirip kaydetmek diğerini aynı işletmede kapatır.
 
-Girişte işletme, yazılan e-postanın sunucudaki aktif üyeliğinden belirlenir; istemci işletme kimliği seçemez. E-posta başlangıcı/kod gönderimi, şifreyle giriş ve e-posta kodu doğrulamasında etkin sağlayıcının tokenı sunucuda doğrulanır; hostname `APP_URL` ile eşleşmelidir. Süresi dolan veya reddedilen tokenla geçilemez. Bu işletme ayarı, henüz hiçbir işletmeye üye olmayan yeni kayıtları veya sosyal sağlayıcı girişlerini küresel olarak korumaz; mevcut hız sınırları devam eder. Küresel kayıt koruması ayrı uygulama ayarı gerektirir.
+Girişte işletme, yazılan e-postanın sunucudaki aktif üyeliğinden belirlenir; istemci işletme kimliği seçemez. E-posta başlangıcı/kod gönderimi, şifreyle giriş ve e-posta kodu doğrulamasında etkin sağlayıcının tokenı sunucuda doğrulanır; hostname `APP_URL` ile eşleşmelidir. Süresi dolan veya reddedilen tokenla geçilemez. İşletmeye özel ayar yalnızca işletmenin üyelerine uygulanır; aşağıdaki sunucu varsayılanı henüz işletmeye üye olmayan adreslere de uygulanır. Sosyal sağlayıcı girişlerinde bu kutu kullanılmaz; mevcut hız sınırları devam eder.
 
 Sağlayıcı tokenı test sırasında tüketilir; tekrar denemede yeni doğrulama gerekir. Kaydetmek tek başına harici anahtarların doğruluğunu kanıtlamaz. İşletmenin mevcut oturumu ayar değiştirmek için kullanılabilir.
 
@@ -27,3 +27,10 @@ Kaynaklar: [Cloudflare sunucu doğrulaması](https://developers.cloudflare.com/t
 ## Ardışık iskonto
 
 İskonto ifadeleri toplanmaz; her oran kalan tutara uygulanır. `20+20` eşdeğer `%36`, `10+10` eşdeğer `%19` olur. Enter sonrasında veya kaydetmede eşdeğer oran mevcut sayısal iskonto alanına yazılır. Geçmişte tek oran olarak kaydedilmiş değerlerin hangi ifadeden geldiği bilinmediğinden bunlar otomatik değiştirilmez.
+# Sunucu varsayılan robot doğrulaması
+
+Kök `.env` dosyasında `ROBOT_PROVIDER=cloudflare`, `TURNSTILE_SITE_KEY` ve `TURNSTILE_SECRET_KEY` tanımlanır. Google v2 için `ROBOT_PROVIDER=recaptcha`, `RECAPTCHA_SITE_KEY` ve `RECAPTCHA_SECRET_KEY` kullanılır. `none` doğrulamayı sunucuda kapatır. Etkin sağlayıcının iki anahtarı eksikse API yapılandırma hatasıyla başlamaz.
+
+İşletmenin veritabanında etkin sağlayıcı varsa önceliklidir. İşletme açıkça kapalı kaydetmişse sunucu varsayılanı o işletme için uygulanmaz. İki sağlayıcı için de kayıtlı açık/kapalı tercihi yoksa sunucu varsayılanı kullanılır. Bilinmeyen e-posta adreslerinde de sunucu varsayılanı geçerlidir. Anahtarlar backend tarafından okunur; gizli anahtarlar `VITE_` değişkeni yapılmaz. Değişiklikten sonra API yeniden başlatılır.
+
+E-posta ekranı açılınca sunucu varsayılanı, geçerli e-posta yazılınca işletmeye ait sağlayıcı önceden yüklenir. Kod ve şifre ekranları da doğrulamayı tıklama beklemeden yükler. Doğrulama tamamlanana kadar devam düğmesi kapalıdır. Google/Apple OAuth girişinde bu kutu kullanılmaz.
