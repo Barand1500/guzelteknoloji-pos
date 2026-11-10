@@ -2,7 +2,8 @@ import { Plus, Save } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { Spinner } from '../../components/ui/Spinner';
-import { STOCK_CREATE_PATH, navLeft, navRight, type NavItem } from '../../config/navigation';
+import { STOCK_CREATE_PATH, type NavItem } from '../../config/navigation';
+import { sectionFor } from '../../config/sections';
 import { useWorkspace, pageResource } from '../workspace/workspace-context';
 import { useActiveAddAction, useActiveSaveAction } from './save-action';
 
@@ -46,6 +47,9 @@ export function Dock() {
   const container = useRef<HTMLDivElement>(null);
   const indicator = useRef<HTMLSpanElement>(null);
   const placedOnce = useRef(false);
+  const section = sectionFor(pathname);
+  const navLeft = section.dock.left;
+  const navRight = section.dock.right;
   const save = useActiveSaveAction();
   const add = useActiveAddAction();
 
@@ -79,6 +83,9 @@ export function Dock() {
     return () => observer?.disconnect();
   }, [pathname]);
 
+  // Henüz sayfası olmayan bölümlerde alt çubuk gösterilmez.
+  if (navLeft.length + navRight.length === 0) return null;
+
   return (
     <nav
       aria-label="Ana gezinme"
@@ -102,7 +109,7 @@ export function Dock() {
             <DockLink key={item.id} item={item} />
           ))}
 
-        {save ? (
+        {!section.addButton ? null : save ? (
           can('products', 'save') ? (
             <button
               key={pathname}

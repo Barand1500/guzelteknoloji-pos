@@ -112,17 +112,32 @@ describe('Fırsat Yönetimi ekranı', () => {
     await waitFor(() => expect(ids()).toHaveLength(7));
   });
 
-  it('ad boş bırakılınca konumdan öneri çıkar; tıklanınca yazılır', async () => {
+  it('ad önerisi yüklenen ikondan çıkar: ipucu yokken öneri yoktur, "indirim-10.png" → %10 İndirim 2 (ad dolu)', async () => {
     const user = await openDeals();
     await user.click(screen.getAllByRole('button', { name: 'Fırsat Ekle' })[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Fırsat Ekle' });
-    // Üst Sol "Yeni Ürünler" rozetinin yeri ama ad farklı olduğundan öneri doğrudan konum adıdır.
-    await user.click(within(dialog).getByRole('button', { name: /Öneri: Üst Sol Rozeti/ }));
-    expect(within(dialog).getByLabelText('Fırsat Adı')).toHaveValue('Üst Sol Rozeti');
     expect(within(dialog).queryByRole('button', { name: /Öneri:/ })).not.toBeInTheDocument();
+    const file = new File(['x'], 'indirim-10.png', { type: 'image/png' });
+    await user.upload(within(dialog).getByLabelText('İkon dosyası seç'), file);
+    const chip = await within(dialog).findByRole('button', { name: /Öneri: %10 İndirim 2/ });
+    await user.click(chip);
+    expect(within(dialog).getByLabelText('Fırsat Adı')).toHaveValue('%10 İndirim 2');
   });
 
-  it('boş ad engellenmez (öneri kullanılır); ikon yoksa ikon uyarısı çıkar', async () => {
+  it('öneri kuralları: yüzde, anahtar kelime, genel dosya adları ve çakışma', async () => {
+    const { suggestDealName } = await import('../../features/deals/types');
+    expect(suggestDealName('10%.png')).toBe('%10 İndirim');
+    expect(suggestDealName('rozet %25 sale.svg')).toBe('%25 İndirim');
+    expect(suggestDealName('indirim20.png')).toBe('%20 İndirim');
+    expect(suggestDealName('yeni-urun.png')).toBe('Yeni Ürünler');
+    expect(suggestDealName('cok_satan.webp')).toBe('Çok Satanlar');
+    expect(suggestDealName('ucretsiz-kargo.png')).toBe('Ücretsiz Kargo');
+    expect(suggestDealName('IMG_2041.jpg')).toBeNull();
+    expect(suggestDealName(null)).toBeNull();
+    expect(suggestDealName('indirim-10.png', ['%10 İndirim'])).toBe('%10 İndirim 2');
+  });
+
+  it('ipucu yoksa boş ad engellenir', async () => {
     const user = await openDeals();
     await user.click(screen.getAllByRole('button', { name: 'Fırsat Ekle' })[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Fırsat Ekle' });
@@ -130,7 +145,7 @@ describe('Fırsat Yönetimi ekranı', () => {
     expect(
       within(dialog).getByText('Rozet olarak kullanılacak bir ikon yükleyin.'),
     ).toBeInTheDocument();
-    expect(within(dialog).queryByText('Fırsat adı gerekli.')).not.toBeInTheDocument();
+    expect(within(dialog).getByText('Fırsat adı gerekli.')).toBeInTheDocument();
   });
 
   it('rozet çakışması: aynı konumdaki aktif fırsatlar üst üste biner uyarısı verir', async () => {
