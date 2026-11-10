@@ -107,7 +107,12 @@ export const stockBulkSchema = z.discriminatedUnion('islem', [
     yon: z.enum(['satis', 'alis']),
     mod: z.enum(['yuzde_artir', 'yuzde_azalt', 'tutar_ekle', 'tutar_cikar', 'ayarla']),
     deger: bulkAmount,
-    yuvarla: z.enum(['yok', 'tam']).default('yok'),
+    /** Hesabın dayandığı fiyat: KDV dahil ya da hariç (yüzdede sonuç aynıdır, sabit tutarda fark eder). */
+    kdv: z.enum(['dahil', 'haric']).default('dahil'),
+    /** Sonucu en yakın adıma yuvarlar (TL): 0,10 · 0,50 · 1 · 5. */
+    yuvarla: z.enum(['yok', '0.1', '0.5', '1', '5']).default('yok'),
+    /** Varyantlı ürünlerde varyant fiyatları da aynı değişimle güncellensin mi. */
+    varyantlar: z.boolean().default(false),
   }),
 ]);
 export type StockBulkInput = z.infer<typeof stockBulkSchema>;

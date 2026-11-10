@@ -19,6 +19,7 @@ import {
   type ProductPage,
 } from '../types';
 import { filterDemoProducts, productFilterOptions } from '../product.query';
+import { newExclPrice, type BulkPriceChange } from '../bulk-price';
 
 /**
  * Ürün verisine erişimin TEK kapısı. Şimdilik bellekte tutulan sahte veri (sayfa yenilenince
@@ -237,41 +238,31 @@ export const demoProductService = {
       );
     } else {
       const price = request as Extract<BulkRequest, { islem: 'fiyat_guncelle' }>;
-      const value = Number(price.deger.replace(',', '.'));
-      let skipped = 0;
-      const change = (gross: number) => {
-        const target =
-          price.mod === 'yuzde_artir'
-            ? gross * (1 + value / 100)
-            : price.mod === 'yuzde_azalt'
-              ? gross * (1 - value / 100)
-              : price.mod === 'tutar_ekle'
-                ? gross + value
-                : price.mod === 'tutar_cikar'
-                  ? gross - value
-                  : value;
-        const rounded = price.yuvarla === 'tam' ? Math.round(target) : target;
-        if (rounded < 0)
-          throw new Error('Bazı ürünlerde fiyat sıfırın altına düşer. İşlem yapılmadı.');
-        return rounded;
+      const change: BulkPriceChange = {
+        mod: price.mod,
+        value: Number(price.deger.replace(',', '.')),
+        kdv: price.kdv,
+        yuvarla: price.yuvarla,
       };
+      let skipped = 0;
       const next = items.map((p) => {
         if (!ids.includes(p.id)) return p;
         if (price.yon === 'alis') {
-          if (!(p.cost > 0)) {
+          const cost = p.cost > 0 ? newExclPrice(p.cost, p.costVatRate ?? p.vatRate, change) : null;
+          if (cost === null) {
             skipped++;
             return p;
           }
-          const rate = 1 + (p.costVatRate ?? p.vatRate) / 100;
-          return { ...p, cost: change(p.cost * rate) / rate };
+          return { ...p, cost };
         }
         const list = p.listPrices?.find((l) => l.id === price.listeId);
         if (!list || list.net === null) {
           skipped++;
           return p;
         }
-        const rate = 1 + list.vatRate / 100;
-        const net = change(list.net * rate) / rate;
+        const net = newExclPrice(list.net, list.vatRate, change);
+        if (net === null)
+          throw new Error('Bazı ürünlerde fiyat sıfırın altına düşer. İşlem yapılmadı.');
         return {
           ...p,
           listPrices: p.listPrices!.map((l) => (l.id === list.id ? { ...l, net } : l)),

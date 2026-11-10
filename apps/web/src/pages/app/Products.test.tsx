@@ -116,9 +116,10 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     await user.click(within(bar).getByRole('button', { name: 'İşlemler' }));
     const menu = await screen.findByRole('dialog', { name: 'Toplu İşlem · 2 ürün' });
     await user.click(within(menu).getByRole('button', { name: /Satış Durumu/ }));
-    const step = await screen.findByRole('dialog', { name: 'Satış Durumu' });
-    await user.click(within(step).getByRole('radio', { name: 'Satışa Kapat' }));
-    await user.click(within(step).getByRole('button', { name: 'Uygula' }));
+    const step = await screen.findByRole('dialog', { name: 'Toplu satış durumu' });
+    await user.click(within(step).getByRole('radio', { name: /Satışa Kapat/ }));
+    await user.click(within(step).getByRole('button', { name: 'Devam' }));
+    await user.click(within(step).getByRole('button', { name: 'Onaylıyorum' }));
     const list = await productService.list();
     expect(list.filter((p) => !p.salesOpen).map((p) => p.id)).toEqual(
       expect.arrayContaining(['p1', 'p2']),
@@ -377,7 +378,7 @@ describe('Toplu işlem sihirbazı', () => {
     return screen.findByRole('dialog', { name: `Toplu İşlem · ${ids.length} ürün` });
   }
 
-  it('önce işlem menüsü gelir; bir işleme girince "Geri" ile menüye dönülür', async () => {
+  it('önce işlem kutucukları gelir; bir işleme girince "Geri" ile menüye dönülür', async () => {
     const user = await openProducts();
     const menu = await openBulk(user, 'p1', 'p2');
     for (const name of [
@@ -392,36 +393,78 @@ describe('Toplu işlem sihirbazı', () => {
     expect(within(menu).getByRole('button', { name: 'Seçilenleri Sil' })).toBeInTheDocument();
 
     await user.click(within(menu).getByRole('button', { name: /Marka/ }));
-    const step = await screen.findByRole('dialog', { name: 'Marka' });
-    await user.click(within(step).getByRole('button', { name: /Toplu İşlem · 2 ürün/ }));
+    const step = await screen.findByRole('dialog', { name: 'Toplu marka' });
+    expect(within(step).getByRole('list', { name: 'Adımlar' })).toBeInTheDocument();
+    await user.click(within(step).getByRole('button', { name: 'Geri' }));
     expect(await screen.findByRole('dialog', { name: 'Toplu İşlem · 2 ürün' })).toBeInTheDocument();
   });
 
-  it('fiyat: yüzde artırma seçilen ürünlerin fiyatına uygulanır; özet cümle ne olacağını yazar', async () => {
+  it('fiyat: işlem → KDV → önizleme (eski/yeni fiyat) → onay; yüzde artırma uygulanır', async () => {
     const user = await openProducts();
     const before = (await productService.list()).find((p) => p.id === 'p1')!;
     const net = before.listPrices![0]!.net!;
     const menu = await openBulk(user, 'p1', 'p2');
     await user.click(within(menu).getByRole('button', { name: /Fiyat Güncelle/ }));
-    const step = await screen.findByRole('dialog', { name: 'Fiyat Güncelle' });
-    expect(within(step).getByRole('button', { name: 'Uygula' })).toBeDisabled();
-    await user.type(within(step).getByLabelText('Oran'), '10');
-    expect(within(step).getByText(/%10 artırılacak/)).toBeInTheDocument();
-    await user.click(within(step).getByRole('button', { name: 'Uygula' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Toplu fiyat güncelle' });
+
+    // 1) Fiyat ve işlem
+    expect(within(dialog).getByRole('button', { name: 'Devam' })).toBeDisabled();
+    await user.click(within(dialog).getByRole('radio', { name: 'Zam' }));
+    await user.click(within(dialog).getByRole('radio', { name: '% Yüzde' }));
+    await user.type(within(dialog).getByLabelText('Yüzde (%)'), '10');
+    // Yuvarlama kapalıyken adım seçenekleri yoktur; açınca dört adım çıkar.
+    expect(within(dialog).queryByRole('radio', { name: /0,50 ₺/ })).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('switch', { name: 'Yuvarlama' }));
+    expect(within(dialog).getByRole('radio', { name: /0,10 ₺/ })).toBeInTheDocument();
+    expect(within(dialog).getByRole('radio', { name: /1 ₺/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await user.click(within(dialog).getByRole('switch', { name: 'Yuvarlama' })); // kapat
+    await user.click(within(dialog).getByRole('button', { name: 'Devam' }));
+
+    // 2) KDV dahil mi hariç mi
+    expect(within(dialog).getByRole('radio', { name: /KDV Dahil/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await user.click(within(dialog).getByRole('radio', { name: /KDV Hariç/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Devam' }));
+
+    // 3) Önizleme
+    expect(within(dialog).getByText('%10 zam')).toBeInTheDocument();
+    const list = within(dialog).getByRole('list', { name: 'Önizleme' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    await user.click(within(dialog).getByRole('button', { name: 'Onaylıyorum' }));
     expect(await screen.findByText(/üründe fiyat güncellendi/)).toBeInTheDocument();
     const after = (await productService.list()).find((p) => p.id === 'p1')!;
     expect(after.listPrices![0]!.net!).toBeCloseTo(net * 1.1, 4);
   });
 
-  it('fırsat: seçilen fırsat ürünlere eklenir ve kaldırılır', async () => {
+  it('fırsat: listeden seçilir, özet cümle ve ürünler gösterilir, onayla eklenir', async () => {
     const user = await openProducts();
     const menu = await openBulk(user, 'p3');
     await user.click(within(menu).getByRole('button', { name: /^Fırsat/ }));
-    const step = await screen.findByRole('dialog', { name: 'Fırsat' });
-    await user.click(within(step).getByRole('combobox', { name: 'Fırsat' }));
-    await user.click(await screen.findByRole('option', { name: 'Yeni Ürünler' }));
-    await user.click(within(step).getByRole('button', { name: 'Uygula' }));
+    const step = await screen.findByRole('dialog', { name: 'Toplu fırsat' });
+    expect(within(step).getByRole('button', { name: 'Devam' })).toBeDisabled();
+    await user.click(await within(step).findByRole('radio', { name: 'Yeni Ürünler' }));
+    await user.click(within(step).getByRole('button', { name: 'Devam' }));
+    expect(within(step).getByText(/“Yeni Ürünler” fırsatı eklenecek/)).toBeInTheDocument();
+    await user.click(within(step).getByRole('button', { name: 'Onaylıyorum' }));
     expect(await screen.findByText('1 ürün için fırsat eklendi.')).toBeInTheDocument();
     expect((await productService.list()).find((p) => p.id === 'p3')!.dealIds).toContain('yeni');
+  });
+
+  it('kategori: arama kutulu düz liste (açılır kutu yok); seçilen kategoriye eklenir', async () => {
+    const user = await openProducts();
+    const menu = await openBulk(user, 'p3');
+    await user.click(within(menu).getByRole('button', { name: /^Kategori/ }));
+    const step = await screen.findByRole('dialog', { name: 'Toplu kategori' });
+    expect(within(step).queryByRole('combobox')).not.toBeInTheDocument();
+    await user.click(await within(step).findByRole('radio', { name: 'Dokunmatik POS' }));
+    await user.click(within(step).getByRole('button', { name: 'Devam' }));
+    await user.click(within(step).getByRole('button', { name: 'Onaylıyorum' }));
+    expect(await screen.findByText('1 ürün kategoriye eklendi.')).toBeInTheDocument();
+    expect((await productService.list()).find((p) => p.id === 'p3')!.categoryIds).toContain('pos');
   });
 });

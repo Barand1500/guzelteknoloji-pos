@@ -182,9 +182,10 @@ it('seçimi sayfalar arasında korur; tümünü seç filtrelenmiş kimlikleri su
       { name: /Satış Durumu/ },
     ),
   );
-  const step = await screen.findByRole('dialog', { name: 'Satış Durumu' });
-  await user.click(within(step).getByRole('radio', { name: 'Satışa Kapat' }));
-  await user.click(within(step).getByRole('button', { name: 'Uygula' }));
+  const step = await screen.findByRole('dialog', { name: 'Toplu satış durumu' });
+  await user.click(within(step).getByRole('radio', { name: /Satışa Kapat/ }));
+  await user.click(within(step).getByRole('button', { name: 'Devam' }));
+  await user.click(within(step).getByRole('button', { name: 'Onaylıyorum' }));
   await waitFor(() => expect(api.mutations[0]?.ids).toEqual([1, 11]));
   await screen.findByText('Sunucu ürünü 11');
   await user.click(

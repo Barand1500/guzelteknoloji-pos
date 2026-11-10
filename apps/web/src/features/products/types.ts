@@ -87,9 +87,14 @@ export type BulkRequest =
       listeId: string;
       yon: 'satis' | 'alis';
       mod: 'yuzde_artir' | 'yuzde_azalt' | 'tutar_ekle' | 'tutar_cikar' | 'ayarla';
-      /** Oran (%) ya da KDV DAHİL tutar; virgül ya da nokta. */
+      /** Oran (%) ya da tutar (TL); virgül ya da nokta. */
       deger: string;
-      yuvarla: 'yok' | 'tam';
+      /** Hesap KDV dahil mi hariç mi fiyat üzerinden yapılır. */
+      kdv: 'dahil' | 'haric';
+      /** Sonucu en yakın adıma yuvarlar (TL). */
+      yuvarla: 'yok' | '0.1' | '0.5' | '1' | '5';
+      /** Varyantlı ürünlerde varyant fiyatları da güncellensin mi. */
+      varyantlar: boolean;
     };
 export interface BulkResult {
   affected: number;

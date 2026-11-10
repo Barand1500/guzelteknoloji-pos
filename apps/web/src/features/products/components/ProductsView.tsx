@@ -564,6 +564,7 @@ export function ProductsView() {
         <BulkActionsSheet
           count={selectedIds.length}
           priceLists={priceLists}
+          items={products.filter((p) => selected.has(p.id))}
           onApply={(request) => bulk(selectedIds, request)}
           onStock={(on) => setStockTracking(selectedIds, on)}
           onSales={(on) => setSales(selectedIds, on)}

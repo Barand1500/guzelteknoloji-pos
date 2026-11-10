@@ -125,10 +125,47 @@ function priceData(side: 'alis' | 'satis', block: PriceBlockData) {
 
 type BulkPriceInput = Extract<StockBulkInput, { islem: 'fiyat_guncelle' }>;
 
+const ZERO = new Prisma.Decimal(0);
+
 /**
- * Bir fiyat satırının yeni "girilen tutarı". Hesap KDV DAHİL gösterilen fiyat üzerinden yapılır:
- * gösterilen = girilen × (1 − iskonto) × (KDV hariç girildiyse 1 + KDV). Sıfırın altı hata,
- * iskonto %100 olan satır atlanır (null).
+ * KDV HARİÇ bir tutarın yeni değeri. Hesap seçilen dayanağa göre yapılır (`kdv`): "dahil" ise
+ * değişim KDV dahil fiyata, "haric" ise KDV hariç fiyata uygulanır (yüzdede fark yoktur, sabit
+ * tutarda vardır). Sonuç `yuvarla` adımına yuvarlanır; sıfırın altı hata verir.
+ */
+export function bulkPriceExcl(
+  excl: Prisma.Decimal,
+  rate: Prisma.Decimal,
+  input: Pick<BulkPriceInput, 'mod' | 'kdv' | 'yuvarla'> & { value: Prisma.Decimal },
+): Prisma.Decimal {
+  const toBasis = input.kdv === 'dahil' ? rate.plus(1) : new Prisma.Decimal(1);
+  const base = excl.times(toBasis);
+  let target =
+    input.mod === 'yuzde_artir'
+      ? base.times(input.value.div(100).plus(1))
+      : input.mod === 'yuzde_azalt'
+        ? base.times(new Prisma.Decimal(1).minus(input.value.div(100)))
+        : input.mod === 'tutar_ekle'
+          ? base.plus(input.value)
+          : input.mod === 'tutar_cikar'
+            ? base.minus(input.value)
+            : input.value;
+  if (input.yuvarla !== 'yok') {
+    const step = new Prisma.Decimal(input.yuvarla);
+    target = target.div(step).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP).times(step);
+  }
+  if (target.isNeg())
+    throw new HttpError(
+      400,
+      'VALIDATION_ERROR',
+      'Bazı ürünlerde fiyat sıfırın altına düşer. İşlem yapılmadı.',
+    );
+  return target.div(toBasis);
+}
+
+/**
+ * Bir fiyat satırının yeni "girilen tutarı". Gösterilen KDV dahil fiyat = girilen × (1 − iskonto) ×
+ * (KDV hariç girildiyse 1 + KDV). Hesap `bulkPriceExcl` ile yapılır, sonra satırın girilme biçimine
+ * (dahil/hariç, iskontolu) geri çevrilir. İskonto %100 olan ya da fiyatı boş satır atlanır (null).
  */
 export function bulkPriceEntered(
   row: {
@@ -137,43 +174,29 @@ export function bulkPriceEntered(
     iskontoOrani: Prisma.Decimal | null;
     kdvDahilGirildi: boolean;
   },
-  mode: BulkPriceInput['mod'],
-  value: Prisma.Decimal,
-  round: BulkPriceInput['yuvarla'],
+  input: Pick<BulkPriceInput, 'mod' | 'kdv' | 'yuvarla'> & { value: Prisma.Decimal },
 ): Prisma.Decimal | null {
   if (!row.girilenFiyat) return null;
-  const rate = (row.kdvOrani ?? new Prisma.Decimal(0)).div(100);
-  const keep = new Prisma.Decimal(1).minus((row.iskontoOrani ?? new Prisma.Decimal(0)).div(100));
+  const rate = (row.kdvOrani ?? ZERO).div(100);
+  const keep = new Prisma.Decimal(1).minus((row.iskontoOrani ?? ZERO).div(100));
   if (keep.lte(0)) return null;
-  const factor = keep.times(row.kdvDahilGirildi ? 1 : rate.plus(1));
-  const gross = row.girilenFiyat.times(factor);
-  let target =
-    mode === 'yuzde_artir'
-      ? gross.times(value.div(100).plus(1))
-      : mode === 'yuzde_azalt'
-        ? gross.times(new Prisma.Decimal(1).minus(value.div(100)))
-        : mode === 'tutar_ekle'
-          ? gross.plus(value)
-          : mode === 'tutar_cikar'
-            ? gross.minus(value)
-            : value;
-  if (round === 'tam') target = target.toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP);
-  if (target.isNeg())
-    throw new HttpError(
-      400,
-      'VALIDATION_ERROR',
-      'Bazı ürünlerde fiyat sıfırın altına düşer. İşlem yapılmadı.',
-    );
-  const entered = target.div(factor).toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP);
+  // entered × keep × (dahil girildiyse 1/(1+r), değilse 1) = KDV hariç tutar
+  const inclusive = row.kdvDahilGirildi;
+  const excl = row.girilenFiyat.times(keep).div(inclusive ? rate.plus(1) : 1);
+  const newExcl = bulkPriceExcl(excl, rate, input);
+  const entered = newExcl
+    .times(inclusive ? rate.plus(1) : 1)
+    .div(keep)
+    .toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP);
   if (entered.gt(new Prisma.Decimal('999999999999.999999')))
     throw new HttpError(400, 'VALIDATION_ERROR', 'Fiyat çok büyük olur. İşlem yapılmadı.');
   return entered;
 }
 
 /**
- * Seçilen ürünlerin ana birim fiyatını (bir liste ve yön için) toplu değiştirir. Hesap, ekranda
- * görünen KDV DAHİL fiyat üzerinden yapılır; iskonto ve "KDV dahil girildi" durumu korunur, yalnızca
- * girilen tutar yeniden hesaplanır. Sıfırın altına düşen sonuç tüm işlemi reddeder.
+ * Seçilen ürünlerin ana birim fiyatını (bir liste ve yön için) toplu değiştirir. İskonto ve "KDV
+ * dahil girildi" durumu korunur, yalnızca girilen tutar yeniden hesaplanır. İstenirse varyantların
+ * (KDV hariç) fiyatı da aynı değişimle güncellenir. Sıfırın altına düşen sonuç tüm işlemi reddeder.
  */
 async function bulkPrice(
   tx: Prisma.TransactionClient,
@@ -193,14 +216,31 @@ async function bulkPrice(
       girilenFiyat: { not: null },
       stokBirimi: { anaBirim: true, stokKartiKimligi: { in: input.ids } },
     },
+    include: { stokBirimi: { select: { stokKartiKimligi: true } } },
   });
   const value = new Prisma.Decimal(input.deger);
   if (input.mod === 'yuzde_azalt' && value.gt(100))
     throw new HttpError(400, 'VALIDATION_ERROR', 'Oran 0–100 arasında olmalı.');
+  const change = { mod: input.mod, kdv: input.kdv, yuvarla: input.yuvarla, value };
+  const rateByProduct = new Map<number, Prisma.Decimal>();
   for (const row of rows) {
-    const entered = bulkPriceEntered(row, input.mod, value, input.yuvarla);
+    const entered = bulkPriceEntered(row, change);
     if (entered === null) continue;
+    rateByProduct.set(row.stokBirimi.stokKartiKimligi, (row.kdvOrani ?? ZERO).div(100));
     await tx.stokFiyati.update({ where: { kimlik: row.kimlik }, data: { girilenFiyat: entered } });
+  }
+  if (input.varyantlar && input.yon === 'satis' && rateByProduct.size) {
+    const variants = await tx.stokVaryanti.findMany({
+      where: { stokKartiId: { in: [...rateByProduct.keys()] } },
+    });
+    for (const variant of variants) {
+      const rate = rateByProduct.get(variant.stokKartiId) ?? ZERO;
+      const fiyat = bulkPriceExcl(variant.fiyat, rate, change).toDecimalPlaces(
+        6,
+        Prisma.Decimal.ROUND_HALF_UP,
+      );
+      await tx.stokVaryanti.update({ where: { id: variant.id }, data: { fiyat } });
+    }
   }
   return { affected: rows.length, skipped: input.ids.length - rows.length };
 }
