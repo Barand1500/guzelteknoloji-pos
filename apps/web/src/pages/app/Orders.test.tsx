@@ -133,6 +133,13 @@ describe('İade/Değişim Talepleri', () => {
     await open('/uygulama/siparisler/iade', 'Talep durumu');
     const dock = screen.getByRole('navigation', { name: 'Ana gezinme' });
     expect(within(dock).getByRole('link', { name: /Gelen Siparişler/ })).toBeInTheDocument();
-    expect(within(dock).getByRole('link', { name: /İade\/Değişim/ })).toBeInTheDocument();
+    // İade sayfasındayken yalnızca İade düğmesi seçilidir (Gelen Siparişler değil).
+    expect(within(dock).getByRole('link', { name: /İade\/Değişim/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(dock).getByRole('link', { name: /Gelen Siparişler/ })).not.toHaveAttribute(
+      'aria-current',
+    );
   });
 });

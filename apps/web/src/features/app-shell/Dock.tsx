@@ -8,11 +8,17 @@ import { HomeDock } from '../home/components/HomeDock';
 import { useWorkspace, pageResource } from '../workspace/workspace-context';
 import { useActiveAddAction, useActiveSaveAction } from './save-action';
 
-function DockLink({ item }: { item: NavItem }) {
+/**
+ * Bir sayfanın yolu aynı çubuktaki başka bir sayfanın yolunun başıysa (ör. /siparisler ve
+ * /siparisler/iade) tam eşleşme aranır; yoksa iki düğme birden seçili görünür.
+ */
+function DockLink({ item, siblings }: { item: NavItem; siblings: readonly NavItem[] }) {
+  const exact = siblings.some((o) => o.id !== item.id && o.path.startsWith(item.path + '/'));
   const Icon = item.icon;
   return (
     <NavLink
       to={item.path}
+      end={exact}
       data-dock-link=""
       className={({ isActive }) =>
         [
@@ -110,7 +116,7 @@ export function Dock() {
         {navLeft
           .filter((item) => can(pageResource(item.path)!))
           .map((item) => (
-            <DockLink key={item.id} item={item} />
+            <DockLink key={item.id} item={item} siblings={[...navLeft, ...navRight]} />
           ))}
 
         {!section.addButton ? null : save ? (
@@ -158,7 +164,7 @@ export function Dock() {
         {navRight
           .filter((item) => can(pageResource(item.path)!))
           .map((item) => (
-            <DockLink key={item.id} item={item} />
+            <DockLink key={item.id} item={item} siblings={[...navLeft, ...navRight]} />
           ))}
       </div>
     </nav>
