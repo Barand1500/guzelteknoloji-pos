@@ -33,6 +33,7 @@ import { dataError } from '../../lib/catalog-data';
 import { useSession } from '../auth/hooks/session-context';
 import { useWorkspace } from './workspace-context';
 import { UnsavedChanges } from './UnsavedChanges';
+import { visibleLogChanges } from './log-display';
 
 const base = '/api/hesap';
 const post = <T,>(path: string, body: unknown = {}) =>
@@ -672,6 +673,7 @@ function RoleForm({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const { can } = useWorkspace();
   const [name, setName] = useState(role?.name ?? '');
   const [permissions, setPermissions] = useState<RolePermission[]>(
     WORKSPACE_RESOURCES.map(
@@ -699,6 +701,21 @@ function RoleForm({
                   : {}),
             },
       ),
+    );
+  const actions = ['read', 'save', 'delete'] as const;
+  const selectable = (resource: RolePermission['resource'], action: (typeof actions)[number]) =>
+    (resource !== 'logs' || action === 'read') && can(resource, action);
+  const allSelected = permissions.every((p) =>
+    actions.every((action) => !selectable(p.resource, action) || p[action]),
+  );
+  const selectAll = () =>
+    setPermissions(
+      permissions.map((p) => ({
+        resource: p.resource,
+        read: !allSelected && selectable(p.resource, 'read'),
+        save: !allSelected && selectable(p.resource, 'save'),
+        delete: !allSelected && selectable(p.resource, 'delete'),
+      })),
     );
   return (
     <FormSheet
@@ -735,6 +752,17 @@ function RoleForm({
         maxLength={120}
         onChange={(e) => setName(e.target.value)}
       />
+      <div className="flex justify-end">
+        <Button
+          flow={false}
+          variant="outline"
+          fullWidth={false}
+          className="min-h-10 px-4 py-2 text-sm"
+          onClick={selectAll}
+        >
+          {allSelected ? 'Seçimi Temizle' : 'Tümünü Seç'}
+        </Button>
+      </div>
       <div className="overflow-x-auto rounded-2xl border border-line">
         <table className="w-full min-w-80 text-sm">
           <thead className="bg-surface-muted text-xs text-ink-muted">
@@ -753,16 +781,20 @@ function RoleForm({
                 <th className="p-3 text-left font-semibold">{r.label}</th>
                 {(['read', 'save', 'delete'] as const).map((action, i) => (
                   <td className="text-center" key={action}>
-                    <label className="inline-flex size-11 cursor-pointer items-center justify-center">
-                      <input
-                        type="checkbox"
-                        className="size-4 accent-brand-700"
-                        aria-label={`${r.label} ${['Görüntüle', 'Kaydet', 'Sil'][i]}`}
-                        checked={permissions.find((p) => p.resource === r.key)![action]}
-                        disabled={r.key === 'logs' && action !== 'read'}
-                        onChange={(e) => toggle(r.key, action, e.target.checked)}
-                      />
-                    </label>
+                    {r.key === 'logs' && action !== 'read' ? (
+                      <span aria-hidden="true">—</span>
+                    ) : (
+                      <label className="inline-flex size-11 cursor-pointer items-center justify-center">
+                        <input
+                          type="checkbox"
+                          className="size-4 accent-brand-700"
+                          aria-label={`${r.label} ${['Görüntüle', 'Kaydet', 'Sil'][i]}`}
+                          checked={permissions.find((p) => p.resource === r.key)![action]}
+                          disabled={!selectable(r.key, action)}
+                          onChange={(e) => toggle(r.key, action, e.target.checked)}
+                        />
+                      </label>
+                    )}
                   </td>
                 ))}
               </tr>
@@ -1136,7 +1168,6 @@ export function LogsPage() {
                     onClick={() => setDetail(r)}
                   >
                     {r.action}
-                    {r.target ? ` · #${r.target}` : ''}
                   </button>
                 </td>
                 <td className="px-5 py-4 text-xs">{r.status}</td>
@@ -1182,9 +1213,9 @@ export function LogsPage() {
         >
           <div className="space-y-4">
             <p className="text-sm font-semibold">{detail.status}</p>
-            {detail.changes.length ? (
+            {visibleLogChanges(detail.changes).length ? (
               <div className="space-y-3">
-                {detail.changes.map((c, i) => (
+                {visibleLogChanges(detail.changes).map((c, i) => (
                   <div key={i} className="rounded-2xl border border-line p-4">
                     <p className="mb-2 text-sm font-bold break-words">{c.field}</p>
                     <div className="grid gap-3 sm:grid-cols-2">
