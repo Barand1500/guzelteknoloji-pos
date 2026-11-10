@@ -182,6 +182,7 @@ describe('Profil ve işletme ekranları', () => {
     expect(screen.getByRole('button', { name: 'Çıkış Yap' })).toBeVisible();
     await user.click(screen.getByRole('link', { name: 'Profil' }));
     expect(await screen.findByRole('heading', { name: 'Profil Bilgileri' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Önceki Sayfaya Dön' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
   it('Kaydet seçilince Görüntüle de açılır; rol izinleri API’ye gider', async () => {

@@ -38,6 +38,7 @@ async function openProducts(options: { phone?: boolean } = {}) {
   const user = userEvent.setup();
   renderApp('/uygulama/urunler');
   await screen.findByRole('searchbox', { name: 'Ürün ara' });
+    expect(screen.queryByRole('link', { name: 'Önceki Sayfaya Dön' })).not.toBeInTheDocument();
   await waitFor(() =>
     expect(options.phone ? screen.getAllByRole('listitem').length : rowCount()).toBeGreaterThan(0),
   );
