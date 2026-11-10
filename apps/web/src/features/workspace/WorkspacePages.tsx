@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type FormEvent } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, NavLink, useLocation, useParams, useSearchParams } from 'react-router';
 import {
-  ArrowLeft,
-  ChevronRight,
+  UserRound,
+  Image as ImageIcon,
+  Users,
+  History,
   Pencil,
   Plus,
   Trash2,
   Mail,
-  Plug,
   Settings,
   ShieldCheck,
 } from 'lucide-react';
@@ -22,10 +23,12 @@ import {
 } from '@gt/shared';
 import { Button } from '../../components/ui/Button';
 import { TextField } from '../../components/ui/TextField';
+import { SearchField } from '../../components/ui/SearchField';
 import { SelectField } from '../../components/ui/SelectField';
 import { Sheet } from '../../components/ui/Sheet';
 import { ConfirmSheet } from '../../components/ui/ConfirmSheet';
 import { Alert } from '../../components/ui/Alert';
+import { ToggleSwitch } from '../../components/ui/ToggleSwitch';
 import { apiRequest } from '../../lib/http';
 import { dataError } from '../../lib/catalog-data';
 import { useSession } from '../auth/hooks/session-context';
@@ -37,30 +40,88 @@ const post = <T,>(path: string, body: unknown = {}) =>
   apiRequest<T>(base + path, { method: 'POST', body });
 const iconButton =
   'inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-40';
-const panel = 'rounded-3xl border border-line bg-surface-raised p-5 sm:p-7';
+const panel = 'rounded-2xl border border-line bg-surface p-4 sm:p-5';
+const accountTabs = [
+  { path: '/uygulama/profil', label: 'Profil', icon: UserRound, resource: null },
+  { path: '/uygulama/kullanicilar', label: 'Kullanıcılar', icon: Users, resource: 'users' },
+  { path: '/uygulama/roller', label: 'Roller', icon: ShieldCheck, resource: 'roles' },
+  { path: '/uygulama/ayarlar', label: 'Ayarlar', icon: Settings, resource: 'settings' },
+  { path: '/uygulama/loglar', label: 'Log Kayıtları', icon: History, resource: 'logs' },
+] as const;
+const tabStyle = (active: boolean) =>
+  `flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors ${active ? 'border-brand-700 text-brand-ink' : 'border-transparent text-ink-muted hover:text-ink'}`;
+function SettingsTabs({ pathname }: { pathname: string }) {
+  const email = /\/(smtp|imap|entegrasyonlar)$/.test(pathname);
+  const tabs = [
+    {
+      key: 'general',
+      label: 'Genel',
+      icon: Settings,
+      active: pathname.endsWith('/ayarlar') || pathname.endsWith('/general'),
+    },
+    { key: 'images', label: 'Görseller', icon: ImageIcon, active: pathname.endsWith('/images') },
+    { key: 'smtp', label: 'E-Posta', icon: Mail, active: email },
+    { key: 'google', label: 'Google', icon: ShieldCheck, active: pathname.endsWith('/google') },
+  ];
+  return (
+    <div className="space-y-1">
+      <nav aria-label="Ayar bölümleri" className="flex overflow-x-auto border-b border-line">
+        {tabs.map((t) => (
+          <Link
+            key={t.key}
+            to={`/uygulama/ayarlar/${t.key}`}
+            aria-current={t.active ? 'page' : undefined}
+            className={tabStyle(t.active)}
+          >
+            <t.icon className="size-4" />
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+      {email && (
+        <nav aria-label="E-Posta ayarları" className="flex overflow-x-auto border-b border-line">
+          <Link className={tabStyle(!pathname.endsWith('/imap'))} to="/uygulama/ayarlar/smtp">
+            Giden E-Posta (SMTP)
+          </Link>
+          <Link className={tabStyle(pathname.endsWith('/imap'))} to="/uygulama/ayarlar/imap">
+            Gelen E-Posta (IMAP)
+          </Link>
+        </nav>
+      )}
+    </div>
+  );
+}
 
 function Frame({
   children,
-  back = '/uygulama/profil',
   description,
 }: {
   children: ReactNode;
   back?: string;
   description?: string;
 }) {
-  const { demo } = useWorkspace();
+  const { demo, can, data } = useWorkspace();
+  const { pathname } = useLocation();
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-      <div className="flex items-center gap-3">
-        <Link to={back} className={iconButton} aria-label="Geri">
-          <ArrowLeft className="size-5" />
-        </Link>
-        {description && <p className="text-sm text-ink-muted">{description}</p>}
-      </div>
+    <div className="flex w-full min-w-0 flex-col gap-4 rounded-3xl border border-line bg-surface-raised p-4 sm:p-6">
+      <nav aria-label="Hesap sayfaları" className="flex overflow-x-auto border-b border-line">
+        {accountTabs
+          .filter((t) => !t.resource || can(t.resource))
+          .map((t) => (
+            <NavLink key={t.path} to={t.path} className={({ isActive }) => tabStyle(isActive)}>
+              <t.icon className="size-4 shrink-0" />
+              <span className="max-w-48 truncate">
+                {t.resource === null ? data?.user.name || 'Hesabım' : t.label}
+              </span>
+            </NavLink>
+          ))}
+      </nav>
+      {pathname.includes('/ayarlar') && <SettingsTabs pathname={pathname} />}
+      {description && <p className="text-sm text-ink-muted">{description}</p>}
       {demo ? (
         <Alert tone="info">Hesap yönetimi için kendi hesabınızla giriş yapın.</Alert>
       ) : (
-        children
+        <div className="flex min-w-0 flex-col gap-4">{children}</div>
       )}
     </div>
   );
@@ -198,7 +259,7 @@ export function ProfilePage() {
   return (
     <Frame description={data?.business.name}>
       <UnsavedChanges dirty={!busy && name !== (data?.user.name ?? '')} />
-      <section className={`${panel} max-w-2xl`}>
+      <section className={`${panel} w-full`}>
         <div className="mb-6 flex items-center gap-4">
           <div className="flex size-16 items-center justify-center rounded-2xl bg-brand-50 text-xl font-extrabold text-brand-ink">
             {(name || data?.user.email || 'K').slice(0, 2).toLocaleUpperCase('tr')}
@@ -211,7 +272,7 @@ export function ProfilePage() {
           </div>
         </div>
         <form
-          className="space-y-5"
+          className="grid gap-5 sm:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
             setBusy(true);
@@ -237,7 +298,7 @@ export function ProfilePage() {
             onChange={(e) => setName(e.target.value)}
           />
           <TextField label="E-posta" value={data?.user.email ?? ''} readOnly />
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 sm:col-span-2">
             <Button type="submit" fullWidth={false} loading={busy}>
               Kaydet
             </Button>
@@ -318,10 +379,11 @@ export function UsersPage() {
     <Frame description="İşletmenizde kimlerin erişimi olduğunu yönetin.">
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-52 flex-1">
-          <TextField
+          <SearchField
             label="Kullanıcı Ara"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={setSearch}
+            placeholder="Ad, e-posta veya rol ara…"
           />
         </div>
         {can('users', 'save') && (
@@ -337,7 +399,7 @@ export function UsersPage() {
       <LoadState {...rows} retry={rows.reload} />
       {error && <Alert tone="error">{error}</Alert>}
       {!rows.loading && !rows.error && (
-        <div className="overflow-x-auto rounded-3xl border border-line bg-surface-raised">
+        <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
           <table className="w-full min-w-[38rem] text-left text-sm">
             <thead className="border-b border-line text-xs text-ink-muted">
               <tr>
@@ -527,7 +589,7 @@ export function RolesPage() {
   const [error, setError] = useState<string | null>(null);
   return (
     <Frame description="Her bölüm için görüntüleme, kaydetme ve silme yetkilerini belirleyin.">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink-muted">İşletme sahibinin erişimi her zaman korunur.</p>
         {can('roles', 'save') && (
           <Button
@@ -541,7 +603,7 @@ export function RolesPage() {
       </div>
       <LoadState {...rows} retry={rows.reload} />
       {error && <Alert tone="error">{error}</Alert>}
-      <div className="overflow-hidden rounded-3xl border border-line bg-surface-raised">
+      <div className="overflow-hidden rounded-2xl border border-line bg-surface">
         {rows.value.map((r) => (
           <div
             key={r.id}
@@ -724,70 +786,16 @@ function RoleForm({
 }
 
 export function SettingsIndexPage({ integrations = false }: { integrations?: boolean }) {
-  const pages = integrations
-    ? SETTINGS_PAGES.filter((p) => p.key !== 'general')
-    : SETTINGS_PAGES.filter((p) => p.key === 'general');
-  return (
-    <Frame
-      back={integrations ? '/uygulama/ayarlar' : '/uygulama/profil'}
-      description={integrations ? 'Bağlantılarınızı ayrı sayfalardan yönetin.' : 'İşletme ayarları'}
-    >
-      <div className="overflow-hidden rounded-3xl border border-line bg-surface-raised">
-        {pages.map((p) => (
-          <SettingsLink
-            key={p.key}
-            to={`/uygulama/ayarlar/${p.key}`}
-            title={p.title}
-            description={p.description}
-            icon={
-              p.key === 'general' ? <Settings className="size-5" /> : <Mail className="size-5" />
-            }
-          />
-        ))}
-        {!integrations && (
-          <SettingsLink
-            to="/uygulama/ayarlar/entegrasyonlar"
-            title="Entegrasyonlar"
-            description="SMTP, IMAP ve Google bağlantıları"
-            icon={<Plug className="size-5" />}
-          />
-        )}
-      </div>
-    </Frame>
-  );
-}
-function SettingsLink({
-  to,
-  title,
-  description,
-  icon,
-}: {
-  to: string;
-  title: string;
-  description: string;
-  icon: ReactNode;
-}) {
-  return (
-    <Link
-      to={to}
-      className="flex min-h-24 items-center gap-4 border-b border-line px-6 py-5 last:border-0 hover:bg-surface-muted"
-    >
-      <span className="text-brand-ink">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-bold">{title}</span>
-        <span className="mt-1 block text-sm text-ink-muted">{description}</span>
-      </span>
-      <ChevronRight className="size-4 text-ink-muted" />
-    </Link>
-  );
+  return <SettingsPage initialSection={integrations ? 'smtp' : 'general'} />;
 }
 
 interface FullSettings extends SettingsResult {
   system?: { smtp: boolean; google: boolean };
   googleRedirect?: string;
 }
-export function SettingsPage() {
-  const { section } = useParams();
+export function SettingsPage({ initialSection = 'general' }: { initialSection?: string }) {
+  const { section: parameter } = useParams();
+  const section = parameter ?? initialSection;
   const page = SETTINGS_PAGES.find((p) => p.key === section);
   const { can, refresh } = useWorkspace();
   const rows = useRows<FullSettings>(`/ayarlar/${page?.key ?? 'general'}`, {
@@ -841,7 +849,7 @@ export function SettingsPage() {
       <LoadState {...rows} retry={rows.reload} />
       {!rows.loading && !rows.error && draftSource === rows.value && (
         <form
-          className={`${panel} max-w-3xl space-y-5`}
+          className={`${panel} w-full space-y-5`}
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             void run(async () => {
@@ -860,6 +868,12 @@ export function SettingsPage() {
             }
           />
           <h2 className="text-xl font-extrabold">{page.title}</h2>
+          {section === 'images' && (
+            <p className="text-sm text-ink-muted">
+              Açık olduğunda görsel kutusunun zemini şeffaf olur. Dosyanın içindeki beyaz veya
+              renkli fon değişmez; özgün görsel korunur.
+            </p>
+          )}
           {error && <Alert tone="error">{error}</Alert>}
           {message && <Alert tone="info">{message}</Alert>}
           {params.has('google') && (
@@ -877,7 +891,16 @@ export function SettingsPage() {
               const type = 'type' in f ? f.type : undefined;
               return (
                 <div key={f.key} className={f.key === 'address' ? 'sm:col-span-2' : ''}>
-                  {type === 'boolean' ? (
+                  {section === 'images' ? (
+                    <div className="flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-line px-4 py-3">
+                      <span className="font-semibold">{f.label}</span>
+                      <ToggleSwitch
+                        label={f.label}
+                        checked={draft[f.key] === 'true'}
+                        onChange={(v) => setDraft({ ...draft, [f.key]: String(v) })}
+                      />
+                    </div>
+                  ) : type === 'boolean' ? (
                     <SelectField
                       label={f.label}
                       value={draft[f.key] ?? 'false'}
@@ -1007,80 +1030,20 @@ export function SettingsPage() {
 }
 
 export function LogsPage() {
-  const [filters, setFilters] = useState({ user: '', section: '', action: '', from: '', to: '' });
-  const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<WorkspaceLog | null>(null);
-  const rows = useRows<{ items: WorkspaceLog[]; total: number }>(
-    `/loglar?page=${page}${query ? '&' + query : ''}`,
-    { items: [], total: 0 },
-  );
+  const rows = useRows<{ items: WorkspaceLog[]; total: number }>(`/loglar?page=${page}`, {
+    items: [],
+    total: 0,
+  });
   const label = (key: string) =>
     WORKSPACE_RESOURCES.find((r) => r.key === key)?.label ??
     ({ profile: 'Profil' } as Record<string, string>)[key] ??
     key;
   return (
     <Frame description="İşletmedeki işlemler ve değişiklikler">
-      <form
-        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setPage(1);
-          setQuery(
-            new URLSearchParams(
-              Object.fromEntries(Object.entries(filters).filter(([, v]) => v)),
-            ).toString(),
-          );
-        }}
-      >
-        <TextField
-          label="Kullanıcı Ara"
-          value={filters.user}
-          onChange={(e) => setFilters({ ...filters, user: e.target.value })}
-        />
-        <SelectField
-          label="Bölüm"
-          value={filters.section}
-          options={[
-            { value: '', label: 'Hepsi' },
-            { value: 'profile', label: 'Profil' },
-            ...WORKSPACE_RESOURCES.map((r) => ({ value: r.key, label: r.label })),
-          ]}
-          onChange={(section) => setFilters({ ...filters, section })}
-        />
-        <SelectField
-          label="İşlem"
-          value={filters.action}
-          options={[
-            '',
-            'Kaydet',
-            'Sil',
-            'Ürün Ata',
-            'Ürün Çıkar',
-            'Sırala',
-            'Çıkış Yap',
-            'Google Bağlantısı',
-          ].map((v) => ({ value: v, label: v || 'Hepsi' }))}
-          onChange={(action) => setFilters({ ...filters, action })}
-        />
-        <TextField
-          type="date"
-          label="Başlangıç"
-          value={filters.from}
-          onChange={(e) => setFilters({ ...filters, from: e.target.value })}
-        />
-        <TextField
-          type="date"
-          label="Bitiş"
-          value={filters.to}
-          onChange={(e) => setFilters({ ...filters, to: e.target.value })}
-        />
-        <Button type="submit" variant="outline">
-          Süz
-        </Button>
-      </form>
       <LoadState {...rows} retry={rows.reload} />
-      <div className="overflow-x-auto rounded-3xl border border-line bg-surface-raised">
+      <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
         <table className="w-full min-w-[42rem] text-left text-sm">
           <thead className="border-b border-line text-xs text-ink-muted">
             <tr>
@@ -1114,12 +1077,10 @@ export function LogsPage() {
           </tbody>
         </table>
         {!rows.loading && !rows.value.items.length && (
-          <p className="p-8 text-center text-sm text-ink-muted">
-            Bu süzgeçlerle eşleşen kayıt yok.
-          </p>
+          <p className="p-8 text-center text-sm text-ink-muted">Henüz işlem kaydı yok.</p>
         )}
       </div>
-      <div className="flex items-center justify-between gap-3 text-sm text-ink-muted">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4 text-sm text-ink-muted">
         <span>{rows.value.total} kayıt</span>
         <div className="flex items-center gap-3">
           <Button

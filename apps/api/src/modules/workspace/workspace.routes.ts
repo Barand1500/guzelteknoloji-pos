@@ -59,13 +59,14 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
       );
       return fn(tx);
     });
-  router.get('/', (_req, res) => {
+  router.get('/', async (_req, res) => {
     const ctx = ctxOf(res);
     res.json({
       business: ctx.business,
       user: ctx.user,
       owner: ctx.owner,
       permissions: ctx.permissions,
+      imageAppearance: await settings.values(ctx.business.id, 'images'),
     });
   });
   router.post('/profil', async (req, res) => {
@@ -331,7 +332,8 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
     });
     res.status(204).end();
   });
-  const page = (value: unknown) => z.enum(['general', 'smtp', 'imap', 'google']).parse(value);
+  const page = (value: unknown) =>
+    z.enum(['general', 'images', 'smtp', 'imap', 'google']).parse(value);
   router.get('/ayarlar/:section', async (req, res) => {
     const ctx = ctxOf(res);
     requirePermission(ctx, 'settings', 'read');

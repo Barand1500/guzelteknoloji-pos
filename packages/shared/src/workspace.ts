@@ -22,6 +22,7 @@ export interface WorkspaceContext {
   user: { id: number; name: string | null; email: string | null };
   owner: boolean;
   permissions: RolePermission[];
+  imageAppearance?: Record<string, string>;
 }
 export interface WorkspaceRole {
   id: number;
@@ -50,6 +51,17 @@ export interface WorkspaceLog {
   changes: { field: string; before: string | null; after: string | null }[];
 }
 export const SETTINGS_PAGES = [
+  {
+    key: 'images',
+    title: 'Görsel Ayarları',
+    description: 'Şeffaf görsellerin hangi sayfalarda zeminsiz gösterileceğini seçin.',
+    fields: [
+      { key: 'products', label: 'Ürünlerde Şeffaf Zemin', type: 'boolean' },
+      { key: 'brands', label: 'Markalarda Şeffaf Zemin', type: 'boolean' },
+      { key: 'categories', label: 'Kategorilerde Şeffaf Zemin', type: 'boolean' },
+      { key: 'attributes', label: 'Özelliklerde Şeffaf Zemin', type: 'boolean' },
+    ],
+  },
   {
     key: 'general',
     title: 'Genel Ayarlar',

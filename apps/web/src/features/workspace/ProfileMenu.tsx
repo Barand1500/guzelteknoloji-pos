@@ -3,7 +3,6 @@ import { Link } from 'react-router';
 import { UserRound, Users, ShieldCheck, Settings, History, LogOut, X } from 'lucide-react';
 import { useWorkspace } from './workspace-context';
 const items = [
-  { path: 'profil', label: 'Profil', icon: UserRound, resource: null },
   { path: 'kullanicilar', label: 'Kullanıcılar', icon: Users, resource: 'users' },
   { path: 'roller', label: 'Roller', icon: ShieldCheck, resource: 'roles' },
   { path: 'ayarlar', label: 'Ayarlar', icon: Settings, resource: 'settings' },
@@ -66,10 +65,15 @@ export function ProfileMenu({ onLogout }: { onLogout: () => Promise<void> }) {
           className="absolute top-13 right-0 z-50 w-64 rounded-3xl border border-line bg-surface-raised p-2 shadow-card"
         >
           <div className="flex items-start gap-2 border-b border-line px-3 py-3">
-            <div className="min-w-0 flex-1">
+            <Link
+              ref={first}
+              to="/uygulama/profil"
+              onClick={() => setOpen(false)}
+              className="min-w-0 flex-1 rounded-lg hover:text-brand-ink"
+            >
               <p className="truncate font-bold">{data?.user.name || 'Hesabım'}</p>
               <p className="truncate text-xs text-ink-muted">{data?.business.name}</p>
-            </div>
+            </Link>
             <button
               type="button"
               aria-label="Kapat"
@@ -85,9 +89,8 @@ export function ProfileMenu({ onLogout }: { onLogout: () => Promise<void> }) {
           <nav aria-label="Hesap Menüsü" className="py-1">
             {items
               .filter((i) => !i.resource || can(i.resource))
-              .map((i, n) => (
+              .map((i) => (
                 <Link
-                  ref={n === 0 ? first : undefined}
                   key={i.path}
                   to={`/uygulama/${i.path}`}
                   onClick={() => setOpen(false)}
