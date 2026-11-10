@@ -169,3 +169,23 @@ describe('Kayıt sonrası ekran: ürün önizlemesi', () => {
     expect(screen.getAllByText('Yeni Ürünler').length).toBeGreaterThan(0);
   });
 });
+
+describe('Fırsat/Özellik özeti: kapalıyken üzerine gelince', () => {
+  it('seçilen özellik "Renk: Siyah" gibi, fırsat adıyla önizlenir; açıkken görünmez', async () => {
+    const user = await openNewCard();
+    await user.click(screen.getByRole('button', { name: /^Özellik ekle/ }));
+    await user.click(screen.getByRole('button', { name: /^Renk/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Siyah' }));
+    await user.click(screen.getByRole('button', { name: /^Fırsat ekle/ }));
+    await user.click(screen.getByRole('switch', { name: 'Yeni Ürünler fırsatı' }));
+    await user.click(screen.getByRole('button', { name: /^Fırsat ekle/ })); // kapat
+
+    await user.hover(screen.getByRole('button', { name: /^Fırsat ekle/ }));
+    expect(within(screen.getByRole('tooltip')).getByText('Yeni Ürünler')).toBeInTheDocument();
+    await user.unhover(screen.getByRole('button', { name: /^Fırsat ekle/ }));
+    await user.hover(screen.getByRole('button', { name: /^Özellik ekle/ }));
+    const tip = screen.getByRole('tooltip');
+    expect(within(tip).getByText('Renk:')).toBeInTheDocument();
+    expect(within(tip).getByText('Siyah')).toBeInTheDocument();
+  });
+});

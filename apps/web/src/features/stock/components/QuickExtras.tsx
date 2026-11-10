@@ -47,34 +47,54 @@ function InlineLink({
   count,
   controls,
   onClick,
+  preview,
   children,
 }: {
   open: boolean;
   count: number;
   controls: string;
   onClick: () => void;
+  /** Kapalıyken üzerine gelince (ya da odaklanınca) görünen özet; seçim yoksa verilmez. */
+  preview?: React.ReactNode;
   children: string;
 }) {
+  const [hover, setHover] = useState(false);
   return (
-    <button
-      type="button"
-      aria-expanded={open}
-      aria-controls={controls}
-      onClick={onClick}
-      className={[
-        'inline-flex items-center gap-1.5 rounded-md italic underline underline-offset-[5px] transition-colors',
-        open
-          ? 'font-semibold text-brand-700 decoration-brand-700 decoration-2'
-          : 'text-ink-muted decoration-line-strong decoration-1 hover:text-brand-700 hover:decoration-brand-700',
-      ].join(' ')}
+    <span
+      className="relative inline-flex"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
     >
-      {children}
-      {count > 0 ? (
-        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-brand-700 px-1.5 text-xs font-bold text-white not-italic no-underline">
-          {count}
-        </span>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={controls}
+        onClick={onClick}
+        className={[
+          'inline-flex items-center gap-1.5 rounded-md italic underline underline-offset-[5px] transition-colors',
+          open
+            ? 'font-semibold text-brand-700 decoration-brand-700 decoration-2'
+            : 'text-ink-muted decoration-line-strong decoration-1 hover:text-brand-700 hover:decoration-brand-700',
+        ].join(' ')}
+      >
+        {children}
+        {count > 0 ? (
+          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-brand-700 px-1.5 text-xs font-bold text-white not-italic no-underline">
+            {count}
+          </span>
+        ) : null}
+      </button>
+      {hover && !open && preview ? (
+        <div
+          role="tooltip"
+          className="pointer-events-none absolute bottom-full left-0 z-30 mb-2 w-max max-w-[18rem] animate-fade-in rounded-2xl border border-line bg-surface-raised p-3 text-left not-italic shadow-card"
+        >
+          {preview}
+        </div>
       ) : null}
-    </button>
+    </span>
   );
 }
 
@@ -113,6 +133,59 @@ export function QuickExtras({ editor }: { editor: StockEditor }) {
   if (!options) return null;
 
   const deals = options.deals.filter((d) => d.active || dealIds.includes(d.id));
+
+  // Kapalıyken üzerine gelince görünen özetler: "Fırsat: ikon + ad", "Renk: ● Siyah".
+  const chosenDeals = options.deals.filter((d) => dealIds.includes(d.id));
+  const chosenAttrs = attributes
+    ? attributes.groups
+        .map((group) => ({
+          group,
+          values: attributes.values.filter(
+            (v) => v.groupId === group.id && attributeValueIds.includes(v.id),
+          ),
+        }))
+        .filter((g) => g.values.length > 0)
+    : [];
+  const dealPreview =
+    chosenDeals.length > 0 ? (
+      <ul aria-label="Seçili fırsatlar" className="flex flex-col gap-1.5 text-sm font-semibold">
+        {chosenDeals.map((d) => (
+          <li key={d.id} className="flex items-center gap-2">
+            {d.iconUrl ? (
+              <DealBadge url={d.iconUrl} className="size-5" />
+            ) : (
+              <Tag className="size-4 shrink-0 opacity-70" aria-hidden="true" />
+            )}
+            {d.name}
+          </li>
+        ))}
+      </ul>
+    ) : undefined;
+  const attrPreview =
+    chosenAttrs.length > 0 ? (
+      <ul aria-label="Seçili özellikler" className="flex flex-col gap-1.5 text-sm">
+        {chosenAttrs.map(({ group, values }) => (
+          <li key={group.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-ink-muted">{group.name}:</span>
+            {values.map((v) => (
+              <span key={v.id} className="inline-flex items-center gap-1.5 font-semibold">
+                {group.kind === 'color' ? (
+                  <span
+                    aria-hidden="true"
+                    className="size-3.5 rounded-full ring-1 ring-black/20"
+                    style={{ backgroundColor: v.color ?? '#9ca3af' }}
+                  />
+                ) : null}
+                {group.kind === 'image' && v.imageUrl ? (
+                  <img src={v.imageUrl} alt="" className="size-4 rounded bg-white object-contain" />
+                ) : null}
+                {v.name}
+              </span>
+            ))}
+          </li>
+        ))}
+      </ul>
+    ) : undefined;
   const toggle = (which: Exclude<Open, null>) => setOpen((o) => (o === which ? null : which));
   const dealPanel = `${baseId}-firsat`;
   const attrPanel = `${baseId}-ozellik`;
@@ -126,6 +199,7 @@ export function QuickExtras({ editor }: { editor: StockEditor }) {
           count={dealIds.length}
           controls={dealPanel}
           onClick={() => toggle('deal')}
+          preview={dealPreview}
         >
           Fırsat ekle
         </InlineLink>
@@ -137,6 +211,7 @@ export function QuickExtras({ editor }: { editor: StockEditor }) {
           count={attributeValueIds.length}
           controls={attrPanel}
           onClick={() => toggle('attr')}
+          preview={attrPreview}
         >
           Özellik ekle
         </InlineLink>
