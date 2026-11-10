@@ -300,3 +300,8 @@ html[data-transparent-attributes='true'] [data-image-frame='attributes'] {
     backdrop-filter: blur(2px);
   }
 }
+
+/* Kutucuk sürüklenirken küçük resimlerin büyütme kartı görünmez (sıralamayı engellemesin). */
+body[data-sortable-dragging] [data-zoom-card] {
+  display: none !important;
+}
