@@ -3,14 +3,37 @@ import tls from 'node:tls';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import nodemailer from 'nodemailer';
-import type { Request, Response } from 'express';
+import type { Request, Response, RequestHandler } from 'express';
 import { z } from 'zod';
 import type { Env } from '../../config/env';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
-import type { AccessContext } from './workspace.access';
-import type { WorkspaceSettings } from './workspace.settings';
+import { WorkspaceAccess, requirePermission, type AccessContext } from './workspace.access';
+import type { AuthService } from '../auth/auth.service';
+import { readSessionToken } from '../auth/auth.cookies';
+import { WorkspaceSettings } from './workspace.settings';
 
+export function mailConnectionMessage(error: unknown) {
+  const e = error as { code?: string; message?: string };
+  if (
+    /CERT|SELF_SIGNED|UNABLE_TO_VERIFY/.test(e?.code ?? '') ||
+    /certificate|self.signed/i.test(e?.message ?? '')
+  )
+    return 'Posta sunucusunun TLS sertifikası doğrulanamadı. Sunucu adıyla eşleşen, geçerli ve güvenilir bir sertifika kurulmalı. Posta sağlayıcınızın önerdiği sunucu adresini kontrol edin.';
+  if (e?.code === 'EAUTH')
+    return 'Posta sunucusu kullanıcı adı veya şifreyi kabul etmedi. Tam e-posta adresini ve posta/uygulama şifresini kontrol edin.';
+  if (['ENOTFOUND', 'EAI_AGAIN'].includes(e?.code ?? ''))
+    return 'Posta sunucusunun adresi çözümlenemedi. Sunucu adını ve DNS kayıtlarını kontrol edin.';
+  if (['ETIMEDOUT', 'ECONNECTION', 'ECONNREFUSED', 'ESOCKET'].includes(e?.code ?? ''))
+    return 'Posta sunucusuna bağlantı kurulamadı. Portu, TLS seçimini ve uygulama sunucusunun dış bağlantı izinlerini kontrol edin.';
+  if (e?.code === 'PRIVATE_ADDRESS')
+    return 'Bağlantı testi yalnızca herkese açık posta sunucusu adresleriyle kullanılabilir.';
+  return 'Bağlantı doğrulanamadı. Sunucu, port, TLS ve giriş bilgilerini kontrol edin.';
+}
+
+export function mailTlsOptions(host: string, values: Record<string, string>) {
+  return { servername: host, rejectUnauthorized: values.allowInvalidCertificate !== 'true' };
+}
 export async function testMailConnection(section: 'smtp' | 'imap', values: Record<string, string>) {
   const host = values.host?.trim();
   const port = Number(values.port || (section === 'imap' ? 993 : 587));
@@ -50,7 +73,7 @@ export async function testMailConnection(section: 'smtp' | 'imap', values: Recor
       return first >= 0x2000 && first <= 0x3fff && !address.toLowerCase().startsWith('2001:db8:');
     };
     if (!addresses.length || addresses.some((a) => !publicAddress(a.address)))
-      throw new Error('Private address');
+      throw Object.assign(new Error('Private address'), { code: 'PRIVATE_ADDRESS' });
     const address = addresses[0]!.address;
     if (section === 'smtp') {
       const transport = nodemailer.createTransport({
@@ -58,7 +81,7 @@ export async function testMailConnection(section: 'smtp' | 'imap', values: Recor
         port,
         secure: values.secure === 'true',
         requireTLS: values.secure !== 'true',
-        tls: { servername: host },
+        tls: mailTlsOptions(host, values),
         auth: { user: values.username, pass: values.password },
         connectionTimeout: 8000,
         greetingTimeout: 8000,
@@ -74,8 +97,7 @@ export async function testMailConnection(section: 'smtp' | 'imap', values: Recor
         const socket = tls.connect({
           host: address,
           port,
-          servername: host,
-          rejectUnauthorized: true,
+          ...mailTlsOptions(host, values),
         });
         let buffer = '';
         let sent = false;
@@ -92,8 +114,10 @@ export async function testMailConnection(section: 'smtp' | 'imap', values: Recor
             throw new Error('Invalid credentials');
           return '"' + v.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
         };
-        socket.setTimeout(10000, () => finish(new Error('Timeout')));
-        socket.on('error', () => finish(new Error('Connection failed')));
+        socket.setTimeout(10000, () =>
+          finish(Object.assign(new Error('Timeout'), { code: 'ETIMEDOUT' })),
+        );
+        socket.on('error', (error) => finish(error));
         socket.on('close', () => {
           if (!done) finish(new Error('Connection closed'));
         });
@@ -113,17 +137,13 @@ export async function testMailConnection(section: 'smtp' | 'imap', values: Recor
               }
             } else if (/^A1 OK/i.test(line)) finish();
             else if (/^(A1 (NO|BAD)|\* BYE)/i.test(line))
-              finish(new Error('Authentication failed'));
+              finish(Object.assign(new Error('Authentication failed'), { code: 'EAUTH' }));
           }
         });
       });
     }
-  } catch {
-    throw new HttpError(
-      400,
-      'VALIDATION_ERROR',
-      'Bağlantı doğrulanamadı. Sunucu, port, TLS ve giriş bilgilerini kontrol edin.',
-    );
+  } catch (error) {
+    throw new HttpError(400, 'VALIDATION_ERROR', mailConnectionMessage(error));
   }
 }
 
@@ -132,8 +152,46 @@ const cookieOptions = (env: Env) => ({
   httpOnly: true,
   secure: env.isProduction,
   sameSite: 'lax' as const,
-  path: '/api/hesap/google',
+  path: '/api',
 });
+export function workspaceGoogleRedirect(env: Env, clientId?: string) {
+  if (env.google && clientId === env.google.clientId) {
+    const configured = new URL(env.google.redirectUri);
+    if (
+      configured.origin === new URL(env.APP_URL).origin &&
+      configured.pathname === '/api/auth/google/callback'
+    )
+      return env.google.redirectUri;
+  }
+  return `${env.APP_URL}/api/hesap/google/callback`;
+}
+// Aynı Google istemcisiyle çalışan mevcut dönüş adresi kullanılır. Akışlar imzalı state ile ayrılır.
+export function workspaceGoogleReturn(
+  db: PrismaClient,
+  env: Env,
+  auth: AuthService,
+): RequestHandler {
+  return async (req, res, next) => {
+    let state: unknown;
+    try {
+      state = JSON.parse(req.signedCookies?.[cookie] ?? '{}').state;
+    } catch {
+      return next();
+    }
+    if (
+      typeof state !== 'string' ||
+      typeof req.query.state !== 'string' ||
+      state !== req.query.state
+    )
+      return next();
+    const token = readSessionToken(req, env);
+    const session = token ? await auth.getSession(token) : null;
+    if (!session) return res.redirect(`${env.APP_URL}/uygulama/ayarlar/google?google=gecersiz`);
+    const ctx = await new WorkspaceAccess(db).resolve(session.user);
+    requirePermission(ctx, 'settings', 'save');
+    await googleCallback(new WorkspaceSettings(db, env.COOKIE_SECRET), db, ctx, env, req, res);
+  };
+}
 export async function googleConnect(
   settings: WorkspaceSettings,
   ctx: AccessContext,
@@ -148,12 +206,15 @@ export async function googleConnect(
       'Google istemci kimliği ve anahtarını önce kaydedin.',
     );
   const state = randomBytes(32).toString('base64url');
+  const redirectUri = workspaceGoogleRedirect(env, values.clientId);
   const verifier = randomBytes(48).toString('base64url');
+  res.clearCookie(cookie, { ...cookieOptions(env), path: '/api/hesap/google' });
   res.cookie(
     cookie,
     JSON.stringify({
       state,
       verifier,
+      redirectUri,
       businessId: ctx.business.id,
       userId: ctx.user.id,
       expires: Date.now() + 600000,
@@ -163,7 +224,7 @@ export async function googleConnect(
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.search = new URLSearchParams({
     client_id: values.clientId,
-    redirect_uri: `${env.APP_URL}/api/hesap/google/callback`,
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'openid email profile',
     access_type: 'offline',
@@ -189,6 +250,7 @@ export async function googleCallback(
     businessId: z.number(),
     userId: z.number(),
     expires: z.number(),
+    redirectUri: z.string().optional(),
   });
   const raw: unknown = req.signedCookies?.[cookie];
   res.clearCookie(cookie, cookieOptions(env));
@@ -230,7 +292,7 @@ export async function googleCallback(
         client_secret: values.clientSecret!,
         code: req.query.code,
         code_verifier: flow.verifier,
-        redirect_uri: `${env.APP_URL}/api/hesap/google/callback`,
+        redirect_uri: flow.redirectUri ?? `${env.APP_URL}/api/hesap/google/callback`,
         grant_type: 'authorization_code',
       }),
       signal: AbortSignal.timeout(15000),

@@ -81,6 +81,11 @@ export const SETTINGS_PAGES = [
       { key: 'host', label: 'Sunucu' },
       { key: 'port', label: 'Port', type: 'port' },
       { key: 'secure', label: 'Doğrudan TLS (465)', type: 'boolean' },
+      {
+        key: 'allowInvalidCertificate',
+        label: 'Geçersiz TLS Sertifikasına İzin Ver',
+        type: 'boolean',
+      },
       { key: 'username', label: 'Kullanıcı Adı' },
       { key: 'password', label: 'Şifre', type: 'secret' },
       { key: 'from', label: 'Gönderen E-posta' },
@@ -93,6 +98,11 @@ export const SETTINGS_PAGES = [
     fields: [
       { key: 'host', label: 'Sunucu' },
       { key: 'port', label: 'Port', type: 'port' },
+      {
+        key: 'allowInvalidCertificate',
+        label: 'Geçersiz TLS Sertifikasına İzin Ver',
+        type: 'boolean',
+      },
       { key: 'username', label: 'Kullanıcı Adı' },
       { key: 'password', label: 'Şifre', type: 'secret' },
     ],

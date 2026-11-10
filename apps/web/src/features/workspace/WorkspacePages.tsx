@@ -8,6 +8,8 @@ import {
   Mail,
   Settings,
   ShieldCheck,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import {
   SETTINGS_PAGES,
@@ -147,7 +149,7 @@ function LoadState({
   return error ? (
     <div className="space-y-3">
       <Alert tone="error">{error}</Alert>
-      <Button variant="outline" fullWidth={false} onClick={() => void retry()}>
+      <Button flow={false} variant="outline" fullWidth={false} onClick={() => void retry()}>
         Tekrar Dene
       </Button>
     </div>
@@ -199,10 +201,10 @@ function FormSheet({
           {error && <Alert tone="error">{error}</Alert>}
           {children}
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={close} disabled={busy}>
+            <Button flow={false} type="button" variant="outline" onClick={onClose} disabled={busy}>
               Vazgeç
             </Button>
-            <Button type="submit" loading={busy}>
+            <Button flow={false} type="submit" loading={busy}>
               Kaydet
             </Button>
           </div>
@@ -272,10 +274,11 @@ export function ProfilePage() {
           />
           <TextField label="E-posta" value={data?.user.email ?? ''} readOnly />
           <div className="flex flex-wrap gap-3 sm:col-span-2">
-            <Button type="submit" fullWidth={false} loading={busy}>
+            <Button flow={false} type="submit" fullWidth={false} loading={busy}>
               Kaydet
             </Button>
             <Button
+              flow={false}
               type="button"
               variant="outline"
               fullWidth={false}
@@ -294,6 +297,18 @@ function PasswordForm({ onClose }: { onClose: () => void }) {
   const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
+  const [visible, setVisible] = useState<Record<string, boolean>>({});
+  const eye = (key: string, label: string) => (
+    <button
+      type="button"
+      className={iconButton}
+      aria-label={`${label} ${visible[key] ? 'Gizle' : 'Göster'}`}
+      aria-pressed={!!visible[key]}
+      onClick={() => setVisible({ ...visible, [key]: !visible[key] })}
+    >
+      {visible[key] ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+    </button>
+  );
   return (
     <FormSheet
       title="Şifreyi Değiştir"
@@ -305,15 +320,17 @@ function PasswordForm({ onClose }: { onClose: () => void }) {
       }}
     >
       <TextField
-        type="password"
+        type={visible.current ? 'text' : 'password'}
         label="Mevcut Şifre"
+        trailing={eye('current', 'Mevcut Şifre')}
         autoComplete="current-password"
         value={current}
         onChange={(e) => setCurrent(e.target.value)}
       />
       <TextField
-        type="password"
+        type={visible.password ? 'text' : 'password'}
         label="Yeni Şifre"
+        trailing={eye('password', 'Yeni Şifre')}
         autoComplete="new-password"
         minLength={10}
         required
@@ -321,8 +338,9 @@ function PasswordForm({ onClose }: { onClose: () => void }) {
         onChange={(e) => setPassword(e.target.value)}
       />
       <TextField
-        type="password"
+        type={visible.repeat ? 'text' : 'password'}
         label="Yeni Şifre Tekrar"
+        trailing={eye('repeat', 'Yeni Şifre Tekrar')}
         autoComplete="new-password"
         required
         value={repeat}
@@ -361,6 +379,7 @@ export function UsersPage() {
         </div>
         {can('users', 'save') && (
           <Button
+            flow={false}
             fullWidth={false}
             leadingIcon={<Plus className="size-4" />}
             onClick={() => setEditing('new')}
@@ -566,6 +585,7 @@ export function RolesPage() {
         <p className="text-sm text-ink-muted">İşletme sahibinin erişimi her zaman korunur.</p>
         {can('roles', 'save') && (
           <Button
+            flow={false}
             fullWidth={false}
             leadingIcon={<Plus className="size-4" />}
             onClick={() => setEditing('new')}
@@ -766,6 +786,74 @@ interface FullSettings extends SettingsResult {
   system?: { smtp: boolean; google: boolean };
   googleRedirect?: string;
 }
+function SecretSettingField({
+  label,
+  value,
+  configured,
+  section,
+  field,
+  onChange,
+}: {
+  label: string;
+  value: string | undefined;
+  configured: boolean;
+  section: string;
+  field: string;
+  onChange: (value: string) => void;
+}) {
+  const { can } = useWorkspace();
+  const [cached, setCached] = useState<string | null>(null);
+  const [visible, setVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+  const mask = '••••••••';
+  const current = value ?? (configured ? (cached ?? mask) : '');
+  const toggle = async () => {
+    if (visible) return setVisible(false);
+    if (current !== mask) return setVisible(true);
+    setLoading(true);
+    setError(undefined);
+    try {
+      const result = await post<{ value: string }>(`/ayarlar/${section}/gizli/${field}`);
+      setCached(result.value);
+      setVisible(true);
+    } catch (e) {
+      setError(dataError(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <TextField
+      label={label}
+      type={visible ? 'text' : 'password'}
+      autoComplete="new-password"
+      value={current}
+      error={error}
+      hint={configured ? 'Kayıtlı. Değiştirmediğiniz sürece mevcut bilgi korunur.' : undefined}
+      onFocus={(e) => {
+        if (current === mask) e.target.select();
+      }}
+      onChange={(e) => {
+        const next = e.target.value.replaceAll('•', '');
+        setCached(next);
+        onChange(next);
+      }}
+      trailing={
+        <button
+          type="button"
+          className={iconButton}
+          disabled={loading || !can('settings', 'save')}
+          aria-label={visible ? `${label} Gizle` : `${label} Göster`}
+          aria-pressed={visible}
+          onClick={() => void toggle()}
+        >
+          {visible ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+        </button>
+      }
+    />
+  );
+}
 export function SettingsPage({ initialSection = 'general' }: { initialSection?: string }) {
   const { section: parameter } = useParams();
   const section = parameter ?? initialSection;
@@ -777,7 +865,6 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
   });
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [draftSource, setDraftSource] = useState<FullSettings | null>(null);
-  const [clear, setClear] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -788,7 +875,6 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
       if (active) {
         setDraft(rows.value.values);
         setDraftSource(rows.value);
-        setClear([]);
       }
     });
     return () => {
@@ -826,7 +912,7 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             void run(async () => {
-              await post(`/ayarlar/${page.key}`, { values: draft, clear });
+              await post(`/ayarlar/${page.key}`, { values: draft });
               await rows.reload();
               await refresh();
               setMessage('Ayarlar kaydedildi.');
@@ -836,8 +922,7 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
           <UnsavedChanges
             dirty={
               !busy &&
-              (clear.length > 0 ||
-                page.fields.some((f) => (draft[f.key] ?? '') !== (rows.value.values[f.key] ?? '')))
+              page.fields.some((f) => (draft[f.key] ?? '') !== (rows.value.values[f.key] ?? ''))
             }
           />
           <h2 className="text-xl font-extrabold">{page.title}</h2>
@@ -879,35 +964,30 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
                       value={draft[f.key] ?? 'false'}
                       options={[
                         { value: 'true', label: 'Evet' },
-                        { value: 'false', label: 'Hayır (STARTTLS)' },
+                        {
+                          value: 'false',
+                          label: f.key === 'secure' ? 'Hayır (STARTTLS)' : 'Hayır',
+                        },
                       ]}
                       onChange={(v) => setDraft({ ...draft, [f.key]: v })}
+                    />
+                  ) : type === 'secret' ? (
+                    <SecretSettingField
+                      key={`${section}/${f.key}`}
+                      label={f.label}
+                      value={draft[f.key]}
+                      configured={rows.value.configured.includes(f.key)}
+                      section={section}
+                      field={f.key}
+                      onChange={(value) => setDraft({ ...draft, [f.key]: value })}
                     />
                   ) : (
                     <TextField
                       label={f.label}
-                      type={type === 'secret' ? 'password' : 'text'}
-                      autoComplete={type === 'secret' ? 'new-password' : undefined}
                       value={draft[f.key] ?? ''}
                       numeric={type === 'port' ? 'integer' : undefined}
                       onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
                     />
-                  )}
-                  {type === 'secret' && rows.value.configured.includes(f.key) && (
-                    <label className="mt-2 flex items-center gap-2 text-xs text-ink-muted">
-                      <input
-                        type="checkbox"
-                        className="accent-brand-700"
-                        checked={clear.includes(f.key)}
-                        disabled={!can('settings', 'delete')}
-                        onChange={(e) =>
-                          setClear(
-                            e.target.checked ? [...clear, f.key] : clear.filter((k) => k !== f.key),
-                          )
-                        }
-                      />
-                      Kayıtlı bilgiyi kaldır (boş bırakırsanız korunur)
-                    </label>
                   )}
                 </div>
               );
@@ -915,9 +995,15 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
           </fieldset>
           {section === 'imap' && (
             <p className="text-sm text-ink-muted">
-              IMAP bağlantısı TLS ile doğrulanır. Standart port 993’tür.
+              IMAP bağlantısı TLS ile şifrelenir. Standart port 993’tür.
             </p>
           )}
+          {(section === 'smtp' || section === 'imap') &&
+            draft.allowInvalidCertificate === 'true' && (
+              <p className="text-xs text-ink-muted">
+                Bu bağlantıda TLS şifrelemesi sürer; sertifikayla sunucu kimliği doğrulanmaz.
+              </p>
+            )}
           {section === 'google' && (
             <div className="space-y-2 rounded-2xl bg-surface-muted p-4 text-sm">
               <p className="font-semibold">
@@ -926,8 +1012,9 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
               <p className="text-ink-muted">Google Cloud yönlendirme adresi:</p>
               <p className="break-all font-mono text-xs">{rows.value.googleRedirect}</p>
               <p className="text-xs text-ink-muted">
-                Bu bağlantı işletmenize aittir. Uygulamanın Google ile giriş ayarı sunucuda ayrıca
-                yönetilir.
+                Bu adres Google Cloud’daki istemcinin “Yetkili yönlendirme URI’leri” listesiyle
+                birebir eşleşmeli. Girişte çalışan aynı istemci kullanılıyorsa mevcut giriş dönüş
+                adresi kullanılır.
               </p>
             </div>
           )}
@@ -940,11 +1027,12 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
           )}
           {can('settings', 'save') && (
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" fullWidth={false} loading={busy}>
+              <Button flow={false} type="submit" fullWidth={false} loading={busy}>
                 Kaydet
               </Button>
               {(section === 'smtp' || section === 'imap') && (
                 <Button
+                  flow={false}
                   type="button"
                   variant="outline"
                   fullWidth={false}
@@ -962,6 +1050,7 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
               {section === 'google' && (
                 <>
                   <Button
+                    flow={false}
                     type="button"
                     variant="outline"
                     fullWidth={false}
@@ -977,6 +1066,7 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
                   </Button>
                   {rows.value.googleConnected && (
                     <Button
+                      flow={false}
                       type="button"
                       variant="ghost"
                       fullWidth={false}
@@ -1057,6 +1147,7 @@ export function LogsPage() {
         <span>{rows.value.total} kayıt</span>
         <div className="flex items-center gap-3">
           <Button
+            flow={false}
             variant="outline"
             fullWidth={false}
             disabled={page === 1}
@@ -1066,6 +1157,7 @@ export function LogsPage() {
           </Button>
           <span>{page}</span>
           <Button
+            flow={false}
             variant="outline"
             fullWidth={false}
             disabled={page * 30 >= rows.value.total}

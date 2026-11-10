@@ -13,7 +13,12 @@ import type { PasswordHasher } from '../../lib/password';
 import { HttpError } from '../../lib/http-error';
 import { canGrant, forbidden, requirePermission, type AccessContext } from './workspace.access';
 import { WorkspaceSettings } from './workspace.settings';
-import { testMailConnection, googleConnect, googleCallback } from './workspace.connections';
+import {
+  testMailConnection,
+  googleConnect,
+  googleCallback,
+  workspaceGoogleRedirect,
+} from './workspace.connections';
 import { Prisma } from '../../generated/prisma/client';
 import { createRateLimiter } from '../../middleware/rate-limit';
 
@@ -337,10 +342,11 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
   router.get('/ayarlar/:section', async (req, res) => {
     const ctx = ctxOf(res);
     requirePermission(ctx, 'settings', 'read');
+    const result = await settings.read(ctx.business.id, page(req.params.section));
     res.json({
-      ...(await settings.read(ctx.business.id, page(req.params.section))),
+      ...result,
       system: { smtp: !!env.smtp, google: !!env.google },
-      googleRedirect: `${env.APP_URL}/api/hesap/google/callback`,
+      googleRedirect: workspaceGoogleRedirect(env, result.values.clientId),
     });
   });
   router.post('/ayarlar/:section', async (req, res) => {
@@ -377,6 +383,18 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
     const section = z.enum(['smtp', 'imap']).parse(req.params.section);
     await testMailConnection(section, await settings.values(ctx.business.id, section, true));
     res.json({ message: 'Bağlantı ve kimlik doğrulama başarılı.' });
+  });
+  router.post('/ayarlar/:section/gizli/:key', async (req, res) => {
+    const ctx = ctxOf(res);
+    requirePermission(ctx, 'settings', 'save');
+    const section = page(req.params.section);
+    const key = z.enum(['password', 'clientSecret']).parse(req.params.key);
+    if (!SETTINGS_PAGES.find((p) => p.key === section)!.fields.some((f) => f.key === key))
+      throw new HttpError(400, 'VALIDATION_ERROR', 'Bu bölümde böyle bir gizli alan yok.');
+    const values = await settings.values(ctx.business.id, section, true);
+    note(res, 'Gizli Ayar', null, 'Görüntülendi');
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ value: values[key] ?? '' });
   });
   router.post('/google/baglan', async (_req, res) => {
     const ctx = ctxOf(res);

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Response } from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { WORKSPACE_RESOURCES } from '@gt/shared';
@@ -14,6 +14,14 @@ import {
 import { WorkspaceSettings } from '../modules/workspace/workspace.settings';
 import { requestPermission } from '../modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from '../modules/workspace/workspace.routes';
+import {
+  mailConnectionMessage,
+  mailTlsOptions,
+  googleConnect,
+  workspaceGoogleRedirect,
+  workspaceGoogleReturn,
+} from '../modules/workspace/workspace.connections';
+import type { AuthService } from '../modules/auth/auth.service';
 import { testEnv } from './helpers';
 
 const owner: AccessContext = {
@@ -145,6 +153,74 @@ describe('İşletme yetkileri', () => {
 });
 
 describe('Ayar sırları', () => {
+  it('sertifika istisnası yalnızca bağlantıda açıkça etkinleştirilirse uygulanır', () => {
+    expect(mailTlsOptions('mail.example.com', {})).toEqual({
+      servername: 'mail.example.com',
+      rejectUnauthorized: true,
+    });
+    expect(
+      mailTlsOptions('mail.example.com', { allowInvalidCertificate: 'false' }).rejectUnauthorized,
+    ).toBe(true);
+    expect(
+      mailTlsOptions('mail.example.com', { allowInvalidCertificate: 'true' }).rejectUnauthorized,
+    ).toBe(false);
+  });
+  it('aynı Google istemcisi girişte çalışan dönüş adresini kullanır, yabancı istemci ayrı kalır', async () => {
+    const env = testEnv({
+      GOOGLE_CLIENT_ID: 'working-client',
+      GOOGLE_CLIENT_SECRET: 'working-secret',
+    });
+    const expected = env.google!.redirectUri;
+    expect(workspaceGoogleRedirect(env, 'working-client')).toBe(expected);
+    expect(workspaceGoogleRedirect(env, 'other-client')).toBe(
+      `${env.APP_URL}/api/hesap/google/callback`,
+    );
+    const cookie = vi.fn();
+    const url = new URL(
+      await googleConnect(
+        {
+          values: async () => ({ clientId: 'working-client', clientSecret: 'saved-secret' }),
+        } as unknown as WorkspaceSettings,
+        owner,
+        env,
+        { cookie, clearCookie: vi.fn() } as unknown as Response,
+      ),
+    );
+    expect(url.searchParams.get('redirect_uri')).toBe(expected);
+    expect(url.searchParams.has('client_secret')).toBe(false);
+    expect(JSON.parse(cookie.mock.calls[0]![1]).redirectUri).toBe(expected);
+    expect(cookie.mock.calls[0]![2]).toMatchObject({ path: '/api', signed: true, httpOnly: true });
+  });
+  it('normal Google girişinin state bilgisi işletme akışına yönlendirilmez', async () => {
+    const server = express();
+    server.use((req, _res, next) => {
+      req.signedCookies = { gt_business_google: JSON.stringify({ state: 'business-state' }) };
+      next();
+    });
+    const auth = { getSession: vi.fn() };
+    server.get(
+      '/callback',
+      workspaceGoogleReturn({} as PrismaClient, testEnv(), auth as unknown as AuthService),
+      (_req, res) => res.json({ normalLogin: true }),
+    );
+    const normal = await request(server).get('/callback?state=normal-state');
+    expect(normal.body).toEqual({ normalLogin: true });
+    expect(auth.getSession).not.toHaveBeenCalled();
+    const business = await request(server).get('/callback?state=business-state');
+    expect(business.status).toBe(302);
+    expect(business.headers.location).toContain('/uygulama/ayarlar/google?google=gecersiz');
+  });
+  it('posta bağlantı hatasını gizli yanıtları yansıtmadan açıklar', () => {
+    expect(
+      mailConnectionMessage({ code: 'ESOCKET', message: 'self-signed certificate' }),
+    ).toContain('sertifikası');
+    expect(mailConnectionMessage({ code: 'EAUTH', message: 'secret-server-response' })).toContain(
+      'kullanıcı adı veya şifre',
+    );
+    expect(mailConnectionMessage({ code: 'ENOTFOUND' })).toContain('DNS');
+    expect(mailConnectionMessage({ code: 'ETIMEDOUT' })).toContain('Portu');
+    expect(mailConnectionMessage({ message: 'smtp-password' })).not.toContain('smtp-password');
+  });
   it('sayfa şeffaflığını ilişkili ayar satırına yazar, geçersiz değeri reddeder', async () => {
     const upsert = vi.fn();
     const tx = {
@@ -214,6 +290,28 @@ describe('Yönetim API sınırları', () => {
     server.use(errorHandler(createLogger('silent')));
     return server;
   }
+  it('kayıtlı şifreyi yalnızca ayar yetkisiyle, önbelleksiz ve kendi işletmesinden gösterir', async () => {
+    const encrypted = new WorkspaceSettings({} as PrismaClient, testEnv().COOKIE_SECRET).encrypt(
+      'saved-secret',
+    );
+    const findMany = vi.fn().mockResolvedValue([{ key: 'password', value: encrypted }]);
+    const denied = await request(app(employee, { isletmeAyari: { findMany } })).post(
+      '/ayarlar/smtp/gizli/password',
+    );
+    expect(denied.status).toBe(403);
+    expect(findMany).not.toHaveBeenCalled();
+    const allowed = await request(app(owner, { isletmeAyari: { findMany } })).post(
+      '/ayarlar/smtp/gizli/password',
+    );
+    expect(allowed.status).toBe(200);
+    expect(allowed.body).toEqual({ value: 'saved-secret' });
+    expect(allowed.headers['cache-control']).toBe('no-store');
+    expect(findMany).toHaveBeenCalledWith({
+      where: { businessId: owner.business.id, section: 'smtp' },
+    });
+    const token = await request(app(owner, {})).post('/ayarlar/google/gizli/refreshToken');
+    expect(token.status).toBe(400);
+  });
   it('görüntüleyici kullanıcı yönetim listesini doğrudan çağıramaz', async () => {
     expect((await request(app(employee, {})).get('/kullanicilar')).status).toBe(403);
   });

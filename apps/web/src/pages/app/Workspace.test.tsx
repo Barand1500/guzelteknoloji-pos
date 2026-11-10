@@ -26,6 +26,27 @@ const login = {
 beforeEach(() => sessionStorage.clear());
 
 describe('Profil ve işletme ekranları', () => {
+  it.each([
+    ['/uygulama/roller', 'Rol Ekle', 'Rol Adı'],
+    ['/uygulama/kullanicilar', 'Kullanıcı Ekle', 'Ad Soyad'],
+  ])('%s formunda Vazgeç doğrudan kapatır ve butonlarda ok yoktur', async (path, action, label) => {
+    const user = userEvent.setup();
+    mockFetch({
+      ...login,
+      'GET /api/hesap/roller': () => jsonResponse(200, []),
+      'GET /api/hesap/kullanicilar': () => jsonResponse(200, []),
+    });
+    renderApp(path!);
+    const add = await screen.findByRole('button', { name: action });
+    expect(add.querySelector('.lucide-arrow-right')).toBeNull();
+    await user.click(add);
+    await user.type(screen.getByLabelText(label!), 'Deneme');
+    const cancel = screen.getByRole('button', { name: 'Vazgeç' });
+    expect(cancel.querySelector('.lucide-arrow-right')).toBeNull();
+    await user.click(cancel);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.queryByText('Kaydedilmemiş Değişiklikler')).not.toBeInTheDocument();
+  });
   it('profil menüsü bölümleri açar, çıkış en alttadır', async () => {
     const user = userEvent.setup();
     mockFetch(login);
@@ -112,7 +133,7 @@ describe('Profil ve işletme ekranları', () => {
     expect(screen.queryByRole('button', { name: 'Rol Ekle' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Yeni Stok Kartı' })).not.toBeInTheDocument();
   });
-  it('SMTP şifresini geri göstermeden ayarları kaydeder', async () => {
+  it('SMTP şifresi kayıt sonrası maskeli kalır, göz düğmesiyle gösterilir', async () => {
     const user = userEvent.setup();
     const fetch = mockFetch({
       ...login,
@@ -123,11 +144,13 @@ describe('Profil ve işletme ekranları', () => {
         }),
       'POST /api/hesap/ayarlar/smtp': () =>
         jsonResponse(200, { values: {}, configured: ['password'] }),
+      'POST /api/hesap/ayarlar/smtp/gizli/password': () =>
+        jsonResponse(200, { value: 'new-secret' }),
     });
     renderApp('/uygulama/ayarlar/smtp');
     const host = await screen.findByLabelText('Sunucu');
     expect(host).toHaveValue('smtp.example.com');
-    expect(screen.getByLabelText('Şifre')).toHaveValue('');
+    expect(screen.getByLabelText('Şifre')).toHaveValue('••••••••');
     await user.type(screen.getByLabelText('Şifre'), 'new-secret');
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     await screen.findByText('Ayarlar kaydedildi.');
@@ -135,6 +158,13 @@ describe('Profil ve işletme ekranları', () => {
       ([url, init]) => String(url).endsWith('/ayarlar/smtp') && init?.method === 'POST',
     )!;
     expect(JSON.parse(String(call[1]?.body)).values.password).toBe('new-secret');
+    expect(screen.getByLabelText('Şifre')).toHaveAttribute('type', 'password');
+    expect(screen.getByLabelText('Şifre')).not.toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Şifre Göster' }));
+    await waitFor(() => expect(screen.getByLabelText('Şifre')).toHaveValue('new-secret'));
+    expect(screen.getByLabelText('Şifre')).toHaveAttribute('type', 'text');
+    await user.click(screen.getByRole('button', { name: 'Şifre Gizle' }));
+    expect(screen.getByLabelText('Şifre')).toHaveAttribute('type', 'password');
   });
   it('şeffaflık seçimini kaydeder ve işletmenin görsel görünümünü yeniler', async () => {
     const user = userEvent.setup();
@@ -159,6 +189,38 @@ describe('Profil ve işletme ekranları', () => {
       ([url, init]) => String(url).endsWith('/ayarlar/images') && init?.method === 'POST',
     )!;
     expect(JSON.parse(String(call[1]?.body)).values.brands).toBe('true');
+  });
+  it.each([
+    ['imap', 'password', 'Şifre'],
+    ['google', 'clientSecret', 'İstemci Anahtarı'],
+  ])(
+    '%s gizli alanı maskeli kalır ve gözle açılır; kaldırma seçeneği yoktur',
+    async (section, field, label) => {
+      const user = userEvent.setup();
+      mockFetch({
+        ...login,
+        [`GET /api/hesap/ayarlar/${section}`]: () =>
+          jsonResponse(200, { values: {}, configured: [field] }),
+        [`POST /api/hesap/ayarlar/${section}/gizli/${field}`]: () =>
+          jsonResponse(200, { value: 'saved-value' }),
+      });
+      renderApp(`/uygulama/ayarlar/${section}`);
+      expect(await screen.findByLabelText(label!)).toHaveValue('••••••••');
+      expect(screen.queryByText(/Kayıtlı bilgiyi kaldır/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: `${label} Göster` }));
+      await waitFor(() => expect(screen.getByLabelText(label!)).toHaveValue('saved-value'));
+      expect(screen.getByLabelText(label!)).toHaveAttribute('type', 'text');
+    },
+  );
+  it('profilde yazılan yeni şifre göz düğmesiyle gösterilir', async () => {
+    const user = userEvent.setup();
+    mockFetch(login);
+    renderApp('/uygulama/profil');
+    await user.click(await screen.findByRole('button', { name: 'Şifreyi Değiştir' }));
+    await user.type(screen.getByLabelText('Yeni Şifre', { exact: true }), 'example-password');
+    await user.click(screen.getByRole('button', { name: 'Yeni Şifre Göster' }));
+    expect(screen.getByLabelText('Yeni Şifre', { exact: true })).toHaveAttribute('type', 'text');
+    expect(screen.getByLabelText('Yeni Şifre', { exact: true })).toHaveValue('example-password');
   });
   it('log ayrıntısında eski ve yeni değeri gösterir', async () => {
     const user = userEvent.setup();

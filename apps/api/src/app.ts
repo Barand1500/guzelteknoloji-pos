@@ -28,6 +28,8 @@ import { createDealRouter } from './modules/catalog/deal.routes';
 import { createAttributeRouter } from './modules/catalog/attribute.routes';
 import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
+import { workspaceGoogleReturn } from './modules/workspace/workspace.connections';
+import { createRateLimiter } from './middleware/rate-limit';
 
 export interface AppDeps {
   env: Env;
@@ -107,6 +109,11 @@ export function createApp(deps: AppDeps): Express {
   if (deps.catalogDb) {
     app.use(workspaceMiddleware(deps.catalogDb, env, service, logger));
     app.use('/api/hesap', createWorkspaceRouter(deps.catalogDb, env, deps.hasher));
+    app.get(
+      '/api/auth/google/callback',
+      createRateLimiter({ enabled: env.rateLimitEnabled, windowMs: 60000, limit: 20 }),
+      workspaceGoogleReturn(deps.catalogDb, env, service),
+    );
   }
   app.use(
     '/api/auth',
