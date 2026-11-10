@@ -50,6 +50,8 @@ export interface PaymentMethod {
  */
 export interface HomeData {
   period: HomePeriod;
+  /** true: sunucu henüz hazır değil, ekrandaki sayılar örnek veridir. */
+  sample?: boolean;
   /** Dönemin cirosu ve bir önceki dönemin cirosu (değişim yüzdesi için; 0 ise gösterilmez). */
   salesAmount: number;
   previousSalesAmount: number;
