@@ -179,7 +179,10 @@ describe('Ayar sırları', () => {
     const url = new URL(
       await googleConnect(
         {
-          values: async () => ({ clientId: 'working-client', clientSecret: 'saved-secret' }),
+          effective: async () => ({
+            source: 'database',
+            values: { clientId: 'working-client', clientSecret: 'saved-secret' },
+          }),
         } as unknown as WorkspaceSettings,
         owner,
         env,
@@ -273,7 +276,7 @@ describe('Ayar sırları', () => {
 });
 
 describe('Yönetim API sınırları', () => {
-  function app(ctx: AccessContext, tx: Record<string, unknown>) {
+  function app(ctx: AccessContext, tx: Record<string, unknown>, env = testEnv()) {
     const db = {
       ...tx,
       $transaction: async (fn: (t: Record<string, unknown>) => Promise<unknown>) =>
@@ -286,10 +289,27 @@ describe('Yönetim API sınırları', () => {
       res.locals.auditChanges = [];
       next();
     });
-    server.use(createWorkspaceRouter(db as unknown as PrismaClient, testEnv(), hash));
+    server.use(createWorkspaceRouter(db as unknown as PrismaClient, env, hash));
     server.use(errorHandler(createLogger('silent')));
     return server;
   }
+  it('ortak sunucu ayarı kullanıldığını söylerken ortak şifreyi kullanıcıya döndürmez', async () => {
+    const env = testEnv({
+      SMTP_HOST: 'shared.example.com',
+      SMTP_USER: 'shared-user',
+      SMTP_PASS: 'server-secret',
+      MAIL_FROM: 'shared@example.com',
+    });
+    const result = await request(
+      app(owner, { isletmeAyari: { findMany: vi.fn().mockResolvedValue([]) } }, env),
+    ).get('/ayarlar/smtp');
+    expect(result.status).toBe(200);
+    expect(result.body.source).toBe('environment');
+    expect(result.body.values).toEqual({});
+    expect(result.body.configured).toEqual([]);
+    expect(JSON.stringify(result.body)).not.toContain('server-secret');
+    expect(JSON.stringify(result.body)).not.toContain('shared-user');
+  });
   it('kayıtlı şifreyi yalnızca ayar yetkisiyle, önbelleksiz ve kendi işletmesinden gösterir', async () => {
     const encrypted = new WorkspaceSettings({} as PrismaClient, testEnv().COOKIE_SECRET).encrypt(
       'saved-secret',

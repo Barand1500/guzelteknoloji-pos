@@ -47,6 +47,10 @@ const envSchema = z
 
     /** Giriş kodu e-postaları için SMTP. Geliştirmede boşsa kod API konsoluna yazılır. */
     SMTP_HOST: optionalString,
+    IMAP_HOST: optionalString,
+    IMAP_PORT: z.coerce.number().int().min(1).max(65535).default(993),
+    IMAP_USER: optionalString,
+    IMAP_PASS: optionalString,
     SMTP_PORT: z.coerce.number().int().positive().default(587),
     /** true: doğrudan TLS (genelde 465). false: STARTTLS (genelde 587). */
     SMTP_SECURE: booleanish.optional(),
@@ -122,6 +126,7 @@ export interface Env extends RawEnv {
   rateLimitEnabled: boolean;
   apple: { clientId: string; clientSecret: string; redirectUri: string } | null;
   google: { clientId: string; clientSecret: string; redirectUri: string } | null;
+  imap: { host: string; port: number; user: string; pass: string } | null;
   smtp: {
     host: string;
     port: number;
@@ -169,6 +174,10 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
     supportFormOrigin: supportFormOrigin(env.VITE_SUPPORT_FORM_URL),
     allowedOrigins: [...new Set([env.APP_URL, ...extraOrigins])],
     rateLimitEnabled: env.RATE_LIMIT_ENABLED ?? env.NODE_ENV !== 'test',
+    imap:
+      env.IMAP_HOST && env.IMAP_USER && env.IMAP_PASS
+        ? { host: env.IMAP_HOST, port: env.IMAP_PORT, user: env.IMAP_USER, pass: env.IMAP_PASS }
+        : null,
     smtp:
       env.SMTP_HOST && env.MAIL_FROM
         ? {

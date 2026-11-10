@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { parseEnv } from './config/env';
 import { createLogger } from './lib/logger';
 import { createMailer } from './lib/mailer';
+import { createWorkspaceMailer } from './modules/workspace/workspace.mailer';
 import { argon2Hasher } from './lib/password';
 import { createPrismaClient } from './lib/prisma';
 import { PrismaAuthRepository } from './modules/auth/auth.repository';
@@ -33,8 +34,8 @@ try {
 if (!env.smtp) {
   logger.warn(
     env.isProduction
-      ? 'SMTP tanımlı değil: e-posta kodu ile giriş çalışmayacak (README > E-posta kodu).'
-      : 'SMTP tanımlı değil: giriş kodları e-postaya değil API konsoluna yazılacak (yalnızca geliştirme).',
+      ? 'Ortak SMTP tanımlı değil: işletme SMTP ayarı bulunmayan adreslere giriş kodu gönderilemez.'
+      : 'Ortak SMTP tanımlı değil: işletme ayarı olmayan adreslerin kodları yalnızca geliştirme konsoluna yazılır.',
   );
 }
 
@@ -53,7 +54,7 @@ const app = createApp({
   brandRepo,
   catalogDb: prisma,
   hasher: argon2Hasher,
-  mailer: createMailer(env, logger),
+  mailer: createWorkspaceMailer(env, prisma, createMailer(env, logger), logger),
   google: env.google ? createGoogleOidcClient(env.google) : null,
   checkDatabase: async () => {
     await prisma.$queryRaw`SELECT 1`;

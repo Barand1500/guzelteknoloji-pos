@@ -3,6 +3,38 @@ import { SETTINGS_PAGES, type SettingsPage } from '@gt/shared';
 import { z } from 'zod';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
+import type { Env } from '../../config/env';
+
+export type ConnectionSection = 'smtp' | 'imap' | 'google';
+export function hasOwnConnection(section: ConnectionSection, values: Record<string, string>) {
+  const keys =
+    section === 'google' ? ['clientId', 'clientSecret'] : ['host', 'username', 'password', 'from'];
+  return keys.some((key) => !!values[key]?.trim());
+}
+export function environmentConnection(
+  env: Env,
+  section: ConnectionSection,
+): Record<string, string> {
+  if (section === 'smtp' && env.smtp)
+    return {
+      host: env.smtp.host,
+      port: String(env.smtp.port),
+      secure: String(env.smtp.secure),
+      username: env.smtp.user ?? '',
+      password: env.smtp.pass ?? '',
+      from: env.smtp.from,
+    };
+  if (section === 'imap' && env.imap)
+    return {
+      host: env.imap.host,
+      port: String(env.imap.port),
+      username: env.imap.user,
+      password: env.imap.pass,
+    };
+  if (section === 'google' && env.google)
+    return { clientId: env.google.clientId, clientSecret: env.google.clientSecret };
+  return {};
+}
 
 export class WorkspaceSettings {
   private key: Buffer;
@@ -37,6 +69,15 @@ export class WorkspaceSettings {
         .filter((r) => includeSecrets || !this.isSecret(r.key))
         .map((r) => [r.key, this.isSecret(r.key) ? this.decrypt(r.value) : r.value]),
     );
+  }
+  async effective(businessId: number, section: ConnectionSection, env: Env) {
+    const stored = await this.values(businessId, section, true);
+    if (hasOwnConnection(section, stored)) return { source: 'database' as const, values: stored };
+    const values = environmentConnection(env, section);
+    return {
+      source: Object.keys(values).length ? ('environment' as const) : ('unconfigured' as const),
+      values,
+    };
   }
   async read(businessId: number, section: SettingsPage) {
     const rows = await this.db.isletmeAyari.findMany({ where: { businessId, section } });

@@ -34,6 +34,31 @@ export function mailConnectionMessage(error: unknown) {
 export function mailTlsOptions(host: string, values: Record<string, string>) {
   return { servername: host, rejectUnauthorized: values.allowInvalidCertificate !== 'true' };
 }
+export async function resolvePublicMailHost(host: string) {
+  const addresses = await lookup(host, { all: true });
+  const publicAddress = (address: string) => {
+    if (isIP(address) === 4) {
+      const [a = 0, b = 0, c = 0] = address.split('.').map(Number);
+      return (
+        a !== 0 &&
+        a !== 10 &&
+        a !== 127 &&
+        a < 224 &&
+        !(a === 100 && b >= 64 && b <= 127) &&
+        !(a === 169 && b === 254) &&
+        !(a === 172 && b >= 16 && b <= 31) &&
+        !(a === 192 && (b === 168 || b === 0)) &&
+        !(a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) &&
+        !(a === 203 && b === 0 && c === 113)
+      );
+    }
+    const first = parseInt(address.split(':')[0]!, 16);
+    return first >= 0x2000 && first <= 0x3fff && !address.toLowerCase().startsWith('2001:db8:');
+  };
+  if (!addresses.length || addresses.some((a) => !publicAddress(a.address)))
+    throw Object.assign(new Error('Private address'), { code: 'PRIVATE_ADDRESS' });
+  return addresses[0]!.address;
+}
 export async function testMailConnection(section: 'smtp' | 'imap', values: Record<string, string>) {
   const host = values.host?.trim();
   const port = Number(values.port || (section === 'imap' ? 993 : 587));
@@ -42,8 +67,8 @@ export async function testMailConnection(section: 'smtp' | 'imap', values: Recor
     !Number.isInteger(port) ||
     port < 1 ||
     port > 65535 ||
-    !values.username ||
-    !values.password
+    (section === 'imap' && (!values.username || !values.password)) ||
+    (section === 'smtp' && !!values.username !== !!values.password)
   )
     throw new HttpError(
       400,
@@ -52,29 +77,7 @@ export async function testMailConnection(section: 'smtp' | 'imap', values: Recor
     );
   try {
     // İşletme ayarları herkese açık kayıtlarla kullanılabilir; test ucu iç ağa erişim sağlamaz.
-    const addresses = await lookup(host, { all: true });
-    const publicAddress = (address: string) => {
-      if (isIP(address) === 4) {
-        const [a = 0, b = 0, c = 0] = address.split('.').map(Number);
-        return (
-          a !== 0 &&
-          a !== 10 &&
-          a !== 127 &&
-          a < 224 &&
-          !(a === 100 && b >= 64 && b <= 127) &&
-          !(a === 169 && b === 254) &&
-          !(a === 172 && b >= 16 && b <= 31) &&
-          !(a === 192 && (b === 168 || b === 0)) &&
-          !(a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) &&
-          !(a === 203 && b === 0 && c === 113)
-        );
-      }
-      const first = parseInt(address.split(':')[0]!, 16);
-      return first >= 0x2000 && first <= 0x3fff && !address.toLowerCase().startsWith('2001:db8:');
-    };
-    if (!addresses.length || addresses.some((a) => !publicAddress(a.address)))
-      throw Object.assign(new Error('Private address'), { code: 'PRIVATE_ADDRESS' });
-    const address = addresses[0]!.address;
+    const address = await resolvePublicMailHost(host);
     if (section === 'smtp') {
       const transport = nodemailer.createTransport({
         host: address,
@@ -82,7 +85,9 @@ export async function testMailConnection(section: 'smtp' | 'imap', values: Recor
         secure: values.secure === 'true',
         requireTLS: values.secure !== 'true',
         tls: mailTlsOptions(host, values),
-        auth: { user: values.username, pass: values.password },
+        ...(values.username && values.password
+          ? { auth: { user: values.username, pass: values.password } }
+          : {}),
         connectionTimeout: 8000,
         greetingTimeout: 8000,
         socketTimeout: 10000,
@@ -198,7 +203,7 @@ export async function googleConnect(
   env: Env,
   res: Response,
 ) {
-  const values = await settings.values(ctx.business.id, 'google', true);
+  const { values } = await settings.effective(ctx.business.id, 'google', env);
   if (!values.clientId || !values.clientSecret)
     throw new HttpError(
       400,
@@ -284,7 +289,7 @@ export async function googleCallback(
     },
   });
   try {
-    const values = await settings.values(ctx.business.id, 'google', true);
+    const { values } = await settings.effective(ctx.business.id, 'google', env);
     const result = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       body: new URLSearchParams({
