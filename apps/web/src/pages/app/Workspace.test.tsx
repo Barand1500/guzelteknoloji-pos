@@ -182,7 +182,7 @@ describe('Profil ve işletme ekranları', () => {
         }),
     });
     renderApp('/uygulama/loglar');
-    expect(screen.queryByRole('button', { name: 'Süz', exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Süz' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Başlangıç')).not.toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Kaydet · #3' }));
     const detail = screen.getByRole('dialog', { name: 'Ürünler · Kaydet' });
