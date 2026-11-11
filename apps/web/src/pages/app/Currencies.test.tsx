@@ -44,10 +44,11 @@ describe('Para Birimleri', () => {
     const user = await open();
     await user.click(screen.getByRole('button', { name: 'ABD Doları düzenle' }));
     await user.click(screen.getByRole('radio', { name: 'Elle' }));
-    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    const dock = screen.getByRole('navigation', { name: 'Ana gezinme' });
+    await user.click(within(dock).getByRole('button', { name: 'Kaydet' }));
     expect(screen.getByText(/Kuru yazın/)).toBeInTheDocument();
     await user.type(screen.getByLabelText('Kur (₺)'), '51,5');
-    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await user.click(within(dock).getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('₺51,50')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'ABD Doları düzenle' }));
     await user.click(screen.getByRole('switch', { name: 'ABD Doları aktif' }));

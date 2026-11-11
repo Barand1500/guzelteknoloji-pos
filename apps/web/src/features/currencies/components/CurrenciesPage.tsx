@@ -1,18 +1,19 @@
 import { ChevronDown, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Alert } from '../../../components/ui/Alert';
-import { Button } from '../../../components/ui/Button';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
+import { SelectField } from '../../../components/ui/SelectField';
 import { Sheet } from '../../../components/ui/Sheet';
 import { TextField } from '../../../components/ui/TextField';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import { dataError } from '../../../lib/catalog-data';
-import { usePublishAddAction } from '../../app-shell/save-action';
+import { usePublishAddAction, usePublishSaveAction } from '../../app-shell/save-action';
 import { SampleNote } from '../../orders/components/parts';
 import { useCurrencies, type CurrencyStore } from '../hooks/useCurrencies';
 import { useLiveRate } from '../hooks/useLiveRate';
 import {
   CATALOG,
+  CATALOG_MORE,
   DEFAULT_API,
   RATE_TYPES,
   formatRate,
@@ -22,7 +23,10 @@ import {
 } from '../types';
 import { CurrencyForm } from './CurrencyForm';
 
-/** Satırın içinde açılan küçük düzenleyici: ad, kaynak, kur tipi / elle kur, aktiflik, sil. */
+/**
+ * Satırın içinde açılan küçük düzenleyici. "Kaydet" düğmesi yok: bir şey değişince alttaki yüzen adanın "+"
+ * düğmesi "Kaydet"e döner. İçinde: ad, kısa ad, kaynak (Merkez Bankası / Elle), kur tipi ya da elle kur, aktif, sil.
+ */
 function RowEditor({
   currency,
   store,
@@ -38,13 +42,20 @@ function RowEditor({
   const [short, setShort] = useState(currency.shortName);
   const [auto, setAuto] = useState(currency.auto);
   const [type, setType] = useState<RateType>(currency.rateType);
-  const [rateText, setRateText] = useState(currency.auto ? '' : String(currency.rate).replace('.', ','));
+  const initialRate = currency.auto ? '' : String(currency.rate).replace('.', ',');
+  const [rateText, setRateText] = useState(initialRate);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const base = currency.base;
   const live = useLiveRate(store.preview, !base && auto, short, type);
 
+  const dirty =
+    name !== currency.name ||
+    short !== currency.shortName ||
+    (!base && (auto !== currency.auto || (auto ? type !== currency.rateType : rateText !== initialRate)));
+
   const save = async () => {
+    if (saving) return;
     const manual = Number(rateText.replace(',', '.'));
     if (!name.trim() || short.trim().length < 2) return setError('Ad ve kısa ad gerekli.');
     if (!base && !auto && !(manual > 0)) return setError('Kuru yazın (0’dan büyük).');
@@ -68,15 +79,16 @@ function RowEditor({
       setSaving(false);
     }
   };
+  usePublishSaveAction(dirty ? { onSave: () => void save(), saving } : null);
 
   return (
-    <div className="flex flex-col gap-3 border-t border-line bg-surface-muted/40 px-4 py-4">
+    <div className="flex flex-col gap-2.5 border-t border-line bg-surface-muted/40 px-4 py-3">
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}
-      <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2.5">
         <TextField label="Adı" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
         <TextField
           label="Kısa Adı"
@@ -87,8 +99,8 @@ function RowEditor({
       </div>
 
       {base ? null : (
-        <>
-          <div role="radiogroup" aria-label="Kur kaynağı" className="inline-flex self-start rounded-full bg-surface-muted p-1 text-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div role="radiogroup" aria-label="Kur kaynağı" className="inline-flex rounded-full bg-surface-muted p-1 text-sm">
             {(
               [
                 [true, 'Merkez Bankası'],
@@ -101,82 +113,71 @@ function RowEditor({
                 role="radio"
                 aria-checked={auto === v}
                 onClick={() => setAuto(v)}
-                className={`min-h-9 rounded-full px-4 font-extrabold transition-all ${auto === v ? 'bg-surface-raised text-brand-ink shadow-soft' : 'text-ink-muted'}`}
+                className={`min-h-9 rounded-full px-3.5 font-extrabold transition-all ${auto === v ? 'bg-surface-raised text-brand-ink shadow-soft' : 'text-ink-muted'}`}
               >
                 {text}
               </button>
             ))}
           </div>
           {auto ? (
-            <div className="flex animate-fade-in flex-col gap-2">
-              <div role="radiogroup" aria-label="Kur tipi" className="flex flex-wrap gap-2">
-                {RATE_TYPES.map((t) => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={type === t.value}
-                    onClick={() => setType(t.value)}
-                    className={`min-h-9 rounded-full border px-3.5 text-sm font-bold transition-colors ${type === t.value ? 'border-brand-600 bg-brand-700 text-white' : 'border-field-border bg-surface text-ink-muted hover:border-brand-500'}`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+            <>
+              <div className="min-w-0 flex-1 basis-40">
+                <SelectField
+                  label="Kur Tipi"
+                  options={RATE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+                  value={type}
+                  onChange={(v) => setType(v as RateType)}
+                />
               </div>
-              <p aria-live="polite" className="text-sm text-ink-muted">
+              <p aria-live="polite" className="basis-full text-sm text-ink-muted">
                 {live === undefined
                   ? 'Kur aranıyor…'
                   : live === null
                     ? 'Bu kod için kur bulunamadı. “Elle” seçin.'
                     : `Şu an: 1 ${short.toUpperCase()} = ₺${formatRate(live)}`}
               </p>
-            </div>
+            </>
           ) : (
-            <div className="flex animate-fade-in items-center gap-3">
-              <span className="font-bold">1 {short.toUpperCase()} =</span>
-              <div className="w-40">
-                <TextField
-                  label="Kur (₺)"
-                  value={rateText}
-                  inputMode="decimal"
-                  onChange={(e) => setRateText(e.target.value.replace(/[^\d.,]/g, ''))}
-                />
-              </div>
-            </div>
+            <span className="flex items-center gap-2 font-bold">
+              1 {short.toUpperCase()} =
+              <input
+                inputMode="decimal"
+                aria-label="Kur (₺)"
+                value={rateText}
+                placeholder="0,00"
+                onFocus={(e) => e.currentTarget.select()}
+                onChange={(e) => {
+                  setRateText(e.target.value.replace(/[^\d.,]/g, ''));
+                  setError(null);
+                }}
+                className="h-11 w-28 rounded-xl border border-field-border bg-surface px-3 text-right font-extrabold tabular-nums outline-none transition-colors hover:border-brand-500 focus:border-brand-600"
+              />
+              ₺
+            </span>
           )}
-        </>
+        </div>
       )}
 
-      <div className="flex items-center gap-2">
-        {base ? null : (
-          <>
-            <span className="flex items-center gap-1 text-sm font-bold">
-              Aktif
-              <ToggleSwitch
-                label={`${currency.name} aktif`}
-                checked={currency.active}
-                onChange={(v) => void store.setActive(currency.id, v)}
-              />
-            </span>
-            <button
-              type="button"
-              aria-label={`${currency.name} sil`}
-              onClick={onDelete}
-              className="flex size-10 items-center justify-center rounded-full text-danger hover:bg-danger-soft"
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-            </button>
-          </>
-        )}
-        <span className="ml-auto flex gap-2">
-          <Button variant="outline" flow={false} onClick={onClose}>
-            Vazgeç
-          </Button>
-          <Button flow={false} loading={saving} loadingLabel="…" onClick={() => void save()}>
-            Kaydet
-          </Button>
-        </span>
-      </div>
+      {base ? null : (
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1 text-sm font-bold">
+            Aktif
+            <ToggleSwitch
+              label={`${currency.name} aktif`}
+              checked={currency.active}
+              onChange={(v) => void store.setActive(currency.id, v)}
+            />
+          </span>
+          <button
+            type="button"
+            aria-label={`${currency.name} sil`}
+            onClick={onDelete}
+            className="ml-auto flex size-10 items-center justify-center rounded-full text-danger hover:bg-danger-soft"
+          >
+            <Trash2 className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -201,8 +202,8 @@ export function CurrenciesPage() {
     return <div className="h-64 animate-pulse rounded-[2rem] bg-surface-muted" aria-busy="true" />;
 
   const items = store.items;
-  const have = new Set(items.map((c) => c.symbol));
-  const quick = CATALOG.filter((c) => !have.has(c.symbol));
+  const have = new Set(items.map((c) => c.shortName.toUpperCase()));
+  const quick = [...CATALOG, ...CATALOG_MORE].filter((c) => !have.has(c.code));
 
   const run = async (action: () => Promise<unknown>) => {
     setProblem(null);
@@ -215,7 +216,7 @@ export function CurrenciesPage() {
 
   const quickAdd = (c: (typeof CATALOG)[number]) =>
     run(async () => {
-      setBusy(c.symbol);
+      setBusy(c.code);
       try {
         const rate = await store.preview(c.code, 'efektifSatis');
         await store.save({
@@ -333,14 +334,14 @@ export function CurrenciesPage() {
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0">
             {quick.map((c) => (
               <button
-                key={c.symbol}
+                key={c.code}
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void quickAdd(c)}
                 aria-label={`${c.name} ekle`}
                 className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-dashed border-brand-500/60 px-4 font-bold text-brand-ink transition-colors hover:bg-brand-50 disabled:opacity-60"
               >
-                {busy === c.symbol ? (
+                {busy === c.code ? (
                   <RefreshCw className="size-4 animate-spin" aria-hidden="true" />
                 ) : (
                   <Plus className="size-4" aria-hidden="true" />

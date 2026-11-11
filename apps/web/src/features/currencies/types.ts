@@ -67,9 +67,33 @@ export const CATALOG: { symbol: string; name: string; code: string; base: number
   { symbol: '﷼', name: 'Suudi Riyali', code: 'SAR', base: 13.4 },
 ];
 
+/** Tek dokunuşla ekleme şeridinde ek olarak çıkanlar (sembol formundaki hızlı seçimde yoktur). */
+export const CATALOG_MORE: typeof CATALOG = [
+  { symbol: 'Fr', name: 'İsviçre Frangı', code: 'CHF', base: 56.8 },
+  { symbol: 'C$', name: 'Kanada Doları', code: 'CAD', base: 36.5 },
+  { symbol: 'A$', name: 'Avustralya Doları', code: 'AUD', base: 32.8 },
+  { symbol: '元', name: 'Çin Yuanı', code: 'CNY', base: 6.9 },
+  { symbol: 'د.إ', name: 'BAE Dirhemi', code: 'AED', base: 13.7 },
+  { symbol: 'QR', name: 'Katar Riyali', code: 'QAR', base: 13.8 },
+  { symbol: 'KD', name: 'Kuveyt Dinarı', code: 'KWD', base: 164 },
+  { symbol: '₪', name: 'İsrail Şekeli', code: 'ILS', base: 13.7 },
+  { symbol: '₾', name: 'Gürcü Larisi', code: 'GEL', base: 18.5 },
+  { symbol: '₴', name: 'Ukrayna Grivnası', code: 'UAH', base: 1.2 },
+  { symbol: '₸', name: 'Kazak Tengesi', code: 'KZT', base: 0.1 },
+  { symbol: 'zł', name: 'Polonya Zlotisi', code: 'PLN', base: 13.1 },
+  { symbol: 'Kč', name: 'Çek Korunası', code: 'CZK', base: 2.2 },
+  { symbol: 'lei', name: 'Romen Leyi', code: 'RON', base: 11.2 },
+  { symbol: 'лв', name: 'Bulgar Levası', code: 'BGN', base: 28.6 },
+  { symbol: 'kr', name: 'İsveç Kronu', code: 'SEK', base: 5.2 },
+  { symbol: 'Nkr', name: 'Norveç Kronu', code: 'NOK', base: 4.9 },
+  { symbol: 'Dkr', name: 'Danimarka Kronu', code: 'DKK', base: 7.5 },
+  { symbol: 'R$', name: 'Brezilya Reali', code: 'BRL', base: 9.1 },
+  { symbol: 'R', name: 'Güney Afrika Randı', code: 'ZAR', base: 2.7 },
+];
+
 /** Örnek (sahte) Merkez Bankası kuru: gerçek önizleme sunucudan gelir. */
 export function mockRate(code: string, type: RateType): number | null {
-  const base = CATALOG.find((c) => c.code === code.toUpperCase())?.base;
+  const base = [...CATALOG, ...CATALOG_MORE].find((c) => c.code === code.toUpperCase())?.base;
   if (!base) return null;
   const factor = RATE_TYPES.find((t) => t.value === type)!.factor;
   return Math.round(base * factor * 10000) / 10000;
