@@ -138,29 +138,33 @@ export function RuleWizardSheet({
               onChange={(v) => set('priceLists', v)}
               emptyText="Hepsi"
             />
-            <p className="flex flex-wrap items-baseline gap-2 text-lg font-semibold">
+            <div className="flex items-baseline gap-2 text-lg font-semibold">
               Sepet
               <InlineNumber
                 label="Alt sınır (₺)"
                 value={draft.minTotal}
                 onChange={(n) => set('minTotal', n)}
+                width="min-w-0 flex-1"
+                align="left"
               />
-              <span className="text-2xl font-extrabold text-brand-ink">₺</span>
-              ve üzerindeyse
-            </p>
+              <span className="shrink-0">
+                <b className="text-2xl text-brand-ink">₺</b> ve üzerindeyse
+              </span>
+            </div>
           </div>
         ) : null}
 
         {step === 3 ? (
           <div className="flex animate-fade-in flex-col gap-4">
             {cart ? (
-              <p className="flex flex-wrap items-baseline gap-2 text-lg font-semibold">
+              <div className="flex items-baseline gap-3 text-lg font-semibold">
                 <InlineNumber
                   label="İndirim değeri"
                   value={draft.discountValue}
                   onChange={(n) => set('discountValue', n)}
                   max={draft.discountKind === 'percent' ? 100 : undefined}
-                  width="w-24"
+                  width="min-w-0 flex-1"
+                  align="left"
                 />
                 <span
                   role="radiogroup"
@@ -186,8 +190,8 @@ export function RuleWizardSheet({
                     </button>
                   ))}
                 </span>
-                indirim
-              </p>
+                <span className="shrink-0">indirim</span>
+              </div>
             ) : null}
             <div className="rounded-2xl bg-brand-50 p-4">
               <p className="text-xs font-extrabold tracking-wider text-ink-muted uppercase">Özet</p>
