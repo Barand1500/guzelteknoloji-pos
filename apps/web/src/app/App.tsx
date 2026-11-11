@@ -9,6 +9,7 @@ import { BulkImagesPage } from '../pages/app/BulkImagesPage';
 import { DealsPage } from '../pages/app/DealsPage';
 import { ProductsPage } from '../pages/app/ProductsPage';
 import { CategoriesPage } from '../pages/app/CategoriesPage';
+import { CampaignPage } from '../features/campaigns/components/CampaignPage';
 import { ComingSoonPage } from '../pages/app/ComingSoonPage';
 import { HomePage } from '../pages/app/HomePage';
 import { OrdersPage, ReturnsPage } from '../pages/app/OrdersPage';
@@ -54,10 +55,15 @@ export function App() {
             <Route path="kategoriler" element={<CategoriesPage />} />
             <Route path="markalar" element={<BrandsPage />} />
             <Route path="ozellikler" element={<AttributesPage />} />
-            {['kampanyalar', 'tanimlamalar', 'bildirimler', 'seo'].map((path) => (
+            {['tanimlamalar', 'bildirimler', 'seo'].map((path) => (
               <Route key={path} path={path} element={<ComingSoonPage />} />
             ))}
             <Route path="anasayfa" element={<HomePage />} />
+            <Route path="kampanyalar">
+              <Route index element={<Navigate to="sepet-indirimi" replace />} />
+              <Route path="sepet-indirimi" element={<CampaignPage kind="cart" />} />
+              <Route path="ucretsiz-kargo" element={<CampaignPage kind="shipping" />} />
+            </Route>
             <Route path="musteriler" element={<CustomerLayout />}>
               <Route index element={<CustomersView />} />
               <Route path=":id" element={<CustomerDetailView />} />

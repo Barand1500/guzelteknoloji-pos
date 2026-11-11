@@ -1,6 +1,9 @@
 import {
   BellRing,
   FolderTree,
+  Megaphone,
+  Percent,
+  Truck,
   Home,
   Images,
   LayoutTemplate,
@@ -187,7 +190,34 @@ export const SECTIONS: readonly Section[] = [
       `${APP_BASE}/ozellikler`,
     ],
   },
-  soon('kampanyalar', 'Kampanyalar', Sparkles, 320, 'İndirim ve duyurular'),
+  (() => {
+    const sepet = p(
+      'sepet-indirimi',
+      'Sepet İndirimi',
+      `${APP_BASE}/kampanyalar/sepet-indirimi`,
+      Percent,
+      'Tutara göre indirim',
+    );
+    const kargo = p(
+      'ucretsiz-kargo',
+      'Ücretsiz Kargo',
+      `${APP_BASE}/kampanyalar/ucretsiz-kargo`,
+      Truck,
+      'Tutara göre kargo bedava',
+    );
+    return {
+      id: 'kampanyalar',
+      label: 'Kampanyalar',
+      icon: Megaphone,
+      hue: 320,
+      tagline: 'İndirim ve ücretsiz kargo',
+      home: sepet.path,
+      addButton: true,
+      pages: [sepet, kargo],
+      dock: { left: [sepet], right: [kargo] },
+      paths: [`${APP_BASE}/kampanyalar`],
+    } satisfies Section;
+  })(),
   soon('tanimlamalar', 'Tanımlamalar', LayoutTemplate, 205, 'Kargo, ödeme, vergi'),
   {
     id: 'ayarlar',

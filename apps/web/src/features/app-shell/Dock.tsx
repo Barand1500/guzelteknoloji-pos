@@ -154,7 +154,10 @@ export function Dock() {
         {tabs
           ? tabs.items.slice(0, tabs.split ?? 2).map((t) => <DockTab key={t.id} tab={t} tabs={tabs} />)
           : navLeft
-              .filter((item) => can(pageResource(item.path)!))
+              .filter((item) => {
+                const resource = pageResource(item.path);
+                return resource === null || can(resource);
+              })
               .map((item) => (
                 <DockLink key={item.id} item={item} siblings={[...navLeft, ...navRight]} />
               ))}
@@ -204,7 +207,10 @@ export function Dock() {
         {tabs
           ? tabs.items.slice(tabs.split ?? 2).map((t) => <DockTab key={t.id} tab={t} tabs={tabs} />)
           : navRight
-              .filter((item) => can(pageResource(item.path)!))
+              .filter((item) => {
+                const resource = pageResource(item.path);
+                return resource === null || can(resource);
+              })
               .map((item) => (
                 <DockLink key={item.id} item={item} siblings={[...navLeft, ...navRight]} />
               ))}
