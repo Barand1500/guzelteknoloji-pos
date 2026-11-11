@@ -204,6 +204,8 @@ export async function googleConnect(
   res: Response,
 ) {
   const { values } = await settings.effective(ctx.business.id, 'google', env);
+  if (values.enabled === 'false')
+    throw new HttpError(400, 'VALIDATION_ERROR', 'Google bağlantısı pasif. Önce etkinleştirin.');
   if (!values.clientId || !values.clientSecret)
     throw new HttpError(
       400,

@@ -120,6 +120,18 @@ describe('İşletme bağlantı önceliği ve gerçek gönderim yolu', () => {
     expect(f.fallback.sendLoginCode).not.toHaveBeenCalled();
     expect(mocks.close).toHaveBeenCalled();
   });
+  it('inactive tenant SMTP falls back to the shared mail service', async () => {
+    const f = fixture({
+      enabled: 'false',
+      host: 'tenant.example.com',
+      username: 'tenant-user',
+      password: 'tenant-secret',
+      from: 'tenant@example.com',
+    });
+    await f.mailer.sendLoginCode('owner@example.com', '123456', 10);
+    expect(f.fallback.sendLoginCode).toHaveBeenCalled();
+    expect(mocks.transport).not.toHaveBeenCalled();
+  });
   it.each(['smtp', 'imap', 'google'] as const)(
     '%s ayarı yokken env kullanır, kendi bilgisi varsa ona öncelik verir',
     async (section) => {

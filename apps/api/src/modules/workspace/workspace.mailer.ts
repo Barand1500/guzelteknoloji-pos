@@ -27,6 +27,7 @@ export function createWorkspaceMailer(
       if (connection.source !== 'database')
         return fallback.sendLoginCode(to, code, expiresInMinutes);
       const v = connection.values;
+      if (v.enabled === 'false') return fallback.sendLoginCode(to, code, expiresInMinutes);
       const port = Number(v.port || 587);
       const from = v.from || v.username;
       if (

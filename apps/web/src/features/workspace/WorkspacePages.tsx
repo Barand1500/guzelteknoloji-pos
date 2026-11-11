@@ -1132,6 +1132,12 @@ function SettingsPageContent({
   const [challengeRevision, setChallengeRevision] = useState(0);
   const defaultValues: Record<string, string> = {
     ...rows.value.values,
+    ...(['smtp', 'imap', 'google'].includes(section)
+      ? {
+          enabled:
+            rows.value.values.enabled ?? (rows.value.source === 'unconfigured' ? 'false' : 'true'),
+        }
+      : {}),
     ...(section === 'smtp'
       ? {
           host: rows.value.values.host || 'smtp.example.com',
@@ -1240,7 +1246,9 @@ function SettingsPageContent({
                   label={
                     section === 'whatsapp'
                       ? 'WhatsApp Entegrasyonunu Etkinleştir'
-                      : 'Doğrulamayı Etkinleştir'
+                      : section === 'cloudflare' || section === 'recaptcha'
+                        ? 'Doğrulamayı Etkinleştir'
+                        : `${page.title} bağlantısı`
                   }
                   checked={draft.enabled === 'true'}
                   onChange={(value) => {
