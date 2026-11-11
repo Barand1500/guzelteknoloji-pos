@@ -6,7 +6,34 @@ import { STOCK_CREATE_PATH, type NavItem } from '../../config/navigation';
 import { sectionFor } from '../../config/sections';
 import { HomeDock } from '../home/components/HomeDock';
 import { useWorkspace, pageResource } from '../workspace/workspace-context';
-import { useActiveAddAction, useActiveSaveAction } from './save-action';
+import {
+  useActiveAddAction,
+  useActiveDockTabs,
+  useActiveSaveAction,
+  type DockTabs,
+} from './save-action';
+
+/** Sayfa içi sekme düğmesi (bkz. save-action.ts DockTabs); bağlantı gibi görünür. */
+function DockTab({ tab, tabs }: { tab: DockTabs['items'][number]; tabs: DockTabs }) {
+  const on = tabs.value === tab.id;
+  const Icon = tab.icon;
+  return (
+    <button
+      type="button"
+      data-dock-link=""
+      aria-current={on ? 'page' : undefined}
+      onClick={() => tabs.onChange(tab.id)}
+      className={[
+        'relative flex min-h-14 min-w-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-1',
+        'text-[0.6875rem] font-semibold transition-colors duration-300 md:flex-none md:px-4 md:text-xs',
+        on ? 'text-brand-ink' : 'text-ink-muted hover:text-ink',
+      ].join(' ')}
+    >
+      <Icon className="size-6" aria-hidden="true" />
+      <span>{tab.label}</span>
+    </button>
+  );
+}
 
 /**
  * Bir sayfanın yolu aynı çubuktaki başka bir sayfanın yolunun başıysa (ör. /siparisler ve
@@ -59,6 +86,8 @@ export function Dock() {
   const navRight = section.dock.right;
   const save = useActiveSaveAction();
   const add = useActiveAddAction();
+  const tabs = useActiveDockTabs();
+  const tabValue = tabs?.value;
 
   useLayoutEffect(() => {
     const box = container.current;
@@ -66,7 +95,7 @@ export function Dock() {
     if (!box || !pill) return;
 
     const place = () => {
-      const active = box.querySelector<HTMLElement>('a[data-dock-link][aria-current="page"]');
+      const active = box.querySelector<HTMLElement>('[data-dock-link][aria-current="page"]');
       if (!active) {
         pill.style.opacity = '0';
         return;
@@ -88,7 +117,7 @@ export function Dock() {
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
     observer?.observe(box);
     return () => observer?.disconnect();
-  }, [pathname]);
+  }, [pathname, tabValue]);
 
   // Anasayfanın alt çubuğu sayfanın bloklarına kayar.
   if (section.id === 'anasayfa') return <HomeDock />;
@@ -113,11 +142,13 @@ export function Dock() {
           className="pointer-events-none absolute top-0 left-0 rounded-2xl bg-brand-50 opacity-0 transition-[transform,width,height,opacity] duration-500 ease-[cubic-bezier(0.34,1.4,0.64,1)]"
         />
 
-        {navLeft
-          .filter((item) => can(pageResource(item.path)!))
-          .map((item) => (
-            <DockLink key={item.id} item={item} siblings={[...navLeft, ...navRight]} />
-          ))}
+        {tabs
+          ? tabs.items.slice(0, 2).map((t) => <DockTab key={t.id} tab={t} tabs={tabs} />)
+          : navLeft
+              .filter((item) => can(pageResource(item.path)!))
+              .map((item) => (
+                <DockLink key={item.id} item={item} siblings={[...navLeft, ...navRight]} />
+              ))}
 
         {!section.addButton ? null : save ? (
           can('products', 'save') ? (
@@ -150,7 +181,7 @@ export function Dock() {
               <Plus className="size-7" aria-hidden="true" />
             </button>
           ) : null
-        ) : can('products', 'save') ? (
+        ) : section.id === 'urunler' && can('products', 'save') ? (
           <NavLink
             key={pathname}
             to={STOCK_CREATE_PATH}
@@ -161,11 +192,13 @@ export function Dock() {
           </NavLink>
         ) : null}
 
-        {navRight
-          .filter((item) => can(pageResource(item.path)!))
-          .map((item) => (
-            <DockLink key={item.id} item={item} siblings={[...navLeft, ...navRight]} />
-          ))}
+        {tabs
+          ? tabs.items.slice(2).map((t) => <DockTab key={t.id} tab={t} tabs={tabs} />)
+          : navRight
+              .filter((item) => can(pageResource(item.path)!))
+              .map((item) => (
+                <DockLink key={item.id} item={item} siblings={[...navLeft, ...navRight]} />
+              ))}
       </div>
     </nav>
   );

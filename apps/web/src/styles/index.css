@@ -265,7 +265,7 @@ html[data-transparent-attributes='true'] [data-image-frame='attributes'] {
     pointer-events: none;
     border-radius: 0.25rem;
     /* Üst yarı şeffaf, alt yarı beyaz: etiket kenarlığı "keser" ama zemin rengi bozulmaz. */
-    background: linear-gradient(to bottom, transparent 50%, var(--color-surface-raised) 50%);
+    background: linear-gradient(to bottom, transparent 42%, var(--color-surface-raised) 42%);
     transition:
       top 150ms ease,
       font-size 150ms ease,

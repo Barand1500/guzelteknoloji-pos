@@ -100,7 +100,7 @@ export function HomeView() {
             title="Siparişler"
             icon={<ShoppingBag className="size-4" aria-hidden="true" />}
           >
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
               <Card title="Sipariş Durumu" hint={PERIOD_HINT[period]}>
                 <OrderStatusRing orders={data.orders} />
               </Card>

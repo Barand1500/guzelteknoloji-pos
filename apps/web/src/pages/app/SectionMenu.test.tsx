@@ -59,13 +59,13 @@ describe('Üst menü (bölüm gezgini)', () => {
   it('yapılmamış bölüm "Yakında" sayfasına gider ve alt çubuk görünmez', async () => {
     const user = await open('/uygulama/urunler');
     await user.click(screen.getByRole('button', { name: 'Ana menü' }));
-    await user.click(await screen.findByRole('tab', { name: /Müşteriler/ }));
+    await user.click(await screen.findByRole('tab', { name: /Kampanyalar/ }));
     await user.click(
-      within(screen.getByRole('tabpanel', { name: 'Müşteriler' })).getByRole('link', {
-        name: /Müşteriler/,
+      within(screen.getByRole('tabpanel', { name: 'Kampanyalar' })).getByRole('link', {
+        name: /Kampanyalar/,
       }),
     );
-    expect(await screen.findByRole('heading', { name: 'Müşteriler' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Kampanyalar' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Ana gezinme' })).not.toBeInTheDocument();
   });
 
