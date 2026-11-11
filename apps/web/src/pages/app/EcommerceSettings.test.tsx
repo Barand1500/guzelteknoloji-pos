@@ -49,21 +49,40 @@ describe('E-ticaret ayar ekranları', () => {
     expect(within(dialog).getByRole('button', { name: 'Kalın' })).toBeInTheDocument();
   });
 
-  it('sistem ayarları beş bölümü ve dört kod alanını gösterir', async () => {
+  it('site iletişim alanları Genel Ayarlar içinde gerçek formda yer alır', async () => {
+    mockFetch({
+      ...login,
+      'GET /api/hesap/ayarlar/general': () => jsonResponse(200, { values: {}, configured: [] }),
+    });
+    renderApp('/uygulama/ayarlar/general');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Genel Ayarlar' })).toBeVisible();
+    for (const label of [
+      'İşletme Adı',
+      'Telefon / GSM',
+      'Adres',
+      'Site URL',
+      'İletişim E-postası',
+      'Site E-posta',
+      'Firma E-posta',
+    ]) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument();
+    }
+    expect(screen.getByRole('button', { name: 'Kaydet' })).toBeEnabled();
+  });
+
+  it('sistem ekranı yalnızca bildirim, kod ve dosya bölümlerini taşır', async () => {
     mockFetch(login);
     renderApp('/uygulama/ayarlar/eticaret/sistem');
-    expect(await screen.findByRole('heading', { level: 2, name: 'Sistem Ayarları' })).toBeVisible();
-    expect(screen.getByRole('heading', { level: 2, name: 'Sistem Bildirimleri' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Sistem Bildirimleri' }),
+    ).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'Özel Sistem Kodları' })).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'Uygulama Linkleri' })).toBeVisible();
     expect(
       screen.getByRole('heading', { level: 2, name: 'Ana Dizin Dosya Yüklemeleri' }),
     ).toBeVisible();
-    for (const label of ['Head Kodları', 'Body Kodları', 'Üçüncü Kod Alanı', 'Dördüncü Kod Alanı']) {
-      expect(screen.getByText(label)).toBeInTheDocument();
-    }
-    expect(screen.getByLabelText('Google Play Linki')).toBeInTheDocument();
-    expect(screen.getByLabelText('Dördüncü Uygulama Bağlantısı')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Firma Adı')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('GSM No')).not.toBeInTheDocument();
   });
 
   it('şablon değişkenleri referans satırlarını listeler; modal alanları vardır', async () => {

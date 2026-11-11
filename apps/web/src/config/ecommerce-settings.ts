@@ -35,7 +35,7 @@ export const ECOMMERCE_PAGES: readonly EcommercePage[] = [
     key: 'sistem',
     label: 'Sistem',
     title: 'Sistem Ayarları',
-    description: 'Sitenin kurumsal bilgileri, iletişim alanları ve teknik kodları.',
+    description: 'Bildirimler, özel kodlar, uygulama linkleri ve kök dosyalar.',
     icon: Settings2,
   },
   {

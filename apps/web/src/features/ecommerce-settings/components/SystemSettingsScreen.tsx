@@ -4,24 +4,15 @@ import { Button } from '../../../components/ui/Button';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
 import { TextField } from '../../../components/ui/TextField';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
-import { ImagePicker, pickImage, type PickedImage } from './ImagePicker';
 import { BACKEND_NOTICE_ID, SaveBar, ScreenCard } from './Parts';
 
 /**
- * Sistem Ayarları — referans görseldeki bölüm adları ve alan sırası korunur:
- * Sistem Ayarları · Sistem Bildirimleri · Özel Sistem Kodları · Köşe Yazısı · Uygulama Linkleri ·
- * Ziyaretçi İstatistikleri · Ana Dizin Dosya Yüklemeleri.
- * Hiçbir alan sunucuya gönderilmez; kodlar düz metin olarak düzenlenir, çalıştırılmaz.
+ * Sistem Ayarları (e-ticaret): site kimliği/iletişim alanları Genel Ayarlar'a taşındı.
+ * Burada yalnızca bildirimler, özel kodlar, uygulama linkleri, köşe yazısı, istatistik ve
+ * kök dizin dosyaları kalır. Hiçbir alan sunucuya gönderilmez; kodlar çalıştırılmaz.
  */
 export function SystemSettingsScreen() {
   const [values, setValues] = useState({
-    firmaAdi: 'Güzel Teknoloji',
-    iletisimEposta: 'info@guzelteknoloji.com',
-    gsm: '0850 000 00 00',
-    adres: '',
-    siteEposta: 'info@guzelteknoloji.com',
-    siteUrl: 'https://guzelteknoloji.com',
-    firmaEposta: 'info@guzelteknoloji.com',
     bildirimEposta: '',
     bildirimNumara: '',
     head: '',
@@ -36,73 +27,12 @@ export function SystemSettingsScreen() {
     istatistik: '',
   });
   const [koseGizli, setKoseGizli] = useState(false);
-  const [logo, setLogo] = useState<PickedImage | null>(null);
   const [fileName, setFileName] = useState('');
   const set = (key: keyof typeof values, value: string) =>
     setValues((previous) => ({ ...previous, [key]: value }));
 
   return (
     <div className="flex flex-col gap-4">
-      <ScreenCard title="Sistem Ayarları">
-        <div className="space-y-5">
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            <TextField
-              label="Firma Adı"
-              value={values.firmaAdi}
-              onChange={(e) => set('firmaAdi', e.target.value)}
-            />
-            <TextField
-              label="İletişim E-postası"
-              type="email"
-              value={values.iletisimEposta}
-              onChange={(e) => set('iletisimEposta', e.target.value)}
-            />
-            <TextField
-              label="GSM No"
-              value={values.gsm}
-              onChange={(e) => set('gsm', e.target.value)}
-            />
-            <TextField
-              label="Adres"
-              value={values.adres}
-              onChange={(e) => set('adres', e.target.value)}
-            />
-            <TextField
-              label="Site E-posta"
-              type="email"
-              value={values.siteEposta}
-              onChange={(e) => set('siteEposta', e.target.value)}
-            />
-            <TextField
-              label="Site URL"
-              value={values.siteUrl}
-              onChange={(e) => set('siteUrl', e.target.value)}
-            />
-            <TextField
-              label="Firma E-posta"
-              type="email"
-              value={values.firmaEposta}
-              onChange={(e) => set('firmaEposta', e.target.value)}
-            />
-          </div>
-          <ImagePicker
-            label="Resim Seç"
-            hint="Yükleme hakkında kısa not: dosya yalnızca önizlenir, sunucuya gönderilmez."
-            value={logo}
-            onPick={(file) => pickImage(logo, file, setLogo)}
-            onClear={() => setLogo(null)}
-          />
-          <div className="flex flex-wrap items-center gap-3">
-            <Button flow={false} type="button" disabled fullWidth={false} aria-describedby={BACKEND_NOTICE_ID}>
-              Resimleri Yükle
-            </Button>
-            <span className="text-xs text-ink-muted">
-              Yükleme backend bağlantısı gelince açılacak.
-            </span>
-          </div>
-        </div>
-      </ScreenCard>
-
       <ScreenCard title="Sistem Bildirimleri">
         <div className="space-y-5">
           <TextAreaField
