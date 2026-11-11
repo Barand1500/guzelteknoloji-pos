@@ -1,6 +1,7 @@
 import {
   BellRing,
   FolderTree,
+  Coins,
   Megaphone,
   Percent,
   Truck,
@@ -226,6 +227,13 @@ export const SECTIONS: readonly Section[] = [
       Truck,
       'Firma, fiyat, lokasyon',
     );
+    const para = p(
+      'para-birimleri',
+      'Para Birimleri',
+      `${APP_BASE}/tanimlamalar/para-birimleri`,
+      Coins,
+      'Kur ve semboller',
+    );
     return {
       id: 'tanimlamalar',
       label: 'Tanımlamalar',
@@ -234,7 +242,7 @@ export const SECTIONS: readonly Section[] = [
       tagline: 'Kargo, ödeme, vergi',
       home: kargo.path,
       addButton: true,
-      pages: [kargo],
+      pages: [kargo, para],
       dock: { left: [], right: [] },
       paths: [`${APP_BASE}/tanimlamalar`],
     } satisfies Section;
