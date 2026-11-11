@@ -58,10 +58,13 @@ function load(provider: ChallengeConfig['provider']) {
 export function RobotChallenge({
   config,
   onToken,
+  fullWidth = false,
 }: {
   config: ChallengeConfig;
   onToken: (token: string) => void;
+  fullWidth?: boolean;
 }) {
+  const frame = useRef<HTMLDivElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
   const [status, setStatus] = useState('Doğrulama yükleniyor…');
@@ -77,14 +80,44 @@ export function RobotChallenge({
     }, 45000);
     let id: string | number | undefined;
     let api: WidgetApi | undefined;
+    let resizeObserver: ResizeObserver | undefined;
+    let resizeWidget: (() => void) | undefined;
     void load(config.provider)
       .then((loaded) => {
         if (!active || !element) return;
         api = loaded;
         setStatus('Robot doğrulamasının tamamlanması bekleniyor.');
+        const intrinsicWidth = config.provider === 'recaptcha' ? 304 : 300;
+        const intrinsicHeight = config.provider === 'recaptcha' ? 78 : 65;
+        resizeWidget = () => {
+          if (!fullWidth || !frame.current || !element) return;
+          const width = frame.current.clientWidth;
+          const scale = Math.min(1, width / intrinsicWidth);
+          if (config.provider === 'recaptcha') {
+            element.style.width = `${intrinsicWidth}px`;
+            element.style.transform = `scale(${scale})`;
+          } else {
+            element.style.width = '100%';
+            element.style.transform = '';
+          }
+          element.style.transformOrigin = 'top left';
+          frame.current.style.height =
+            config.provider === 'cloudflare'
+              ? `${intrinsicHeight}px`
+              : `${Math.ceil(intrinsicHeight * scale)}px`;
+        };
+        if (fullWidth) {
+          resizeWidget();
+          if (typeof ResizeObserver !== 'undefined' && frame.current) {
+            resizeObserver = new ResizeObserver(resizeWidget);
+            resizeObserver.observe(frame.current);
+          } else {
+            window.addEventListener('resize', resizeWidget);
+          }
+        }
         id = api.render(element, {
           sitekey: config.siteKey,
-          size: element.clientWidth > 0 && element.clientWidth < 304 ? 'compact' : 'normal',
+          size: config.provider === 'cloudflare' && fullWidth ? 'flexible' : 'normal',
           theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
           callback: (token: string) => {
             if (active) {
@@ -107,6 +140,7 @@ export function RobotChallenge({
             }
           },
         });
+        resizeWidget?.();
       })
       .catch(() => {
         if (active) setFailed(true);
@@ -114,13 +148,21 @@ export function RobotChallenge({
     return () => {
       active = false;
       window.clearTimeout(timeout);
+      resizeObserver?.disconnect();
+      if (resizeWidget) window.removeEventListener('resize', resizeWidget);
       if (id !== undefined) api?.remove?.(id);
       element?.replaceChildren();
     };
   }, [config.provider, config.siteKey, onToken, attempt]);
   return (
-    <div className="space-y-2">
-      <div ref={container} aria-label="Robot doğrulaması" />
+    <div className="w-full min-w-0 space-y-2">
+      <div ref={frame} className={fullWidth ? 'w-full min-w-0 overflow-hidden' : 'w-fit'}>
+        <div
+          ref={container}
+          aria-label="Robot doğrulaması"
+          className={fullWidth ? 'challenge-full-width' : undefined}
+        />
+      </div>
       {!failed && (
         <p role="status" className="text-sm text-ink-muted">
           {status}
@@ -196,7 +238,9 @@ export function useRobotChallenge(email?: string) {
     pending:
       (!!config && !token) ||
       (loadedEmail !== (email ?? '') && (!email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))),
-    widget: config ? <RobotChallenge key={revision} config={config} onToken={setToken} /> : null,
+    widget: config ? (
+      <RobotChallenge key={revision} config={config} onToken={setToken} fullWidth />
+    ) : null,
     error: (error: unknown) => {
       if (error instanceof ApiError && error.challenge) {
         configKey.current = `${error.challenge.provider}:${error.challenge.siteKey}`;

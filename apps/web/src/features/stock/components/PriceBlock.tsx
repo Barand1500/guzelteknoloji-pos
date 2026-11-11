@@ -25,16 +25,13 @@ const VAT_MODES = [
 export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) {
   const totals = blockTotals(data);
   return (
-    <fieldset className="min-w-0 rounded-2xl border border-line bg-surface p-4 shadow-sm">
+    <fieldset className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
       <legend className="sr-only">{title}</legend>
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <p
-          className="rounded-lg border border-brand-600/20 bg-brand-50 px-3 py-1.5 text-sm font-extrabold tracking-wide text-brand-ink uppercase"
-          aria-hidden="true"
-        >
-          {title}
+      <div className="mb-3 flex items-center justify-between gap-3 border-b border-line bg-surface-muted/60 px-4 py-3">
+        <p className="text-sm font-extrabold tracking-wide text-ink" aria-hidden="true">
+          {title} Fiyatlandırması
         </p>
-        <p className="inline-flex items-center gap-2 rounded-xl bg-surface-muted px-3 py-2 text-xs font-semibold text-ink-muted">
+        <p className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted">
           <span>
             KDV Dahil:{' '}
             <strong className="text-sm font-extrabold text-ink">
@@ -44,7 +41,7 @@ export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) 
         </p>
       </div>
       {/* Telefonda 6 sütun (2 alan/satır), md+ ekranda 12 sütunla 2 sıkı satır. */}
-      <div className="grid grid-cols-6 gap-3 md:grid-cols-12">
+      <div className="grid grid-cols-6 gap-3 px-4 pb-4 md:grid-cols-12">
         <div className="col-span-3 md:col-span-5">
           <TextField
             label={`${title} Fiyatı`}

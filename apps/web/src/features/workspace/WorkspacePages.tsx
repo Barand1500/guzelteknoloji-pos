@@ -124,10 +124,12 @@ function SettingsTabs({ pathname }: { pathname: string }) {
 function Frame({
   children,
   description,
+  demoContent = false,
 }: {
   children: ReactNode;
   back?: string;
   description?: string;
+  demoContent?: boolean;
 }) {
   const { demo } = useWorkspace();
   const { pathname } = useLocation();
@@ -135,7 +137,7 @@ function Frame({
     <div className="flex w-full min-w-0 flex-col gap-4">
       {pathname.includes('/ayarlar') && <SettingsTabs pathname={pathname} />}
       {description && <p className="text-sm text-ink-muted">{description}</p>}
-      {demo ? (
+      {demo && !demoContent ? (
         <Alert tone="info">Hesap yönetimi için kendi hesabınızla giriş yapın.</Alert>
       ) : (
         <div className="flex min-w-0 flex-col gap-4">{children}</div>
@@ -266,16 +268,19 @@ function FormSheet({
 }
 
 export function ProfilePage() {
-  const { data, refresh } = useWorkspace();
+  const { data, refresh, demo } = useWorkspace();
   const { session, setAuthenticated } = useSession();
   const [name, setName] = useState(data?.user.name ?? '');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState(false);
+  useEffect(() => {
+    if (data?.user.name) setName(data.user.name);
+  }, [data?.user.name]);
   return (
-    <Frame description={data?.business.name}>
-      <UnsavedChanges dirty={!busy && name !== (data?.user.name ?? '')} />
+    <Frame description={data?.business.name} demoContent>
+      {!demo && <UnsavedChanges dirty={!busy && name !== (data?.user.name ?? '')} />}
       <section className={`${panel} w-full`}>
         <div className="mb-6 flex items-center gap-4">
           <div className="flex size-16 items-center justify-center rounded-2xl bg-brand-50 text-xl font-extrabold text-brand-ink">
@@ -312,26 +317,29 @@ export function ProfilePage() {
             value={name}
             maxLength={120}
             required
+            readOnly={demo}
             onChange={(e) => setName(e.target.value)}
           />
           <TextField label="E-posta" value={data?.user.email ?? ''} readOnly />
-          <div className="flex flex-wrap gap-3 sm:col-span-2">
-            <Button flow={false} type="submit" fullWidth={false} loading={busy}>
-              Kaydet
-            </Button>
-            <Button
-              flow={false}
-              type="button"
-              variant="outline"
-              fullWidth={false}
-              onClick={() => setPassword(true)}
-            >
-              {data?.hasPassword === false ? 'Şifre Oluştur' : 'Şifreyi Değiştir'}
-            </Button>
-          </div>
+          {!demo && (
+            <div className="flex flex-wrap gap-3 sm:col-span-2">
+              <Button flow={false} type="submit" fullWidth={false} loading={busy}>
+                Kaydet
+              </Button>
+              <Button
+                flow={false}
+                type="button"
+                variant="outline"
+                fullWidth={false}
+                onClick={() => setPassword(true)}
+              >
+                {data?.hasPassword === false ? 'Şifre Oluştur' : 'Şifreyi Değiştir'}
+              </Button>
+            </div>
+          )}
         </form>
       </section>
-      {password && (
+      {!demo && password && (
         <PasswordForm
           hasPassword={data?.hasPassword !== false}
           onSaved={refresh}

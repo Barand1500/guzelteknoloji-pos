@@ -384,7 +384,7 @@ export class PrismaStockRepository implements StockRepository {
         },
       });
       if (!current) throw new HttpError(404, 'NOT_FOUND', 'Fiyat listesi bulunamadı.');
-      if (!current.silinebilir)
+      if (!current.silinebilir && value !== 'fiyat')
         throw new HttpError(400, 'VALIDATION_ERROR', 'Sabit fiyat listesi adı değiştirilemez.');
       const duplicate = await tx.stokSecenegi.findFirst({
         where: {

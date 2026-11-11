@@ -82,12 +82,12 @@ export function PriceTabs({
                 role="tab"
                 aria-selected={active}
                 onDoubleClick={() => {
-                  if (!list.removable) return;
                   finishingEdit.current = false;
                   setText(list.label);
                   setEditing(list.value);
                 }}
                 onClick={() => onSelect(list.value)}
+                title="Çift tıklayarak fiyat adını düzenleyin"
                 className={[
                   'min-h-10 rounded-full pl-4 text-sm font-bold tracking-wide',
                   list.removable ? 'pr-1' : 'pr-4',

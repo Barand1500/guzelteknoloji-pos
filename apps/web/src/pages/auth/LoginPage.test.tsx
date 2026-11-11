@@ -119,6 +119,33 @@ describe('E-Posta ile Devam Et', () => {
     expect(await screen.findByRole('heading', { name: optionsHeading })).toBeInTheDocument();
   });
 
+  it('robot doğrulamasını Devam Et düğmesinin altında tam genişlikli alanda gösterir', async () => {
+    mockFetch({
+      ...anonymousRoutes,
+      'POST /api/auth/robot': () =>
+        jsonResponse(200, {
+          challenge: { provider: 'recaptcha', siteKey: 'test-site-key' },
+        }),
+    });
+    const ue = await openEmailForm();
+    const emailField = screen.getByLabelText('E-Posta');
+    const continueButton = screen.getByRole('button', { name: 'Devam Et' });
+    await waitFor(() => expect(emailField).toBeInTheDocument());
+    const form = emailField.closest('form');
+    expect(form).not.toBeNull();
+    const children = Array.from(form!.children);
+    expect(children.indexOf(emailField.parentElement!)).toBeLessThan(
+      children.indexOf(continueButton),
+    );
+    const challengeContainer = form!.querySelector('[aria-label="Robot doğrulaması"]');
+    expect(challengeContainer).not.toBeNull();
+    const challenge = challengeContainer!.closest('.challenge-full-width');
+    expect(challenge).not.toBeNull();
+    expect(
+      continueButton.compareDocumentPosition(challenge!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(challenge!.parentElement).toHaveClass('w-full');
+  });
   it('boş ve geçersiz e-postada hata gösterir (ünlem düğmesi), istek göndermez', async () => {
     const fetchMock = mockFetch(anonymousRoutes);
     const ue = await openEmailForm();

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { WORKSPACE_RESOURCES, type WorkspaceContext } from '@gt/shared';
 import { anonymousRoutes, jsonResponse, mockFetch, renderApp } from '../../test/utils';
+import { grantDevAccess } from '../../features/dev-login/devAccess';
 
 const owner: WorkspaceContext = {
   business: { id: 1, name: 'Güzel İşletme' },
@@ -26,6 +27,19 @@ const login = {
 beforeEach(() => sessionStorage.clear());
 
 describe('Profil ve işletme ekranları', () => {
+  it('test kullanıcısı profil sayfasını görebilir', async () => {
+    mockFetch(anonymousRoutes);
+    grantDevAccess();
+    renderApp('/uygulama/profil');
+
+    expect(await screen.findByRole('heading', { name: 'Profil Bilgileri' })).toBeVisible();
+    expect(screen.getByLabelText('Ad Soyad')).toHaveValue('Test Kullanıcısı');
+    expect(
+      screen.queryByText('Hesap yönetimi için kendi hesabınızla giriş yapın.'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Kaydet' })).not.toBeInTheDocument();
+  });
+
   it('entegrasyonları üç sekmede toplar; iletişimde SMTP, IMAP ve WhatsApp birlikte görünür', async () => {
     const user = userEvent.setup();
     const fetch = mockFetch({
@@ -45,6 +59,11 @@ describe('Profil ve işletme ekranları', () => {
     const smtp = await screen.findByRole('form', { name: 'SMTP' });
     await screen.findByRole('form', { name: 'IMAP' });
     await screen.findByRole('form', { name: 'Meta WhatsApp Cloud API' });
+    expect(within(smtp).getByLabelText('Sunucu')).toHaveValue('smtp.guzelteknoloji.com');
+    expect(within(smtp).getByLabelText('Port')).toHaveValue('587');
+    const imap = screen.getByRole('form', { name: 'IMAP' });
+    expect(within(imap).getByLabelText('Sunucu')).toHaveValue('imap.guzelteknoloji.com');
+    expect(within(imap).getByLabelText('Port')).toHaveValue('993');
     await user.type(within(smtp).getByLabelText('Sunucu'), 'smtp.example.com');
     await user.click(within(smtp).getByRole('button', { name: 'Kaydet' }));
     expect(
