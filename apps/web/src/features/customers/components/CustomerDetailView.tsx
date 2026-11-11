@@ -1,5 +1,5 @@
 import {
-  ChevronLeft,
+  ArrowLeftToLine,
   KeyRound,
   MapPin,
   MessageSquareHeart,
@@ -42,6 +42,12 @@ const TABS = [
   { id: 'hesap', label: 'Hesap', icon: Wallet },
   { id: 'alisveris', label: 'Alışveriş', icon: ShoppingBag },
   { id: 'geri-bildirim', label: 'Yorumlar', icon: MessageSquareHeart },
+];
+
+/** Adadaki sıra: önce listeye dönüş (yalnızca simge), sonra sekmeler. */
+const DOCK_ITEMS = [
+  { id: 'liste', label: 'Müşteriler', icon: ArrowLeftToLine, iconOnly: true },
+  ...TABS,
 ];
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -146,7 +152,12 @@ function CustomerDetail({ id }: { id: string }) {
     changeTab('adresler');
     setAddress({ edit: null });
   });
-  usePublishDockTabs({ items: TABS, value: tab, onChange: changeTab });
+  usePublishDockTabs({
+    items: DOCK_ITEMS,
+    value: tab,
+    split: 3,
+    onChange: (next) => (next === 'liste' ? navigate('/uygulama/musteriler') : changeTab(next)),
+  });
 
   // Esc düzenlemeden vazgeçirir (açık pencere varsa pencere kapanır, bu çalışmaz).
   useEffect(() => {
@@ -220,14 +231,6 @@ function CustomerDetail({ id }: { id: string }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-5 pb-24">
-      <Link
-        to="/uygulama/musteriler"
-        className="inline-flex min-h-10 items-center gap-1 self-start rounded-full pr-3 text-sm font-bold text-ink-muted hover:text-ink"
-      >
-        <ChevronLeft className="size-5" aria-hidden="true" />
-        Müşteriler
-      </Link>
-
       {/* Kimlik kartı */}
       <section
         aria-label="Müşteri özeti"

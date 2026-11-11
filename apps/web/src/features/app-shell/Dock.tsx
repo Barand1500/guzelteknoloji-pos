@@ -23,14 +23,16 @@ function DockTab({ tab, tabs }: { tab: DockTabs['items'][number]; tabs: DockTabs
       data-dock-link=""
       aria-current={on ? 'page' : undefined}
       onClick={() => tabs.onChange(tab.id)}
+      aria-label={tab.label}
       className={[
-        'relative flex min-h-14 min-w-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-1',
-        'text-[0.6875rem] font-semibold transition-colors duration-300 md:flex-none md:px-4 md:text-xs',
+        tab.iconOnly ? 'min-w-10 flex-none px-1.5' : 'min-w-0 flex-1 px-0.5 md:min-w-14',
+        'relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-2xl',
+        'text-[0.625rem] font-semibold transition-colors duration-300 md:flex-none md:px-4 md:text-xs',
         on ? 'text-brand-ink' : 'text-ink-muted hover:text-ink',
       ].join(' ')}
     >
       <Icon className="size-6" aria-hidden="true" />
-      <span>{tab.label}</span>
+      {tab.iconOnly ? null : <span>{tab.label}</span>}
     </button>
   );
 }
@@ -123,7 +125,8 @@ export function Dock() {
   if (section.id === 'anasayfa') return <HomeDock />;
 
   // Henüz sayfası olmayan bölümlerde alt çubuk gösterilmez.
-  if (navLeft.length + navRight.length === 0) return null;
+  if (navLeft.length + navRight.length === 0 && !section.addButton && !tabs) return null;
+  const onlyAdd = navLeft.length + navRight.length === 0 && !tabs;
 
   return (
     <nav
@@ -132,7 +135,13 @@ export function Dock() {
     >
       <div
         ref={container}
-        className="pointer-events-auto relative flex w-full items-center gap-1 rounded-t-[1.75rem] border-t border-line bg-surface-raised/90 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-card backdrop-blur-xl md:w-auto md:gap-2 md:rounded-[2rem] md:border md:p-1.5 md:px-3"
+        className={[
+          'pointer-events-auto relative flex items-center gap-1 border-line bg-surface-raised/90 shadow-card backdrop-blur-xl md:w-auto md:gap-2 md:rounded-[2rem] md:border md:p-1.5 md:px-3',
+          // Yalnızca "+" varsa (ör. müşteri listesi) küçük, ortalanmış hap.
+          onlyAdd
+            ? 'mb-3 rounded-[2rem] border p-1.5 px-3 [&>button]:mt-0 [&>button]:ring-0'
+            : 'w-full rounded-t-[1.75rem] border-t px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]',
+        ].join(' ')}
       >
         {/* Kayan vurgu kutusu (bağlantıların arkasında) */}
         <span
@@ -143,7 +152,7 @@ export function Dock() {
         />
 
         {tabs
-          ? tabs.items.slice(0, 2).map((t) => <DockTab key={t.id} tab={t} tabs={tabs} />)
+          ? tabs.items.slice(0, tabs.split ?? 2).map((t) => <DockTab key={t.id} tab={t} tabs={tabs} />)
           : navLeft
               .filter((item) => can(pageResource(item.path)!))
               .map((item) => (
@@ -193,7 +202,7 @@ export function Dock() {
         ) : null}
 
         {tabs
-          ? tabs.items.slice(2).map((t) => <DockTab key={t.id} tab={t} tabs={tabs} />)
+          ? tabs.items.slice(tabs.split ?? 2).map((t) => <DockTab key={t.id} tab={t} tabs={tabs} />)
           : navRight
               .filter((item) => can(pageResource(item.path)!))
               .map((item) => (

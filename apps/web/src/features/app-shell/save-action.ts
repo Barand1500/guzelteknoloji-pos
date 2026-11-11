@@ -6,7 +6,9 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
  * Adresler / Hesap … Sayfa kendi sekmelerini bildirir; Dock bağlantılar yerine bunları çizer.
  */
 export interface DockTabs {
-  items: { id: string; label: string; icon: LucideIcon }[];
+  items: { id: string; label: string; icon: LucideIcon; iconOnly?: boolean }[];
+  /** İlk kaçı "+" düğmesinin soluna dizilsin (varsayılan 2). */
+  split?: number;
   value: string;
   onChange: (id: string) => void;
 }
@@ -32,11 +34,11 @@ export function usePublishDockTabs(tabs: DockTabs): void {
   useEffect(() => {
     latest.current = tabs.onChange;
   });
-  const { items, value } = tabs;
+  const { items, value, split } = tabs;
   useEffect(() => {
-    currentTabs = { items, value, onChange: (id) => latest.current(id) };
+    currentTabs = { items, value, split, onChange: (id) => latest.current(id) };
     tabListeners.forEach((l) => l());
-  }, [items, value]);
+  }, [items, value, split]);
   useEffect(
     () => () => {
       currentTabs = null;
