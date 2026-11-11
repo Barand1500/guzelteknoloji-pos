@@ -141,7 +141,27 @@ export const SECTIONS: readonly Section[] = [
       paths: [`${APP_BASE}/siparisler`],
     } satisfies Section;
   })(),
-  soon('musteriler', 'Müşteriler', UserCog, 172, 'Müşteri listesi'),
+  (() => {
+    const list = p(
+      'musteriler',
+      'Müşteriler',
+      `${APP_BASE}/musteriler`,
+      UserCog,
+      'Müşteri listesi ve sayfaları',
+    );
+    return {
+      id: 'musteriler',
+      label: 'Müşteriler',
+      icon: UserCog,
+      hue: 172,
+      tagline: 'Müşteri listesi',
+      home: list.path,
+      addButton: true,
+      pages: [list],
+      dock: { left: [list], right: [] },
+      paths: [`${APP_BASE}/musteriler`],
+    } satisfies Section;
+  })(),
   {
     id: 'urunler',
     label: 'Ürünler',

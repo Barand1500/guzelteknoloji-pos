@@ -150,7 +150,7 @@ export function Dock() {
               <Plus className="size-7" aria-hidden="true" />
             </button>
           ) : null
-        ) : can('products', 'save') ? (
+        ) : section.id === 'urunler' && can('products', 'save') ? (
           <NavLink
             key={pathname}
             to={STOCK_CREATE_PATH}
