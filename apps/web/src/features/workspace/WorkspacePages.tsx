@@ -1134,12 +1134,12 @@ function SettingsPageContent({
     ...rows.value.values,
     ...(section === 'smtp'
       ? {
-          host: rows.value.values.host || 'smtp.guzelteknoloji.com',
+          host: rows.value.values.host || 'smtp.example.com',
           port: rows.value.values.port || '587',
         }
       : section === 'imap'
         ? {
-            host: rows.value.values.host || 'imap.guzelteknoloji.com',
+            host: rows.value.values.host || 'imap.example.com',
             port: rows.value.values.port || '993',
           }
         : {}),
