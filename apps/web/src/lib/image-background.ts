@@ -99,6 +99,8 @@ export function clearWhiteBackground(data: Uint8ClampedArray, width: number, hei
     smooth[y * 3 + 2] = b / n;
   }
 
+  const backdropLight = (y: number): number =>
+    0.299 * smooth[y * 3]! + 0.587 * smooth[y * 3 + 1]! + 0.114 * smooth[y * 3 + 2]!;
   const rowDistance = (index: number): number => {
     const y = (index / width) | 0;
     const offset = index * 4;
@@ -120,7 +122,7 @@ export function clearWhiteBackground(data: Uint8ClampedArray, width: number, hei
   const seed = (index: number) => {
     if (background[index]) return;
     if (sat[index]! > 45 || lum[index]! < 110) return;
-    if (rowDistance(index) > 6) return;
+    if (rowDistance(index) > 10) return;
     background[index] = 1;
     queue[tail++] = index;
   };
@@ -155,12 +157,12 @@ export function clearWhiteBackground(data: Uint8ClampedArray, width: number, hei
         const no = next * 4;
         // Yerel fark: gradyanı takip eder, keskin ürün kenarında durur.
         if (
-          Math.abs(data[no]! - cr) > 10 ||
-          Math.abs(data[no + 1]! - cg) > 10 ||
-          Math.abs(data[no + 2]! - cb) > 10
+          Math.abs(data[no]! - cr) > 16 ||
+          Math.abs(data[no + 1]! - cg) > 16 ||
+          Math.abs(data[no + 2]! - cb) > 16
         )
           continue;
-        if (rowDistance(next) > 8) continue;
+        if (rowDistance(next) > 14) continue;
         background[next] = 1;
         queue[tail++] = next;
       }
@@ -172,7 +174,7 @@ export function clearWhiteBackground(data: Uint8ClampedArray, width: number, hei
   const seen = new Uint8Array(total);
   const holeQueue = new Uint32Array(total);
   const component: number[] = [];
-  const minArea = Math.max(200, Math.round(total * 0.0003));
+  const minArea = Math.max(120, Math.round(total * 0.0002));
   for (let start = 0; start < total; start++) {
     if (background[start] || seen[start]) continue;
     if (sat[start]! > 35 || lum[start]! < 190) continue;
@@ -225,12 +227,13 @@ export function clearWhiteBackground(data: Uint8ClampedArray, width: number, hei
       }
     }
     if (touchesBorder || component.length < minArea) continue;
+    if (backdropLight((start / width) | 0) < 200) continue;
     const count = component.length;
     const mean = sumLum / count;
     const deviation = Math.sqrt(Math.max(0, sumLumSq / count - mean * mean));
     // 240: gerçekten beyaza yakın; 4: dış fonla aynı renk. Açık gri ürün içi bu iki koşulu
     // geçmediği için (ör. kalem gövdesi 248, fon 255) korunur.
-    if (mean < 240 || deviation > 6 || sumDistance / count > 4) continue;
+    if (mean < 230 || deviation > 10 || sumDistance / count > 6) continue;
     for (const index of component) background[index] = 1;
   }
 
@@ -268,7 +271,7 @@ export function clearWhiteBackground(data: Uint8ClampedArray, width: number, hei
 
     const distance = rowDistance(index);
     const offset = index * 4;
-    if (distance <= 6) {
+    if (distance <= 10) {
       data[offset + 3] = 0;
       continue;
     }
@@ -324,24 +327,59 @@ export function clearWhiteBackground(data: Uint8ClampedArray, width: number, hei
           denominator,
       ),
     );
-    if (coverage < 0.06) {
+    if (coverage < 0.3) {
       data[offset + 3] = 0;
       continue;
     }
-    // Fon katkısı renkten çıkarılır; kenarda beyaz/gri hale kalmaz.
-    data[offset] = Math.max(
-      0,
-      Math.min(255, Math.round((valueR - backdropR * (1 - coverage)) / coverage)),
-    );
+    // Fon katkısı renkten çıkarılır; düşük kapsama oranında bölme rengi karartmasın diye
+    // payda en az 0,6 kabul edilir (kenarda siyah leke oluşmaz).
+    const strength = Math.max(coverage, 0.6);
+    const objectBaseR = objectR / objectCount;
+    const objectBaseG = objectG / objectCount;
+    const objectBaseB = objectB / objectCount;
+    const resultR = Math.round((valueR - backdropR * (1 - coverage)) / strength);
+    const resultG = Math.round((valueG - backdropG * (1 - coverage)) / strength);
+    const resultB = Math.round((valueB - backdropB * (1 - coverage)) / strength);
+    const objectLum = 0.299 * objectBaseR + 0.587 * objectBaseG + 0.114 * objectBaseB;
+    const resultLum = 0.299 * resultR + 0.587 * resultG + 0.114 * resultB;
+    // Fon çıkarınca renk nesneye göre aşırı koyulaşıyorsa (ör. çantanın gri paneli) sonuç
+    // siyah lekeye dönüşür; bu durumda komşu nesne rengi kullanılır.
+    const tooDark = resultLum < objectLum * 0.55;
+    data[offset] = Math.max(0, Math.min(255, tooDark ? Math.round(objectBaseR) : resultR));
     data[offset + 1] = Math.max(
       0,
-      Math.min(255, Math.round((valueG - backdropG * (1 - coverage)) / coverage)),
+      Math.min(255, tooDark ? Math.round(objectBaseG) : resultG),
     );
     data[offset + 2] = Math.max(
       0,
-      Math.min(255, Math.round((valueB - backdropB * (1 - coverage)) / coverage)),
+      Math.min(255, tooDark ? Math.round(objectBaseB) : resultB),
     );
     data[offset + 3] = Math.round(coverage * 255);
+  }
+
+  // 5) Kenarda kalan açık renkli benekleri temizle (JPEG gürültüsü siluetin dışında kalmasın).
+  for (let index = 0; index < total; index++) {
+    const offset = index * 4;
+    const alpha = data[offset + 3]!;
+    if (alpha === 0) continue;
+    if (sat[index]! > 45 || lum[index]! < 215) continue;
+    const x = index % width;
+    const y = (index / width) | 0;
+    let clear = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      const ny = y + dy;
+      if (ny < 0 || ny >= height) continue;
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx;
+        if (nx < 0 || nx >= width) continue;
+        if (data[(ny * width + nx) * 4 + 3] === 0) clear++;
+      }
+    }
+    // Yarı saydam kenarlarda 3 temiz komşu yeter; tam opakta yalnızca çok açık ve çevresi
+    // tamamen boş benekler silinir (ürünün açık renkli yüzeyi korunur).
+    const remove = alpha < 255 ? clear >= 3 : clear >= 6 && lum[index]! >= 240;
+    if (remove) data[offset + 3] = 0;
   }
 }
 

@@ -26,6 +26,12 @@ export function CatalogImage({
       {...props}
       alt={alt}
       src={enabled && processed?.original === src ? processed.image : src}
+      // Ürün görsellerinde saydam kalan alan sayfa metnini göstermesin: kutunun arkası düz yüzey olur.
+      style={
+        page === 'products'
+          ? { backgroundColor: 'var(--color-surface-muted)', ...props.style }
+          : props.style
+      }
     />
   );
 }
