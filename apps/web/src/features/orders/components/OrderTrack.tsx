@@ -1,4 +1,4 @@
-import { ArrowRight, Check, X } from 'lucide-react';
+import { Check, ChevronRight, X } from 'lucide-react';
 import type { Order, OrderStatus } from '../types';
 import { NEXT_STATUS, STATUS_LABEL } from '../types';
 
@@ -24,7 +24,6 @@ interface OrderTrackProps {
   order: Order;
   busy: boolean;
   onStatus: (status: OrderStatus) => void;
-  onDetails: () => void;
 }
 
 /**
@@ -34,7 +33,7 @@ interface OrderTrackProps {
  * İptalde son baloncuk kırmızı çöp kutusuna döner ve öncekiler pasifleşir. Telefonda kısa etiketler
  * ve küçük baloncuklar kullanılır; şerit hiçbir genişlikte taşmaz.
  */
-export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps) {
+export function OrderTrack({ order, busy, onStatus }: OrderTrackProps) {
   const cancelled = order.status === 'cancelled';
   const index = cancelled ? -1 : STAGES.findIndex((s) => s.status === order.status);
   const next = NEXT_STATUS[order.status];
@@ -47,15 +46,17 @@ export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps
           const showCancel = cancelled && isLast;
           const done = !cancelled && i < index;
           const current = !cancelled && i === index;
-          const lineDone = !cancelled && i < index;
+          const lineDone = !cancelled && i < index - 1;
+          // Şu anki adıma giden bağlantı: oklar akar.
+          const flowing = !cancelled && i === index - 1;
           const full = showCancel ? STATUS_LABEL.cancelled : STATUS_LABEL[s.status];
           return (
             <li key={s.status} className="flex min-w-0 flex-1 items-start last:flex-none">
-              <div className="flex w-[4.25rem] shrink-0 flex-col items-center gap-1 sm:w-28">
+              <div className="flex w-14 shrink-0 flex-col items-center gap-1 sm:w-28">
                 <span
                   aria-current={current || showCancel ? 'step' : undefined}
                   className={[
-                    'relative flex size-12 items-center justify-center rounded-full ring-2 transition-all duration-500 sm:size-16',
+                    'relative flex size-11 items-center justify-center rounded-full ring-2 transition-all duration-500 sm:size-16',
                     showCancel
                       ? 'scale-110 bg-danger-soft ring-danger ring-offset-2 ring-offset-surface-raised'
                       : current
@@ -70,7 +71,7 @@ export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps
                     alt=""
                     loading="lazy"
                     className={[
-                      'size-8 object-contain transition-all duration-500 sm:size-11',
+                      'size-7 object-contain transition-all duration-500 sm:size-11',
                       current || showCancel || done ? '' : 'opacity-40 grayscale',
                     ].join(' ')}
                   />
@@ -108,18 +109,29 @@ export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps
                 </span>
               </div>
 
-              {/* Oklu bağlantı çizgisi */}
+              {/* Bağlantı: oklar dizisi. Geçilen bağlantı yeşil, şu anki adıma giden bağlantı sırayla
+                  yanıp sönen oklarla "akar", gelmeyenler soluk. */}
               {!isLast ? (
                 <span
                   aria-hidden="true"
-                  className="mt-[1.4rem] flex min-w-3 flex-1 items-center sm:mt-[1.85rem]"
+                  className="mt-[0.95rem] flex min-w-6 flex-1 items-center justify-around px-1 sm:mt-[1.5rem] sm:px-3"
                 >
-                  <span
-                    className={`h-1 flex-1 rounded-full transition-colors duration-700 ${lineDone ? 'bg-success' : 'bg-line'}`}
-                  />
-                  <ArrowRight
-                    className={`-mx-1 size-4 shrink-0 transition-colors duration-700 sm:size-5 ${lineDone ? 'text-success' : 'text-line-strong/50'}`}
-                  />
+                  {Array.from({ length: 5 }, (_, k) => (
+                    <ChevronRight
+                      key={k}
+                      strokeWidth={3}
+                      style={flowing ? { animationDelay: `${k * 0.16}s` } : undefined}
+                      className={[
+                        'size-3.5 shrink-0 sm:size-6',
+                        k > 1 ? 'max-sm:hidden' : '',
+                        flowing
+                          ? 'order-chevron text-brand-600'
+                          : lineDone
+                            ? 'text-success'
+                            : 'text-line-strong/35',
+                      ].join(' ')}
+                    />
+                  ))}
                 </span>
               ) : null}
             </li>
@@ -127,11 +139,11 @@ export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps
         })}
       </ol>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p aria-live="polite" className="text-sm font-semibold text-ink-muted">
-          {cancelled ? 'Bu sipariş iptal edildi.' : `Şu an: ${STATUS_LABEL[order.status]}`}
-        </p>
-        <div className="flex flex-wrap gap-2">
+      <p className="sr-only" aria-live="polite">
+        {cancelled ? 'Bu sipariş iptal edildi.' : `Şu an: ${STATUS_LABEL[order.status]}`}
+      </p>
+      {next || (!cancelled && order.status !== 'delivered') ? (
+        <div className="flex flex-wrap justify-end gap-2">
           {next ? (
             <button
               type="button"
@@ -152,15 +164,8 @@ export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps
               İptal Et
             </button>
           ) : null}
-          <button
-            type="button"
-            onClick={onDetails}
-            className="inline-flex min-h-10 items-center rounded-full border border-field-border px-4 text-sm font-bold text-ink transition-colors hover:border-brand-500"
-          >
-            Ayrıntılar
-          </button>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

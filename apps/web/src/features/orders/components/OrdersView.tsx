@@ -61,7 +61,8 @@ function chipsOf(f: OrderFilters): { id: string; label: string; clear: Partial<O
  * Gelen Siparişler: üstte üç özet kutusu, arama + Süzgeçler (pencere) + Dışa Aktar (sihirbaz), açık
  * süzgeç etiketleri, masaüstünde sıralanabilir tablo / telefonda kartlar, sayfalama ve en altta tüm
  * Her satırın altında siparişin yolculuk şeridi (Bekliyor → Hazırlanıyor → Kargoda → Teslim) açıktır;
- * arama çubuğunun yanındaki rota düğmesi bunu hep-açık / yalnızca-tıklananlar arasında değiştirir.
+ * arama çubuğunun yanındaki rota düğmesi bunu hep-açık / yalnızca-tıklananlar arasında değiştirir
+ * (varsayılan: kapalı; satıra basınca o siparişin akışı açılır).
  * Çift tıklayınca (ya da göz simgesiyle) ayrıntı penceresi açılır.
  */
 export function OrdersView() {
@@ -76,7 +77,7 @@ export function OrdersView() {
   const [sizeText, setSizeText] = useState('10');
   const [openId, setOpenId] = useState<string | null>(null);
   // Sipariş akışları: açıkken HER satırın altında görünür; kapalıyken yalnızca tıklanan satırlarda.
-  const [flowAll, setFlowAll] = useState(true);
+  const [flowAll, setFlowAll] = useState(false);
   const [flowIds, setFlowIds] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -214,7 +215,7 @@ export function OrdersView() {
           onClick={() => setFlowAll((v) => !v)}
           aria-pressed={flowAll}
           aria-label="Sipariş akışlarını göster"
-          title={flowAll ? 'Akışlar hep açık (kapatmak için bas)' : 'Akışları hep göster'}
+          title={flowAll ? 'Akışlar hep açık (kapatmak için bas)' : 'Tüm akışları göster'}
           className={[
             'inline-flex size-13 shrink-0 items-center justify-center rounded-full border transition-all duration-300',
             flowAll
@@ -341,7 +342,6 @@ export function OrdersView() {
                               order={o}
                               busy={busy}
                               onStatus={(st) => void changeStatus(o.id, st)}
-                              onDetails={() => setOpenId(o.id)}
                             />
                           </td>
                         </tr>
@@ -358,7 +358,7 @@ export function OrdersView() {
                   key={o.id}
                   style={{ animationDelay: `${i * 40}ms` }}
                   className={[
-                    'animate-rise-in overflow-hidden rounded-3xl border bg-surface-raised transition-colors',
+                    'relative animate-rise-in overflow-hidden rounded-3xl border bg-surface-raised transition-colors',
                     flowOpen(o.id) ? 'border-brand-600/60' : 'border-line',
                   ].join(' ')}
                 >
@@ -371,7 +371,9 @@ export function OrdersView() {
                   >
                     <span className="flex items-center justify-between gap-3">
                       <span className="font-extrabold">#{o.no}</span>
-                      <StatusPill status={o.status} />
+                      <span className="mr-11">
+                        <StatusPill status={o.status} />
+                      </span>
                     </span>
                     <span className="flex items-end justify-between gap-3">
                       <span className="min-w-0">
@@ -390,13 +392,21 @@ export function OrdersView() {
                       </span>
                     </span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setOpenId(o.id)}
+                    aria-label={`${o.no} numaralı siparişi görüntüle`}
+                    title="Ayrıntılar"
+                    className="absolute top-3 right-3 inline-flex size-10 items-center justify-center rounded-full bg-surface-muted text-ink-muted transition-colors active:bg-brand-50 active:text-brand-ink"
+                  >
+                    <Eye className="size-5" aria-hidden="true" />
+                  </button>
                   {flowOpen(o.id) ? (
                     <div className="border-t border-brand-600/25 bg-brand-50/70 px-3 pt-4 pb-3">
                       <OrderTrack
                         order={o}
                         busy={busy}
                         onStatus={(st) => void changeStatus(o.id, st)}
-                        onDetails={() => setOpenId(o.id)}
                       />
                     </div>
                   ) : null}

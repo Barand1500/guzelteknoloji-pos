@@ -321,3 +321,25 @@ body[data-sortable-dragging] [data-zoom-card] {
     width: 100%;
   }
 }
+
+/* Sipariş akışı: aktif bağlantıdaki oklar sırayla yanıp ilerleme hissi verir. */
+@keyframes order-chevron {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateX(-3px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(3px);
+  }
+}
+.order-chevron {
+  animation: order-chevron 1.3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .order-chevron {
+    animation: none;
+    opacity: 1;
+  }
+}
