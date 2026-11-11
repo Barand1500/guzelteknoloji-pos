@@ -1,7 +1,7 @@
 import { ApiError, apiRequest } from '../../../lib/http';
 import { useDataService } from '../../../lib/catalog-data';
 import { customerSeeds, detailSeed } from '../../../mocks/customers.mock';
-import type { Customer, CustomerDetail, CustomerDraft } from '../types';
+import type { AddressDraft, Customer, CustomerAddress, CustomerDetail, CustomerDraft } from '../types';
 
 export interface LoadedCustomers {
   items: Customer[];
@@ -37,6 +37,12 @@ export const customerService = {
   remove: (id: string) => apiRequest<void>(`${path(id)}/sil`, { method: 'POST' }),
   setLogin: (id: string, active: boolean) =>
     apiRequest<void>(`${path(id)}/giris`, { method: 'POST', body: { active } }),
+  /** Adres ekle/güncelle: POST /api/musteriler/:id/adresler[/:adresId] gövde AddressDraft → CustomerAddress */
+  saveAddress: (id: string, draft: AddressDraft, addressId?: string) =>
+    apiRequest<CustomerAddress>(
+      `${path(id)}/adresler${addressId ? '/' + encodeURIComponent(addressId) : ''}`,
+      { method: 'POST', body: draft },
+    ),
   /** Tek kullanıcının girişi: POST /api/musteriler/:id/kullanicilar/:kullaniciId/giris { active } */
   setUserLogin: (id: string, userId: string, active: boolean) =>
     apiRequest<void>(`${path(id)}/kullanicilar/${encodeURIComponent(userId)}/giris`, {
@@ -66,6 +72,10 @@ export const demoCustomerService: typeof customerService = {
   remove: async () => undefined,
   setLogin: async () => undefined,
   setUserLogin: async () => undefined,
+  saveAddress: async (_id, draft, addressId) => ({
+    id: addressId ?? `a-${Math.random().toString(36).slice(2, 8)}`,
+    ...draft,
+  }),
 };
 
 export const useCustomerService = () => useDataService(customerService, demoCustomerService);

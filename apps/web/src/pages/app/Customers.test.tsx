@@ -48,45 +48,55 @@ describe('Müşteriler listesi', () => {
     await user.type(screen.getByRole('searchbox', { name: 'Müşteri ara' }), 'yunus');
     await user.click(await screen.findByText('Yunus Durgun'));
     expect(await screen.findByRole('region', { name: 'Müşteri özeti' })).toBeInTheDocument();
-    const tabs = screen.getByRole('tablist', { name: 'Müşteri bölümleri' });
+    const dock = screen.getByRole('navigation', { name: 'Ana gezinme' });
     expect(
-      within(tabs)
-        .getAllByRole('tab')
-        .map((t) => t.textContent),
-    ).toEqual(['Bilgiler', 'Adresler', 'Hesap', 'Alışveriş', 'Geri Bildirim']);
+      within(dock)
+        .getAllByRole('button')
+        .map((t) => t.textContent)
+        .filter((t) => t),
+    ).toEqual(['Bilgiler', 'Adresler', 'Hesap', 'Alışveriş', 'Yorumlar']);
     // Bilgiler: giriş hesapları + anahtar
     const users = await screen.findByRole('list', { name: 'Kullanıcılar' });
     const toggle = within(users).getByRole('switch', { name: 'Yunus Durgun girişi' });
     expect(toggle).toBeChecked();
     await user.click(toggle);
     await waitFor(() => expect(toggle).not.toBeChecked());
-    await user.click(within(tabs).getByRole('tab', { name: 'Hesap' }));
+    await user.click(within(dock).getByRole('button', { name: 'Hesap' }));
     expect(await screen.findByRole('list', { name: 'Hesap hareketleri' })).toBeInTheDocument();
-    await user.click(within(tabs).getByRole('tab', { name: 'Alışveriş' }));
+    await user.click(within(dock).getByRole('button', { name: 'Alışveriş' }));
     const sub = await screen.findByRole('tablist', { name: 'Alışveriş bölümleri' });
     expect(within(sub).getAllByRole('tab')).toHaveLength(6);
     await user.click(within(sub).getByRole('tab', { name: /Favoriler/ }));
     expect(await screen.findByRole('list', { name: 'Favoriler' })).toBeInTheDocument();
-    await user.click(within(tabs).getByRole('tab', { name: 'Geri Bildirim' }));
+    await user.click(within(dock).getByRole('button', { name: 'Yorumlar' }));
     const fb = await screen.findByRole('tablist', { name: 'Geri bildirim bölümleri' });
     expect(within(fb).getAllByRole('tab')).toHaveLength(3);
   });
 
-  it('düzenle: kişi tipi tüzel olunca etiketler değişir; geçersiz e-posta engellenir; sil onay ister', async () => {
+  it('kutuya çift tıklayınca düzenlenir; geçersiz e-posta engellenir; ada Kaydet olur; adres eklenir; sil onay ister', async () => {
     const user = await open('/uygulama/musteriler/c1');
     await screen.findByRole('region', { name: 'Müşteri özeti' });
-    await user.click(screen.getByRole('button', { name: 'Düzenle' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Müşteriyi Düzenle' });
-    await user.click(within(dialog).getByRole('radio', { name: /Tüzel Kişi/ }));
-    expect(within(dialog).getByLabelText('Ünvan')).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/Vergi No/)).toBeInTheDocument();
-    const email = within(dialog).getByLabelText('E-posta');
+    const dock = screen.getByRole('navigation', { name: 'Ana gezinme' });
+    expect(within(dock).getByRole('button', { name: 'Adres Ekle' })).toBeInTheDocument();
+    await user.dblClick(await screen.findByRole('region', { name: 'İletişim' }));
+    const email = screen.getByLabelText('E-posta');
     await user.clear(email);
     await user.type(email, 'yanlis');
+    await user.click(within(dock).getByRole('button', { name: 'Kaydet' }));
+    expect(screen.getByRole('button', { name: /Geçerli bir e-posta/ })).toBeInTheDocument();
+    await user.clear(email);
+    await user.type(email, 'yeni@ornek.com');
+    await user.click(within(dock).getByRole('button', { name: 'Kaydet' }));
+    await waitFor(() => expect(screen.queryByLabelText('E-posta')).not.toBeInTheDocument());
+    expect(screen.getByText('yeni@ornek.com')).toBeInTheDocument();
+    // adres ekle
+    await user.click(within(dock).getByRole('button', { name: 'Adres Ekle' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Adres Ekle' });
+    await user.type(within(dialog).getByLabelText('Başlık'), 'Depo 2');
+    await user.type(within(dialog).getByLabelText('Açık adres'), 'Organize Sanayi 5. Cad. No:9 Gebze');
     await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
-    expect(within(dialog).getByRole('button', { name: /Geçerli bir e-posta/ })).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Vazgeç' }));
-    await user.click(screen.getByRole('button', { name: 'Sil' }));
+    expect(await screen.findByText('Depo 2')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Müşteriyi sil' }));
     expect(await screen.findByRole('dialog', { name: /Silinsin Mi/ })).toBeInTheDocument();
   });
 

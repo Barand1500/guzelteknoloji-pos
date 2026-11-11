@@ -163,3 +163,5 @@ export interface CustomerDetail {
   likedReviews: Review[];
   messages: Message[];
 }
+
+export type AddressDraft = Pick<CustomerAddress, 'title' | 'address' | 'isDefault'>;

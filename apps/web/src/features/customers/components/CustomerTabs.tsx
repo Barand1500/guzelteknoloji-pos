@@ -1,10 +1,9 @@
-import { Mail, MapPin, Phone, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import { formatMoney } from '../../home/components/parts';
 import { ReturnPill, StatusPill, formatDateTime } from '../../orders/components/parts';
 import { RETURN_KIND_LABEL } from '../../orders/types';
-import { KIND_LABEL, balanceOf, type Customer, type CustomerDetail } from '../types';
+import { balanceOf, type Customer, type CustomerDetail } from '../types';
 
 /** Basit satır listesi: başlık, alt yazı, sağda değer/rozet; boşsa dostça bir mesaj. */
 function Rows({
@@ -90,7 +89,7 @@ function SubTabs<T extends string>({
   );
 }
 
-function Info({ label, children }: { label: string; children: ReactNode }) {
+export function Info({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <dt className="text-xs font-extrabold tracking-wider text-ink-muted uppercase">{label}</dt>
@@ -99,137 +98,14 @@ function Info({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-const Card = ({ title, children }: { title: string; children: ReactNode }) => (
+export const Card = ({ title, children }: { title: string; children: ReactNode }) => (
   <section aria-label={title} className="rounded-3xl border border-line bg-surface p-4 sm:p-5">
     <h3 className="mb-3 text-base font-extrabold tracking-tight">{title}</h3>
     {children}
   </section>
 );
 
-/** 1) Bilgiler + giriş hesapları (referanstaki "Müşteri Bilgileri" ve "Kullanıcılar" tek sekmede). */
-export function InfoTab({
-  customer,
-  detail,
-  onUserToggle,
-}: {
-  customer: Customer;
-  detail: CustomerDetail;
-  onUserToggle: (userId: string, active: boolean) => void;
-}) {
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card title="Kimlik">
-        <dl className="grid grid-cols-2 gap-4">
-          <Info label="Kişi tipi">{KIND_LABEL[customer.kind]}</Info>
-          <Info label={customer.kind === 'corporate' ? 'Vergi No' : 'TC Kimlik No'}>
-            {customer.taxId}
-          </Info>
-          <Info label="Müşteri kodu">{customer.code}</Info>
-          <Info label="Cari tipi">{customer.customerType}</Info>
-        </dl>
-      </Card>
-      <Card title="İletişim">
-        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Info label="Telefon">
-            <a
-              href={`tel:${customer.phone.replace(/[^0-9+]/g, '')}`}
-              className="inline-flex items-center gap-2 text-brand-ink hover:underline"
-            >
-              <Phone className="size-4" aria-hidden="true" />
-              {customer.phone}
-            </a>
-          </Info>
-          <Info label="E-posta">
-            <a
-              href={`mailto:${customer.email}`}
-              className="inline-flex items-center gap-2 break-all text-brand-ink hover:underline"
-            >
-              <Mail className="size-4 shrink-0" aria-hidden="true" />
-              {customer.email}
-            </a>
-          </Info>
-        </dl>
-      </Card>
-      <Card title="Satış">
-        <dl className="grid grid-cols-2 gap-4">
-          <Info label="Fiyat listesi">{customer.priceList}</Info>
-          <Info label="Kart anlaşması">{customer.cardDeal}</Info>
-          <div className="col-span-2">
-            <dt className="text-xs font-extrabold tracking-wider text-ink-muted uppercase">
-              Ödeme şekilleri
-            </dt>
-            <dd className="mt-1.5 flex flex-wrap gap-1.5">
-              {customer.payments.length === 0 ? (
-                <span className="text-sm text-ink-muted">Aktif ödeme şekillerinin hepsi</span>
-              ) : (
-                customer.payments.map((p) => (
-                  <span
-                    key={p}
-                    className="rounded-full bg-surface-muted px-3 py-1 text-sm font-semibold"
-                  >
-                    {p}
-                  </span>
-                ))
-              )}
-            </dd>
-          </div>
-        </dl>
-      </Card>
-      <Card title="Giriş hesapları">
-        {detail.users.length === 0 ? (
-          <p className="text-ink-muted">Bu müşterinin giriş yapabilen kullanıcısı yok.</p>
-        ) : (
-          <ul aria-label="Kullanıcılar" className="flex flex-col gap-2">
-            {detail.users.map((u) => (
-              <li
-                key={u.id}
-                className="flex items-center gap-3 rounded-2xl bg-surface-muted/60 p-3"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-bold">{u.name}</span>
-                  <span className="block truncate text-sm text-ink-muted">
-                    {u.email}
-                    {u.lastLogin ? ` · son giriş ${formatDateTime(u.lastLogin)}` : ''}
-                  </span>
-                </span>
-                <ToggleSwitch
-                  label={`${u.name} girişi`}
-                  checked={u.active}
-                  onChange={(v) => onUserToggle(u.id, v)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-/** 2) Adresler */
-export function AddressTab({ detail }: { detail: CustomerDetail }) {
-  return (
-    <Rows
-      label="Adresler"
-      empty="Kayıtlı adres yok."
-      items={detail.addresses.map((a) => ({
-        id: a.id,
-        title: (
-          <span className="inline-flex items-center gap-2">
-            <MapPin className="size-4 text-brand-ink" aria-hidden="true" />
-            {a.title}
-            {a.isDefault ? (
-              <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-bold text-success">
-                Varsayılan
-              </span>
-            ) : null}
-          </span>
-        ),
-        sub: a.address,
-      }))}
-    />
-  );
-}
+/* 2) Adresler: CustomerAddressTab.tsx */
 
 /** 3) Hesap hareketleri: borç / alacak / bakiye + hareket listesi. */
 export function AccountTab({ customer, detail }: { customer: Customer; detail: CustomerDetail }) {

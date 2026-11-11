@@ -1,4 +1,50 @@
+import type { LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
+
+/**
+ * Sayfa içi sekmeler alt çubukta (yüzen adada) gösterilsin: ör. müşteri sayfasında Bilgiler /
+ * Adresler / Hesap … Sayfa kendi sekmelerini bildirir; Dock bağlantılar yerine bunları çizer.
+ */
+export interface DockTabs {
+  items: { id: string; label: string; icon: LucideIcon }[];
+  value: string;
+  onChange: (id: string) => void;
+}
+
+let currentTabs: DockTabs | null = null;
+const tabListeners = new Set<() => void>();
+
+function subscribeTabs(listener: () => void) {
+  tabListeners.add(listener);
+  return () => void tabListeners.delete(listener);
+}
+
+export function useActiveDockTabs(): DockTabs | null {
+  return useSyncExternalStore(
+    subscribeTabs,
+    () => currentTabs,
+    () => null,
+  );
+}
+
+export function usePublishDockTabs(tabs: DockTabs): void {
+  const latest = useRef(tabs.onChange);
+  useEffect(() => {
+    latest.current = tabs.onChange;
+  });
+  const { items, value } = tabs;
+  useEffect(() => {
+    currentTabs = { items, value, onChange: (id) => latest.current(id) };
+    tabListeners.forEach((l) => l());
+  }, [items, value]);
+  useEffect(
+    () => () => {
+      currentTabs = null;
+      tabListeners.forEach((l) => l());
+    },
+    [],
+  );
+}
 
 /**
  * Alt çubuğun (Dock) ortadaki "+" düğmesini sayfaya özel "Kaydet" düğmesine çeviren küçük ortak
