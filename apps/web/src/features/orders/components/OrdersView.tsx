@@ -67,7 +67,7 @@ function chipsOf(f: OrderFilters): { id: string; label: string; clear: Partial<O
 export function OrdersView() {
   const { orders, loading, error, sample, refresh, setStatus } = useOrders();
   // Tablo ve kartlar aynı anda çizilmez (görseller iki kez yüklenmesin).
-  const wide = useMediaQuery('(min-width: 48rem)');
+  const wide = useMediaQuery('(min-width: 64rem)');
   const [filters, setFilters] = useState<OrderFilters>(emptyOrderFilters);
   const [filterOpen, setFilterOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);

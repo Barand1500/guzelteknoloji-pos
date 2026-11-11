@@ -41,7 +41,7 @@ export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps
 
   return (
     <div className="flex flex-col gap-3">
-      <ol aria-label="Sipariş akışı" className="flex max-w-2xl items-start">
+      <ol aria-label="Sipariş akışı" className="flex items-start">
         {STAGES.map((s, i) => {
           const isLast = i === STAGES.length - 1;
           const showCancel = cancelled && isLast;
