@@ -194,7 +194,7 @@ export function Simulator({ kind, rule }: { kind: CampaignKind; rule: GeneralRul
         Kuralı dene <span className="font-semibold tracking-normal normal-case">· çubuğu kaydırın</span>
       </p>
       {/* Yol: bayrak = eşik, kamyon/nokta = örnek sepet */}
-      <div className="relative mt-3 h-9">
+      <div className="relative mx-[18px] mt-3 h-9">
         <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-surface-muted" />
         <div
           className={`absolute top-1/2 left-0 h-1.5 -translate-y-1/2 rounded-full transition-colors ${out.applies ? 'bg-success' : 'bg-brand-500'}`}
@@ -210,7 +210,7 @@ export function Simulator({ kind, rule }: { kind: CampaignKind; rule: GeneralRul
         <span
           aria-hidden="true"
           className={`absolute top-1/2 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-white shadow-soft transition-[left,background-color] duration-150 ${out.applies ? 'bg-success' : 'bg-brand-700'}`}
-          style={{ left: `${Math.min(Math.max(truckAt, 3), 97)}%` }}
+          style={{ left: `${truckAt}%` }}
         >
           {kind === 'shipping' ? <Truck className="size-5" /> : <ShoppingCart className="size-5" />}
         </span>

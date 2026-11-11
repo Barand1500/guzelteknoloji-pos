@@ -1,4 +1,4 @@
-import { Download, Pencil, Trash2, Truck, Percent, X } from 'lucide-react';
+import { Download, Pencil, Trash2, Truck, Percent } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
@@ -133,19 +133,6 @@ export function CampaignPage({ kind }: { kind: CampaignKind }) {
 
       <GeneralCard kind={kind} rule={general} onChange={setDraft} />
 
-      {dirty ? (
-        <div className="flex animate-fade-in items-center justify-between gap-3 rounded-2xl bg-brand-50 px-4 py-2.5 text-sm font-semibold text-brand-ink">
-          <span>Kaydedilmemiş değişiklik var · alttaki düğmeye basın</span>
-          <button
-            type="button"
-            onClick={() => setDraft(null)}
-            className="inline-flex min-h-9 items-center gap-1 rounded-full px-3 font-bold hover:bg-surface-raised"
-          >
-            <X className="size-4" aria-hidden="true" />
-            Vazgeç
-          </button>
-        </div>
-      ) : null}
 
       <section aria-label="Özel kurallar" className="flex flex-col gap-3">
         <div>

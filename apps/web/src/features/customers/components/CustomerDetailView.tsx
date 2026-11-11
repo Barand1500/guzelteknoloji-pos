@@ -7,7 +7,6 @@ import {
   UserCog,
   UserRound,
   Wallet,
-  X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -290,19 +289,6 @@ function CustomerDetail({ id }: { id: string }) {
         {wideBar ? null : <div className="mt-4">{nextBar}</div>}
       </section>
 
-      {editing ? (
-        <div className="flex animate-fade-in items-center justify-between gap-3 rounded-2xl bg-brand-50 px-4 py-2.5 text-sm font-semibold text-brand-ink">
-          <span>Düzenleniyor · kaydetmek için alttaki düğmeye basın</span>
-          <button
-            type="button"
-            onClick={cancel}
-            className="inline-flex min-h-9 items-center gap-1 rounded-full px-3 font-bold hover:bg-surface-raised"
-          >
-            <X className="size-4" aria-hidden="true" />
-            Vazgeç
-          </button>
-        </div>
-      ) : null}
 
       {problem || error ? <Alert tone="error">{problem ?? error}</Alert> : null}
 
