@@ -30,9 +30,9 @@ describe('Kampanyalar', () => {
     expect(await within(dock).findByRole('button', { name: 'Kaydet' })).toBeInTheDocument();
     // deneme: sepet tutarı eşiğin altına inince indirim kalkar
     fireEvent.change(screen.getByLabelText('Örnek sepet tutarı'), { target: { value: '500' } });
-    expect(screen.getByText(/daha → indirim/)).toBeInTheDocument();
+    expect(screen.getByText(/indirim yok/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Örnek sepet tutarı'), { target: { value: '2000' } });
-    await waitFor(() => expect(screen.queryByText(/daha → indirim/)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/indirim yok/)).not.toBeInTheDocument());
     await user.click(within(dock).getByRole('button', { name: 'Kaydet' }));
     await waitFor(() =>
       expect(within(dock).queryByRole('button', { name: 'Kaydet' })).not.toBeInTheDocument(),
@@ -80,7 +80,7 @@ describe('Kampanyalar', () => {
     await open('/uygulama/kampanyalar/ucretsiz-kargo');
     expect(screen.getByText('kargo ücretsiz olsun.')).toBeInTheDocument();
     expect(screen.queryByLabelText('İndirim değeri')).not.toBeInTheDocument();
-    expect(screen.getByText(/Kargo ücretsiz/)).toBeInTheDocument();
+    expect(screen.getByText('kargo ücretsiz')).toBeInTheDocument();
   });
 
   it('yardımcılar: sonuç ve özet', () => {

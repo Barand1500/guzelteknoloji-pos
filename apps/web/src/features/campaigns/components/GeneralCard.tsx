@@ -1,4 +1,4 @@
-import { Percent, Truck } from 'lucide-react';
+import { Flag, Percent, ShoppingCart, Truck } from 'lucide-react';
 import { useState } from 'react';
 import { MultiSelectField } from '../../../components/ui/MultiSelectField';
 import { formatMoneyShort, CountUp } from '../../home/components/parts';
@@ -75,9 +75,9 @@ export function GeneralCard({
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-extrabold tracking-tight">
-            {cart ? 'Genel sepet indirimi' : 'Genel ücretsiz kargo'}
+            {cart ? 'Genel Sepet İndirimi' : 'Genel Ücretsiz Kargo'}
           </h2>
-          <p className="text-sm text-ink-muted">Tüm sepetlere uygulanır</p>
+          <p className="text-sm text-ink-muted">Tüm sepetlere uygulanır.</p>
         </div>
         <button
           type="button"
@@ -148,18 +148,20 @@ export function GeneralCard({
       {/* Kimlere */}
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <MultiSelectField
-          label="Cari tipleri"
+          label="Cari Tipleri"
           options={CUSTOMER_TYPE_OPTIONS.map((t) => ({ id: t, name: t }))}
           value={rule.customerTypes}
           onChange={(v) => set('customerTypes', v)}
           emptyText="Hepsi"
+          listText
         />
         <MultiSelectField
-          label="Fiyat listeleri"
+          label="Fiyat Listeleri"
           options={PRICE_LIST_OPTIONS.map((t) => ({ id: t, name: t }))}
           value={rule.priceLists}
           onChange={(v) => set('priceLists', v)}
           emptyText="Hepsi"
+          listText
         />
       </div>
 
@@ -168,56 +170,92 @@ export function GeneralCard({
   );
 }
 
-/** Sepet tutarını kaydırınca kuralın ne yapacağını anında gösterir (tek satırlık, küçük). */
+/**
+ * "Kuralı dene": sepet tutarını kaydırınca sonucu düz cümleyle söyler. Yol çizgisinde bayrak kuralın
+ * eşiğidir; kargoda kamyon sepet tutarını gösterir ve bayrağı geçince yeşile döner.
+ */
 export function Simulator({ kind, rule }: { kind: CampaignKind; rule: GeneralRule }) {
   const [cart, setCart] = useState<number | null>(null);
+  const top = Math.max(rule.minTotal * 2, 10000);
+  const step = top > 100000 ? 1000 : top > 20000 ? 500 : 250;
   const value = Math.min(
-    cart ?? (rule.minTotal > 0 ? Math.round(rule.minTotal * 1.25) : 5000),
-    SIM_MAX,
+    cart ?? (rule.minTotal > 0 ? Math.round((rule.minTotal * 1.25) / step) * step : 5000),
+    top,
   );
   const out = outcome(rule, kind, value);
   const missing = Math.max(0, rule.minTotal - value);
+  const flagAt = rule.minTotal > 0 ? Math.min(100, (rule.minTotal / top) * 100) : 0;
+  const truckAt = (value / top) * 100;
+  const cart$ = <b className="whitespace-nowrap">{formatMoneyShort(value)}</b>;
 
   return (
-    <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-surface-raised/70 px-4 py-3 ring-1 ring-line">
-      <span className="text-xs font-extrabold tracking-wider text-ink-muted uppercase">Dene</span>
-      <input
-        type="range"
-        min={0}
-        max={SIM_MAX}
-        step={500}
-        value={value}
-        onChange={(e) => setCart(Number(e.target.value))}
-        aria-label="Örnek sepet tutarı"
-        className="h-2 min-w-32 flex-1 cursor-pointer accent-brand-700"
-      />
-      <b className="w-20 text-right tabular-nums">{formatMoneyShort(value)}</b>
-      <span className="min-w-0 basis-full text-sm font-bold sm:basis-auto" aria-live="polite">
+    <div className="mt-5 rounded-2xl bg-surface-raised/70 p-4 ring-1 ring-line">
+      <p className="text-xs font-extrabold tracking-wider text-ink-muted uppercase">
+        Kuralı dene <span className="font-semibold tracking-normal normal-case">· çubuğu kaydırın</span>
+      </p>
+      {/* Yol: bayrak = eşik, kamyon/nokta = örnek sepet */}
+      <div className="relative mt-3 h-9">
+        <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-surface-muted" />
+        <div
+          className={`absolute top-1/2 left-0 h-1.5 -translate-y-1/2 rounded-full transition-colors ${out.applies ? 'bg-success' : 'bg-brand-500'}`}
+          style={{ width: `${truckAt}%` }}
+        />
+        {rule.minTotal > 0 ? (
+          <Flag
+            aria-hidden="true"
+            className="absolute top-0 size-5 -translate-x-1/2 text-brand-700"
+            style={{ left: `${flagAt}%` }}
+          />
+        ) : null}
+        <span
+          aria-hidden="true"
+          className={`absolute top-1/2 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-white shadow-soft transition-[left,background-color] duration-150 ${out.applies ? 'bg-success' : 'bg-brand-700'}`}
+          style={{ left: `${Math.min(Math.max(truckAt, 3), 97)}%` }}
+        >
+          {kind === 'shipping' ? <Truck className="size-5" /> : <ShoppingCart className="size-5" />}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={top}
+          step={step}
+          value={value}
+          onChange={(e) => setCart(Number(e.target.value))}
+          aria-label="Örnek sepet tutarı"
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        />
+      </div>
+      <p className="mt-2 text-base leading-snug" aria-live="polite">
         {kind === 'cart' ? (
           out.applies ? (
-            <span className="text-success">
-              −<CountUp value={out.discount} format={formatMoneyShort} duration={400} /> ·{' '}
-              <span className="text-ink">
-                öde <CountUp value={out.pay} format={formatMoneyShort} duration={400} />
-              </span>
-            </span>
+            <>
+              Sepet {cart$} olursa{' '}
+              <b className="text-success">
+                <CountUp value={out.discount} format={formatMoneyShort} duration={300} /> indirim
+              </b>{' '}
+              uygulanır; müşteri{' '}
+              <b>
+                <CountUp value={out.pay} format={formatMoneyShort} duration={300} />
+              </b>{' '}
+              öder.
+            </>
           ) : (
-            <span className="text-ink-muted">{formatMoneyShort(missing)} daha → indirim</span>
+            <>
+              Sepet {cart$} olursa <b className="text-ink-muted">indirim yok</b>.{' '}
+              <span className="text-ink-muted">{formatMoneyShort(missing)} daha eklenirse başlar.</span>
+            </>
           )
         ) : out.applies ? (
-          <span className="inline-flex items-center gap-1.5 text-success">
-            <Truck className="size-4" aria-hidden="true" />
-            Kargo ücretsiz
-          </span>
+          <>
+            Sepet {cart$} olursa <b className="text-success">kargo ücretsiz</b>.
+          </>
         ) : (
-          <span className="inline-flex items-center gap-1.5 text-ink-muted">
-            <Truck className="size-4" aria-hidden="true" />
-            {formatMoneyShort(missing)} daha → ücretsiz
-          </span>
+          <>
+            Sepet {cart$} olursa <b className="text-ink-muted">kargo ücretli</b>.{' '}
+            <span className="text-ink-muted">{formatMoneyShort(missing)} daha eklenirse ücretsiz.</span>
+          </>
         )}
-      </span>
+      </p>
     </div>
   );
 }
-
-const SIM_MAX = 50000;

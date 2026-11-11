@@ -149,7 +149,7 @@ export function CampaignPage({ kind }: { kind: CampaignKind }) {
 
       <section aria-label="Özel kurallar" className="flex flex-col gap-3">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight">Özel kurallar</h2>
+          <h2 className="text-xl font-extrabold tracking-tight">Özel Kurallar</h2>
           <p className="text-sm text-ink-muted">
             Belirli kategori ya da markalar için ayrı {cart ? 'indirim' : 'kargo'} kuralı. Alttaki +
             ile ekleyin.
@@ -232,21 +232,19 @@ export function CampaignPage({ kind }: { kind: CampaignKind }) {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block font-extrabold">{summarize(r, kind)}</span>
-                    <span className="block truncate text-sm text-ink-muted">
-                      {cats} · {brandsText}
-                    </span>
-                    {chips.length ? (
-                      <span className="mt-1.5 flex flex-wrap gap-1.5">
-                        {chips.map((c) => (
-                          <span
-                            key={c}
-                            className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-bold"
-                          >
-                            {c}
-                          </span>
-                        ))}
+                    <span className="flex min-w-0 items-center gap-2 text-sm text-ink-muted">
+                      <span className="min-w-0 truncate">
+                        {cats} · {brandsText}
                       </span>
-                    ) : null}
+                      {chips.map((c) => (
+                        <span
+                          key={c}
+                          className="shrink-0 rounded-md bg-brand-50 px-1.5 py-px text-[0.6875rem] font-bold text-brand-ink"
+                        >
+                          {c}
+                        </span>
+                      ))}
+                    </span>
                     {roomy ? null : actions}
                   </span>
                   <ToggleSwitch

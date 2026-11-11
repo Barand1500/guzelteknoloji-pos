@@ -110,6 +110,7 @@ export function RuleWizardSheet({
               value={draft.categoryIds}
               onChange={(v) => set('categoryIds', v)}
               emptyText="Hepsi"
+              listText
             />
             <MultiSelectField
               label="Markalar"
@@ -117,6 +118,7 @@ export function RuleWizardSheet({
               value={draft.brandIds}
               onChange={(v) => set('brandIds', v)}
               emptyText="Hepsi"
+              listText
             />
           </div>
         ) : null}
@@ -125,18 +127,20 @@ export function RuleWizardSheet({
           <div className="flex animate-fade-in flex-col gap-4">
             <p className="text-ink-muted">Kimler için ve sepet kaç ₺ olunca geçerli olsun?</p>
             <MultiSelectField
-              label="Cari tipleri"
+              label="Cari Tipleri"
               options={CUSTOMER_TYPE_OPTIONS.map((t) => ({ id: t, name: t }))}
               value={draft.customerTypes}
               onChange={(v) => set('customerTypes', v)}
               emptyText="Hepsi"
+              listText
             />
             <MultiSelectField
-              label="Fiyat listeleri"
+              label="Fiyat Listeleri"
               options={PRICE_LIST_OPTIONS.map((t) => ({ id: t, name: t }))}
               value={draft.priceLists}
               onChange={(v) => set('priceLists', v)}
               emptyText="Hepsi"
+              listText
             />
             <div className="flex items-baseline gap-2 text-lg font-semibold">
               Sepet
