@@ -67,12 +67,15 @@ export const SETTINGS_PAGES = [
   {
     key: 'general',
     title: 'Genel Ayarlar',
-    description: 'İşletme ve iletişim bilgileri',
+    description: 'İşletme, iletişim ve site bilgileri',
     fields: [
       { key: 'name', label: 'İşletme Adı' },
-      { key: 'phone', label: 'Telefon' },
+      { key: 'phone', label: 'Telefon / GSM' },
       { key: 'address', label: 'Adres' },
-      { key: 'website', label: 'Web Sitesi' },
+      { key: 'website', label: 'Site URL' },
+      { key: 'iletisimEposta', label: 'İletişim E-postası' },
+      { key: 'siteEposta', label: 'Site E-posta' },
+      { key: 'firmaEposta', label: 'Firma E-posta' },
     ],
   },
   {
