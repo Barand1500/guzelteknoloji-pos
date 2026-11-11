@@ -39,6 +39,8 @@ interface ReturnTrackProps {
   request: ReturnRequest;
   busy: boolean;
   onStatus: (status: ReturnStatus) => void;
+  /** true (web): düğmeler şeridin üzerinde; false (telefon): altta. */
+  inline?: boolean;
 }
 
 /**
@@ -46,7 +48,7 @@ interface ReturnTrackProps {
  * Ret durumunda ikinci adım kırmızı "Reddedildi" kartına döner, üçüncü adım pasif kalır. Altta durumu
  * ilerleten düğmeler: beklemede → Onayla / Reddet, onaylı → Tamamlandı.
  */
-export function ReturnTrack({ request, busy, onStatus }: ReturnTrackProps) {
+export function ReturnTrack({ request, busy, onStatus, inline = false }: ReturnTrackProps) {
   const rejected = request.status === 'rejected';
   const index = request.status === 'pending' ? 0 : request.status === 'approved' ? 1 : 2;
   const next = NEXT[request.status];
@@ -67,11 +69,37 @@ export function ReturnTrack({ request, busy, onStatus }: ReturnTrackProps) {
           hint: 'Talep reddedildi',
           image: 'iptal',
         }}
+        advance={
+          inline && request.status === 'pending'
+            ? {
+                label: `${request.customer} talebini onayla`,
+                text: 'Onayla',
+                onClick: () => onStatus('approved'),
+                disabled: busy,
+              }
+            : inline && next
+              ? {
+                  label: `${request.customer} talebini tamamlandı yap`,
+                  text: 'Tamamla',
+                  onClick: () => onStatus(next),
+                  disabled: busy,
+                }
+              : undefined
+        }
+        dismiss={
+          inline && request.status === 'pending'
+            ? {
+                label: `${request.customer} talebini reddet`,
+                onClick: () => onStatus('rejected'),
+                disabled: busy,
+              }
+            : undefined
+        }
       />
       <p className="sr-only" aria-live="polite">
         {`Şu an: ${RETURN_STATUS_LABEL[request.status]}`}
       </p>
-      {request.status === 'pending' || next ? (
+      {!inline && (request.status === 'pending' || next) ? (
         <div className="flex flex-wrap justify-end gap-2">
           {request.status === 'pending' ? (
             <>

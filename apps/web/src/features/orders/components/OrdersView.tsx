@@ -316,6 +316,7 @@ export function OrdersView() {
                         <tr className="border-b border-line bg-brand-50 last:border-0">
                           <td colSpan={COLUMNS.length + 1} className="px-4 pt-1 pb-5">
                             <OrderTrack
+                              inline={wide}
                               order={o}
                               busy={busy}
                               onStatus={(st) => void changeStatus(o.id, st)}
@@ -383,6 +384,7 @@ export function OrdersView() {
                   {flowOpen(o.id) ? (
                     <div className="px-3 pt-1 pb-3">
                       <OrderTrack
+                        inline={wide}
                         order={o}
                         busy={busy}
                         onStatus={(st) => void changeStatus(o.id, st)}

@@ -1,4 +1,4 @@
-import { Check, ChevronRight, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronRight, X } from 'lucide-react';
 
 export const IMG = (name: string) => `${import.meta.env.BASE_URL}orders/${name}.webp`;
 
@@ -12,6 +12,16 @@ export interface JourneyStep {
   image: string;
 }
 
+/** Şeridin üzerindeki işlem düğmesi (web): "ilerlet" oka, "iptal/ret" şu anki adımın köşesine biner. */
+export interface JourneyAction {
+  /** Erişilebilir ad (ör. "Sıradaki adım: Hazırlanıyor"). */
+  label: string;
+  /** Görünen kısa yazı (yalnızca "advance" düğmesinde). */
+  text?: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
 interface JourneyBarProps {
   ariaLabel: string;
   steps: readonly JourneyStep[];
@@ -22,6 +32,10 @@ interface JourneyBarProps {
   /** Başarısız sonla biten adım (iptal/ret): o sıradaki adım kırmızı "failure" kartına döner. */
   failedAt?: number;
   failure?: Pick<JourneyStep, 'label' | 'short' | 'hint' | 'image'>;
+  /** Şu anki adımdan sonraki bağlantının ortasında duran düğme (sıradaki adıma geç). */
+  advance?: JourneyAction;
+  /** Şu anki adımın sol üst köşesindeki küçük ✕ (iptal / ret). */
+  dismiss?: JourneyAction;
 }
 
 /**
@@ -37,6 +51,8 @@ export function JourneyBar({
   current,
   failedAt,
   failure,
+  advance,
+  dismiss,
 }: JourneyBarProps) {
   return (
     <ol aria-label={ariaLabel} className="flex items-start">
@@ -74,6 +90,21 @@ export function JourneyBar({
                     isCurrent || failed || isDone ? '' : 'opacity-40 grayscale',
                   ].join(' ')}
                 />
+                {isCurrent && dismiss ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dismiss.onClick();
+                    }}
+                    disabled={dismiss.disabled}
+                    aria-label={dismiss.label}
+                    title={dismiss.label}
+                    className="absolute -top-1 -left-1 flex size-6 items-center justify-center rounded-full bg-surface-raised text-danger shadow-soft ring-1 ring-danger/40 transition-all hover:scale-110 hover:bg-danger hover:text-white disabled:opacity-50"
+                  >
+                    <X className="size-3.5" aria-hidden="true" />
+                  </button>
+                ) : null}
                 {isDone || failed ? (
                   <span
                     className={`absolute -top-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full text-white ${failed ? 'bg-danger' : 'bg-success'}`}
@@ -110,11 +141,9 @@ export function JourneyBar({
 
             {/* Bağlantı: tek çizgi + ok ucu. Sabit ve sakin (göz yormaz). */}
             {!isLast ? (
-              <span
-                aria-hidden="true"
-                className="mt-[1.2rem] flex min-w-4 flex-1 items-center px-1.5 sm:mt-[1.85rem] sm:px-3"
-              >
+              <span className="relative mt-[1.2rem] flex min-w-4 flex-1 items-center px-1.5 sm:mt-[1.85rem] sm:px-3">
                 <span
+                  aria-hidden="true"
                   className={[
                     'flex-1 transition-colors duration-500',
                     lineDone
@@ -127,6 +156,7 @@ export function JourneyBar({
                   ].join(' ')}
                 />
                 <ChevronRight
+                  aria-hidden="true"
                   strokeWidth={2.75}
                   className={[
                     '-ml-1.5 size-4 shrink-0 transition-colors duration-500 sm:size-5',
@@ -139,6 +169,19 @@ export function JourneyBar({
                           : 'text-line-strong/40',
                   ].join(' ')}
                 />
+                {advance && current === i ? (
+                  <button
+                    type="button"
+                    onClick={advance.onClick}
+                    disabled={advance.disabled}
+                    aria-label={advance.label}
+                    title={advance.label}
+                    className="absolute top-1/2 left-1/2 inline-flex h-8 -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full bg-brand-700 pr-2.5 pl-3.5 text-xs font-extrabold whitespace-nowrap text-white shadow-soft ring-4 ring-brand-50 transition-all hover:scale-105 hover:bg-brand-800 active:scale-95 disabled:opacity-60"
+                  >
+                    {advance.text ?? 'İlerlet'}
+                    <ArrowRight className="size-3.5" aria-hidden="true" />
+                  </button>
+                ) : null}
               </span>
             ) : null}
           </li>

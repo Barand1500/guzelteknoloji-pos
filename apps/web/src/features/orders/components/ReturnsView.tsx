@@ -252,6 +252,7 @@ export function ReturnsView() {
                         <tr className="border-b border-line bg-brand-50 last:border-0">
                           <td colSpan={COLUMNS.length} className="px-4 pt-1 pb-5">
                             <ReturnTrack
+                              inline={wide}
                               request={r}
                               busy={busyId === r.id}
                               onStatus={(s) => void change(r, s)}
@@ -301,6 +302,7 @@ export function ReturnsView() {
                   {flowId === r.id ? (
                     <div className="px-3 pt-1 pb-3">
                       <ReturnTrack
+                        inline={wide}
                         request={r}
                         busy={busyId === r.id}
                         onStatus={(s) => void change(r, s)}

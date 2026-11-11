@@ -52,13 +52,15 @@ interface OrderTrackProps {
   order: Order;
   busy: boolean;
   onStatus: (status: OrderStatus) => void;
+  /** true (web): işlem düğmeleri şeridin üzerinde (ok ve ✕); false (telefon): altta metin düğmeleri. */
+  inline?: boolean;
 }
 
 /**
  * Sipariş yolculuk şeridi: Bekliyor → Hazırlanıyor → Kargoda → Teslim (bkz. JourneyBar). İptalde son
  * adım kırmızı çöp kutusu kartına döner ve öncekiler pasifleşir. Altta durumu ilerleten düğmeler.
  */
-export function OrderTrack({ order, busy, onStatus }: OrderTrackProps) {
+export function OrderTrack({ order, busy, onStatus, inline = false }: OrderTrackProps) {
   const cancelled = order.status === 'cancelled';
   const index = cancelled ? -1 : STEPS.findIndex((s) => s.status === order.status);
   const next = NEXT_STATUS[order.status];
@@ -77,12 +79,27 @@ export function OrderTrack({ order, busy, onStatus }: OrderTrackProps) {
           hint: 'Koli çöpe gitti',
           image: 'iptal',
         }}
+        advance={
+          inline && next
+            ? {
+                label: `Sıradaki adım: ${STATUS_LABEL[next]}`,
+                text: 'İlerlet',
+                onClick: () => onStatus(next),
+                disabled: busy,
+              }
+            : undefined
+        }
+        dismiss={
+          inline && !cancelled && order.status !== 'delivered'
+            ? { label: 'İptal Et', onClick: () => onStatus('cancelled'), disabled: busy }
+            : undefined
+        }
       />
 
       <p className="sr-only" aria-live="polite">
         {cancelled ? 'Bu sipariş iptal edildi.' : `Şu an: ${STATUS_LABEL[order.status]}`}
       </p>
-      {next || (!cancelled && order.status !== 'delivered') ? (
+      {!inline && (next || (!cancelled && order.status !== 'delivered')) ? (
         <div className="flex flex-wrap justify-end gap-2">
           {next ? (
             <button
