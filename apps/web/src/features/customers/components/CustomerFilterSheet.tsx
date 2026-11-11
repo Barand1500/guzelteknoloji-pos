@@ -86,7 +86,7 @@ export function CustomerFilterSheet({ rows, value, onApply, onClose }: CustomerF
           </div>
         </Section>
 
-        <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row-reverse">
+        <div className="sticky bottom-0 z-10 -mx-6 flex flex-row-reverse gap-3 border-t border-line bg-surface-raised px-6 pt-3 pb-4 sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pb-0">
           <Button
             flow={false}
             onClick={() => {

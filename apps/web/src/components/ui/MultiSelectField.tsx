@@ -24,6 +24,8 @@ interface MultiSelectFieldProps {
   emptyText?: string;
   /** true: seçilenler çip olarak tetiğin İÇİNDE görünür (altta ayrı çip satırı çıkmaz). */
   inlineChips?: boolean;
+  /** true: seçilenler tetiğin içinde "A, B" diye yazılır; altta çip satırı çıkmaz. */
+  listText?: boolean;
   /** Listenin altına eklenen içerik (ör. hızlı ekleme formu). */
   footer?: ReactNode;
 }
@@ -45,6 +47,7 @@ export function MultiSelectField({
   onChange,
   emptyText = 'Hepsi',
   inlineChips = false,
+  listText = false,
   footer,
 }: MultiSelectFieldProps) {
   const id = useId();
@@ -109,7 +112,9 @@ export function MultiSelectField({
       ? emptyText
       : value.length === 1
         ? (chosen[0]?.name ?? '1 seçili')
-        : `${value.length} seçili`;
+        : listText
+          ? chosen.map((o) => o.name).join(', ')
+          : `${value.length} seçili`;
 
   // Tetiğin konumuna göre paneli yerleştirir; altta yer yoksa yukarı açar.
   const place = useCallback(() => {
@@ -347,7 +352,7 @@ export function MultiSelectField({
           )
         : null}
 
-      {chosen.length > 0 && !inlineChips ? (
+      {chosen.length > 0 && !inlineChips && !listText ? (
         <ul aria-label={`Seçili ${label.toLocaleLowerCase('tr')}`} className="flex flex-wrap gap-2">
           {chosen.slice(0, MAX_CHIPS).map((o) => (
             <li
