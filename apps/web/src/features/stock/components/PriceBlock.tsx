@@ -25,16 +25,21 @@ const VAT_MODES = [
 export function PriceBlock({ title, data, lookups, onChange }: PriceBlockProps) {
   const totals = blockTotals(data);
   return (
-    <fieldset className="min-w-0 rounded-2xl bg-surface p-4">
+    <fieldset className="min-w-0 rounded-2xl border border-line bg-surface p-4 shadow-sm">
       <legend className="sr-only">{title}</legend>
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <p className="text-sm font-bold tracking-wide text-ink-muted uppercase" aria-hidden="true">
+        <p
+          className="rounded-lg border border-brand-600/20 bg-brand-50 px-3 py-1.5 text-sm font-extrabold tracking-wide text-brand-ink uppercase"
+          aria-hidden="true"
+        >
           {title}
         </p>
-        <p className="text-sm text-ink-muted">
-          KDV Dahil:{' '}
-          <span className="font-bold text-ink">
-            {formatMoney(totals.incl, data.currency)}
+        <p className="inline-flex items-center gap-2 rounded-xl bg-surface-muted px-3 py-2 text-xs font-semibold text-ink-muted">
+          <span>
+            KDV Dahil:{' '}
+            <strong className="text-sm font-extrabold text-ink">
+              {formatMoney(totals.incl, data.currency)}
+            </strong>
           </span>
         </p>
       </div>

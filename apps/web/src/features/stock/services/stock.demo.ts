@@ -76,6 +76,14 @@ export const demoStockService: StockService = {
     }
   },
 
+  async renameOption(list: OptionListKey, value: string, label: string): Promise<SelectOption> {
+    await fakeDelay(0);
+    const option = { value, label, removable: true };
+    if (list === 'priceLists')
+      customPriceLists = customPriceLists.map((o) => (o.value === value ? option : o));
+    return option;
+  },
+
   async save(
     draft: StockCardDraft,
     _requestId: string,

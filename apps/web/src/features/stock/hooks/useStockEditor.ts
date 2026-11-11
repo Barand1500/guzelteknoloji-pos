@@ -264,6 +264,7 @@ export function useStockEditor(
     }));
     if (activeList === id) setActiveList(firstListId);
   };
+  const renamePriceList = (id: string, label: string) => priceLists.rename(id, label);
 
   // ---- Kayıt ----------------------------------------------------------------------------
   /** Eksik zorunlu alan varsa `onInvalid` çağrılır (ör. ilk sekmeye dön); yoksa kaydeder. */
@@ -339,6 +340,7 @@ export function useStockEditor(
     removeRow,
     addPriceList,
     removePriceList,
+    renamePriceList,
     saving,
     saveError,
     saveNotice,

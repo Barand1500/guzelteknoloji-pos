@@ -158,6 +158,7 @@ export function MobileStockLayout({ editor }: { editor: StockEditor }) {
                 void editor.addPriceList(label);
               }}
               onRemove={editor.removePriceList}
+              onRename={(id, label) => void editor.renamePriceList(id, label)}
             />
 
             {/* Birim çipleri: dokununca o birimin fiyatı düzenlenir; dişli = birim ayarları */}

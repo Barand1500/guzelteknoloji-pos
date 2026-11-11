@@ -9,6 +9,7 @@ export interface OptionList {
   /** Yeni seçenek ekler ve döndürür; aynı ad varsa var olanı döndürür. */
   add: (label: string) => Promise<SelectOption>;
   remove: (value: string) => Promise<boolean>;
+  rename: (value: string, label: string) => Promise<boolean>;
 }
 
 /** Kullanıcının "Yeni ekle" ile büyütüp küçültebildiği bir seçenek listesi. */
@@ -61,5 +62,31 @@ export function useOptionList(
     [key, service, onError],
   );
 
-  return { options, add, remove, busy: pending > 0 };
+  const rename = useCallback(
+    async (value: string, label: string) => {
+      const clean = label.trim();
+      if (
+        !clean ||
+        options.some(
+          (o) =>
+            o.value !== value && o.label.toLocaleLowerCase('tr') === clean.toLocaleLowerCase('tr'),
+        )
+      )
+        return false;
+      setPending((n) => n + 1);
+      try {
+        const updated = await service.renameOption(key, value, clean);
+        setOptions((list) => list.map((o) => (o.value === value ? updated : o)));
+        return true;
+      } catch (error) {
+        onError(error);
+        return false;
+      } finally {
+        setPending((n) => n - 1);
+      }
+    },
+    [key, onError, options, service],
+  );
+
+  return { options, add, remove, rename, busy: pending > 0 };
 }

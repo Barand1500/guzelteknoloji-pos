@@ -32,6 +32,7 @@ export interface StockService {
   getLookups(): Promise<StockLookups>;
   addOption(list: OptionListKey, label: string): Promise<SelectOption>;
   removeOption(list: OptionListKey, value: string): Promise<void>;
+  renameOption(list: OptionListKey, value: string, label: string): Promise<SelectOption>;
   save(draft: StockCardDraft, requestId: string, extras?: StockExtras): Promise<{ id: string }>;
   /** Düzenleme: kayıtlı kartı forma dolu getirir. */
   get(id: string): Promise<StockCardDraft>;
@@ -62,6 +63,8 @@ export const stockService: StockService = {
     apiRequest('/api/stok/secenekler/ekle', { method: 'POST', body: { list, label } }),
   removeOption: (list, value) =>
     apiRequest('/api/stok/secenekler/kaldir', { method: 'POST', body: { list, value } }),
+  renameOption: (list, value, label) =>
+    apiRequest('/api/stok/secenekler/duzenle', { method: 'POST', body: { list, value, label } }),
   save: (draft, requestId, extras) =>
     apiRequest('/api/stok/kartlar', { method: 'POST', body: { draft, requestId, extras } }),
   get: (id) => apiRequest(`/api/stok/kartlar/${encodeURIComponent(id)}`),

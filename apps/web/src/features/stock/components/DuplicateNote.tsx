@@ -1,4 +1,4 @@
-import { ArrowUpRight, TriangleAlert } from 'lucide-react';
+import { ArrowUpRight, CircleAlert } from 'lucide-react';
 import { Link } from 'react-router';
 import { stockEditPath } from '../../../config/navigation';
 import { useDuplicate } from '../duplicate-check';
@@ -15,7 +15,9 @@ export function DuplicateNote({ kind, value }: { kind: 'code' | 'barcode'; value
       role="status"
       className="mt-2 flex animate-fade-in flex-wrap items-center gap-x-1.5 gap-y-1 rounded-xl bg-brand-50 px-3 py-2 text-sm text-ink"
     >
-      <TriangleAlert className="size-4 shrink-0 text-brand-600" aria-hidden="true" />
+      <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+        <CircleAlert className="size-4" aria-hidden="true" />
+      </span>
       <span>
         {kind === 'code' ? 'Bu kod kullanılıyor:' : 'Bu barkod kullanılıyor:'}{' '}
         <strong className="font-bold">{hit.name || hit.code}</strong>

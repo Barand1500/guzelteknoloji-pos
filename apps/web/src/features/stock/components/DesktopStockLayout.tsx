@@ -39,6 +39,7 @@ export function DesktopStockLayout({ editor }: { editor: StockEditor }) {
             onSelect={editor.setActiveList}
             onAdd={(label) => void editor.addPriceList(label)}
             onRemove={editor.removePriceList}
+            onRename={(id, label) => void editor.renamePriceList(id, label)}
           />
         </div>
 

@@ -7,12 +7,9 @@ export function Tile({
   soon,
   onGo,
   index,
-  siblings,
   compact = false,
 }: {
   page: SectionPage;
-  /** Aynı bölümdeki sayfalar: yolu bir kardeşin başıysa tam eşleşme aranır. */
-  siblings: readonly SectionPage[];
   soon?: boolean;
   onGo: () => void;
   index: number;
@@ -24,7 +21,7 @@ export function Tile({
     <li style={{ animationDelay: `${Math.min(index, 12) * 30}ms` }} className="animate-rise-in">
       <NavLink
         to={page.path}
-        end={siblings.some((o) => o.id !== page.id && o.path.startsWith(page.path + '/'))}
+        end
         data-tile=""
         onClick={onGo}
         className={({ isActive }) =>

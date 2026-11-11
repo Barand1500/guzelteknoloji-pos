@@ -1,6 +1,7 @@
 import { CheckCircle2, FolderTree, Package, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../../../components/ui/Button';
+import { CatalogImage } from '../../../components/ui/CatalogImage';
 import { PRODUCTS_PATH } from '../../../config/navigation';
 import { DealBadge } from '../../deals/components/DealBadge';
 import type { Deal, DealPosition, DealSize } from '../../deals/types';
@@ -238,7 +239,8 @@ export function StockSavedScreen({
                             />
                           ) : null}
                           {group.kind === 'image' && v.imageUrl ? (
-                            <img
+                            <CatalogImage
+                              page="attributes"
                               src={v.imageUrl}
                               alt=""
                               className="size-4 rounded bg-white object-contain"

@@ -91,8 +91,8 @@ function SettingsTabs({ pathname }: { pathname: string }) {
         <nav aria-label="Entegrasyonlar" className="flex overflow-x-auto border-b border-line">
           {[
             ['iletisim', 'İletişim'],
-            ['robot-dogrulama', 'Robot Doğrulama'],
-            ['sosyal-giris', 'Sosyal Giriş'],
+            ['robot-dogrulama', 'Doğrulama'],
+            ['sosyal-giris', 'Hızlı Giriş'],
           ].map(([key, label]) => (
             <Link
               key={key}
@@ -956,9 +956,12 @@ export function SettingsPage({ initialSection = 'general' }: { initialSection?: 
     return <IntegrationGroupPage key={section} group={section} />;
   return <SettingsPageContent key={section} section={section} />;
 }
-const IntegrationDirtyContext = createContext<((section: string, dirty: boolean) => void) | null>(
-  null,
-);
+const IntegrationDirtyContext = createContext<{
+  reportDirty: (section: string, dirty: boolean) => void;
+  reportRobotEnabled: (section: 'cloudflare' | 'recaptcha', enabled: boolean) => void;
+  activeRobot: string | null;
+  selectRobot: (section: string | null) => void;
+} | null>(null);
 
 function EmbeddedSettings({
   children,
@@ -972,11 +975,32 @@ function EmbeddedSettings({
 
 function IntegrationGroupPage({ group }: { group: string }) {
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
+  const [robotStates, setRobotStates] = useState<
+    Record<'cloudflare' | 'recaptcha', boolean | null>
+  >({
+    cloudflare: null,
+    recaptcha: null,
+  });
+  const [activeRobot, setActiveRobot] = useState<string | null>(null);
   const reportDirty = useCallback((section: string, value: boolean) => {
     setDirty((previous) =>
       previous[section] === value ? previous : { ...previous, [section]: value },
     );
   }, []);
+  const reportRobotEnabled = useCallback(
+    (section: 'cloudflare' | 'recaptcha', enabled: boolean) => {
+      setRobotStates((previous) =>
+        previous[section] === enabled ? previous : { ...previous, [section]: enabled },
+      );
+    },
+    [],
+  );
+  useEffect(() => {
+    if (robotStates.cloudflare === null || robotStates.recaptcha === null) return;
+    setActiveRobot(
+      robotStates.cloudflare ? 'cloudflare' : robotStates.recaptcha ? 'recaptcha' : null,
+    );
+  }, [robotStates]);
   const sections =
     group === 'iletisim'
       ? ['smtp', 'imap', 'whatsapp']
@@ -993,7 +1017,14 @@ function IntegrationGroupPage({ group }: { group: string }) {
             : 'Google ve Apple hesabıyla giriş bağlantıları.'
       }
     >
-      <IntegrationDirtyContext.Provider value={reportDirty}>
+      <IntegrationDirtyContext.Provider
+        value={{
+          reportDirty,
+          reportRobotEnabled,
+          activeRobot,
+          selectRobot: setActiveRobot,
+        }}
+      >
         <UnsavedChanges dirty={Object.values(dirty).some(Boolean)} />
         {group === 'iletisim' ? (
           <>
@@ -1007,7 +1038,8 @@ function IntegrationGroupPage({ group }: { group: string }) {
         ) : group === 'robot-dogrulama' ? (
           <>
             <p className="text-sm text-ink-muted">
-              Robot doğrulamada aynı anda yalnızca bir sağlayıcı etkin olabilir. Etkinleştirip kaydettiğinizde diğeri kapanır.
+              Robot doğrulamada aynı anda yalnızca bir sağlayıcı etkin olabilir. Etkinleştirip
+              kaydettiğinizde diğeri kapanır.
             </p>
             <div className="grid min-w-0 gap-4 xl:grid-cols-2">
               {sections.map((section) => (
@@ -1074,7 +1106,8 @@ function SettingsPageContent({
   section: string;
   embedded?: boolean;
 }) {
-  const reportDirty = useContext(IntegrationDirtyContext);
+  const integration = useContext(IntegrationDirtyContext);
+  const reportDirty = integration?.reportDirty;
   const page = SETTINGS_PAGES.find((p) => p.key === section);
   const { can, refresh } = useWorkspace();
   const rows = useRows<FullSettings>(`/ayarlar/${page?.key ?? 'general'}`, {
@@ -1089,10 +1122,25 @@ function SettingsPageContent({
   const [params] = useSearchParams();
   const [challengeToken, setChallengeToken] = useState('');
   const [challengeRevision, setChallengeRevision] = useState(0);
+  const defaultValues: Record<string, string> = {
+    ...rows.value.values,
+    ...(section === 'smtp'
+      ? {
+          host: rows.value.values.host || 'smtp.guzelteknoloji.com',
+          port: rows.value.values.port || '587',
+        }
+      : section === 'imap'
+        ? {
+            host: rows.value.values.host || 'imap.guzelteknoloji.com',
+            port: rows.value.values.port || '993',
+          }
+        : {}),
+  };
   const dirty =
     !busy &&
+    draftSource === rows.value &&
     !!page &&
-    page.fields.some((field) => (draft[field.key] ?? '') !== (rows.value.values[field.key] ?? ''));
+    page.fields.some((field) => (draft[field.key] ?? '') !== (defaultValues[field.key] ?? ''));
   useEffect(() => {
     reportDirty?.(section, dirty);
     return () => reportDirty?.(section, false);
@@ -1101,7 +1149,7 @@ function SettingsPageContent({
     let active = true;
     void Promise.resolve().then(() => {
       if (active) {
-        setDraft(rows.value.values);
+        setDraft(defaultValues);
         setDraftSource(rows.value);
       }
     });
@@ -1109,6 +1157,20 @@ function SettingsPageContent({
       active = false;
     };
   }, [rows.value]);
+  useEffect(() => {
+    if (section === 'cloudflare' || section === 'recaptcha')
+      integration?.reportRobotEnabled(section, rows.value.values.enabled === 'true');
+  }, [integration?.reportRobotEnabled, rows.value, section]);
+  useEffect(() => {
+    if (
+      (section === 'cloudflare' || section === 'recaptcha') &&
+      integration?.activeRobot &&
+      integration.activeRobot !== section
+    )
+      setDraft((previous) =>
+        previous.enabled === 'true' ? { ...previous, enabled: 'false' } : previous,
+      );
+  }, [integration?.activeRobot, section]);
   if (!page)
     return (
       <Frame>
@@ -1153,7 +1215,8 @@ function SettingsPageContent({
             <UnsavedChanges
               dirty={
                 !busy &&
-                page.fields.some((f) => (draft[f.key] ?? '') !== (rows.value.values[f.key] ?? ''))
+                draftSource === rows.value &&
+                page.fields.some((f) => (draft[f.key] ?? '') !== (defaultValues[f.key] ?? ''))
               }
             />
           )}
@@ -1164,7 +1227,7 @@ function SettingsPageContent({
                 disabled={busy || !can('settings', 'save')}
                 className="flex items-center gap-2 text-sm font-semibold"
               >
-                <span>{draft.enabled === 'true' ? 'Etkin' : 'Kapalı'}</span>
+                <span>{draft.enabled === 'true' ? 'Aktif' : 'Pasif'}</span>
                 <ToggleSwitch
                   label={
                     section === 'whatsapp'
@@ -1172,7 +1235,11 @@ function SettingsPageContent({
                       : 'Doğrulamayı Etkinleştir'
                   }
                   checked={draft.enabled === 'true'}
-                  onChange={(value) => setDraft({ ...draft, enabled: String(value) })}
+                  onChange={(value) => {
+                    setDraft({ ...draft, enabled: String(value) });
+                    if (section === 'cloudflare' || section === 'recaptcha')
+                      integration?.selectRobot(value ? section : null);
+                  }}
                 />
               </fieldset>
             )}

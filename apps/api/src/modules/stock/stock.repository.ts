@@ -24,6 +24,12 @@ export interface StockRepository {
   getLookups(userId: string): Promise<StockLookups>;
   addOption(userId: string, list: OptionListKey, label: string): Promise<SelectOption>;
   removeOption(userId: string, list: OptionListKey, value: string): Promise<void>;
+  renameOption(
+    userId: string,
+    list: OptionListKey,
+    value: string,
+    label: string,
+  ): Promise<SelectOption>;
   create(userId: string, input: StockSaveInput): Promise<{ id: string }>;
   update(userId: string, id: string, input: StockSaveInput): Promise<{ id: string }>;
   get(userId: string, id: string): Promise<unknown>;
@@ -355,6 +361,48 @@ export class PrismaStockRepository implements StockRepository {
       // Fiziksel silme yapılmaz; geçmiş kartların ilişkileri korunur.
       await tx.stokSecenegi.update({ where: { kimlik: row.kimlik }, data: { etkin: false } });
     });
+  }
+
+  async renameOption(userId: string, listKey: OptionListKey, value: string, label: string) {
+    if (listKey !== 'priceLists')
+      throw new HttpError(
+        400,
+        'VALIDATION_ERROR',
+        'Yalnızca fiyat listesi adları değiştirilebilir.',
+      );
+    const clean = label.trim();
+    if (!clean) throw new HttpError(400, 'VALIDATION_ERROR', 'Fiyat listesi adı boş olamaz.');
+    const row = await this.db.$transaction(async (tx) => {
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM kullanicilar WHERE id = ${userId} FOR UPDATE`);
+      const current = await tx.stokSecenegi.findUnique({
+        where: {
+          kullaniciKimligi_listeTuru_secenekKodu: {
+            kullaniciKimligi: Number(userId),
+            listeTuru: listKey,
+            secenekKodu: value,
+          },
+        },
+      });
+      if (!current) throw new HttpError(404, 'NOT_FOUND', 'Fiyat listesi bulunamadı.');
+      if (!current.silinebilir)
+        throw new HttpError(400, 'VALIDATION_ERROR', 'Sabit fiyat listesi adı değiştirilemez.');
+      const duplicate = await tx.stokSecenegi.findFirst({
+        where: {
+          kullaniciKimligi: Number(userId),
+          listeTuru: listKey,
+          adHash: labelHash(clean),
+          etkin: true,
+          kimlik: { not: current.kimlik },
+        },
+      });
+      if (duplicate)
+        throw new HttpError(409, 'CONFLICT', 'Bu fiyat listesi adı zaten kullanılıyor.');
+      return tx.stokSecenegi.update({
+        where: { kimlik: current.kimlik },
+        data: { secenekAdi: clean, adHash: labelHash(clean) },
+      });
+    });
+    return { value: row.secenekKodu, label: row.secenekAdi, removable: row.silinebilir };
   }
 
   async create(userId: string, input: StockSaveInput) {

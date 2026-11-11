@@ -2,6 +2,7 @@ import { ChevronDown, Sparkles, Tag } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { DEALS_PATH } from '../../../config/navigation';
+import { CatalogImage } from '../../../components/ui/CatalogImage';
 import { DealBadge } from '../../deals/components/DealBadge';
 import type { StockEditor } from '../hooks/useStockEditor';
 
@@ -176,7 +177,12 @@ export function QuickExtras({ editor }: { editor: StockEditor }) {
                   />
                 ) : null}
                 {group.kind === 'image' && v.imageUrl ? (
-                  <img src={v.imageUrl} alt="" className="size-4 rounded bg-white object-contain" />
+                  <CatalogImage
+                    page="attributes"
+                    src={v.imageUrl}
+                    alt=""
+                    className="size-4 rounded object-contain"
+                  />
                 ) : null}
                 {v.name}
               </span>
@@ -339,7 +345,8 @@ export function QuickExtras({ editor }: { editor: StockEditor }) {
                                     />
                                   ) : null}
                                   {group.kind === 'image' && value.imageUrl ? (
-                                    <img
+                                    <CatalogImage
+                                      page="attributes"
                                       src={value.imageUrl}
                                       alt=""
                                       className="size-5 shrink-0 rounded-md bg-white object-contain"
