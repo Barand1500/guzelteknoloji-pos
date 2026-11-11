@@ -218,7 +218,27 @@ export const SECTIONS: readonly Section[] = [
       paths: [`${APP_BASE}/kampanyalar`],
     } satisfies Section;
   })(),
-  soon('tanimlamalar', 'Tanımlamalar', LayoutTemplate, 205, 'Kargo, ödeme, vergi'),
+  (() => {
+    const kargo = p(
+      'kargo',
+      'Kargo ve Nakliye',
+      `${APP_BASE}/tanimlamalar/kargo`,
+      Truck,
+      'Firma, fiyat, lokasyon',
+    );
+    return {
+      id: 'tanimlamalar',
+      label: 'Tanımlamalar',
+      icon: LayoutTemplate,
+      hue: 205,
+      tagline: 'Kargo, ödeme, vergi',
+      home: kargo.path,
+      addButton: true,
+      pages: [kargo],
+      dock: { left: [], right: [] },
+      paths: [`${APP_BASE}/tanimlamalar`],
+    } satisfies Section;
+  })(),
   {
     id: 'ayarlar',
     label: 'Ayarlar',

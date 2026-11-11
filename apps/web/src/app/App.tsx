@@ -9,6 +9,7 @@ import { BulkImagesPage } from '../pages/app/BulkImagesPage';
 import { DealsPage } from '../pages/app/DealsPage';
 import { ProductsPage } from '../pages/app/ProductsPage';
 import { CategoriesPage } from '../pages/app/CategoriesPage';
+import { ShippingPage } from '../features/shipping/components/ShippingPage';
 import { CampaignPage } from '../features/campaigns/components/CampaignPage';
 import { ComingSoonPage } from '../pages/app/ComingSoonPage';
 import { HomePage } from '../pages/app/HomePage';
@@ -55,10 +56,14 @@ export function App() {
             <Route path="kategoriler" element={<CategoriesPage />} />
             <Route path="markalar" element={<BrandsPage />} />
             <Route path="ozellikler" element={<AttributesPage />} />
-            {['tanimlamalar', 'bildirimler', 'seo'].map((path) => (
+            {['bildirimler', 'seo'].map((path) => (
               <Route key={path} path={path} element={<ComingSoonPage />} />
             ))}
             <Route path="anasayfa" element={<HomePage />} />
+            <Route path="tanimlamalar">
+              <Route index element={<Navigate to="kargo" replace />} />
+              <Route path="kargo" element={<ShippingPage />} />
+            </Route>
             <Route path="kampanyalar">
               <Route index element={<Navigate to="sepet-indirimi" replace />} />
               <Route path="sepet-indirimi" element={<CampaignPage kind="cart" />} />
