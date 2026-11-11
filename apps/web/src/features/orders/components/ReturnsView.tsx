@@ -13,6 +13,7 @@ import {
   type ReturnStatus,
 } from '../types';
 import { CountChips, ReturnPill, SampleNote, formatDateTime } from './parts';
+import { ReturnTrack } from './ReturnTrack';
 
 const STATUSES: ReturnStatus[] = ['pending', 'approved', 'rejected', 'completed'];
 const fold = (s: string) => s.toLocaleLowerCase('tr');
@@ -185,7 +186,7 @@ export function ReturnsView() {
         </div>
       ) : (
         <>
-          <div className="hidden overflow-x-auto rounded-3xl border border-line bg-surface-raised md:block">
+          <div className="hidden overflow-x-auto rounded-3xl border border-line bg-surface-raised lg:block">
             <table className="w-full min-w-[48rem] border-collapse">
               <thead className="border-b border-line bg-surface-muted/50">
                 <tr>
@@ -200,12 +201,9 @@ export function ReturnsView() {
                   ))}
                 </tr>
               </thead>
-              <tbody>
-                {shown.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="border-b border-line transition-colors last:border-0 hover:bg-brand-50/50"
-                  >
+              {shown.map((r) => (
+                <tbody key={r.id} className="border-b border-line last:border-0">
+                  <tr>
                     <td className="px-4 py-3">
                       <span className="block max-w-60 truncate font-bold">{r.customer}</span>
                       <span className="text-xs text-ink-muted">
@@ -228,12 +226,19 @@ export function ReturnsView() {
                       <Actions r={r} busy={busyId === r.id} onStatus={(s) => void change(r, s)} />
                     </td>
                   </tr>
-                ))}
-              </tbody>
+                  <tr>
+                    <td colSpan={6} className="px-4 pb-3">
+                      <div className="max-w-md rounded-xl bg-surface-muted/50 p-2">
+                        <ReturnTrack kind={r.kind} status={r.status} />
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              ))}
             </table>
           </div>
 
-          <ul aria-label="Talepler" className="flex flex-col gap-2.5 md:hidden">
+          <ul aria-label="Talepler" className="flex flex-col gap-2.5 lg:hidden">
             {shown.map((r, i) => (
               <li
                 key={r.id}
@@ -253,6 +258,9 @@ export function ReturnsView() {
                   <b className="text-ink">{RETURN_KIND_LABEL[r.kind]}</b> · {r.itemCount} ürün ·{' '}
                   {r.reason}
                 </p>
+                <div className="rounded-xl bg-surface-muted/50 px-1 py-2">
+                  <ReturnTrack kind={r.kind} status={r.status} />
+                </div>
                 <Actions r={r} busy={busyId === r.id} onStatus={(s) => void change(r, s)} />
               </li>
             ))}

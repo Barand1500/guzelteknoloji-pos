@@ -31,7 +31,7 @@ async function openOrders() {
 }
 
 describe('Gelen Siparişler', () => {
-  it('özet kutuları ve 10 satırlık ilk sayfa gelir; akışlar varsayılan KAPALI, rota düğmesiyle hepsi açılır', async () => {
+  it('özet kutuları ve 10 satırlık ilk sayfa gelir; akış varsayılan kapalıdır, rota düğmesi yoktur', async () => {
     await openOrders();
     expect(await screen.findByText('ÖRNEK VERİ')).toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'Sipariş durumu' })).not.toBeInTheDocument();
@@ -39,11 +39,12 @@ describe('Gelen Siparişler', () => {
     expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(1 + 10);
     expect(screen.queryByRole('list', { name: 'Sipariş akışı' })).not.toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Sayfalama' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Sipariş akışlarını göster' }));
-    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(1 + 10 + 10);
-    const flows = screen.getAllByRole('list', { name: 'Sipariş akışı' });
-    expect(flows).toHaveLength(10);
-    expect(within(flows[0]!).getAllByRole('listitem')).toHaveLength(4);
+    expect(
+      screen.queryByRole('button', { name: 'Sipariş akışlarını göster' }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(within(screen.getByRole('table')).getAllByRole('row')[1]!);
+    const flow = await screen.findByRole('list', { name: 'Sipariş akışı' });
+    expect(within(flow).getAllByRole('listitem')).toHaveLength(4);
   });
 
   it('arama müşteri ve sipariş no üzerinde çalışır', async () => {
@@ -93,20 +94,17 @@ describe('Gelen Siparişler', () => {
     expect(screen.getByText('Bu sipariş iptal edildi.')).toBeInTheDocument();
   });
 
-  it('rota düğmesi: açınca tüm akışlar görünür; kapatınca yalnızca tıklanan satırlarda', async () => {
+  it('aynı anda yalnızca bir akış açıktır: başka satıra basınca öncekinin akışı kapanır', async () => {
     const user = await openOrders();
-    const toggle = screen.getByRole('button', { name: 'Sipariş akışlarını göster' });
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getAllByRole('list', { name: 'Sipariş akışı' })).toHaveLength(10);
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.queryByRole('list', { name: 'Sipariş akışı' })).not.toBeInTheDocument();
-    const rows = within(screen.getByRole('table')).getAllByRole('row');
-    await user.click(rows[1]!);
+    const rowAt = (i: number) => within(screen.getByRole('table')).getAllByRole('row')[i]!;
+    await user.click(rowAt(1));
     expect(screen.getAllByRole('list', { name: 'Sipariş akışı' })).toHaveLength(1);
-    await user.click(within(screen.getByRole('table')).getAllByRole('row')[1]!);
+    // 1. siparişin akışı açıkken tablo: başlık + 10 sipariş + 1 akış satırı; 2. sipariş artık 3. satırdır.
+    await user.click(rowAt(3));
+    expect(screen.getAllByRole('list', { name: 'Sipariş akışı' })).toHaveLength(1);
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(1 + 10 + 1);
+    // Açık satıra tekrar basınca kapanır.
+    await user.click(rowAt(2));
     expect(screen.queryByRole('list', { name: 'Sipariş akışı' })).not.toBeInTheDocument();
   });
 

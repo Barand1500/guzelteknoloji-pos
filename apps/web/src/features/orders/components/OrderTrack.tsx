@@ -27,11 +27,12 @@ interface OrderTrackProps {
 }
 
 /**
+/**
  * Sipariş yolculuk şeridi: Bekliyor → Hazırlanıyor → Kargoda → Teslim. Dört yuvarlak "baloncuk"
- * (içinde animasyonlu görsel) oklu çizgilerle bağlanır. Geçilen baloncuklar yeşil çerçeveli ve tikli,
- * çizgileri yeşile dolar; şu anki baloncuk büyük ve halkalı; henüz gelmeyenler soluk/gri (pasif).
- * İptalde son baloncuk kırmızı çöp kutusuna döner ve öncekiler pasifleşir. Telefonda kısa etiketler
- * ve küçük baloncuklar kullanılır; şerit hiçbir genişlikte taşmaz.
+ * (içinde animasyonlu görsel) tek çizgili oklarla bağlanır. Geçilen baloncuklar yeşil çerçeveli ve
+ * tikli, bağlantıları yeşil; şu anki baloncuk büyük ve halkalı, ona giden bağlantı turuncu; henüz
+ * gelmeyenler soluk/gri (pasif), bağlantıları kesik çizgi. İptalde son baloncuk kırmızı çöp kutusuna
+ * döner ve öncekiler pasifleşir. Telefonda kısa etiketler ve küçük baloncuklar kullanılır.
  */
 export function OrderTrack({ order, busy, onStatus }: OrderTrackProps) {
   const cancelled = order.status === 'cancelled';
@@ -47,8 +48,8 @@ export function OrderTrack({ order, busy, onStatus }: OrderTrackProps) {
           const done = !cancelled && i < index;
           const current = !cancelled && i === index;
           const lineDone = !cancelled && i < index - 1;
-          // Şu anki adıma giden bağlantı: oklar akar.
-          const flowing = !cancelled && i === index - 1;
+          // Şu anki adıma giden bağlantı.
+          const toCurrent = !cancelled && i === index - 1;
           const full = showCancel ? STATUS_LABEL.cancelled : STATUS_LABEL[s.status];
           return (
             <li key={s.status} className="flex min-w-0 flex-1 items-start last:flex-none">
@@ -109,29 +110,34 @@ export function OrderTrack({ order, busy, onStatus }: OrderTrackProps) {
                 </span>
               </div>
 
-              {/* Bağlantı: oklar dizisi. Geçilen bağlantı yeşil, şu anki adıma giden bağlantı sırayla
-                  yanıp sönen oklarla "akar", gelmeyenler soluk. */}
+              {/* Bağlantı: tek çizgi + ok ucu. Geçilen: yeşil dolu; şu anki adıma giden: turuncu dolu;
+                  gelmeyen: soluk kesik çizgi. Sakin ve sabit (göz yormaz). */}
               {!isLast ? (
                 <span
                   aria-hidden="true"
-                  className="mt-[0.95rem] flex min-w-6 flex-1 items-center justify-around px-1 sm:mt-[1.5rem] sm:px-3"
+                  className="mt-[1.2rem] flex min-w-4 flex-1 items-center px-1.5 sm:mt-[1.85rem] sm:px-3"
                 >
-                  {Array.from({ length: 5 }, (_, k) => (
-                    <ChevronRight
-                      key={k}
-                      strokeWidth={3}
-                      style={flowing ? { animationDelay: `${k * 0.16}s` } : undefined}
-                      className={[
-                        'size-3.5 shrink-0 sm:size-6',
-                        k > 1 ? 'max-sm:hidden' : '',
-                        flowing
-                          ? 'order-chevron text-brand-600'
-                          : lineDone
-                            ? 'text-success'
-                            : 'text-line-strong/35',
-                      ].join(' ')}
-                    />
-                  ))}
+                  <span
+                    className={[
+                      'flex-1 transition-colors duration-500',
+                      lineDone
+                        ? 'h-0.5 rounded-full bg-success'
+                        : toCurrent
+                          ? 'h-0.5 rounded-full bg-brand-600'
+                          : 'border-t-2 border-dashed border-line-strong/35',
+                    ].join(' ')}
+                  />
+                  <ChevronRight
+                    strokeWidth={2.75}
+                    className={[
+                      '-ml-1.5 size-4 shrink-0 transition-colors duration-500 sm:size-5',
+                      lineDone
+                        ? 'text-success'
+                        : toCurrent
+                          ? 'text-brand-600'
+                          : 'text-line-strong/40',
+                    ].join(' ')}
+                  />
                 </span>
               ) : null}
             </li>

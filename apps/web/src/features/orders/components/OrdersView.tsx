@@ -1,4 +1,4 @@
-import { Download, Eye, ListFilter, Route, X } from 'lucide-react';
+import { Download, Eye, ListFilter, X } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { Alert } from '../../../components/ui/Alert';
@@ -60,9 +60,8 @@ function chipsOf(f: OrderFilters): { id: string; label: string; clear: Partial<O
 /**
  * Gelen Siparişler: üstte üç özet kutusu, arama + Süzgeçler (pencere) + Dışa Aktar (sihirbaz), açık
  * süzgeç etiketleri, masaüstünde sıralanabilir tablo / telefonda kartlar, sayfalama ve en altta tüm
- * Her satırın altında siparişin yolculuk şeridi (Bekliyor → Hazırlanıyor → Kargoda → Teslim) açıktır;
- * arama çubuğunun yanındaki rota düğmesi bunu hep-açık / yalnızca-tıklananlar arasında değiştirir
- * (varsayılan: kapalı; satıra basınca o siparişin akışı açılır).
+ * Satıra basınca o siparişin yolculuk şeridi (Bekliyor → Hazırlanıyor → Kargoda → Teslim) satırın
+ * altında açılır; aynı anda yalnızca bir akış açıktır (başka satıra basınca öncekinin kapanır).
  * Çift tıklayınca (ya da göz simgesiyle) ayrıntı penceresi açılır.
  */
 export function OrdersView() {
@@ -76,9 +75,8 @@ export function OrdersView() {
   const [page, setPage] = useState(1);
   const [sizeText, setSizeText] = useState('10');
   const [openId, setOpenId] = useState<string | null>(null);
-  // Sipariş akışları: açıkken HER satırın altında görünür; kapalıyken yalnızca tıklanan satırlarda.
-  const [flowAll, setFlowAll] = useState(false);
-  const [flowIds, setFlowIds] = useState<ReadonlySet<string>>(new Set());
+  // Akışı açık satır: bir anda yalnızca biri açıktır; başka satıra basınca öncekinin akışı kapanır.
+  const [flowId, setFlowId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -101,16 +99,8 @@ export function OrdersView() {
   const extra = activeFilterCount(filters);
   const chips = chipsOf(filters);
   const open = orders.find((o) => o.id === openId) ?? null;
-  const flowOpen = (id: string) => flowAll || flowIds.has(id);
-  const toggle = (id: string) => {
-    if (flowAll) return; // hepsi açıkken satır tıklaması bir şey değiştirmez
-    setFlowIds((cur) => {
-      const next = new Set(cur);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const flowOpen = (id: string) => flowId === id;
+  const toggle = (id: string) => setFlowId((cur) => (cur === id ? null : id));
 
   const sortBy = (key: OrderSortKey) =>
     setSort((s) => ({ key, dir: s.key === key && s.dir === 'desc' ? 'asc' : 'desc' }));
@@ -210,21 +200,6 @@ export function OrdersView() {
         >
           <Download className="size-5" aria-hidden="true" />
         </button>
-        <button
-          type="button"
-          onClick={() => setFlowAll((v) => !v)}
-          aria-pressed={flowAll}
-          aria-label="Sipariş akışlarını göster"
-          title={flowAll ? 'Akışlar hep açık (kapatmak için bas)' : 'Tüm akışları göster'}
-          className={[
-            'inline-flex size-13 shrink-0 items-center justify-center rounded-full border transition-all duration-300',
-            flowAll
-              ? 'border-brand-600 bg-brand-700 text-white shadow-soft'
-              : 'border-field-border bg-surface-raised text-ink-muted hover:border-brand-500 hover:text-brand-ink',
-          ].join(' ')}
-        >
-          <Route className="size-5" aria-hidden="true" />
-        </button>
       </div>
 
       {chips.length > 0 ? (
@@ -297,8 +272,10 @@ export function OrdersView() {
                         onDoubleClick={() => setOpenId(o.id)}
                         aria-expanded={flowOpen(o.id)}
                         className={[
-                          'cursor-pointer border-b border-line transition-colors last:border-0',
-                          flowOpen(o.id) ? 'bg-brand-50/70' : 'hover:bg-brand-50/50',
+                          'cursor-pointer transition-colors last:border-0',
+                          flowOpen(o.id)
+                            ? 'border-b-0 bg-brand-50/70'
+                            : 'border-b border-line hover:bg-brand-50/50',
                         ].join(' ')}
                       >
                         <td className="px-4 py-3 font-bold">#{o.no}</td>
@@ -402,7 +379,7 @@ export function OrdersView() {
                     <Eye className="size-5" aria-hidden="true" />
                   </button>
                   {flowOpen(o.id) ? (
-                    <div className="border-t border-brand-600/25 bg-brand-50/70 px-3 pt-4 pb-3">
+                    <div className="bg-brand-50/70 px-3 pt-1 pb-3">
                       <OrderTrack
                         order={o}
                         busy={busy}
