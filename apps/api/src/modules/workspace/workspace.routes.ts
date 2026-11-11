@@ -375,10 +375,11 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
       : null;
     const own =
       connection &&
-      hasOwnConnection(connection, {
+      (hasOwnConnection(connection, {
         ...result.values,
         ...Object.fromEntries(result.configured.map((key) => [key, 'configured'])),
-      });
+      }) ||
+        result.values.enabled !== undefined);
     const source = connection
       ? own
         ? 'database'

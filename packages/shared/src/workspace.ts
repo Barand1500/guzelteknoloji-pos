@@ -79,6 +79,7 @@ export const SETTINGS_PAGES = [
     title: 'SMTP',
     description: 'İşletmenin giden e-posta bağlantısı',
     fields: [
+      { key: 'enabled', label: 'SMTP bağlantısı', type: 'boolean' },
       { key: 'host', label: 'Sunucu' },
       { key: 'port', label: 'Port', type: 'port' },
       { key: 'secure', label: 'Doğrudan TLS (465)', type: 'boolean' },
@@ -97,6 +98,7 @@ export const SETTINGS_PAGES = [
     title: 'IMAP',
     description: 'İşletmenin gelen e-posta bağlantısı',
     fields: [
+      { key: 'enabled', label: 'IMAP bağlantısı', type: 'boolean' },
       { key: 'host', label: 'Sunucu' },
       { key: 'port', label: 'Port', type: 'port' },
       {
@@ -113,6 +115,7 @@ export const SETTINGS_PAGES = [
     title: 'Google',
     description: 'İşletmeye ait Google bağlantısı',
     fields: [
+      { key: 'enabled', label: 'Google bağlantısı', type: 'boolean' },
       { key: 'clientId', label: 'İstemci Kimliği' },
       { key: 'clientSecret', label: 'İstemci Anahtarı', type: 'secret' },
     ],

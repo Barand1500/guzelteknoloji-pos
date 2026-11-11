@@ -165,6 +165,21 @@ describe('Ayar sırları', () => {
       mailTlsOptions('mail.example.com', { allowInvalidCertificate: 'true' }).rejectUnauthorized,
     ).toBe(false);
   });
+  it('pasif Google bağlantısı için OAuth akışı başlatmaz', async () => {
+    await expect(
+      googleConnect(
+        {
+          effective: async () => ({
+            source: 'database',
+            values: { enabled: 'false', clientId: 'client', clientSecret: 'secret' },
+          }),
+        } as unknown as WorkspaceSettings,
+        owner,
+        testEnv(),
+        { cookie: vi.fn(), clearCookie: vi.fn() } as unknown as Response,
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+  });
   it('aynı Google istemcisi girişte çalışan dönüş adresini kullanır, yabancı istemci ayrı kalır', async () => {
     const env = testEnv({
       GOOGLE_CLIENT_ID: 'working-client',

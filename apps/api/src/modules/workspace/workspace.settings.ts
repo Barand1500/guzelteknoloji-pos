@@ -80,10 +80,17 @@ export class WorkspaceSettings {
   }
   async effective(businessId: number, section: ConnectionSection, env: Env) {
     const stored = await this.values(businessId, section, true);
+    const environment = environmentConnection(env, section);
+    if (stored.enabled === 'false')
+      return { source: 'database' as const, values: { ...stored, enabled: 'false' } };
     if (hasOwnConnection(section, stored)) return { source: 'database' as const, values: stored };
-    const values = environmentConnection(env, section);
+    const values = { ...environment, ...stored };
     return {
-      source: Object.keys(values).length ? ('environment' as const) : ('unconfigured' as const),
+      source: Object.keys(environment).length
+        ? ('environment' as const)
+        : Object.keys(values).length
+          ? ('database' as const)
+          : ('unconfigured' as const),
       values,
     };
   }

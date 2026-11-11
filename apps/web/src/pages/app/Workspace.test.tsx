@@ -112,6 +112,36 @@ describe('Profil ve işletme ekranları', () => {
     expect(await screen.findByText('Apple ile giriş yapılandırılmış.')).toBeInTheDocument();
     expect(screen.getByText('https://pos.example.com/api/auth/apple/callback')).toBeInTheDocument();
   });
+  it.each([
+    ['smtp', 'SMTP bağlantısı'],
+    ['imap', 'IMAP bağlantısı'],
+    ['google', 'Google bağlantısı'],
+  ])('%s Aktif/Pasif anahtarını kaydeder', async (section, label) => {
+    const user = userEvent.setup();
+    const fetch = mockFetch({
+      ...login,
+      [`GET /api/hesap/ayarlar/${section}`]: () =>
+        jsonResponse(200, { values: {}, configured: [], source: 'unconfigured' }),
+      [`POST /api/hesap/ayarlar/${section}`]: () => jsonResponse(200, {}),
+      ...(section === 'google'
+        ? {
+            'GET /api/hesap/sosyal-giris': () =>
+              jsonResponse(200, { google: false, apple: false, appleRedirect: '', googleRedirect: '' }),
+          }
+        : {}),
+    });
+    renderApp(`/uygulama/ayarlar/${section}`);
+    const toggle = await screen.findByRole('switch', { name: label });
+    expect(toggle).not.toBeChecked();
+    await user.click(toggle);
+    expect(toggle).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await screen.findByText('Ayarlar kaydedildi.');
+    const call = fetch.mock.calls.find(
+      ([url, init]) => String(url).endsWith(`/ayarlar/${section}`) && init?.method === 'POST',
+    )!;
+    expect(JSON.parse(String(call[1]?.body)).values.enabled).toBe('true');
+  });
   it('rol izinlerini topluca seçip temizler ve log yazma izinlerini kapalı tutar', async () => {
     const user = userEvent.setup();
     const fetch = mockFetch({
