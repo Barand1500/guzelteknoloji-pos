@@ -419,6 +419,7 @@ model Isletme {
   logs IslemKaydi[]
   orders Siparis[]
   returns IadeTalebi[]
+  musteriler Musteri[]
   @@map("isletmeler")
 }
 
@@ -528,9 +529,12 @@ model Siparis {
   guncellemeZamani DateTime        @updatedAt @map("guncelleme_zamani")
   business         Isletme         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   satirlar         SiparisSatiri[]
+  musteriId        Int?            @map("musteri_id")
+  musteri          Musteri?        @relation(fields: [musteriId], references: [id], onDelete: SetNull)
 
   @@unique([businessId, siparisNo], map: "siparisler_isletme_no_tekil")
   @@index([businessId, tarih], map: "siparisler_isletme_tarih_indeks")
+  @@index([musteriId], map: "siparisler_musteri_indeks")
   @@map("siparisler")
 }
 
@@ -567,7 +571,81 @@ model IadeTalebi {
   olusturmaZamani  DateTime @default(now()) @map("olusturma_zamani")
   guncellemeZamani DateTime @updatedAt @map("guncelleme_zamani")
   business         Isletme  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  musteriId        Int?     @map("musteri_id")
+  musteri          Musteri? @relation(fields: [musteriId], references: [id], onDelete: SetNull)
 
   @@index([businessId, tarih], map: "iade_talepleri_isletme_tarih_indeks")
+  @@index([musteriId], map: "iade_talepleri_musteri_indeks")
   @@map("iade_talepleri")
+}
+
+/// İşletmenin müşterisi. Liste ve detay sekmeleri bu kayda bağlıdır; adres, giriş hesabı ve cari
+/// hareketler ayrı tablolarda tutulur.
+model Musteri {
+  id               Int                 @id @default(autoincrement())
+  businessId       Int                 @map("isletme_id")
+  musteriKodu      String              @default("") @map("musteri_kodu") @db.VarChar(40)
+  ad               String              @db.VarChar(160)
+  tur              String              @default("real") @db.VarChar(20)
+  vergiKimligi     String              @default("") @map("vergi_kimligi") @db.VarChar(20)
+  telefon          String              @db.VarChar(30)
+  eposta           String              @db.VarChar(254)
+  fiyatListesi     String              @map("fiyat_listesi") @db.VarChar(40)
+  cariTipi         String              @map("cari_tipi") @db.VarChar(40)
+  odemeSekilleri   String              @map("odeme_sekilleri") @db.Text
+  kartAnlasmasi    String              @default("") @map("kart_anlasmasi") @db.VarChar(80)
+  etkin            Boolean             @default(true)
+  olusturmaZamani  DateTime            @default(now()) @map("olusturma_zamani")
+  guncellemeZamani DateTime            @updatedAt @map("guncelleme_zamani")
+  business         Isletme             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  kullanicilar     MusteriKullanicisi[]
+  adresler         MusteriAdresi[]
+  hareketler       MusteriHareketi[]
+  siparisler       Siparis[]
+  iadeTalepleri    IadeTalebi[]
+
+  @@index([businessId, ad], map: "musteriler_isletme_ad_indeks")
+  @@map("musteriler")
+}
+
+model MusteriKullanicisi {
+  id              Int       @id @default(autoincrement())
+  musteriId       Int       @map("musteri_id")
+  ad              String    @db.VarChar(160)
+  eposta          String    @db.VarChar(254)
+  etkin           Boolean   @default(true)
+  sonGiris        DateTime? @map("son_giris")
+  olusturmaZamani DateTime  @default(now()) @map("olusturma_zamani")
+  musteri         Musteri   @relation(fields: [musteriId], references: [id], onDelete: Cascade)
+
+  @@index([musteriId], map: "musteri_kullanicilari_musteri_indeks")
+  @@map("musteri_kullanicilari")
+}
+
+model MusteriAdresi {
+  id               Int      @id @default(autoincrement())
+  musteriId        Int      @map("musteri_id")
+  baslik           String   @db.VarChar(60)
+  adres            String   @db.VarChar(300)
+  varsayilan       Boolean  @default(false)
+  olusturmaZamani  DateTime @default(now()) @map("olusturma_zamani")
+  guncellemeZamani DateTime @updatedAt @map("guncelleme_zamani")
+  musteri          Musteri  @relation(fields: [musteriId], references: [id], onDelete: Cascade)
+
+  @@index([musteriId], map: "musteri_adresleri_musteri_indeks")
+  @@map("musteri_adresleri")
+}
+
+model MusteriHareketi {
+  id              Int      @id @default(autoincrement())
+  musteriId       Int      @map("musteri_id")
+  tarih           DateTime @map("tarih")
+  referans        String   @default("") @db.VarChar(100)
+  borc            Decimal  @default(0) @db.Decimal(18, 2)
+  alacak          Decimal  @default(0) @db.Decimal(18, 2)
+  olusturmaZamani DateTime @default(now()) @map("olusturma_zamani")
+  musteri         Musteri  @relation(fields: [musteriId], references: [id], onDelete: Cascade)
+
+  @@index([musteriId, tarih], map: "musteri_hareketleri_musteri_tarih_indeks")
+  @@map("musteri_hareketleri")
 }

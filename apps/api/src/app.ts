@@ -28,6 +28,8 @@ import { createDealRouter } from './modules/catalog/deal.routes';
 import { createAttributeRouter } from './modules/catalog/attribute.routes';
 import { createOrderRouter, createHomeRouter } from './modules/orders/order.routes';
 import { PrismaOrderStore } from './modules/orders/order.store';
+import { createCustomerRouter } from './modules/customers/customer.routes';
+import { PrismaCustomerStore } from './modules/customers/customer.store';
 import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
 import { WorkspaceChallenge, whatsappWebhook } from './modules/workspace/workspace.integrations';
@@ -120,8 +122,7 @@ export function createApp(deps: AppDeps): Express {
     sessionTtlMs: env.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
   });
   const challenge =
-    deps.challenge ??
-    (deps.catalogDb ? new WorkspaceChallenge(deps.catalogDb, env) : undefined);
+    deps.challenge ?? (deps.catalogDb ? new WorkspaceChallenge(deps.catalogDb, env) : undefined);
 
   const checkOrigin = originCheck(env.allowedOrigins);
   app.use('/api', (req, res, next) => {
@@ -170,6 +171,13 @@ export function createApp(deps: AppDeps): Express {
     });
     app.use('/api/siparisler', orderLimit, createOrderRouter(orderStore));
     app.use('/api/anasayfa', orderLimit, createHomeRouter(orderStore));
+    const customerStore = new PrismaCustomerStore(deps.catalogDb);
+    const customerLimit = createRateLimiter({
+      enabled: env.rateLimitEnabled,
+      windowMs: 60000,
+      limit: 180,
+    });
+    app.use('/api/musteriler', customerLimit, createCustomerRouter(customerStore));
   }
   app.use('/api', notFoundHandler);
 

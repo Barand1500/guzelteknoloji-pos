@@ -45,9 +45,12 @@ export function workspaceMiddleware(
     const permission = requestPermission(path, req.method, req.body);
     const account = path.startsWith('/api/hesap');
     const logout = path === '/api/auth/logout';
-    // Siparişler ve anasayfa yalnızca oturum ister; ayrı bir bölüm yetkisi yoktur (menüde de yok).
-    const orders = path.startsWith('/api/siparisler') || path.startsWith('/api/anasayfa');
-    if (!permission && !account && !logout && !orders) return next();
+    // Siparişler, anasayfa ve müşteriler yalnızca oturum ister; ayrı bir bölüm yetkisi yoktur.
+    const sessionOnly =
+      path.startsWith('/api/siparisler') ||
+      path.startsWith('/api/anasayfa') ||
+      path.startsWith('/api/musteriler');
+    if (!permission && !account && !logout && !sessionOnly) return next();
     const token = readSessionToken(req, env);
     const session = token ? await auth.getSession(token) : null;
     if (!session) {
@@ -77,20 +80,26 @@ export function workspaceMiddleware(
               ? 'settings'
               : path.startsWith('/api/siparisler') || path.startsWith('/api/anasayfa')
                 ? 'orders'
-                : 'profile');
+                : path.startsWith('/api/musteriler')
+                  ? 'customers'
+                  : 'profile');
       const action = logout
         ? 'Çıkış Yap'
         : permission?.action === 'delete' || path.endsWith('/sil')
           ? 'Sil'
           : path.includes('/durum')
             ? 'Durum Değiştir'
-            : path.endsWith('/cikar')
-              ? 'Ürün Çıkar'
-              : path.endsWith('/ata')
-                ? 'Ürün Ata'
-                : path.includes('sirala')
-                  ? 'Sırala'
-                  : 'Kaydet';
+            : path.endsWith('/giris')
+              ? 'Giriş Aç/Kapat'
+              : path.includes('/adresler')
+                ? 'Adres Kaydet'
+                : path.endsWith('/cikar')
+                  ? 'Ürün Çıkar'
+                  : path.endsWith('/ata')
+                    ? 'Ürün Ata'
+                    : path.includes('sirala')
+                      ? 'Sırala'
+                      : 'Kaydet';
       const target =
         path
           .split('/')
