@@ -1,4 +1,4 @@
-import { Download, Eye, ListFilter, X } from 'lucide-react';
+import { Download, Eye, ListFilter, Route, X } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { Alert } from '../../../components/ui/Alert';
@@ -60,8 +60,9 @@ function chipsOf(f: OrderFilters): { id: string; label: string; clear: Partial<O
 /**
  * Gelen Siparişler: üstte üç özet kutusu, arama + Süzgeçler (pencere) + Dışa Aktar (sihirbaz), açık
  * süzgeç etiketleri, masaüstünde sıralanabilir tablo / telefonda kartlar, sayfalama ve en altta tüm
- * Satıra bir kez basınca satır BÜYÜR: altında siparişin akışı (Bekliyor → Hazırlanıyor → Kargoda →
- * Teslim) görsellerle açılır; çift tıklayınca (ya da göz simgesiyle) ayrıntı penceresi açılır.
+ * Her satırın altında siparişin yolculuk şeridi (Bekliyor → Hazırlanıyor → Kargoda → Teslim) açıktır;
+ * arama çubuğunun yanındaki rota düğmesi bunu hep-açık / yalnızca-tıklananlar arasında değiştirir.
+ * Çift tıklayınca (ya da göz simgesiyle) ayrıntı penceresi açılır.
  */
 export function OrdersView() {
   const { orders, loading, error, sample, refresh, setStatus } = useOrders();
@@ -74,7 +75,9 @@ export function OrdersView() {
   const [page, setPage] = useState(1);
   const [sizeText, setSizeText] = useState('10');
   const [openId, setOpenId] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Sipariş akışları: açıkken HER satırın altında görünür; kapalıyken yalnızca tıklanan satırlarda.
+  const [flowAll, setFlowAll] = useState(true);
+  const [flowIds, setFlowIds] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -97,10 +100,16 @@ export function OrdersView() {
   const extra = activeFilterCount(filters);
   const chips = chipsOf(filters);
   const open = orders.find((o) => o.id === openId) ?? null;
-  // Genişleyen (akışı açık) sipariş: seçilen; hiç seçilmediyse listedeki ilk; '' = hepsi kapalı.
-  const selected =
-    selectedId === '' ? null : (orders.find((o) => o.id === selectedId) ?? shown[0] ?? null);
-  const toggle = (id: string) => setSelectedId(selected?.id === id ? '' : id);
+  const flowOpen = (id: string) => flowAll || flowIds.has(id);
+  const toggle = (id: string) => {
+    if (flowAll) return; // hepsi açıkken satır tıklaması bir şey değiştirmez
+    setFlowIds((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const sortBy = (key: OrderSortKey) =>
     setSort((s) => ({ key, dir: s.key === key && s.dir === 'desc' ? 'asc' : 'desc' }));
@@ -130,25 +139,32 @@ export function OrdersView() {
       {problem ? <Alert tone="error">{problem}</Alert> : null}
       {sample ? <SampleNote /> : null}
 
-      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <dl className="grid grid-cols-3 gap-2 sm:gap-3">
         {[
-          { label: 'Sipariş', node: <CountUp value={filtered.length} /> },
+          { label: 'Sipariş', short: 'Sipariş', node: <CountUp value={filtered.length} /> },
           {
             label: 'Toplam Tutar (KDV dahil)',
+            short: 'Toplam',
             node: <CountUp value={sumTotal} format={formatMoneyShort} />,
           },
           {
             label: 'Ödeme Bekleyen',
+            short: 'Bekleyen',
             node: <CountUp value={sumUnpaid} format={formatMoneyShort} />,
           },
         ].map((s, i) => (
           <div
             key={s.label}
             style={{ animationDelay: `${i * 60}ms` }}
-            className="animate-rise-in rounded-3xl border border-line bg-surface-raised px-5 py-4 shadow-soft"
+            className="min-w-0 animate-rise-in rounded-2xl border border-line bg-surface-raised px-3 py-3 shadow-soft sm:rounded-3xl sm:px-5 sm:py-4"
           >
-            <dd className="text-2xl font-extrabold tracking-tight">{s.node}</dd>
-            <dt className="text-sm text-ink-muted">{s.label}</dt>
+            <dd className="truncate text-base font-extrabold tracking-tight sm:text-2xl">
+              {s.node}
+            </dd>
+            <dt className="truncate text-xs text-ink-muted sm:text-sm">
+              <span className="sm:hidden">{s.short}</span>
+              <span className="max-sm:hidden">{s.label}</span>
+            </dt>
           </div>
         ))}
       </dl>
@@ -192,6 +208,21 @@ export function OrdersView() {
           className="inline-flex size-13 shrink-0 items-center justify-center rounded-full border border-field-border bg-surface-raised text-ink-muted transition-colors hover:border-brand-500 hover:text-brand-ink"
         >
           <Download className="size-5" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setFlowAll((v) => !v)}
+          aria-pressed={flowAll}
+          aria-label="Sipariş akışlarını göster"
+          title={flowAll ? 'Akışlar hep açık (kapatmak için bas)' : 'Akışları hep göster'}
+          className={[
+            'inline-flex size-13 shrink-0 items-center justify-center rounded-full border transition-all duration-300',
+            flowAll
+              ? 'border-brand-600 bg-brand-700 text-white shadow-soft'
+              : 'border-field-border bg-surface-raised text-ink-muted hover:border-brand-500 hover:text-brand-ink',
+          ].join(' ')}
+        >
+          <Route className="size-5" aria-hidden="true" />
         </button>
       </div>
 
@@ -263,10 +294,10 @@ export function OrdersView() {
                       <tr
                         onClick={() => toggle(o.id)}
                         onDoubleClick={() => setOpenId(o.id)}
-                        aria-selected={selected?.id === o.id}
+                        aria-expanded={flowOpen(o.id)}
                         className={[
                           'cursor-pointer border-b border-line transition-colors last:border-0',
-                          selected?.id === o.id ? 'bg-brand-50' : 'hover:bg-brand-50/50',
+                          flowOpen(o.id) ? 'bg-brand-50/70' : 'hover:bg-brand-50/50',
                         ].join(' ')}
                       >
                         <td className="px-4 py-3 font-bold">#{o.no}</td>
@@ -303,7 +334,7 @@ export function OrdersView() {
                           </button>
                         </td>
                       </tr>
-                      {selected?.id === o.id ? (
+                      {flowOpen(o.id) ? (
                         <tr className="border-b border-line bg-brand-50 last:border-0">
                           <td colSpan={COLUMNS.length + 1} className="px-4 pt-1 pb-5">
                             <OrderTrack
@@ -326,17 +357,17 @@ export function OrdersView() {
                 <li
                   key={o.id}
                   style={{ animationDelay: `${i * 40}ms` }}
-                  className="animate-rise-in"
+                  className={[
+                    'animate-rise-in overflow-hidden rounded-3xl border bg-surface-raised transition-colors',
+                    flowOpen(o.id) ? 'border-brand-600/60' : 'border-line',
+                  ].join(' ')}
                 >
                   <button
                     type="button"
                     onClick={() => toggle(o.id)}
-                    aria-expanded={selected?.id === o.id}
+                    aria-expanded={flowOpen(o.id)}
                     aria-label={`${o.no} numaralı siparişi aç`}
-                    className={[
-                      'flex w-full flex-col gap-2.5 rounded-3xl border bg-surface-raised p-4 text-left transition-colors active:border-brand-500',
-                      selected?.id === o.id ? 'border-brand-600' : 'border-line',
-                    ].join(' ')}
+                    className="flex w-full flex-col gap-2.5 p-4 text-left active:bg-brand-50/50"
                   >
                     <span className="flex items-center justify-between gap-3">
                       <span className="font-extrabold">#{o.no}</span>
@@ -359,8 +390,8 @@ export function OrdersView() {
                       </span>
                     </span>
                   </button>
-                  {selected?.id === o.id ? (
-                    <div className="-mt-2 rounded-b-3xl border border-t-0 border-brand-600 bg-brand-50 px-3 pt-5 pb-4">
+                  {flowOpen(o.id) ? (
+                    <div className="border-t border-brand-600/25 bg-brand-50/70 px-3 pt-4 pb-3">
                       <OrderTrack
                         order={o}
                         busy={busy}

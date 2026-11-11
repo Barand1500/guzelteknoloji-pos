@@ -56,11 +56,11 @@ export function OrderSheet({ order, onStatus, onClose }: OrderSheetProps) {
       description={`${formatDateTime(order.date)} · ${SOURCE_LABEL[order.source]}`}
     >
       <div className="flex flex-col gap-5">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
           {/* Durum kartı */}
           <section
             aria-label="Sipariş durumu"
-            className="flex flex-col gap-5 rounded-3xl bg-gradient-to-b from-brand-50 to-surface-muted/60 p-5"
+            className="flex min-w-0 flex-col gap-5 rounded-3xl bg-gradient-to-b from-brand-50 to-surface-muted/60 p-4 sm:p-5"
           >
             <div className="flex items-center gap-4">
               <img
@@ -141,7 +141,7 @@ export function OrderSheet({ order, onStatus, onClose }: OrderSheetProps) {
           {/* Fiş */}
           <section
             aria-label="Sipariş fişi"
-            className="relative flex flex-col rounded-3xl border border-line bg-surface p-5"
+            className="relative flex min-w-0 flex-col overflow-hidden rounded-3xl border border-line bg-surface p-4 sm:p-5"
           >
             <span
               aria-hidden="true"
@@ -159,7 +159,7 @@ export function OrderSheet({ order, onStatus, onClose }: OrderSheetProps) {
               {order.lines.map((l) => (
                 <li key={l.id} className="flex items-end gap-2 text-sm">
                   <span className="min-w-0 max-w-[60%] shrink">
-                    <span className="block truncate font-bold">
+                    <span className="block line-clamp-2 font-bold break-words">
                       <span className="mr-1.5 rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-extrabold text-brand-ink">
                         {l.qty}×
                       </span>
@@ -184,11 +184,11 @@ export function OrderSheet({ order, onStatus, onClose }: OrderSheetProps) {
               />
               <span
                 aria-hidden="true"
-                className="absolute -top-3 -left-8 size-6 rounded-full bg-surface-raised"
+                className="absolute -top-3 -left-7 size-6 sm:-left-8 rounded-full bg-surface-raised"
               />
               <span
                 aria-hidden="true"
-                className="absolute -top-3 -right-8 size-6 rounded-full bg-surface-raised"
+                className="absolute -top-3 -right-7 size-6 sm:-right-8 rounded-full bg-surface-raised"
               />
             </div>
 

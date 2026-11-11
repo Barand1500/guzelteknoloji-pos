@@ -35,12 +35,12 @@ describe('Gelen Siparişler', () => {
     await openOrders();
     expect(await screen.findByText('ÖRNEK VERİ')).toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'Sipariş durumu' })).not.toBeInTheDocument();
-    // başlık + 10 sipariş + açık satırın akış satırı
-    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(1 + 10 + 1);
+    // başlık + 10 sipariş + her siparişin akış satırı (akışlar varsayılan olarak hep açık)
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(1 + 10 + 10);
     expect(screen.getByRole('navigation', { name: 'Sayfalama' })).toBeInTheDocument();
-    // İlk satır açık gelir: altında 4 adımlı sipariş akışı vardır.
-    const flow = screen.getByRole('list', { name: 'Sipariş akışı' });
-    expect(within(flow).getAllByRole('listitem')).toHaveLength(4);
+    const flows = screen.getAllByRole('list', { name: 'Sipariş akışı' });
+    expect(flows).toHaveLength(10);
+    expect(within(flows[0]!).getAllByRole('listitem')).toHaveLength(4);
   });
 
   it('arama müşteri ve sipariş no üzerinde çalışır', async () => {
@@ -85,14 +85,20 @@ describe('Gelen Siparişler', () => {
     expect(screen.getByText('Bu sipariş iptal edildi.')).toBeInTheDocument();
   });
 
-  it('açık satıra bir daha basınca akış kapanır', async () => {
+  it('rota düğmesi: kapatınca akışlar yalnızca tıklanan satırlarda görünür; tekrar basınca hepsi açılır', async () => {
     const user = await openOrders();
-    expect(screen.getByRole('list', { name: 'Sipariş akışı' })).toBeInTheDocument();
-    const first = within(screen.getByRole('table')).getAllByRole('row')[1]!;
-    await user.click(first);
-    await waitFor(() =>
-      expect(screen.queryByRole('list', { name: 'Sipariş akışı' })).not.toBeInTheDocument(),
-    );
+    const toggle = screen.getByRole('button', { name: 'Sipariş akışlarını göster' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('list', { name: 'Sipariş akışı' })).not.toBeInTheDocument();
+    const rows = within(screen.getByRole('table')).getAllByRole('row');
+    await user.click(rows[1]!);
+    expect(screen.getAllByRole('list', { name: 'Sipariş akışı' })).toHaveLength(1);
+    await user.click(within(screen.getByRole('table')).getAllByRole('row')[1]!);
+    expect(screen.queryByRole('list', { name: 'Sipariş akışı' })).not.toBeInTheDocument();
+    await user.click(toggle);
+    expect(screen.getAllByRole('list', { name: 'Sipariş akışı' })).toHaveLength(10);
   });
 
   it('sipariş ayrıntısı açılır ve "sıradaki adıma geç" durumu ilerletir', async () => {

@@ -13,11 +13,11 @@ export const STATUS_IMAGE: Record<OrderStatus, string> = {
   cancelled: 'iptal',
 };
 
-const STAGES: { status: OrderStatus; image: string; hint: string }[] = [
-  { status: 'pending', image: 'bekliyor', hint: 'Sipariş alındı' },
-  { status: 'preparing', image: 'hazirlaniyor', hint: 'Koli hazırlanıyor' },
-  { status: 'shipped', image: 'kargoda', hint: 'Kargo yolda' },
-  { status: 'delivered', image: 'teslim', hint: 'Müşteriye ulaştı' },
+const STAGES: { status: OrderStatus; short: string; hint: string }[] = [
+  { status: 'pending', short: 'Bekliyor', hint: 'Sipariş alındı' },
+  { status: 'preparing', short: 'Hazırlık', hint: 'Koli hazırlanıyor' },
+  { status: 'shipped', short: 'Kargoda', hint: 'Kargo yolda' },
+  { status: 'delivered', short: 'Teslim', hint: 'Müşteriye ulaştı' },
 ];
 
 interface OrderTrackProps {
@@ -28,11 +28,11 @@ interface OrderTrackProps {
 }
 
 /**
- * Sipariş akışı (seçili satırın altında açılır): Bekliyor → Hazırlanıyor → Kargoda → Teslim Edildi.
- * Her adımın görseli animasyonludur (bekleyen kum saati, paketlenen koli, yoldaki kamyon, konfeti).
- * Geçilen adımlar tikli ve renkli, şu anki adım büyük ve halkalı, henüz gelmeyenler SOLUK (pasif).
- * Adımların arasında oklar vardır; geçilen okların rengi dolar. İptalde son adımın yerine kırmızı
- * "İptal Edildi" (çöp kutusu) kartı gelir ve diğer adımlar pasif kalır.
+ * Sipariş yolculuk şeridi: Bekliyor → Hazırlanıyor → Kargoda → Teslim. Dört yuvarlak "baloncuk"
+ * (içinde animasyonlu görsel) oklu çizgilerle bağlanır. Geçilen baloncuklar yeşil çerçeveli ve tikli,
+ * çizgileri yeşile dolar; şu anki baloncuk büyük ve halkalı; henüz gelmeyenler soluk/gri (pasif).
+ * İptalde son baloncuk kırmızı çöp kutusuna döner ve öncekiler pasifleşir. Telefonda kısa etiketler
+ * ve küçük baloncuklar kullanılır; şerit hiçbir genişlikte taşmaz.
  */
 export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps) {
   const cancelled = order.status === 'cancelled';
@@ -40,86 +40,86 @@ export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps
   const next = NEXT_STATUS[order.status];
 
   return (
-    <div className="flex animate-rise-in flex-col gap-4">
-      <ol aria-label="Sipariş akışı" className="flex items-stretch gap-1 sm:gap-3">
+    <div className="flex flex-col gap-3">
+      <ol aria-label="Sipariş akışı" className="flex max-w-2xl items-start">
         {STAGES.map((s, i) => {
           const isLast = i === STAGES.length - 1;
-          // İptalde son adımın yerine iptal kartı gelir.
           const showCancel = cancelled && isLast;
           const done = !cancelled && i < index;
           const current = !cancelled && i === index;
-          const linkDone = !cancelled && i < index;
+          const lineDone = !cancelled && i < index;
+          const full = showCancel ? STATUS_LABEL.cancelled : STATUS_LABEL[s.status];
           return (
-            <li key={s.status} className="flex min-w-0 flex-1 items-stretch gap-1 sm:gap-3">
-              <div
-                aria-current={current || showCancel ? 'step' : undefined}
-                className={[
-                  'relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl border px-1.5 py-3 text-center transition-all duration-500 sm:gap-1.5 sm:px-3',
-                  showCancel
-                    ? 'border-danger bg-danger-soft ring-4 ring-danger/15'
-                    : current
-                      ? 'scale-[1.04] border-brand-600 bg-brand-50 shadow-soft ring-4 ring-brand-600/15'
-                      : done
-                        ? 'border-success/40 bg-success-soft/60'
-                        : 'border-dashed border-line bg-surface-muted/40',
-                ].join(' ')}
-              >
+            <li key={s.status} className="flex min-w-0 flex-1 items-start last:flex-none">
+              <div className="flex w-[4.25rem] shrink-0 flex-col items-center gap-1 sm:w-28">
                 <span
+                  aria-current={current || showCancel ? 'step' : undefined}
                   className={[
-                    'absolute -top-2.5 left-2 flex size-6 items-center justify-center rounded-full text-xs font-extrabold',
+                    'relative flex size-12 items-center justify-center rounded-full ring-2 transition-all duration-500 sm:size-16',
                     showCancel
-                      ? 'bg-danger text-white'
-                      : done
-                        ? 'bg-success text-white'
-                        : current
-                          ? 'bg-brand-700 text-white'
-                          : 'bg-surface-muted text-ink-muted',
+                      ? 'scale-110 bg-danger-soft ring-danger ring-offset-2 ring-offset-surface-raised'
+                      : current
+                        ? 'scale-110 bg-brand-50 ring-brand-600 ring-offset-2 ring-offset-surface-raised'
+                        : done
+                          ? 'bg-success-soft ring-success/50'
+                          : 'bg-surface-muted ring-line',
                   ].join(' ')}
                 >
-                  {showCancel ? (
-                    <X className="size-3.5" aria-hidden="true" />
-                  ) : done ? (
-                    <Check className="size-3.5" aria-hidden="true" />
-                  ) : (
-                    i + 1
-                  )}
+                  <img
+                    src={IMG(showCancel ? 'iptal' : STATUS_IMAGE[s.status])}
+                    alt=""
+                    loading="lazy"
+                    className={[
+                      'size-8 object-contain transition-all duration-500 sm:size-11',
+                      current || showCancel || done ? '' : 'opacity-40 grayscale',
+                    ].join(' ')}
+                  />
+                  {done || showCancel ? (
+                    <span
+                      className={`absolute -top-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full text-white ${showCancel ? 'bg-danger' : 'bg-success'}`}
+                    >
+                      {showCancel ? (
+                        <X className="size-3" aria-hidden="true" />
+                      ) : (
+                        <Check className="size-3" aria-hidden="true" />
+                      )}
+                    </span>
+                  ) : null}
                 </span>
-                <img
-                  src={IMG(showCancel ? 'iptal' : s.image)}
-                  alt=""
-                  loading="lazy"
-                  className={[
-                    'size-11 object-contain transition-all duration-500 sm:size-16',
-                    current || showCancel ? '' : done ? 'saturate-75' : 'opacity-40 grayscale',
-                  ].join(' ')}
-                />
                 <span
                   className={[
-                    'w-full truncate text-xs leading-tight font-extrabold sm:text-sm',
+                    'text-center text-[0.6875rem] leading-tight font-extrabold sm:text-sm',
                     current || showCancel || done ? 'text-ink' : 'text-ink-muted',
                   ].join(' ')}
                 >
-                  {showCancel ? STATUS_LABEL.cancelled : STATUS_LABEL[s.status]}
-                </span>
-                <span className="hidden w-full truncate text-xs text-ink-muted sm:block">
-                  {showCancel ? 'Koli çöpe gitti' : s.hint}
+                  <span className="sm:hidden" aria-hidden="true">
+                    {showCancel ? 'İptal' : s.short}
+                  </span>
+                  <span className="hidden sm:inline" aria-hidden="true">
+                    {full}
+                  </span>
+                  <span className="sr-only">{full}</span>
                 </span>
                 <span className="sr-only">
-                  {showCancel
-                    ? 'Geçerli adım'
-                    : current
-                      ? 'Geçerli adım'
-                      : done
-                        ? 'Tamamlandı'
-                        : 'Bekliyor'}
+                  {showCancel || current ? 'Geçerli adım' : done ? 'Tamamlandı' : 'Bekliyor'}
+                </span>
+                <span className="hidden text-center text-xs text-ink-muted sm:block">
+                  {showCancel ? 'Koli çöpe gitti' : s.hint}
                 </span>
               </div>
+
+              {/* Oklu bağlantı çizgisi */}
               {!isLast ? (
                 <span
                   aria-hidden="true"
-                  className={`flex shrink-0 items-center transition-colors duration-500 ${linkDone ? 'text-success' : 'text-line-strong/50'}`}
+                  className="mt-[1.4rem] flex min-w-3 flex-1 items-center sm:mt-[1.85rem]"
                 >
-                  <ArrowRight className="size-4 sm:size-6" />
+                  <span
+                    className={`h-1 flex-1 rounded-full transition-colors duration-700 ${lineDone ? 'bg-success' : 'bg-line'}`}
+                  />
+                  <ArrowRight
+                    className={`-mx-1 size-4 shrink-0 transition-colors duration-700 sm:size-5 ${lineDone ? 'text-success' : 'text-line-strong/50'}`}
+                  />
                 </span>
               ) : null}
             </li>
@@ -137,7 +137,7 @@ export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps
               type="button"
               disabled={busy}
               onClick={() => onStatus(next)}
-              className="inline-flex min-h-10 items-center rounded-full bg-brand-700 px-5 text-sm font-bold text-white transition-colors hover:bg-brand-800 disabled:opacity-60"
+              className="inline-flex min-h-10 items-center rounded-full bg-brand-700 px-4 text-sm font-bold text-white transition-colors hover:bg-brand-800 disabled:opacity-60"
             >
               Sıradaki adım: {STATUS_LABEL[next]}
             </button>
@@ -147,7 +147,7 @@ export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps
               type="button"
               disabled={busy}
               onClick={() => onStatus('cancelled')}
-              className="inline-flex min-h-10 items-center rounded-full bg-danger-soft px-5 text-sm font-bold text-danger transition-colors hover:bg-danger hover:text-white disabled:opacity-60"
+              className="inline-flex min-h-10 items-center rounded-full bg-danger-soft px-4 text-sm font-bold text-danger transition-colors hover:bg-danger hover:text-white disabled:opacity-60"
             >
               İptal Et
             </button>
@@ -155,7 +155,7 @@ export function OrderTrack({ order, busy, onStatus, onDetails }: OrderTrackProps
           <button
             type="button"
             onClick={onDetails}
-            className="inline-flex min-h-10 items-center rounded-full border border-field-border px-5 text-sm font-bold text-ink transition-colors hover:border-brand-500"
+            className="inline-flex min-h-10 items-center rounded-full border border-field-border px-4 text-sm font-bold text-ink transition-colors hover:border-brand-500"
           >
             Ayrıntılar
           </button>
