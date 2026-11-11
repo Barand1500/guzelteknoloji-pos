@@ -263,7 +263,7 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
         roleId: r.roleId,
         roleName: r.userId === ctx.ownerId ? 'İşletme Sahibi' : (r.role?.name ?? 'Rol Atanmadı'),
         owner: r.userId === ctx.ownerId,
-        active: r.active,
+        active: r.durum,
         pending: r.userId === null,
       })),
     );
@@ -296,7 +296,7 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
           name: input.name,
           email: input.email,
           roleId: input.roleId,
-          active: input.active,
+          durum: input.active,
         },
       });
       note(res, 'Kullanıcı', null, input.name);
@@ -332,11 +332,14 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
         (member.role && !canGrant(ctx, member.role.permissions as RolePermission[]))
       )
         throw forbidden();
-      if (member.active && !input.active) requirePermission(ctx, 'users', 'delete');
-      await tx.isletmeUyesi.update({ where: { id: member.id }, data: input });
+      if (member.durum && !input.active) requirePermission(ctx, 'users', 'delete');
+      await tx.isletmeUyesi.update({
+        where: { id: member.id },
+        data: { name: input.name, roleId: input.roleId, durum: input.active },
+      });
       note(res, 'Ad', member.name, input.name);
       note(res, 'Rol', member.role?.name, role.name);
-      note(res, 'Erişim', member.active, input.active);
+      note(res, 'Erişim', member.durum, input.active);
     });
     res.status(204).end();
   });
@@ -355,7 +358,7 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
         throw forbidden();
       // Katılmış üyelerin kimlik bağlantısını koru; erişim kapatılır. Bekleyen ekleme kaldırılabilir.
       if (member.userId)
-        await tx.isletmeUyesi.update({ where: { id: member.id }, data: { active: false } });
+        await tx.isletmeUyesi.update({ where: { id: member.id }, data: { durum: false } });
       else await tx.isletmeUyesi.delete({ where: { id: member.id } });
       note(res, 'Kullanıcı Erişimi', member.name, 'Kaldırıldı');
     });
@@ -511,13 +514,7 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
   router.post('/google/ayir', async (_req, res) => {
     const ctx = ctxOf(res);
     requirePermission(ctx, 'settings', 'delete');
-    await db.isletmeAyari.deleteMany({
-      where: {
-        businessId: ctx.business.id,
-        section: 'google',
-        key: { in: ['refreshToken', 'accessToken', 'expiresAt'] },
-      },
-    });
+    await settings.remove(ctx.business.id, 'google', ['refreshToken', 'accessToken', 'expiresAt']);
     note(res, 'Google Bağlantısı', 'Bağlı', 'Ayrıldı');
     res.status(204).end();
   });

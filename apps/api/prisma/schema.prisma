@@ -87,7 +87,7 @@ model Oturum {
   /// Cookie'deki opak token'ın SHA-256 hash'i (hex). Ham token veritabanında tutulmaz.
   girisYontemi          GirisYontemi? @map("giris_yontemi")
   oturumAnahtariHash    String        @unique(map: "oturumlar_anahtar_hash_tekil") @map("oturum_anahtari_hash") @db.Char(64)
-  gecerlilikBitisZamani DateTime      @map("gecerlilik_bitis_zamani")
+  gecerlilikBitisTarihi DateTime      @map("gecerlilik_bitis_tarihi")
   sonGorulmeZamani      DateTime      @default(now()) @map("son_gorulme_zamani")
   iptalZamani           DateTime?     @map("iptal_zamani")
   ipAdresi              String?       @map("ip_adresi") @db.VarChar(45)
@@ -97,7 +97,7 @@ model Oturum {
   kullanici Kullanici @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "oturumlar_kullanici_baglantisi")
 
   @@index([kullaniciKimligi], map: "oturumlar_kullanici_indeks")
-  @@index([gecerlilikBitisZamani], map: "oturumlar_gecerlilik_indeks")
+  @@index([gecerlilikBitisTarihi], map: "oturumlar_gecerlilik_indeks")
   @@map("oturumlar")
 }
 
@@ -109,7 +109,7 @@ model EpostaGirisKodu {
   epostaHash            String   @map("eposta_hash") @db.Char(64)
   /// HMAC-SHA256(gizli anahtar, "e-posta:kod") hex.
   kodHash               String   @map("kod_hash") @db.Char(64)
-  gecerlilikBitisZamani DateTime @map("gecerlilik_bitis_zamani")
+  gecerlilikBitisTarihi DateTime @map("gecerlilik_bitis_tarihi")
   /// Yanlış deneme sayısı; sınır aşılınca kod geçersiz olur.
   denemeSayisi          Int      @default(0) @map("deneme_sayisi")
   olusturmaZamani       DateTime @default(now()) @map("olusturma_zamani")
@@ -128,7 +128,7 @@ model StokSecenegi {
   secenekAdi        String             @map("secenek_adi") @db.VarChar(120)
   adHash            String             @map("ad_hash") @db.Char(64)
   silinebilir       Boolean            @default(false) @map("silinebilir")
-  etkin             Boolean            @default(true) @map("etkin")
+  durum             Boolean            @default(true) @map("durum")
   sira              Int                @default(0) @map("sira")
   olusturmaZamani   DateTime           @default(now()) @map("olusturma_zamani")
   kullanici         Kullanici          @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "urun_secenekleri_kullanici_baglantisi")
@@ -149,7 +149,7 @@ model Marka {
   markaKodu        String      @map("marka_kodu") @db.VarChar(100)
   markaAdi         String      @map("marka_adi") @db.VarChar(120)
   adHash           String      @map("ad_hash") @db.Char(64)
-  etkin            Boolean     @default(true) @map("etkin")
+  durum            Boolean     @default(true) @map("durum")
   sira             Int         @default(0) @map("sira")
   olusturmaZamani  DateTime    @default(now()) @map("olusturma_zamani")
   aciklama         String      @map("aciklama") @db.Text
@@ -219,7 +219,7 @@ model Kategori {
   ad              String                  @db.VarChar(120)
   aciklama        String                  @db.Text
   gorselDosyasi   String?                 @map("gorsel_dosyasi") @db.VarChar(255)
-  etkin           Boolean                 @default(true)
+  durum           Boolean                 @default(true) @map("durum")
   gizli           Boolean                 @default(false)
   seoBasligi      String                  @map("seo_basligi") @db.VarChar(250)
   seoAciklamasi   String                  @map("seo_aciklamasi") @db.VarChar(1000)
@@ -247,7 +247,7 @@ model Firsat {
   kullaniciId Int @map("kullanici_id")
   ad String @db.VarChar(120)
   ikonDosyasi String? @map("ikon_dosyasi") @db.VarChar(255)
-  etkin Boolean @default(true)
+  durum Boolean @default(true) @map("durum")
   resimdeGoster Boolean @map("resimde_goster")
   konum String @db.VarChar(10)
   boyut String @db.VarChar(10)
@@ -430,7 +430,7 @@ model IsletmeUyesi {
   email String? @unique @map("eposta") @db.VarChar(254)
   name String @map("ad") @db.VarChar(120)
   roleId Int? @map("rol_id")
-  active Boolean @default(true) @map("etkin")
+  durum Boolean @default(true) @map("durum")
   createdAt DateTime @default(now()) @map("olusturma_zamani")
   business Isletme @relation(fields: [businessId], references: [id], onDelete: Cascade)
   user Kullanici? @relation(fields: [userId], references: [kimlik], onDelete: Restrict)
@@ -464,10 +464,9 @@ model RolYetkisi {
 model IsletmeAyari {
   businessId Int @map("isletme_id")
   section String @map("bolum") @db.VarChar(30)
-  key String @map("alan") @db.VarChar(80)
-  value String @map("deger") @db.Text
+  values Json @map("degerler")
   business Isletme @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  @@id([businessId, section, key])
+  @@id([businessId, section])
   @@map("isletme_ayarlari")
 }
 
@@ -594,7 +593,7 @@ model Musteri {
   cariTipi         String              @map("cari_tipi") @db.VarChar(40)
   odemeSekilleri   String              @map("odeme_sekilleri") @db.Text
   kartAnlasmasi    String              @default("") @map("kart_anlasmasi") @db.VarChar(80)
-  etkin            Boolean             @default(true)
+  durum            Boolean             @default(true) @map("durum")
   olusturmaZamani  DateTime            @default(now()) @map("olusturma_zamani")
   guncellemeZamani DateTime            @updatedAt @map("guncelleme_zamani")
   business         Isletme             @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -613,7 +612,7 @@ model MusteriKullanicisi {
   musteriId       Int       @map("musteri_id")
   ad              String    @db.VarChar(160)
   eposta          String    @db.VarChar(254)
-  etkin           Boolean   @default(true)
+  durum           Boolean   @default(true) @map("durum")
   sonGiris        DateTime? @map("son_giris")
   olusturmaZamani DateTime  @default(now()) @map("olusturma_zamani")
   musteri         Musteri   @relation(fields: [musteriId], references: [id], onDelete: Cascade)

@@ -290,7 +290,7 @@ export class PrismaStockRepository implements StockRepository {
   async getLookups(userId: string): Promise<StockLookups> {
     await this.ensureDefaults(userId);
     const rows = await this.db.stokSecenegi.findMany({
-      where: { kullaniciKimligi: Number(userId), etkin: true },
+      where: { kullaniciKimligi: Number(userId), durum: true },
       orderBy: [{ sira: 'asc' }, { olusturmaZamani: 'asc' }, { kimlik: 'asc' }],
     });
     const result = {} as StockLookups;
@@ -304,7 +304,7 @@ export class PrismaStockRepository implements StockRepository {
         }));
     }
     const brands = await this.db.marka.findMany({
-      where: { kullaniciKimligi: Number(userId), etkin: true },
+      where: { kullaniciKimligi: Number(userId), durum: true },
       select: { kimlik: true, markaAdi: true },
       orderBy: [{ sira: 'asc' }, { olusturmaZamani: 'asc' }, { kimlik: 'asc' }],
     });
@@ -336,7 +336,7 @@ export class PrismaStockRepository implements StockRepository {
           silinebilir: true,
           sira: 1000,
         },
-        update: { etkin: true },
+        update: { durum: true },
       });
     });
     return { value: row.secenekKodu, label: row.secenekAdi, removable: row.silinebilir };
@@ -359,7 +359,7 @@ export class PrismaStockRepository implements StockRepository {
       if (!row.silinebilir)
         throw new HttpError(400, 'VALIDATION_ERROR', 'Sabit seçenek silinemez.');
       // Fiziksel silme yapılmaz; geçmiş kartların ilişkileri korunur.
-      await tx.stokSecenegi.update({ where: { kimlik: row.kimlik }, data: { etkin: false } });
+      await tx.stokSecenegi.update({ where: { kimlik: row.kimlik }, data: { durum: false } });
     });
   }
 
@@ -391,7 +391,7 @@ export class PrismaStockRepository implements StockRepository {
           kullaniciKimligi: Number(userId),
           listeTuru: listKey,
           adHash: labelHash(clean),
-          etkin: true,
+          durum: true,
           kimlik: { not: current.kimlik },
         },
       });
@@ -552,7 +552,7 @@ export class PrismaStockRepository implements StockRepository {
                 (o) =>
                   o.listeTuru === key &&
                   o.secenekKodu === value &&
-                  (o.etkin || allowedOldOptions.has(o.kimlik)),
+                  (o.durum || allowedOldOptions.has(o.kimlik)),
               );
               if (!found)
                 throw new HttpError(
@@ -574,7 +574,7 @@ export class PrismaStockRepository implements StockRepository {
                     kimlik: Number(d.brand),
                     kullaniciKimligi: Number(userId),
                     OR: [
-                      { etkin: true },
+                      { durum: true },
                       ...(current?.markaKimligi ? [{ kimlik: current.markaKimligi }] : []),
                     ],
                   },
@@ -851,7 +851,7 @@ export class PrismaStockRepository implements StockRepository {
     return this.db.$transaction(
       async (tx) => {
         const priceLists = await tx.stokSecenegi.findMany({
-          where: { kullaniciKimligi: Number(userId), listeTuru: 'priceLists', etkin: true },
+          where: { kullaniciKimligi: Number(userId), listeTuru: 'priceLists', durum: true },
           orderBy: [{ sira: 'asc' }, { kimlik: 'asc' }],
         });
         const where = stockListWhere(Number(userId), query, priceLists[0]?.kimlik);
@@ -1000,13 +1000,13 @@ export class PrismaStockRepository implements StockRepository {
                     await tx.kategori.findMany({
                       where: { kullaniciId: Number(userId) },
                       orderBy: [{ ad: 'asc' }, { id: 'asc' }],
-                      select: { id: true, ad: true, ustId: true, etkin: true },
+                      select: { id: true, ad: true, ustId: true, durum: true },
                     })
                   ).map((c) => ({
                     id: String(c.id),
                     name: c.ad,
                     parentId: c.ustId == null ? null : String(c.ustId),
-                    active: c.etkin,
+                    active: c.durum,
                   })),
                   brands: (
                     await tx.marka.findMany({
@@ -1028,7 +1028,7 @@ export class PrismaStockRepository implements StockRepository {
     return this.db.$transaction(
       async (tx) => {
         const first = await tx.stokSecenegi.findFirst({
-          where: { kullaniciKimligi: Number(userId), listeTuru: 'priceLists', etkin: true },
+          where: { kullaniciKimligi: Number(userId), listeTuru: 'priceLists', durum: true },
           orderBy: [{ sira: 'asc' }, { kimlik: 'asc' }],
         });
         const where = stockListWhere(Number(userId), query, first?.kimlik);

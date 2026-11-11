@@ -304,7 +304,7 @@ async function snapshot(
     markaAdi: 'Marka Adı',
     aciklama: 'Açıklama',
     ad: 'Ad',
-    etkin: 'Aktif',
+    durum: 'Aktif',
     gizli: 'Gizli',
     birimler: 'Birimler',
     fiyatlar: 'Fiyatlar',

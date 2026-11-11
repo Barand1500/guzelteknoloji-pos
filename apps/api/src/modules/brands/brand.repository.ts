@@ -12,7 +12,7 @@ const brandSelect = {
   kimlik: true,
   markaKodu: true,
   markaAdi: true,
-  etkin: true,
+  durum: true,
   aciklama: true,
   logoHash: true,
   logoDosyasi: true,
@@ -24,7 +24,7 @@ type BrandRow = Prisma.MarkaGetPayload<{ select: typeof brandSelect }>;
 const dto = (row: BrandRow): Brand => ({
   id: String(row.kimlik),
   name: row.markaAdi,
-  active: row.etkin,
+  active: row.durum,
   description: row.aciklama ?? '',
   seoTitle: row.seoBasligi ?? '',
   seoDescription: row.seoAciklamasi ?? '',
@@ -177,7 +177,7 @@ export class PrismaBrandRepository {
               ? { logoVerisi: null, logoDosyasi: newFile, logoHash: image.logoHash }
               : {}),
         };
-        const common = { markaAdi: draft.name, adHash: nameHash(draft.name), etkin: draft.active };
+        const common = { markaAdi: draft.name, adHash: nameHash(draft.name), durum: draft.active };
         if (existing)
           return dto(
             await tx.marka.update({
@@ -217,7 +217,7 @@ export class PrismaBrandRepository {
   async setActive(userId: string, key: string, active: boolean) {
     await this.write(userId, async (tx) => {
       const row = await this.find(tx, userId, key);
-      await tx.marka.update({ where: { kimlik: row.kimlik }, data: { etkin: active } });
+      await tx.marka.update({ where: { kimlik: row.kimlik }, data: { durum: active } });
     });
   }
 

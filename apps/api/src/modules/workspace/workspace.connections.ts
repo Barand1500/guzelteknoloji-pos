@@ -313,23 +313,15 @@ export async function googleCallback(
       })
       .parse(await result.json());
     await db.$transaction(async (tx) => {
-      for (const [key, value] of Object.entries({
+      const updates = Object.fromEntries(Object.entries({
         accessToken: tokens.access_token,
         ...(tokens.refresh_token ? { refreshToken: tokens.refresh_token } : {}),
         expiresAt: String(Date.now() + tokens.expires_in * 1000),
-      }))
-        await tx.isletmeAyari.upsert({
-          where: {
-            businessId_section_key: { businessId: ctx.business.id, section: 'google', key },
-          },
-          create: {
-            businessId: ctx.business.id,
-            section: 'google',
-            key,
-            value: settings.isSecret(key) ? settings.encrypt(value) : value,
-          },
-          update: { value: settings.isSecret(key) ? settings.encrypt(value) : value },
-        });
+      }).map(([key, value]) => [
+        key,
+        settings.isSecret(key) ? settings.encrypt(value) : value,
+      ]));
+      await settings.merge(tx, ctx.business.id, 'google', updates);
       await tx.islemKaydi.update({ where: { id: entry.id }, data: { status: 'Başarılı' } });
     });
     return res.redirect(destination + '?google=baglandi');

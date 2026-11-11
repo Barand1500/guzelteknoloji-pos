@@ -72,7 +72,7 @@ export class MysqlEmailCodeStore implements EmailCodeStore {
             resendAfterSeconds: Math.ceil((resendAt - now) / 1000),
             expiresInSeconds: Math.max(
               0,
-              Math.ceil((latest.gecerlilikBitisZamani.getTime() - now) / 1000),
+              Math.ceil((latest.gecerlilikBitisTarihi.getTime() - now) / 1000),
             ),
           } as const;
       }
@@ -80,14 +80,14 @@ export class MysqlEmailCodeStore implements EmailCodeStore {
 
       // Önceki kodlar geçersiz olur; yalnızca en yeni kod kullanılabilir.
       await tx.epostaGirisKodu.updateMany({
-        where: { epostaHash: emailHash, gecerlilikBitisZamani: { gt: new Date(now) } },
-        data: { gecerlilikBitisZamani: new Date(now) },
+        where: { epostaHash: emailHash, gecerlilikBitisTarihi: { gt: new Date(now) } },
+        data: { gecerlilikBitisTarihi: new Date(now) },
       });
       const created = await tx.epostaGirisKodu.create({
         data: {
           epostaHash: emailHash,
           kodHash: codeHash,
-          gecerlilikBitisZamani: new Date(now + policy.ttlSeconds * 1000),
+          gecerlilikBitisTarihi: new Date(now + policy.ttlSeconds * 1000),
           olusturmaZamani: new Date(now),
         },
       });
@@ -110,14 +110,14 @@ export class MysqlEmailCodeStore implements EmailCodeStore {
     const now = this.now();
     return this.withLock(emailHash, async (tx) => {
       const current = await tx.epostaGirisKodu.findFirst({
-        where: { epostaHash: emailHash, gecerlilikBitisZamani: { gt: new Date(now) } },
+        where: { epostaHash: emailHash, gecerlilikBitisTarihi: { gt: new Date(now) } },
         orderBy: { olusturmaZamani: 'desc' },
       });
       if (!current) return false;
       if (current.denemeSayisi >= maxAttempts) {
         await tx.epostaGirisKodu.update({
           where: { kimlik: current.kimlik },
-          data: { gecerlilikBitisZamani: new Date(now) },
+          data: { gecerlilikBitisTarihi: new Date(now) },
         });
         return false;
       }
@@ -125,7 +125,7 @@ export class MysqlEmailCodeStore implements EmailCodeStore {
         // Tek kullanım: kod hemen geçersiz kılınır.
         await tx.epostaGirisKodu.update({
           where: { kimlik: current.kimlik },
-          data: { gecerlilikBitisZamani: new Date(now) },
+          data: { gecerlilikBitisTarihi: new Date(now) },
         });
         return true;
       }
@@ -134,7 +134,7 @@ export class MysqlEmailCodeStore implements EmailCodeStore {
         where: { kimlik: current.kimlik },
         data: {
           denemeSayisi: attempts,
-          ...(attempts >= maxAttempts ? { gecerlilikBitisZamani: new Date(now) } : {}),
+          ...(attempts >= maxAttempts ? { gecerlilikBitisTarihi: new Date(now) } : {}),
         },
       });
       return false;

@@ -82,7 +82,7 @@ export class StockImport {
         select: { kimlik: true, stokKodu: true, _count: { select: { varyantlar: true } } },
       }),
       this.db.marka.findMany({
-        where: { kullaniciKimligi: user, etkin: true },
+        where: { kullaniciKimligi: user, durum: true },
         select: { kimlik: true, markaAdi: true },
       }),
       this.db.kategori.findMany({

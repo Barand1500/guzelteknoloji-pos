@@ -75,12 +75,12 @@ const optionalUser = (row: KullaniciKaydi | null) => (row ? toUser(row) : null);
 const toSession = (row: {
   kimlik: number;
   kullaniciKimligi: number;
-  gecerlilikBitisZamani: Date;
+  gecerlilikBitisTarihi: Date;
   sonGorulmeZamani: Date;
 }): SessionRecord => ({
   id: String(row.kimlik),
   userId: String(row.kullaniciKimligi),
-  expiresAt: row.gecerlilikBitisZamani,
+  expiresAt: row.gecerlilikBitisTarihi,
   lastSeenAt: row.sonGorulmeZamani,
 });
 export class PrismaAuthRepository implements AuthRepository {
@@ -166,7 +166,7 @@ export class PrismaAuthRepository implements AuthRepository {
           kullaniciKimligi: Number(data.userId),
           girisYontemi: data.loginMethod === 'EMAIL' ? 'EPOSTA' : data.loginMethod,
           oturumAnahtariHash: data.tokenHash,
-          gecerlilikBitisZamani: data.expiresAt,
+          gecerlilikBitisTarihi: data.expiresAt,
           ipAdresi: data.ipAddress,
           istemciBilgisi: data.userAgent,
         },
@@ -186,7 +186,7 @@ export class PrismaAuthRepository implements AuthRepository {
       where: {
         oturumAnahtariHash: tokenHash,
         iptalZamani: null,
-        gecerlilikBitisZamani: { gt: now },
+        gecerlilikBitisTarihi: { gt: now },
       },
       include: { kullanici: { select: userSelect } },
     });

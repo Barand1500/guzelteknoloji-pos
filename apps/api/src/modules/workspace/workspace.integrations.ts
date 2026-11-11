@@ -73,11 +73,11 @@ export class WorkspaceChallenge {
     const member = email
       ? await this.db.isletmeUyesi.findUnique({
           where: { email: email.trim().toLowerCase() },
-          select: { businessId: true, active: true },
+          select: { businessId: true, durum: true },
         })
       : null;
     let explicitlyConfigured = false;
-    if (member?.active)
+    if (member?.durum)
       for (const provider of ['cloudflare', 'recaptcha'] as const) {
         const values = await this.settings.values(member.businessId, provider, true);
         explicitlyConfigured ||= values.enabled !== undefined;

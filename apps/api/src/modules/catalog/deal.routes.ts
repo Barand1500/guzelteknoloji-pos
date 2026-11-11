@@ -54,7 +54,7 @@ export function createDealRouter(env: Env, auth: AuthService, db: PrismaClient) 
         id: String(r.id),
         name: r.ad,
         iconUrl: url(r.id, r.ikonDosyasi),
-        active: r.etkin,
+        active: r.durum,
         showOnImage: r.resimdeGoster,
         position: r.konum,
         size: r.boyut,
@@ -119,7 +119,7 @@ export function createDealRouter(env: Env, auth: AuthService, db: PrismaClient) 
         if (changed) oldFile = old?.ikonDosyasi ?? null;
         const data = {
           ad: draft.name,
-          etkin: draft.active,
+          durum: draft.active,
           resimdeGoster: draft.showOnImage,
           konum: draft.position,
           boyut: draft.size,
@@ -173,7 +173,7 @@ export function createDealRouter(env: Env, auth: AuthService, db: PrismaClient) 
     const user = res.locals.catalogUserId as number;
     await catalogWrite(db, user, async (tx) => {
       const row = await find(tx, user, categoryKey.parse(req.params.id));
-      await tx.firsat.update({ where: { id: row.id }, data: { etkin: active } });
+      await tx.firsat.update({ where: { id: row.id }, data: { durum: active } });
     });
     res.status(204).end();
   });

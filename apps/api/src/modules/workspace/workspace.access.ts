@@ -48,7 +48,7 @@ export class WorkspaceAccess {
       where: { userId: id },
       include: { business: true, role: { include: { permissions: true } } },
     });
-    if (ready && !ready.active) throw forbidden();
+    if (ready && !ready.durum) throw forbidden();
     const member =
       ready ??
       (await this.db.$transaction(async (tx) => {
@@ -59,7 +59,7 @@ export class WorkspaceAccess {
             where: { email: user.email.toLowerCase() },
           });
           if (invite && invite.userId === null) {
-            if (!invite.active || !user.emailVerifiedAt) throw forbidden();
+            if (!invite.durum || !user.emailVerifiedAt) throw forbidden();
             existing = await tx.isletmeUyesi.update({
               where: { id: invite.id },
               data: { userId: id },
@@ -84,7 +84,7 @@ export class WorkspaceAccess {
             },
           });
         }
-        if (!existing.active) throw forbidden();
+        if (!existing.durum) throw forbidden();
         return tx.isletmeUyesi.findUniqueOrThrow({
           where: { id: existing.id },
           include: { business: true, role: { include: { permissions: true } } },

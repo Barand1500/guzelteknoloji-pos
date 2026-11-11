@@ -15,7 +15,7 @@ const dto = (row: CategoryRow) => ({
   imageUrl: row.gorselDosyasi
     ? `/api/kategoriler/${row.id}/gorsel?v=${encodeURIComponent(row.gorselDosyasi)}`
     : null,
-  active: row.etkin,
+  active: row.durum,
   hidden: row.gizli,
   seoTitle: row.seoBasligi,
   seoDescription: row.seoAciklamasi,
@@ -180,7 +180,7 @@ export class CategoryRepository {
         ad: draft.name,
         aciklama: draft.description,
         ustId: draft.parentId,
-        etkin: draft.active,
+        durum: draft.active,
         gizli: draft.hidden,
         seoBasligi: draft.seoTitle,
         seoAciklamasi: draft.seoDescription,
@@ -271,7 +271,7 @@ export class CategoryRepository {
   async setActive(user: number, id: number, active: boolean) {
     await this.write(user, async (tx) => {
       await this.find(tx, user, id);
-      await tx.kategori.update({ where: { id }, data: { etkin: active } });
+      await tx.kategori.update({ where: { id }, data: { durum: active } });
     });
   }
 

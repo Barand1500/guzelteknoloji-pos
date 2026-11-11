@@ -33,7 +33,7 @@ export interface CustomerStore {
 
 type CustomerRow = Prisma.MusteriGetPayload<{
   include: {
-    kullanicilar: { select: { etkin: true; sonGiris: true } };
+    kullanicilar: { select: { durum: true; sonGiris: true } };
     hareketler: { select: { borc: true; alacak: true } };
   };
 }>;
@@ -67,7 +67,7 @@ function toCustomer(row: CustomerRow): CustomerRecord {
     customerType: row.cariTipi,
     payments: parsePayments(row.odemeSekilleri),
     cardDeal: row.kartAnlasmasi,
-    active: row.etkin,
+    active: row.durum,
     userCount: row.kullanicilar.length,
     lastLogin: logins.length ? new Date(Math.max(...logins.map((date) => date.getTime()))) : null,
     debt: row.hareketler.reduce((sum, entry) => sum + money(entry.borc), 0),
@@ -79,14 +79,14 @@ function toUser(row: {
   id: number;
   ad: string;
   eposta: string;
-  etkin: boolean;
+  durum: boolean;
   sonGiris: Date | null;
 }): CustomerUserRecord {
   return {
     id: row.id,
     name: row.ad,
     email: row.eposta,
-    active: row.etkin,
+    active: row.durum,
     lastLogin: row.sonGiris,
   };
 }
@@ -112,7 +112,7 @@ export class PrismaCustomerStore implements CustomerStore {
     const row = await this.db.musteri.findFirst({
       where: { id, businessId },
       include: {
-        kullanicilar: { select: { etkin: true, sonGiris: true } },
+        kullanicilar: { select: { durum: true, sonGiris: true } },
         hareketler: { select: { borc: true, alacak: true } },
       },
     });
@@ -124,7 +124,7 @@ export class PrismaCustomerStore implements CustomerStore {
       where: { businessId },
       orderBy: { ad: 'asc' },
       include: {
-        kullanicilar: { select: { etkin: true, sonGiris: true } },
+        kullanicilar: { select: { durum: true, sonGiris: true } },
         hareketler: { select: { borc: true, alacak: true } },
       },
     });
@@ -215,7 +215,7 @@ export class PrismaCustomerStore implements CustomerStore {
           musteriId: row.id,
           ad: draft.name,
           eposta: draft.email,
-          etkin: true,
+          durum: true,
         },
       });
       return row;
@@ -277,8 +277,8 @@ export class PrismaCustomerStore implements CustomerStore {
         select: { id: true },
       });
       if (!current) return false;
-      await tx.musteri.update({ where: { id }, data: { etkin: active } });
-      await tx.musteriKullanicisi.updateMany({ where: { musteriId: id }, data: { etkin: active } });
+      await tx.musteri.update({ where: { id }, data: { durum: active } });
+      await tx.musteriKullanicisi.updateMany({ where: { musteriId: id }, data: { durum: active } });
       return true;
     });
   }
@@ -342,11 +342,11 @@ export class PrismaCustomerStore implements CustomerStore {
         select: { id: true },
       });
       if (!user) return false;
-      await tx.musteriKullanicisi.update({ where: { id: userId }, data: { etkin: active } });
+      await tx.musteriKullanicisi.update({ where: { id: userId }, data: { durum: active } });
       const activeCount = await tx.musteriKullanicisi.count({
-        where: { musteriId: id, etkin: true },
+        where: { musteriId: id, durum: true },
       });
-      await tx.musteri.update({ where: { id }, data: { etkin: activeCount > 0 } });
+      await tx.musteri.update({ where: { id }, data: { durum: activeCount > 0 } });
       return true;
     });
   }

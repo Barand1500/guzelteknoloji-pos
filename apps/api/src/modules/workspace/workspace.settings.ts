@@ -1,11 +1,20 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { SETTINGS_PAGES, type SettingsPage } from '@gt/shared';
 import { z } from 'zod';
+import type { Prisma } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
 import type { Env } from '../../config/env';
 
 export type ConnectionSection = 'smtp' | 'imap' | 'google';
+type SettingsStore = Pick<PrismaClient, 'isletmeAyari' | '$queryRaw'>;
+
+function settingsObject(value: Prisma.JsonValue | null | undefined): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
+}
 export function hasOwnConnection(section: ConnectionSection, values: Record<string, string>) {
   const keys =
     section === 'google' ? ['clientId', 'clientSecret'] : ['host', 'username', 'password', 'from'];
@@ -71,12 +80,37 @@ export class WorkspaceSettings {
     ].includes(key);
   }
   async values(businessId: number, section: string, includeSecrets = false) {
-    const rows = await this.db.isletmeAyari.findMany({ where: { businessId, section } });
+    const row = await this.db.isletmeAyari.findUnique({
+      where: { businessId_section: { businessId, section } },
+    });
     return Object.fromEntries(
-      rows
-        .filter((r) => includeSecrets || !this.isSecret(r.key))
-        .map((r) => [r.key, this.isSecret(r.key) ? this.decrypt(r.value) : r.value]),
+      Object.entries(settingsObject(row?.values))
+        .filter(([key]) => includeSecrets || !this.isSecret(key))
+        .map(([key, value]) => [key, this.isSecret(key) ? this.decrypt(value) : value]),
     );
+  }
+  async merge(
+    store: SettingsStore,
+    businessId: number,
+    section: string,
+    patch: Record<string, string>,
+    clear: string[] = [],
+  ) {
+    // Lock the owning business so concurrent writes to different JSON keys cannot overwrite each other.
+    await store.$queryRaw`SELECT id FROM isletmeler WHERE id = ${businessId} FOR UPDATE`;
+    const where = { businessId_section: { businessId, section } };
+    const row = await store.isletmeAyari.findUnique({ where });
+    const values = settingsObject(row?.values);
+    for (const key of clear) delete values[key];
+    Object.assign(values, patch);
+    return store.isletmeAyari.upsert({
+      where,
+      create: { businessId, section, values: values as Prisma.InputJsonObject },
+      update: { values: values as Prisma.InputJsonObject },
+    });
+  }
+  async remove(businessId: number, section: string, keys: string[]) {
+    return this.db.$transaction((tx) => this.merge(tx, businessId, section, {}, keys));
   }
   async effective(businessId: number, section: ConnectionSection, env: Env) {
     const stored = await this.values(businessId, section, true);
@@ -95,17 +129,20 @@ export class WorkspaceSettings {
     };
   }
   async read(businessId: number, section: SettingsPage) {
-    const rows = await this.db.isletmeAyari.findMany({ where: { businessId, section } });
+    const row = await this.db.isletmeAyari.findUnique({
+      where: { businessId_section: { businessId, section } },
+    });
+    const stored = settingsObject(row?.values);
     const fields = new Set<string>(
       SETTINGS_PAGES.find((p) => p.key === section)!.fields.map((f) => f.key),
     );
     const values = Object.fromEntries(
-      rows.filter((r) => fields.has(r.key) && !this.isSecret(r.key)).map((r) => [r.key, r.value]),
+      Object.entries(stored).filter(([key]) => fields.has(key) && !this.isSecret(key)),
     );
     return {
       values,
-      configured: rows.filter((r) => fields.has(r.key) && this.isSecret(r.key)).map((r) => r.key),
-      googleConnected: section === 'google' && rows.some((r) => r.key === 'refreshToken'),
+      configured: Object.keys(stored).filter((key) => fields.has(key) && this.isSecret(key)),
+      googleConnected: section === 'google' && 'refreshToken' in stored,
     };
   }
   async save(businessId: number, section: SettingsPage, body: unknown) {
@@ -152,10 +189,10 @@ export class WorkspaceSettings {
     await this.db.$transaction(async (tx) => {
       if (['cloudflare', 'recaptcha', 'whatsapp'].includes(section)) {
         await tx.$queryRaw`SELECT id FROM isletmeler WHERE id = ${businessId} FOR UPDATE`;
-        const old = await tx.isletmeAyari.findMany({ where: { businessId, section } });
-        const combined: Record<string, string> = Object.fromEntries(
-          old.map((r) => [r.key, r.value]),
-        );
+        const old = await tx.isletmeAyari.findUnique({
+          where: { businessId_section: { businessId, section } },
+        });
+        const combined = settingsObject(old?.values);
         for (const key of input.clear) delete combined[key];
         for (const [key, value] of Object.entries(input.values))
           if (value || !this.isSecret(key)) combined[key] = value.trim();
@@ -179,43 +216,26 @@ export class WorkspaceSettings {
               );
         } else if (combined.enabled === 'true') {
           const other = section === 'cloudflare' ? 'recaptcha' : 'cloudflare';
-          await tx.isletmeAyari.upsert({
-            where: { businessId_section_key: { businessId, section: other, key: 'enabled' } },
-            create: { businessId, section: other, key: 'enabled', value: 'false' },
-            update: { value: 'false' },
-          });
+          await this.merge(tx, businessId, other, { enabled: 'false' });
         }
       }
       if (section === 'google') {
         const oldId = await tx.isletmeAyari.findUnique({
-          where: { businessId_section_key: { businessId, section, key: 'clientId' } },
+          where: { businessId_section: { businessId, section } },
         });
+        const oldIdValue = settingsObject(oldId?.values).clientId;
         if (
-          (input.values.clientId !== undefined && input.values.clientId.trim() !== oldId?.value) ||
+          (input.values.clientId !== undefined && input.values.clientId.trim() !== oldIdValue) ||
           !!input.values.clientSecret ||
           input.clear.some((k) => ['clientId', 'clientSecret'].includes(k))
-        )
-          await tx.isletmeAyari.deleteMany({
-            where: {
-              businessId,
-              section,
-              key: { in: ['refreshToken', 'accessToken', 'expiresAt'] },
-            },
-          });
+        ) input.clear.push('refreshToken', 'accessToken', 'expiresAt');
       }
-      if (input.clear.length)
-        await tx.isletmeAyari.deleteMany({
-          where: { businessId, section, key: { in: input.clear } },
-        });
+      const patch: Record<string, string> = {};
       for (const [key, value] of Object.entries(input.values)) {
         if (this.isSecret(key) && !value) continue;
-        const stored = this.isSecret(key) ? this.encrypt(value) : value.trim();
-        await tx.isletmeAyari.upsert({
-          where: { businessId_section_key: { businessId, section, key } },
-          create: { businessId, section, key, value: stored },
-          update: { value: stored },
-        });
+        patch[key] = this.isSecret(key) ? this.encrypt(value) : value.trim();
       }
+      await this.merge(tx, businessId, section, patch, input.clear);
       if (section === 'general' && input.values.name?.trim())
         await tx.isletme.update({
           where: { id: businessId },
