@@ -104,7 +104,7 @@ export function PhoneMenu({
         }}
         className="absolute inset-x-0 bottom-0 flex h-[min(42rem,90dvh)] animate-sheet-in flex-col overflow-hidden rounded-t-[2rem] border border-b-0 border-line bg-surface-raised shadow-card"
       >
-        {/* Tutamak + başlık (aşağı çekilebilir) */}
+        {/* Tutamak (aşağı çekilebilir) */}
         <div
           onPointerDown={onDown}
           onPointerMove={onMove}
@@ -116,41 +116,11 @@ export function PhoneMenu({
             aria-hidden="true"
             className="mx-auto block h-1.5 w-11 rounded-full bg-line-strong/40"
           />
-          <div className="flex items-center gap-2.5 pt-3">
-            <h2 className="flex-1 text-xl font-extrabold tracking-tight">Başlat Menüsü</h2>
-            <button
-              type="button"
-              onClick={() => {
-                onQuery('');
-                pick('ayarlar');
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              aria-label="Ayarlar"
-              aria-pressed={!searching && shown.id === 'ayarlar'}
-              className={[
-                'inline-flex size-11 items-center justify-center rounded-xl border transition-colors',
-                !searching && shown.id === 'ayarlar'
-                  ? 'border-brand-600 bg-brand-50 text-brand-ink'
-                  : 'border-line text-ink-muted',
-              ].join(' ')}
-            >
-              <Settings className="size-5" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={close}
-              onPointerDown={(e) => e.stopPropagation()}
-              aria-label="Menüyü kapat"
-              className="inline-flex size-11 items-center justify-center rounded-xl border border-line text-ink-muted"
-            >
-              <X className="size-5" aria-hidden="true" />
-            </button>
-          </div>
         </div>
 
         {/* Arama */}
-        <div className="px-5 pt-3 pb-3">
-          <label className="flex h-12 items-center gap-3 rounded-2xl border border-line bg-surface px-4 transition-colors focus-within:border-brand-600">
+        <div className="flex items-center gap-2 px-5 pt-2 pb-3">
+          <label className="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-line bg-surface px-4 transition-colors focus-within:border-brand-600">
             <Search className="size-5 shrink-0 text-ink-muted" aria-hidden="true" />
             <input
               type="search"
@@ -161,6 +131,31 @@ export function PhoneMenu({
               className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-ink-muted"
             />
           </label>
+            <button
+              type="button"
+              onClick={() => {
+                onQuery('');
+                pick('ayarlar');
+              }}
+              aria-label="Ayarlar"
+              aria-pressed={!searching && shown.id === 'ayarlar'}
+              className={[
+                'inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border transition-colors',
+                !searching && shown.id === 'ayarlar'
+                  ? 'border-brand-600 bg-brand-50 text-brand-ink'
+                  : 'border-line text-ink-muted',
+              ].join(' ')}
+            >
+              <Settings className="size-5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={close}
+              aria-label="Menüyü kapat"
+              className="inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-line text-ink-muted"
+            >
+              <X className="size-5" aria-hidden="true" />
+            </button>
         </div>
 
         {/* Sayfalar */}

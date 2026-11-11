@@ -51,10 +51,10 @@ function EditCard({
     <section
       aria-label={title}
       onDoubleClick={() => editing.begin(card)}
-      className={`group/card rounded-3xl border bg-surface p-4 transition-colors sm:p-5 ${on ? 'border-brand-600 ring-2 ring-brand-500/15' : 'border-line hover:border-brand-500/40'}`}
+      className={`group/card px-5 py-5 transition-colors first:rounded-t-3xl last:rounded-b-3xl sm:px-7 ${on ? 'bg-brand-50/60' : 'hover:bg-surface-muted/40'}`}
     >
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="text-base font-extrabold tracking-tight">{title}</h3>
+        <h3 className="text-sm font-extrabold tracking-wider text-brand-ink uppercase">{title}</h3>
         {on ? null : (
           <button
             type="button"
@@ -88,11 +88,13 @@ export function InfoTab({
   const corporate = (draft?.kind ?? customer.kind) === 'corporate';
   const idLength = corporate ? 10 : 11;
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="divide-y divide-line rounded-3xl border border-line bg-surface">
       <EditCard title="Kimlik" card="kimlik" editing={editing}>
         {(on) =>
           on && draft ? (
-            <div className="flex flex-col gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
               <Segmented
                 label="Kişi tipi"
                 value={draft.kind}
@@ -102,6 +104,7 @@ export function InfoTab({
                 ]}
                 onChange={(v) => set('kind', v as CustomerDraft['kind'])}
               />
+              </div>
               <TextField
                 label={corporate ? 'Ünvan' : 'Ad Soyad'}
                 value={draft.name}
@@ -131,7 +134,7 @@ export function InfoTab({
               />
             </div>
           ) : (
-            <dl className="grid grid-cols-2 gap-4">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
               <Info label="Kişi tipi">{KIND_LABEL[customer.kind]}</Info>
               <Info label={customer.kind === 'corporate' ? 'Vergi No' : 'TC Kimlik No'}>
                 {customer.taxId}
@@ -146,7 +149,7 @@ export function InfoTab({
       <EditCard title="İletişim" card="iletisim" editing={editing}>
         {(on) =>
           on && draft ? (
-            <div className="flex flex-col gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <TextField
                 label="Telefon"
                 type="tel"
@@ -163,7 +166,7 @@ export function InfoTab({
               />
             </div>
           ) : (
-            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
               <Info label="Telefon">
                 <a
                   href={`tel:${customer.phone.replace(/[^0-9+]/g, '')}`}
@@ -190,7 +193,7 @@ export function InfoTab({
       <EditCard title="Satış" card="satis" editing={editing}>
         {(on) =>
           on && draft ? (
-            <div className="flex flex-col gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <SelectField
                 label="Fiyat listesi"
                 options={PRICE_LISTS.map((p) => ({ value: p, label: p }))}
@@ -211,10 +214,10 @@ export function InfoTab({
               />
             </div>
           ) : (
-            <dl className="grid grid-cols-2 gap-4">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
               <Info label="Fiyat listesi">{customer.priceList}</Info>
               <Info label="Kart anlaşması">{customer.cardDeal}</Info>
-              <div className="col-span-2">
+              <div className="col-span-2 lg:col-span-2">
                 <dt className="text-xs font-extrabold tracking-wider text-ink-muted uppercase">
                   Ödeme şekilleri
                 </dt>
@@ -237,6 +240,7 @@ export function InfoTab({
           )
         }
       </EditCard>
+      </div>
 
       <section
         aria-label="Giriş hesapları"

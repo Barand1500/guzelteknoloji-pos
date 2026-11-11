@@ -158,7 +158,7 @@ export const SECTIONS: readonly Section[] = [
       home: list.path,
       addButton: true,
       pages: [list],
-      dock: { left: [list], right: [] },
+      dock: { left: [], right: [] },
       paths: [`${APP_BASE}/musteriler`],
     } satisfies Section;
   })(),
