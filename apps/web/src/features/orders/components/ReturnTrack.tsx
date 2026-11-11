@@ -15,7 +15,10 @@ export function ReturnTrack({ kind, status }: { kind: ReturnKind; status: Return
   const active = status === 'pending' ? 0 : status === 'completed' ? 2 : 1;
 
   return (
-    <ol aria-label={`${RETURN_KIND_LABEL[kind]} akışı`} className="flex w-full max-w-md">
+    <ol
+      aria-label={`${RETURN_KIND_LABEL[kind]} akışı`}
+      className="flex w-full max-w-md lg:max-w-none"
+    >
       {steps.map(({ label, image, icon: Icon }, index) => {
         const current = index === active;
         const passed = index < active;
@@ -28,7 +31,7 @@ export function ReturnTrack({ kind, status }: { kind: ReturnKind; status: Return
             className="relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 text-center"
           >
             <span
-              className={`relative grid size-9 place-items-center rounded-full ring-1 sm:size-10 ${
+              className={`relative grid size-9 place-items-center rounded-full ring-1 sm:size-10 lg:size-11 ${
                 failed
                   ? 'bg-danger-soft text-danger ring-danger/50'
                   : current
@@ -52,14 +55,14 @@ export function ReturnTrack({ kind, status }: { kind: ReturnKind; status: Return
               />
             </span>
             <span
-              className={`text-[0.6875rem] leading-tight font-bold ${current ? 'text-ink' : 'text-ink-muted'}`}
+              className={`text-[0.6875rem] leading-tight font-bold lg:text-xs ${current ? 'text-ink' : 'text-ink-muted'}`}
             >
               {label}
             </span>
             {index < steps.length - 1 ? (
               <span
                 aria-hidden="true"
-                className={`pointer-events-none absolute top-2.5 left-full flex -translate-x-1/2 sm:top-3 ${
+                className={`pointer-events-none absolute top-2.5 left-full flex -translate-x-1/2 items-center sm:top-3 lg:top-[0.875rem] lg:w-[calc(100%-3.75rem)] lg:gap-2 ${
                   approaching
                     ? rejected
                       ? 'text-danger'
@@ -69,13 +72,17 @@ export function ReturnTrack({ kind, status }: { kind: ReturnKind; status: Return
                       : 'text-line-strong'
                 }`}
               >
-                {[0, 1].map((arrow) => (
-                  <ChevronRight
-                    key={arrow}
-                    style={approaching ? { animationDelay: `${arrow * 180}ms` } : undefined}
-                    className={`size-3.5 ${approaching ? 'motion-safe:animate-pulse' : ''}`}
-                  />
-                ))}
+                <span className="hidden flex-1 border-t border-current opacity-30 lg:block" />
+                <span className="flex shrink-0">
+                  {[0, 1, 2].map((arrow) => (
+                    <ChevronRight
+                      key={arrow}
+                      style={approaching ? { animationDelay: `${arrow * 180}ms` } : undefined}
+                      className={`size-3.5 lg:size-4 ${arrow === 2 ? 'hidden lg:block' : ''} ${approaching ? 'motion-safe:animate-pulse' : ''}`}
+                    />
+                  ))}
+                </span>
+                <span className="hidden flex-1 border-t border-current opacity-30 lg:block" />
               </span>
             ) : null}
           </li>

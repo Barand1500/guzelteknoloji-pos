@@ -274,7 +274,7 @@ export function OrdersView() {
                         className={[
                           'cursor-pointer transition-colors last:border-0',
                           flowOpen(o.id)
-                            ? 'border-b-0 bg-brand-50/70'
+                            ? 'border-b-0 bg-brand-50'
                             : 'border-b border-line hover:bg-brand-50/50',
                         ].join(' ')}
                       >
@@ -335,8 +335,10 @@ export function OrdersView() {
                   key={o.id}
                   style={{ animationDelay: `${i * 40}ms` }}
                   className={[
-                    'relative animate-rise-in overflow-hidden rounded-3xl border bg-surface-raised transition-colors',
-                    flowOpen(o.id) ? 'border-brand-600/60' : 'border-line',
+                    'relative animate-rise-in overflow-hidden rounded-3xl border transition-colors',
+                    flowOpen(o.id)
+                      ? 'border-brand-600/60 bg-brand-50'
+                      : 'border-line bg-surface-raised',
                   ].join(' ')}
                 >
                   <button
@@ -379,7 +381,7 @@ export function OrdersView() {
                     <Eye className="size-5" aria-hidden="true" />
                   </button>
                   {flowOpen(o.id) ? (
-                    <div className="bg-brand-50/70 px-3 pt-1 pb-3">
+                    <div className="px-3 pt-1 pb-3">
                       <OrderTrack
                         order={o}
                         busy={busy}

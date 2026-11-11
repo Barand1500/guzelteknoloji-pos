@@ -228,7 +228,7 @@ export function ReturnsView() {
                   </tr>
                   <tr>
                     <td colSpan={6} className="px-4 pb-3">
-                      <div className="max-w-md rounded-xl bg-surface-muted/50 p-2">
+                      <div className="rounded-xl border border-line/60 bg-surface-muted/50 px-4 py-2.5">
                         <ReturnTrack kind={r.kind} status={r.status} />
                       </div>
                     </td>
