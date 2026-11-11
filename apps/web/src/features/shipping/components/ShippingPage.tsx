@@ -1,23 +1,25 @@
-import { ListChecks, MapPin, Truck } from 'lucide-react';
+import { ListChecks, MapPin, Scale, Truck } from 'lucide-react';
 import { useSearchParams } from 'react-router';
 import { Alert } from '../../../components/ui/Alert';
 import { usePublishDockTabs } from '../../app-shell/save-action';
 import { SampleNote } from '../../orders/components/parts';
 import { useShipping } from '../hooks/useShipping';
 import { CarriersTab } from './CarriersTab';
+import { CompareTab } from './CompareTab';
 import { DefinitionsTab } from './DefinitionsTab';
 import { LocationsTab } from './LocationsTab';
 
 /** Alttaki yüzen ada: ilk ikisi "+" düğmesinin soluna, sonuncusu sağına dizilir. */
 const TABS = [
   { id: 'firmalar', label: 'Firmalar', icon: Truck },
+  { id: 'karsilastir', label: 'Karşılaştır', icon: Scale },
   { id: 'lokasyonlar', label: 'Lokasyonlar', icon: MapPin },
   { id: 'tanimlar', label: 'Tanımlar', icon: ListChecks },
 ];
 
 /**
- * Tanımlamalar › Kargo ve Nakliye. Referanstaki 9 sekme 3 gruba indi (Firmalar, Lokasyonlar, Tanımlar);
- * sekmeler alttaki yüzen adadadır ve adanın ortasındaki "+" açık sekmeye göre Firma / İl / Gönderi Tipi… ekler.
+ * Tanımlamalar › Kargo ve Nakliye. Referanstaki 9 sekme 4 gruba indi (Firmalar, Karşılaştır, Lokasyonlar, Tanımlar);
+ * sekmeler alttaki yüzen adadadır ve adanın ortasındaki "+" açık sekmeye göre Firma / Lokasyon / Gönderi Tipi… ekler.
  * Açık sekme adreste tutulur (?sekme=…).
  */
 export function ShippingPage() {
@@ -41,6 +43,8 @@ export function ShippingPage() {
       <div key={tab} role="region" aria-label={TABS.find((t) => t.id === tab)?.label} className="animate-fade-in">
         {tab === 'firmalar' ? (
           <CarriersTab store={store} />
+        ) : tab === 'karsilastir' ? (
+          <CompareTab store={store} />
         ) : tab === 'lokasyonlar' ? (
           <LocationsTab store={store} />
         ) : (

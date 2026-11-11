@@ -8,6 +8,7 @@ import { TextField } from '../../../components/ui/TextField';
 import { dataError } from '../../../lib/catalog-data';
 import { usePublishAddAction } from '../../app-shell/save-action';
 import type { ShippingStore } from '../hooks/useShipping';
+import { AddLocationSheet } from './AddLocationSheet';
 import { LOCATION_LEVELS, LOCATION_PLURAL, type LocationNode } from '../types';
 
 const fold = (s: string) => s.toLocaleLowerCase('tr');
@@ -77,14 +78,15 @@ export function LocationsTab({ store }: { store: ShippingStore }) {
   const all = useMemo(() => store.data?.locations ?? [], [store.data]);
   const [path, setPath] = useState<string[]>([]);
   const [query, setQuery] = useState('');
-  const [sheet, setSheet] = useState<{ node: LocationNode | null } | null>(null);
+  const [rename, setRename] = useState<LocationNode | null>(null);
+  const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<LocationNode | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
   const level = path.length;
   const parentId = path[level - 1] ?? null;
   const one = LOCATION_LEVELS[level] ?? LOCATION_LEVELS[5];
-  usePublishAddAction(`${one} Ekle`, () => setSheet({ node: null }));
+  usePublishAddAction('Lokasyon Ekle', () => setAdding(true));
 
   const byId = useMemo(() => new Map(all.map((l) => [l.id, l])), [all]);
   const childCount = useMemo(() => {
@@ -152,8 +154,8 @@ export function LocationsTab({ store }: { store: ShippingStore }) {
           <MapPin className="size-8 text-brand-600/60" aria-hidden="true" />
           <p className="font-bold">{query ? 'Aramaya uyan kayıt yok' : `Henüz ${one.toLocaleLowerCase('tr')} yok`}</p>
           {query ? null : (
-            <button type="button" onClick={() => setSheet({ node: null })} className="font-bold text-brand-ink underline">
-              {one} ekle
+            <button type="button" onClick={() => setAdding(true)} className="font-bold text-brand-ink underline">
+              Lokasyon ekle
             </button>
           )}
         </div>
@@ -186,7 +188,7 @@ export function LocationsTab({ store }: { store: ShippingStore }) {
                 <button
                   type="button"
                   aria-label={`${n.name} adını düzenle`}
-                  onClick={() => setSheet({ node: n })}
+                  onClick={() => setRename(n)}
                   className="flex size-10 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted hover:text-ink"
                 >
                   <Pencil className="size-4" aria-hidden="true" />
@@ -205,17 +207,27 @@ export function LocationsTab({ store }: { store: ShippingStore }) {
         </ul>
       )}
 
-      {sheet ? (
+      {rename ? (
         <NameSheet
-          title={sheet.node ? `${LOCATION_LEVELS[sheet.node.level]} Adını Düzenle` : `${one} Ekle`}
-          label={`${sheet.node ? LOCATION_LEVELS[sheet.node.level] : one} adı`}
-          initial={sheet.node?.name ?? ''}
+          title={`${LOCATION_LEVELS[rename.level]} Adını Düzenle`}
+          label={`${LOCATION_LEVELS[rename.level]} adı`}
+          initial={rename.name}
           onSave={async (name) => {
-            if (sheet.node) await store.renameLocation(sheet.node.id, name);
-            else await store.addLocation(parentId, name);
-            setSheet(null);
+            await store.renameLocation(rename.id, name);
+            setRename(null);
           }}
-          onClose={() => setSheet(null)}
+          onClose={() => setRename(null)}
+        />
+      ) : null}
+      {adding ? (
+        <AddLocationSheet
+          nodes={all}
+          path={path}
+          onSave={async (parent, name) => {
+            await store.addLocation(parent, name);
+            setAdding(false);
+          }}
+          onClose={() => setAdding(false)}
         />
       ) : null}
       <ConfirmSheet

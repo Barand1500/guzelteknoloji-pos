@@ -49,8 +49,8 @@ describe('Kargo ve Nakliye', () => {
     const iller = await screen.findByRole('list', { name: 'İller' });
     expect(within(iller).getByText('Adana')).toBeInTheDocument();
     const dock = screen.getByRole('navigation', { name: 'Ana gezinme' });
-    await user.click(within(dock).getByRole('button', { name: 'İl Ekle' }));
-    const sheet = await screen.findByRole('dialog', { name: 'İl Ekle' });
+    await user.click(within(dock).getByRole('button', { name: 'Lokasyon Ekle' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Lokasyon Ekle' });
     await user.type(within(sheet).getByLabelText('İl adı'), 'Bursa');
     await user.click(within(sheet).getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('Bursa')).toBeInTheDocument();
@@ -58,6 +58,24 @@ describe('Kargo ve Nakliye', () => {
     expect(await screen.findByRole('list', { name: 'İlçeler' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Ülkeler' }));
     expect(await screen.findByRole('list', { name: 'Ülkeler' })).toBeInTheDocument();
+  });
+
+  it('karşılaştır: en ucuz firma taç alır; kök düzeyde Ülke eklenir', async () => {
+    const user = await open('/uygulama/tanimlamalar/kargo?sekme=karsilastir', 'Karşılaştır');
+    const ranking = await screen.findByRole('list', { name: 'Firma sıralaması' });
+    const rows = within(ranking).getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]!).getByText('En ucuz')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('Yurtiçi Kargo')).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: 'kg' }));
+    await user.click(within(screen.getByRole('navigation', { name: 'Ana gezinme' })).getByRole('button', { name: 'Lokasyonlar' }));
+    await screen.findByRole('region', { name: 'Lokasyonlar' });
+    await user.click(within(screen.getByRole('navigation', { name: 'Ana gezinme' })).getByRole('button', { name: 'Lokasyon Ekle' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Lokasyon Ekle' });
+    expect(within(sheet).getByRole('radio', { name: 'Ülke', checked: true })).toBeInTheDocument();
+    await user.type(within(sheet).getByLabelText('Ülke adı'), 'Almanya');
+    await user.click(within(sheet).getByRole('button', { name: 'Kaydet' }));
+    expect(await screen.findByText('Almanya')).toBeInTheDocument();
   });
 
   it('tanımlar: liste seçilir, öğe eklenir ve silinir', async () => {

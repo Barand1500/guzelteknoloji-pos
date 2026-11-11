@@ -28,7 +28,7 @@ function PriceBars({ carrier }: { carrier: Carrier }) {
   );
 }
 
-function CarrierSheet({
+export function CarrierSheet({
   carrier,
   onSave,
   onClose,
