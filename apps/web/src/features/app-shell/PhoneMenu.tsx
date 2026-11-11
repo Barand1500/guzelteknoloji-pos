@@ -104,13 +104,6 @@ export function PhoneMenu({
         }}
         className="absolute inset-x-0 bottom-0 flex h-[min(42rem,90dvh)] animate-sheet-in flex-col overflow-hidden rounded-t-[2rem] border border-b-0 border-line bg-surface-raised shadow-card"
       >
-        {/* Üst renk şeridi: seçili bölümün tonu */}
-        <span
-          aria-hidden="true"
-          style={{ background: blob(shown.hue) }}
-          className="absolute inset-x-0 top-0 h-1 transition-[background] duration-500"
-        />
-
         {/* Tutamak + başlık (aşağı çekilebilir) */}
         <div
           onPointerDown={onDown}
@@ -225,7 +218,7 @@ export function PhoneMenu({
           onPointerMove={onFanMove}
           onPointerUp={() => (lastIndex.current = -1)}
           style={{ '--r': 'min(36vw, 7.5rem)' } as CSSProperties}
-          className="relative h-[calc(var(--r)+6.5rem)] shrink-0 touch-none overflow-hidden border-t border-line bg-gradient-to-b from-surface to-surface-muted"
+          className="relative h-[calc(var(--r)+5.3rem)] shrink-0 touch-none overflow-hidden border-t border-line bg-gradient-to-b from-surface to-surface-muted"
         >
           {FAN.map((s, i) => {
             const theta = Math.PI - (i * Math.PI) / (FAN.length - 1);
@@ -247,8 +240,8 @@ export function PhoneMenu({
                 style={{
                   left: gone ? '50%' : `calc(50% + var(--r) * ${Math.cos(theta).toFixed(4)})`,
                   bottom: gone
-                    ? '3.4rem'
-                    : `calc(3.4rem + var(--r) * ${Math.sin(theta).toFixed(4)})`,
+                    ? '3.1rem'
+                    : `calc(3.1rem + var(--r) * ${Math.sin(theta).toFixed(4)})`,
                   transform: `translate(-50%, 50%) scale(${gone ? 0.3 : on ? 1.2 : 1})`,
                   transitionDelay: gone ? '0ms' : `${i * 35}ms`,
                   background: on ? blob(s.hue) : undefined,
@@ -271,13 +264,13 @@ export function PhoneMenu({
             ref={hub}
             aria-hidden="true"
             style={{ background: blob(shown.hue) }}
-            className="absolute bottom-[1.5rem] left-1/2 flex size-[3.8rem] -translate-x-1/2 items-center justify-center rounded-full text-white shadow-card ring-4 ring-surface-raised transition-[background] duration-500"
+            className="absolute bottom-[1.2rem] left-1/2 flex size-[3.8rem] -translate-x-1/2 items-center justify-center rounded-full text-white shadow-card ring-4 ring-surface-raised transition-[background] duration-500"
           >
             <Icon key={shown.id} className="size-7 animate-pop" />
           </div>
           <p
             aria-live="polite"
-            className="absolute inset-x-0 bottom-1.5 truncate text-center text-xs font-extrabold tracking-wide text-ink-muted"
+            className="absolute inset-x-0 bottom-0.5 truncate text-center text-xs font-extrabold tracking-wide text-ink-muted"
           >
             {shown.label}
           </p>

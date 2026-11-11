@@ -167,7 +167,12 @@ export function ProductRanks({ ranks }: { ranks: Record<RankTab, RankedProduct[]
               ].join(' ')}
             >
               <Icon className="size-4 shrink-0" aria-hidden="true" />
-              <span className="truncate">{t.label}</span>
+              <span className="truncate">
+                <span className="sm:hidden" aria-hidden="true">
+                  {t.id === 'alarms' ? 'Alarm' : t.label}
+                </span>
+                <span className="max-sm:hidden">{t.label}</span>
+              </span>
             </button>
           );
         })}
@@ -176,7 +181,10 @@ export function ProductRanks({ ranks }: { ranks: Record<RankTab, RankedProduct[]
       {!first ? (
         <p className="py-8 text-center text-ink-muted">Henüz kayıt yok.</p>
       ) : (
-        <div key={tab} className="grid gap-3 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <div
+          key={tab}
+          className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
+        >
           {/* 1. sıra: öne çıkan kart */}
           <div className="relative isolate flex animate-pop flex-col justify-between gap-6 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 to-brand-800 p-5 text-white">
             <ActiveIcon

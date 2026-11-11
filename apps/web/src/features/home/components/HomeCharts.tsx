@@ -151,9 +151,27 @@ export function OrderStatusRing({ orders }: { orders: HomeData['orders'] }) {
   const R = 52;
   const C = 2 * Math.PI * R;
   const parts = [
-    { id: 'delivered', label: 'Teslim Edildi', value: orders.delivered, color: 'text-success' },
-    { id: 'pending', label: 'Bekleyen', value: orders.pending, color: 'text-accent' },
-    { id: 'cancelled', label: 'İptal Edildi', value: orders.cancelled, color: 'text-danger' },
+    {
+      id: 'delivered',
+      label: 'Teslim Edildi',
+      short: 'Teslim',
+      value: orders.delivered,
+      color: 'text-success',
+    },
+    {
+      id: 'pending',
+      label: 'Bekleyen',
+      short: 'Bekleyen',
+      value: orders.pending,
+      color: 'text-accent',
+    },
+    {
+      id: 'cancelled',
+      label: 'İptal Edildi',
+      short: 'İptal',
+      value: orders.cancelled,
+      color: 'text-danger',
+    },
   ];
   const percent = total === 0 ? 0 : (orders.delivered / total) * 100;
   let offset = 0;
@@ -203,7 +221,10 @@ export function OrderStatusRing({ orders }: { orders: HomeData['orders'] }) {
           <li key={p.id} className="min-w-0 rounded-2xl bg-surface-muted/70 px-3 py-3 text-center">
             <p className="flex items-center justify-center gap-1.5 text-xs font-bold text-ink-muted">
               <span className={`size-2 rounded-full bg-current ${p.color}`} />
-              <span className="truncate">{p.label}</span>
+              <span className="truncate">
+                <span className="sm:hidden">{p.short}</span>
+                <span className="max-sm:hidden">{p.label}</span>
+              </span>
             </p>
             <p className="mt-1 text-2xl font-extrabold tracking-tight">
               <CountUp value={p.value} />
