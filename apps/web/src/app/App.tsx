@@ -10,6 +10,7 @@ import { DealsPage } from '../pages/app/DealsPage';
 import { ProductsPage } from '../pages/app/ProductsPage';
 import { CategoriesPage } from '../pages/app/CategoriesPage';
 import { CampaignPage } from '../features/campaigns/components/CampaignPage';
+import { EcommerceSettingsPage } from '../features/ecommerce-settings/EcommerceSettingsPage';
 import { ComingSoonPage } from '../pages/app/ComingSoonPage';
 import { HomePage } from '../pages/app/HomePage';
 import { OrdersPage, ReturnsPage } from '../pages/app/OrdersPage';
@@ -75,6 +76,8 @@ export function App() {
             <Route path="roller" element={<RolesPage />} />
             <Route path="ayarlar" element={<SettingsIndexPage />} />
             <Route path="ayarlar/entegrasyonlar" element={<SettingsIndexPage integrations />} />
+            {/* E-ticaret ayarları tek yıldızla: liste ve form ekranları içeride çözülür. */}
+            <Route path="ayarlar/eticaret/*" element={<EcommerceSettingsPage />} />
             <Route path="ayarlar/:section" element={<SettingsPage />} />
             <Route path="loglar" element={<LogsPage />} />
           </Route>

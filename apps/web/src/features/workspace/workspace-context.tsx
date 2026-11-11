@@ -21,6 +21,31 @@ const Context = createContext<{
   can: (resource: WorkspaceResource, action?: PermissionAction) => boolean;
 } | null>(null);
 
+/** Test kullanıcısının şeffaflık tercihleri localStorage'da tutulur (sunucuya yazılmaz). */
+const DEMO_APPEARANCE_KEY = 'gt-demo-image-appearance';
+
+function readDemoImageAppearance(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(DEMO_APPEARANCE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    return typeof parsed === 'object' && parsed !== null
+      ? (parsed as Record<string, string>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+export function writeDemoImageAppearance(page: string, value: boolean) {
+  const current = readDemoImageAppearance();
+  current[page] = value ? 'true' : 'false';
+  try {
+    localStorage.setItem(DEMO_APPEARANCE_KEY, JSON.stringify(current));
+  } catch {
+    /* localStorage kullanılamıyorsa tercih yalnızca oturum boyunca geçerli olur */
+  }
+}
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { session } = useSession();
@@ -40,6 +65,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           save: true,
           delete: true,
         })),
+        imageAppearance: readDemoImageAppearance(),
       });
       setLoading(false);
       return;
