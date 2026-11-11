@@ -14,7 +14,7 @@ describe('POST /api/auth/email/start', () => {
     await seedPasswordUser(repo);
     const res = await start(app, 'Kullanici@Example.com');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ step: 'password' });
+    expect(res.body).toEqual({ step: 'password', flowToken: expect.any(String) });
     expect(mailer.sent).toHaveLength(0);
   });
 
@@ -22,7 +22,12 @@ describe('POST /api/auth/email/start', () => {
     const { app, mailer } = buildTestApp();
     const res = await start(app, 'yeni@example.com');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ step: 'code', resendAfterSeconds: 60, expiresInSeconds: 600 });
+    expect(res.body).toEqual({
+      step: 'code',
+      resendAfterSeconds: 60,
+      expiresInSeconds: 600,
+      flowToken: expect.any(String),
+    });
     expect(mailer.sent).toHaveLength(1);
     expect(mailer.sent[0]!.to).toBe('yeni@example.com');
     expect(mailer.lastCode).toMatch(/^\d{6}$/);

@@ -417,6 +417,8 @@ model Isletme {
   roles IsletmeRolu[]
   settings IsletmeAyari[]
   logs IslemKaydi[]
+  orders Siparis[]
+  returns IadeTalebi[]
   @@map("isletmeler")
 }
 
@@ -505,4 +507,67 @@ model UrunVergisi {
   vergi StokSecenegi @relation(fields: [vergiId], references: [kimlik], onDelete: Restrict)
   @@id([urunId, vergiId])
   @@map("urun_vergileri")
+}
+
+/// İşletmenin siparişi. Satırlar sipariş anındaki ürün adı/kodu/fiyatını taşır; ürün silinse de
+/// sipariş bozulmaz. Tutarlar TL'dir; `toplam` KDV hariç, `kdvDahilToplam` KDV dahildir.
+model Siparis {
+  id               Int             @id @default(autoincrement())
+  businessId       Int             @map("isletme_id")
+  siparisNo        String          @map("siparis_no") @db.VarChar(40)
+  tarih            DateTime        @map("tarih")
+  kaynak           String          @map("kaynak") @db.VarChar(20)
+  musteriAdi       String          @map("musteri_adi") @db.VarChar(160)
+  toplam           Decimal         @map("toplam") @db.Decimal(18, 2)
+  kdvDahilToplam   Decimal         @map("kdv_dahil_toplam") @db.Decimal(18, 2)
+  odendi           Boolean         @default(false) @map("odendi")
+  odemeYontemi     String          @map("odeme_yontemi") @db.VarChar(40)
+  durum            String          @default("pending") @map("durum") @db.VarChar(20)
+  adres            String          @map("adres") @db.VarChar(500)
+  olusturmaZamani  DateTime        @default(now()) @map("olusturma_zamani")
+  guncellemeZamani DateTime        @updatedAt @map("guncelleme_zamani")
+  business         Isletme         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  satirlar         SiparisSatiri[]
+
+  @@unique([businessId, siparisNo], map: "siparisler_isletme_no_tekil")
+  @@index([businessId, tarih], map: "siparisler_isletme_tarih_indeks")
+  @@map("siparisler")
+}
+
+model SiparisSatiri {
+  id           Int      @id @default(autoincrement())
+  siparisId    Int      @map("siparis_id")
+  /// Sipariş anındaki ürün kimliği; ürün silinirse boş kalır.
+  urunId       Int?     @map("urun_id")
+  ad           String   @map("ad") @db.VarChar(250)
+  kod          String   @map("kod") @db.VarChar(100)
+  adet         Decimal  @map("adet") @db.Decimal(18, 3)
+  birimFiyat   Decimal  @map("birim_fiyat") @db.Decimal(18, 2)
+  /// Satış anındaki birim maliyet; kâr hesabı için. Bilinmiyorsa boş.
+  birimMaliyet Decimal? @map("birim_maliyet") @db.Decimal(18, 2)
+  sira         Int      @default(0) @map("sira")
+  siparis      Siparis  @relation(fields: [siparisId], references: [id], onDelete: Cascade)
+
+  @@index([siparisId], map: "siparis_satirlari_siparis_indeks")
+  @@map("siparis_satirlari")
+}
+
+/// İade/değişim talebi. Siparişe yabancı anahtar yerine sipariş numarasıyla bağlanır; sipariş
+/// silinse bile talep geçmişi korunur.
+model IadeTalebi {
+  id               Int      @id @default(autoincrement())
+  businessId       Int      @map("isletme_id")
+  musteriAdi       String   @map("musteri_adi") @db.VarChar(160)
+  siparisNo        String   @map("siparis_no") @db.VarChar(40)
+  tur              String   @map("tur") @db.VarChar(20)
+  urunAdedi        Int      @map("urun_adedi")
+  tarih            DateTime @map("tarih")
+  durum            String   @default("pending") @map("durum") @db.VarChar(20)
+  sebep            String   @map("sebep") @db.VarChar(500)
+  olusturmaZamani  DateTime @default(now()) @map("olusturma_zamani")
+  guncellemeZamani DateTime @updatedAt @map("guncelleme_zamani")
+  business         Isletme  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, tarih], map: "iade_talepleri_isletme_tarih_indeks")
+  @@map("iade_talepleri")
 }

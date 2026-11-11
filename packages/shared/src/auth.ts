@@ -66,9 +66,12 @@ export interface ProvidersResponse {
  * "E-Posta ile Devam Et" akışının sonraki adımı:
  *  - password: hesap kayıtlı ve şifresi var → şifre sorulur
  *  - code: hesap yok (ya da şifresi yok) → e-postaya kod gönderildi
+ * `flowToken`: ilk adımda robot doğrulaması geçildiğini gösteren imzalı, kısa ömürlü akış
+ * anahtarı. Kod/şifre adımında çerez engelliyse bile doğrulama tekrar istenmez.
  */
-export type EmailStartResponse =
-  { step: 'password' } | { step: 'code'; resendAfterSeconds: number; expiresInSeconds: number };
+export type EmailStartResponse = (
+  { step: 'password' } | { step: 'code'; resendAfterSeconds: number; expiresInSeconds: number }
+) & { flowToken?: string };
 
 /** API'nin döndürdüğü makine-okunur hata kodları; kullanıcı metni ön yüzde üretilir. */
 export const API_ERROR_CODES = [

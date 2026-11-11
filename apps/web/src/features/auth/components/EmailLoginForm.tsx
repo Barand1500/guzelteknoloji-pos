@@ -15,7 +15,9 @@ import type { z } from 'zod';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import { TextField } from '../../../components/ui/TextField';
+import { ApiError } from '../../../lib/http';
 import { authApi } from '../services/auth.api';
+import { loginErrorMessage } from '../services/auth.messages';
 import { useRobotChallenge } from './RobotChallenge';
 
 /**
@@ -39,10 +41,13 @@ export function EmailLoginForm({ onBack, onSuccess }: EmailLoginFormProps) {
   const [step, setStep] = useState<Step>({ name: 'email' });
   // Kullanıcı geri dönerse yazdığı e-posta kaybolmasın.
   const [lastEmail, setLastEmail] = useState('');
+  // İlk adımda robot doğrulaması geçildiğini gösteren imzalı akış anahtarı (çerez engelliyse de çalışır).
+  const [flowToken, setFlowToken] = useState('');
 
   const goToEmail = () => setStep({ name: 'email' });
   const handleStart = (email: string, response: EmailStartResponse) => {
     setLastEmail(email);
+    setFlowToken(response.flowToken ?? '');
     setStep(
       response.step === 'password'
         ? { name: 'password', email }
@@ -66,10 +71,17 @@ export function EmailLoginForm({ onBack, onSuccess }: EmailLoginFormProps) {
         {step.name === 'email' ? (
           <EmailStep defaultEmail={lastEmail} onNext={handleStart} />
         ) : step.name === 'password' ? (
-          <PasswordStep email={step.email} onChangeEmail={goToEmail} onSuccess={onSuccess} />
+          <PasswordStep
+            email={step.email}
+            flowToken={flowToken}
+            onChangeEmail={goToEmail}
+            onSuccess={onSuccess}
+          />
         ) : (
           <CodeStep
             email={step.email}
+            flowToken={flowToken}
+            onFlowToken={setFlowToken}
             resendAfterSeconds={step.resendAfterSeconds}
             onChangeEmail={goToEmail}
             onSuccess={onSuccess}
@@ -185,16 +197,19 @@ type PasswordInput = z.infer<typeof passwordSchema>;
 
 function PasswordStep({
   email,
+  flowToken,
   onChangeEmail,
   onSuccess,
 }: {
   email: string;
+  flowToken: string;
   onChangeEmail: () => void;
   onSuccess: (user: PublicUser) => void;
 }) {
-  const robot = useRobotChallenge(email);
+  const robot = useRobotChallenge(email, flowToken);
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [challengeRequired, setChallengeRequired] = useState(false);
   const {
     register,
     handleSubmit,
@@ -210,9 +225,17 @@ function PasswordStep({
   const onSubmit = handleSubmit(async ({ password }) => {
     setServerError(null);
     try {
-      onSuccess(await authApi.login({ email, password }, robot.token));
+      onSuccess(await authApi.login({ email, password }, robot.token || undefined, flowToken));
     } catch (error) {
-      setServerError(robot.error(error));
+      // İlk adımda doğrulama geçildiyse sunucu ikinci kez istemez; yalnızca cookie yoksa
+      // (ör. engellenmiş) widget'a geri düşeriz.
+      if (error instanceof ApiError && error.challenge) {
+        robot.error(error);
+        setChallengeRequired(true);
+        setServerError('Robot doğrulamasını tamamlayın.');
+        return;
+      }
+      setServerError(loginErrorMessage(error));
     }
   });
 
@@ -254,13 +277,13 @@ function PasswordStep({
         <Button
           type="submit"
           loading={isSubmitting}
-          disabled={robot.pending}
+          disabled={isSubmitting || (challengeRequired && !robot.token)}
           loadingLabel="Giriş Yapılıyor…"
           className="mt-1"
         >
           Devam Et
         </Button>
-        {robot.widget}
+        {challengeRequired ? robot.widget : null}
       </form>
     </>
   );
@@ -285,19 +308,24 @@ function useCountdown(initialSeconds: number) {
 
 function CodeStep({
   email,
+  flowToken,
+  onFlowToken,
   resendAfterSeconds,
   onChangeEmail,
   onSuccess,
 }: {
   email: string;
+  flowToken: string;
+  onFlowToken: (token: string) => void;
   resendAfterSeconds: number;
   onChangeEmail: () => void;
   onSuccess: (user: PublicUser) => void;
 }) {
-  const robot = useRobotChallenge(email);
+  const robot = useRobotChallenge(email, flowToken);
   const [serverError, setServerError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
+  const [challengeRequired, setChallengeRequired] = useState(false);
   const [remaining, resetCountdown] = useCountdown(resendAfterSeconds);
   const {
     register,
@@ -315,9 +343,15 @@ function CodeStep({
     setServerError(null);
     setNotice(null);
     try {
-      onSuccess(await authApi.emailVerify({ email, code }, robot.token));
+      onSuccess(await authApi.emailVerify({ email, code }, robot.token || undefined, flowToken));
     } catch (error) {
-      setServerError(robot.error(error));
+      if (error instanceof ApiError && error.challenge) {
+        robot.error(error);
+        setChallengeRequired(true);
+        setServerError('Robot doğrulamasını tamamlayın.');
+        return;
+      }
+      setServerError(loginErrorMessage(error));
     }
   });
 
@@ -326,14 +360,22 @@ function CodeStep({
     setNotice(null);
     setResending(true);
     try {
-      const response = await authApi.emailStart(email, robot.token);
+      const response = await authApi.emailStart(email, robot.token || undefined, flowToken);
       if (response.step === 'code') {
         resetCountdown(response.resendAfterSeconds);
+        onFlowToken(response.flowToken ?? flowToken);
+        setChallengeRequired(false);
         robot.reset();
         setNotice('Yeni kod gönderildi.');
       }
     } catch (error) {
-      setServerError(robot.error(error));
+      if (error instanceof ApiError && error.challenge) {
+        robot.error(error);
+        setChallengeRequired(true);
+        setServerError('Robot doğrulamasını tamamlayın.');
+        return;
+      }
+      setServerError(loginErrorMessage(error));
     } finally {
       setResending(false);
     }
@@ -368,20 +410,20 @@ function CodeStep({
           <Button
             type="submit"
             loading={isSubmitting}
-            disabled={robot.pending}
+            disabled={isSubmitting || (challengeRequired && !robot.token)}
             loadingLabel="Doğrulanıyor…"
             className="mt-1"
           >
             Devam Et
           </Button>
-          {robot.widget}
+          {challengeRequired ? robot.widget : null}
           <Button
             variant="ghost"
             flow={false}
             onClick={resend}
             loading={resending}
             loadingLabel="Gönderiliyor…"
-            disabled={remaining > 0 || robot.pending}
+            disabled={remaining > 0 || resending || (challengeRequired && !robot.token)}
             className="min-h-11! py-2! text-sm! text-brand-700"
           >
             {remaining > 0 ? `Kodu Tekrar Gönder (${remaining} sn)` : 'Kodu Tekrar Gönder'}

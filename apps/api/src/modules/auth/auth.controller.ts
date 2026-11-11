@@ -9,10 +9,18 @@ import type { Env } from '../../config/env';
 import { HttpError } from '../../lib/http-error';
 import type { Logger } from '../../lib/logger';
 import {
+  clearEmailFlowCookie,
   clearOAuthCookie,
   clearSessionCookie,
+  createEmailFlowToken,
+  emailFlowMatches,
+  emailFlowTokenMatches,
   readOAuthCookie,
   readSessionToken,
+  setAppleFlow,
+  readAppleFlow,
+  clearAppleFlow,
+  setEmailFlowCookie,
   setOAuthCookie,
   setSessionCookie,
 } from './auth.cookies';
@@ -26,7 +34,6 @@ import { GoogleLoginError, type AuthService } from './auth.service';
 import { toPublicUser, type RequestMeta } from './auth.types';
 import type { GoogleOidcClient } from './google.client';
 import type { WorkspaceChallenge } from '../workspace/workspace.integrations';
-import { setAppleFlow, readAppleFlow, clearAppleFlow } from './auth.cookies';
 
 export interface AuthControllerDeps {
   env: Env;
@@ -54,6 +61,9 @@ export function createAuthController({
     if (error) url.searchParams.set('hata', error);
     return url.href;
   };
+  /** Çerez ya da imzalı akış anahtarı bu e-posta için ilk doğrulamayı geçtiğini gösteriyor mu? */
+  const flowPassed = (req: Request, email: string) =>
+    emailFlowMatches(req, email) || emailFlowTokenMatches(env, req.body?.flowToken, email);
 
   return {
     async robotConfig(req: Request, res: Response) {
@@ -61,6 +71,8 @@ export function createAuthController({
       if (email !== undefined && !emailStartSchema.safeParse({ email }).success)
         throw new HttpError(400, 'VALIDATION_ERROR', 'Geçerli e-posta adresi girin.');
       res.set('Cache-Control', 'no-store');
+      // Bu e-posta için ilk adımda doğrulama geçildiyse aynı akışta yeniden widget isteme.
+      if (typeof email === 'string' && flowPassed(req, email)) return res.json({ challenge: null });
       res.json({ challenge: (await challenge?.publicConfig(email)) ?? null });
     },
     providers(_req: Request, res: Response<ProvidersResponse>) {
@@ -70,14 +82,19 @@ export function createAuthController({
 
     async emailStart(req: Request, res: Response<EmailStartResponse>) {
       const { email } = emailStartSchema.parse(req.body);
-      await challenge?.enforce(email, req.body.challengeToken, req.ip);
+      // İlk gönderimde doğrulama zorunlu; aynı e-posta için kısa ömürlü akış işareti varsa
+      // (kod adımından yeniden gönderim) doğrulama tekrar istenmez.
+      if (!flowPassed(req, email)) await challenge?.enforce(email, req.body.challengeToken, req.ip);
+      const response = await service.startEmail(email, requestMeta(req));
+      const flowToken = createEmailFlowToken(env, email);
+      if (challenge) setEmailFlowCookie(res, env, email);
       res.set('Cache-Control', 'no-store');
-      res.json(await service.startEmail(email, requestMeta(req)));
+      res.json({ ...response, flowToken });
     },
 
     async emailVerify(req: Request, res: Response<MeResponse>) {
       const { email, code } = emailVerifySchema.parse(req.body);
-      await challenge?.enforce(email, req.body.challengeToken, req.ip);
+      if (!flowPassed(req, email)) await challenge?.enforce(email, req.body.challengeToken, req.ip);
       const session = await service.verifyEmailCode(
         email,
         code,
@@ -85,6 +102,7 @@ export function createAuthController({
         readSessionToken(req, env),
       );
       setSessionCookie(res, env, session.token, session.expiresAt);
+      clearEmailFlowCookie(res, env);
       res.json({ user: toPublicUser(session.user) });
     },
 
@@ -125,13 +143,16 @@ export function createAuthController({
 
     async login(req: Request, res: Response<MeResponse>) {
       const input = loginSchema.parse(req.body);
-      await challenge?.enforce(input.email, req.body.challengeToken, req.ip);
+      // Şifre adımı ilk adımın devamıdır; aynı e-posta için doğrulama işareti varsa tekrar sorulmaz.
+      if (!flowPassed(req, input.email))
+        await challenge?.enforce(input.email, req.body.challengeToken, req.ip);
       const session = await service.loginWithPassword(
         input,
         requestMeta(req),
         readSessionToken(req, env),
       );
       setSessionCookie(res, env, session.token, session.expiresAt);
+      clearEmailFlowCookie(res, env);
       res.json({ user: toPublicUser(session.user) });
     },
 
@@ -150,6 +171,7 @@ export function createAuthController({
       const token = readSessionToken(req, env);
       if (token) await service.logout(token);
       clearSessionCookie(res, env);
+      clearEmailFlowCookie(res, env);
       res.status(204).end();
     },
 

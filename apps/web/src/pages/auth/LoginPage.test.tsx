@@ -293,6 +293,34 @@ describe('E-Posta ile Devam Et', () => {
     expect(await screen.findByRole('heading', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
   });
 
+  it('kod adımında ilk doğrulamanın akış anahtarını gönderir', async () => {
+    mockFetch({
+      ...anonymousRoutes,
+      'POST /api/auth/email/start': () =>
+        jsonResponse(200, {
+          step: 'code',
+          resendAfterSeconds: 60,
+          expiresInSeconds: 600,
+          flowToken: 'flow-abc',
+        }),
+      'POST /api/auth/email/verify': (init) => {
+        expect(JSON.parse(String(init?.body))).toEqual({
+          email: 'yeni@example.com',
+          code: '123456',
+          flowToken: 'flow-abc',
+        });
+        return jsonResponse(200, { user: { ...user, email: 'yeni@example.com' } });
+      },
+    });
+    const ue = await openEmailForm();
+    await submitEmail(ue, 'yeni@example.com');
+    const code = await screen.findByLabelText('Doğrulama Kodu');
+    await ue.type(code, '123456');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Devam Et' })).toBeEnabled());
+    await ue.click(screen.getByRole('button', { name: 'Devam Et' }));
+    expect(await screen.findByRole('heading', { name: 'Yeni Stok Kartı' })).toBeInTheDocument();
+  });
+
   it('hatalı kodda Türkçe mesaj gösterir', async () => {
     mockFetch({
       ...anonymousRoutes,
