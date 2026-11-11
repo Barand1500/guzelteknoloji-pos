@@ -1,5 +1,5 @@
 import { Star } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { formatMoney } from '../../home/components/parts';
 import { ReturnPill, StatusPill, formatDateTime } from '../../orders/components/parts';
 import { RETURN_KIND_LABEL } from '../../orders/types';
@@ -108,8 +108,25 @@ export const Card = ({ title, children }: { title: string; children: ReactNode }
 /* 2) Adresler: CustomerAddressTab.tsx */
 
 /** 3) Hesap hareketleri: borç / alacak / bakiye + hareket listesi. */
+const COLS = [
+  'grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)]',
+  'grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)_minmax(0,1fr)]',
+  'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2.4fr)]',
+];
+
 export function AccountTab({ customer, detail }: { customer: Customer; detail: CustomerDetail }) {
   const bal = balanceOf(customer);
+  // Telefonda kutuya basınca o kutu büyür (sütun genişlikleri animasyonla kayar); dışarıya basınca kapanır.
+  const [open, setOpen] = useState<number | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (open === null) return;
+    const close = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(null);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [open]);
   const tiles = [
     { label: 'Borç', value: formatMoney(customer.debt), tone: 'bg-danger-soft text-danger' },
     { label: 'Alacak', value: formatMoney(customer.credit), tone: 'bg-success-soft text-success' },
@@ -121,14 +138,29 @@ export function AccountTab({ customer, detail }: { customer: Customer; detail: C
   ];
   return (
     <div className="flex flex-col gap-4">
-      <dl className="grid grid-cols-3 gap-2 sm:gap-3">
-        {tiles.map((t) => (
-          <div key={t.label} className={`min-w-0 rounded-2xl p-3 sm:p-4 ${t.tone}`}>
-            <dd className="truncate text-base font-extrabold sm:text-xl">{t.value}</dd>
-            <dt className="truncate text-xs font-semibold opacity-80 sm:text-sm">{t.label}</dt>
-          </div>
+      <div
+        ref={box}
+        role="group"
+        aria-label="Hesap özeti"
+        className={`grid gap-2 transition-[grid-template-columns] duration-300 ease-out sm:gap-3 sm:grid-cols-3 ${open === null ? 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]' : COLS[open]}`}
+      >
+        {tiles.map((t, i) => (
+          <button
+            key={t.label}
+            type="button"
+            aria-expanded={open === i}
+            onClick={() => setOpen(open === i ? null : i)}
+            className={`min-w-0 rounded-2xl p-3 text-left transition-shadow sm:p-4 ${t.tone} ${open === i ? 'shadow-soft ring-2 ring-current/20' : ''}`}
+          >
+            <span className={`block text-base font-extrabold sm:text-xl ${open === i ? '' : 'truncate'}`}>
+              {t.value}
+            </span>
+            <span className={`block text-xs font-semibold opacity-80 sm:text-sm ${open === i ? '' : 'truncate'}`}>
+              {t.label}
+            </span>
+          </button>
         ))}
-      </dl>
+      </div>
       <Rows
         label="Hesap hareketleri"
         empty="Hesap hareketi yok."
