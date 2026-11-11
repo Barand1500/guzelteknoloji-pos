@@ -18,17 +18,17 @@ function steps(kind: ReturnKind): JourneyStep[] {
     },
     {
       id: 'approved',
-      label: 'Onaylandı',
+      label: kind === 'return' ? 'İade Onaylandı' : 'Değişim Onaylandı',
       short: 'Onay',
-      hint: 'Talep kabul edildi',
-      image: 'hazirlaniyor',
+      hint: kind === 'return' ? 'İade kabul edildi' : 'Değişim kabul edildi',
+      image: kind === 'return' ? 'onay' : 'el-sikisma',
     },
     {
       id: 'completed',
       label: kind === 'return' ? 'İade Tamamlandı' : 'Değişim Tamamlandı',
       short: kind === 'return' ? 'İade' : 'Değişim',
       hint: kind === 'return' ? 'Ödeme iade edildi' : 'Yeni ürün gönderildi',
-      image: kind === 'return' ? 'teslim' : 'kargoda',
+      image: kind === 'return' ? 'para-kanat' : 'hediye',
     },
   ];
 }
