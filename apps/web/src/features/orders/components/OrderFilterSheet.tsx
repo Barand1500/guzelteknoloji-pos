@@ -26,7 +26,7 @@ const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /** Hızlı tarih aralıkları (bugüne göre). */
-function presets(now = new Date()) {
+export function presets(now = new Date()) {
   const day = new Date(now);
   const week = new Date(now);
   week.setDate(week.getDate() - 6);
@@ -40,7 +40,7 @@ function presets(now = new Date()) {
   ];
 }
 
-function Choice({
+export function Choice({
   on,
   onClick,
   icon: Icon,
@@ -70,7 +70,7 @@ function Choice({
   );
 }
 
-function Section({
+export function Section({
   icon: Icon,
   title,
   children,

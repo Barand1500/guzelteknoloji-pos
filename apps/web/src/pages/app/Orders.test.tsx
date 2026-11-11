@@ -5,15 +5,6 @@ import { filterOrders, emptyOrderFilters, ordersToCsv } from '../../features/ord
 import { orderSeeds, returnSeeds } from '../../mocks/orders.mock';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
 
-async function open(path: string, ready: RegExp | string) {
-  sessionStorage.setItem('gt-dev-access', '1'); // geçici test girişi
-  mockFetch(anonymousRoutes);
-  const user = userEvent.setup();
-  renderApp(path);
-  await screen.findByRole('radiogroup', { name: ready });
-  return user;
-}
-
 afterEach(() => {
   vi.unstubAllGlobals();
   sessionStorage.clear();
@@ -173,38 +164,94 @@ describe('Gelen Siparişler', () => {
   });
 });
 
+async function openReturns() {
+  sessionStorage.setItem('gt-dev-access', '1'); // geçici test girişi
+  mockFetch(anonymousRoutes);
+  const user = userEvent.setup();
+  renderApp('/uygulama/siparisler/iade');
+  await screen.findByRole('table');
+  return user;
+}
+
 describe('İade/Değişim Talepleri', () => {
-  it('bekleyen talep onaylanır; tip seçici süzer', async () => {
-    const user = await open('/uygulama/siparisler/iade', 'Talep durumu');
-    const chips = screen.getByRole('radiogroup', { name: 'Talep durumu' });
-    const pendingCount = returnSeeds.filter((r) => r.status === 'pending').length;
-    expect(
-      await within(chips).findByRole('radio', {
-        name: new RegExp(`Beklemede\\s*${pendingCount}`),
-      }),
-    ).toBeInTheDocument();
-    const first = returnSeeds.find((r) => r.status === 'pending')!;
+  it('özet kutuları ve 10 satır gelir; akışlar kapalıdır', async () => {
+    await openReturns();
+    expect(await screen.findByText('ÖRNEK VERİ')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(1 + 10);
+    expect(screen.queryByRole('list', { name: /akışı$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Sayfalama' })).toBeInTheDocument();
+  });
+
+  it('satıra basınca yolculuk şeridi açılır; onayla → tamamlandı; aynı anda yalnızca biri açıktır', async () => {
+    const user = await openReturns();
+    const rowAt = (i: number) => within(screen.getByRole('table')).getAllByRole('row')[i]!;
+    // en yeni talep (listenin başı)
+    const sorted = [...returnSeeds].sort((x, y) => y.date.localeCompare(x.date));
+    const first = sorted[0]!;
+    await user.click(rowAt(1));
+    const flow = await screen.findByRole('list', { name: /akışı$/ });
+    expect(within(flow).getAllByRole('listitem')).toHaveLength(3);
+    if (first.status === 'pending') {
+      await user.click(screen.getByRole('button', { name: `${first.customer} talebini onayla` }));
+      await waitFor(() =>
+        expect(within(flow).getByText('Geçerli adım').closest('li')).toHaveTextContent('Onaylandı'),
+      );
+      await user.click(
+        screen.getByRole('button', { name: `${first.customer} talebini tamamlandı yap` }),
+      );
+      await waitFor(() =>
+        expect(within(flow).getByText('Geçerli adım').closest('li')).toHaveTextContent(
+          'Tamamlandı',
+        ),
+      );
+    }
+    // başka satıra basınca öncekinin akışı kapanır
+    await user.click(rowAt(3));
+    expect(screen.getAllByRole('list', { name: /akışı$/ })).toHaveLength(1);
+  });
+
+  it('bekleyen talep reddedilince ikinci adım kırmızı "Reddedildi" olur', async () => {
+    const user = await openReturns();
+    const target = [...returnSeeds]
+      .sort((x, y) => y.date.localeCompare(x.date))
+      .slice(0, 10)
+      .find((r) => r.status === 'pending')!;
+    await user.type(screen.getByRole('searchbox', { name: 'Talep ara' }), target.orderNo);
+    await user.click(within(await screen.findByRole('table')).getAllByRole('row')[1]!);
     await user.click(
-      (
-        await within(await screen.findByRole('table')).findAllByRole('button', {
-          name: `${first.customer} talebini onayla`,
-        })
-      )[0]!,
+      await screen.findByRole('button', { name: `${target.customer} talebini reddet` }),
     );
+    const flow = await screen.findByRole('list', { name: /akışı$/ });
+    await waitFor(() =>
+      expect(within(flow).getByText('Geçerli adım').closest('li')).toHaveTextContent('Reddedildi'),
+    );
+  });
+
+  it('Süzgeçler penceresi: tip seçilir, etiket çıkar; Dışa Aktar dosya adını yazdırır', async () => {
+    const user = await openReturns();
+    await user.click(screen.getByRole('button', { name: 'Süzgeçler' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Süzgeçler' });
+    await user.click(within(dialog).getByRole('radio', { name: 'Değişim' }));
+    const exchanges = returnSeeds.filter((r) => r.kind === 'exchange').length;
+    await user.click(within(dialog).getByRole('button', { name: `${exchanges} Talebi Göster` }));
+    const chips = await screen.findByRole('list', { name: 'Açık süzgeçler' });
+    expect(within(chips).getByText('Değişim')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Dışa aktar' }));
+    const exp = await screen.findByRole('dialog', { name: 'Talepleri Dışa Aktar' });
+    const name = within(exp).getByRole('textbox', { name: 'Dosya adı' });
+    await user.clear(name);
+    await user.type(name, 'iade:raporu?');
+    expect(within(exp).getByText(/iaderaporu.csv olarak iner/)).toBeInTheDocument();
+    await user.click(within(exp).getByRole('button', { name: 'İndir' }));
     await waitFor(() =>
       expect(
-        within(chips).getByRole('radio', { name: new RegExp(`Beklemede\\s*${pendingCount - 1}`) }),
-      ).toBeInTheDocument(),
+        screen.queryByRole('dialog', { name: 'Talepleri Dışa Aktar' }),
+      ).not.toBeInTheDocument(),
     );
-    await user.click(screen.getByRole('radio', { name: 'Değişim' }));
-    const exchanges = returnSeeds.filter((r) => r.kind === 'exchange').length;
-    expect(
-      within(chips).getByRole('radio', { name: new RegExp(`Tümü\\s*${exchanges}`) }),
-    ).toBeInTheDocument();
   });
 
   it('alt çubukta iki sayfa vardır', async () => {
-    await open('/uygulama/siparisler/iade', 'Talep durumu');
+    await openReturns();
     const dock = screen.getByRole('navigation', { name: 'Ana gezinme' });
     expect(within(dock).getByRole('link', { name: /Gelen Siparişler/ })).toBeInTheDocument();
     // İade sayfasındayken yalnızca İade düğmesi seçilidir (Gelen Siparişler değil).

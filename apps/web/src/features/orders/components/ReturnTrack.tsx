@@ -1,93 +1,113 @@
-import { Banknote, ChevronRight, ClipboardCheck, ClipboardList, Package, X } from 'lucide-react';
-import { RETURN_KIND_LABEL, type ReturnKind, type ReturnStatus } from '../types';
+import {
+  RETURN_KIND_LABEL,
+  RETURN_STATUS_LABEL,
+  type ReturnKind,
+  type ReturnRequest,
+  type ReturnStatus,
+} from '../types';
+import { JourneyBar, type JourneyStep } from './JourneyBar';
 
-const firstStep = { label: 'Talep Alındı', image: 'bekliyor', icon: ClipboardList };
-const approvedStep = { label: 'Onaylandı', image: 'hazirlaniyor', icon: ClipboardCheck };
-const rejectedStep = { label: 'Reddedildi', image: 'iptal', icon: X };
-const finalSteps = {
-  return: { label: 'İade Tamamlandı', image: 'teslim', icon: Banknote },
-  exchange: { label: 'Değişim Tamamlandı', image: 'kargoda', icon: Package },
-};
+function steps(kind: ReturnKind): JourneyStep[] {
+  return [
+    {
+      id: 'pending',
+      label: 'Talep Alındı',
+      short: 'Talep',
+      hint: 'Müşteri talep etti',
+      image: 'bekliyor',
+    },
+    {
+      id: 'approved',
+      label: 'Onaylandı',
+      short: 'Onay',
+      hint: 'Talep kabul edildi',
+      image: 'hazirlaniyor',
+    },
+    {
+      id: 'completed',
+      label: kind === 'return' ? 'İade Tamamlandı' : 'Değişim Tamamlandı',
+      short: kind === 'return' ? 'İade' : 'Değişim',
+      hint: kind === 'return' ? 'Ödeme iade edildi' : 'Yeni ürün gönderildi',
+      image: kind === 'return' ? 'teslim' : 'kargoda',
+    },
+  ];
+}
 
-export function ReturnTrack({ kind, status }: { kind: ReturnKind; status: ReturnStatus }) {
-  const rejected = status === 'rejected';
-  const steps = rejected ? [firstStep, rejectedStep] : [firstStep, approvedStep, finalSteps[kind]];
-  const active = status === 'pending' ? 0 : status === 'completed' ? 2 : 1;
+const NEXT: Partial<Record<ReturnStatus, ReturnStatus>> = { approved: 'completed' };
+
+interface ReturnTrackProps {
+  request: ReturnRequest;
+  busy: boolean;
+  onStatus: (status: ReturnStatus) => void;
+}
+
+/**
+ * İade/değişim yolculuk şeridi: Talep Alındı → Onaylandı → İade/Değişim Tamamlandı (bkz. JourneyBar).
+ * Ret durumunda ikinci adım kırmızı "Reddedildi" kartına döner, üçüncü adım pasif kalır. Altta durumu
+ * ilerleten düğmeler: beklemede → Onayla / Reddet, onaylı → Tamamlandı.
+ */
+export function ReturnTrack({ request, busy, onStatus }: ReturnTrackProps) {
+  const rejected = request.status === 'rejected';
+  const index = request.status === 'pending' ? 0 : request.status === 'approved' ? 1 : 2;
+  const next = NEXT[request.status];
+  const btn =
+    'inline-flex min-h-10 items-center rounded-full px-4 text-sm font-bold transition-colors disabled:opacity-60';
 
   return (
-    <ol
-      aria-label={`${RETURN_KIND_LABEL[kind]} akışı`}
-      className="flex w-full max-w-md lg:max-w-none"
-    >
-      {steps.map(({ label, image, icon: Icon }, index) => {
-        const current = index === active;
-        const passed = index < active;
-        const failed = current && rejected;
-        const approaching = index + 1 === active;
-        return (
-          <li
-            key={label}
-            aria-current={current ? 'step' : undefined}
-            className="relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 text-center"
-          >
-            <span
-              className={`relative grid size-9 place-items-center rounded-full ring-1 sm:size-10 lg:size-11 ${
-                failed
-                  ? 'bg-danger-soft text-danger ring-danger/50'
-                  : current
-                    ? 'bg-brand-50 text-brand-ink ring-brand-500'
-                    : passed
-                      ? 'bg-success-soft text-success ring-success/40'
-                      : 'bg-surface-muted text-ink-muted ring-line'
-              }`}
-            >
-              {current ? (
-                <img
-                  src={`${import.meta.env.BASE_URL}orders/${image}.webp`}
-                  alt=""
-                  loading="lazy"
-                  className="size-6 object-contain motion-reduce:hidden sm:size-7"
-                />
-              ) : null}
-              <Icon
-                aria-hidden="true"
-                className={`size-4 ${current ? 'hidden motion-reduce:block' : ''}`}
-              />
-            </span>
-            <span
-              className={`text-[0.6875rem] leading-tight font-bold lg:text-xs ${current ? 'text-ink' : 'text-ink-muted'}`}
-            >
-              {label}
-            </span>
-            {index < steps.length - 1 ? (
-              <span
-                aria-hidden="true"
-                className={`pointer-events-none absolute top-2.5 left-full flex -translate-x-1/2 items-center sm:top-3 lg:top-[0.875rem] lg:w-[calc(100%-3.75rem)] lg:gap-2 ${
-                  approaching
-                    ? rejected
-                      ? 'text-danger'
-                      : 'text-brand-ink'
-                    : passed
-                      ? 'text-success'
-                      : 'text-line-strong'
-                }`}
+    <div className="flex flex-col gap-3">
+      <JourneyBar
+        ariaLabel={`${RETURN_KIND_LABEL[request.kind]} akışı`}
+        steps={steps(request.kind)}
+        done={rejected ? 1 : index}
+        current={rejected ? null : index}
+        failedAt={rejected ? 1 : undefined}
+        failure={{
+          label: RETURN_STATUS_LABEL.rejected,
+          short: 'Ret',
+          hint: 'Talep reddedildi',
+          image: 'iptal',
+        }}
+      />
+      <p className="sr-only" aria-live="polite">
+        {`Şu an: ${RETURN_STATUS_LABEL[request.status]}`}
+      </p>
+      {request.status === 'pending' || next ? (
+        <div className="flex flex-wrap justify-end gap-2">
+          {request.status === 'pending' ? (
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onStatus('approved')}
+                aria-label={`${request.customer} talebini onayla`}
+                className={`${btn} bg-brand-700 text-white hover:bg-brand-800`}
               >
-                <span className="hidden flex-1 border-t border-current opacity-30 lg:block" />
-                <span className="flex shrink-0">
-                  {[0, 1, 2].map((arrow) => (
-                    <ChevronRight
-                      key={arrow}
-                      style={approaching ? { animationDelay: `${arrow * 180}ms` } : undefined}
-                      className={`size-3.5 lg:size-4 ${arrow === 2 ? 'hidden lg:block' : ''} ${approaching ? 'motion-safe:animate-pulse' : ''}`}
-                    />
-                  ))}
-                </span>
-                <span className="hidden flex-1 border-t border-current opacity-30 lg:block" />
-              </span>
-            ) : null}
-          </li>
-        );
-      })}
-    </ol>
+                Onayla
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onStatus('rejected')}
+                aria-label={`${request.customer} talebini reddet`}
+                className={`${btn} bg-danger-soft text-danger hover:bg-danger hover:text-white`}
+              >
+                Reddet
+              </button>
+            </>
+          ) : null}
+          {next ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onStatus(next)}
+              aria-label={`${request.customer} talebini tamamlandı yap`}
+              className={`${btn} bg-brand-700 text-white hover:bg-brand-800`}
+            >
+              Tamamlandı Olarak İşaretle
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
