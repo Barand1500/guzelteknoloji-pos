@@ -21,60 +21,73 @@ afterEach(() => {
 
 const pending = orderSeeds.filter((o) => o.status === 'pending');
 
+async function openOrders() {
+  sessionStorage.setItem('gt-dev-access', '1'); // geçici test girişi
+  mockFetch(anonymousRoutes);
+  const user = userEvent.setup();
+  renderApp('/uygulama/siparisler');
+  await screen.findByRole('table');
+  return user;
+}
+
 describe('Gelen Siparişler', () => {
-  it('özet kutuları, sayaçlı durum hapları ve 10 satırlık ilk sayfa gelir', async () => {
-    await open('/uygulama/siparisler', 'Sipariş durumu');
+  it('özet kutuları, 10 satırlık ilk sayfa ve sipariş sahnesi gelir; durum hapları yoktur', async () => {
+    await openOrders();
     expect(await screen.findByText('ÖRNEK VERİ')).toBeInTheDocument();
-    const chips = screen.getByRole('radiogroup', { name: 'Sipariş durumu' });
-    expect(
-      within(chips).getByRole('radio', { name: new RegExp(`Tümü\\s*${orderSeeds.length}`) }),
-    ).toBeChecked();
-    expect(
-      within(chips).getByRole('radio', { name: new RegExp(`Bekliyor\\s*${pending.length}`) }),
-    ).toBeInTheDocument();
-    const rows = within(screen.getByRole('table')).getAllByRole('row');
-    expect(rows).toHaveLength(1 + 10);
+    expect(screen.queryByRole('radiogroup', { name: 'Sipariş durumu' })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(1 + 10);
     expect(screen.getByRole('navigation', { name: 'Sayfalama' })).toBeInTheDocument();
+    const scene = screen.getByRole('region', { name: 'Sipariş sahnesi' });
+    expect(within(scene).getByRole('list', { name: 'Sipariş adımları' })).toBeInTheDocument();
+    expect(within(scene).getByRole('img')).toBeInTheDocument();
   });
 
-  it('durum hapı listeyi süzer; arama müşteri ve sipariş no üzerinde çalışır', async () => {
-    const user = await open('/uygulama/siparisler', 'Sipariş durumu');
-    const chips = screen.getByRole('radiogroup', { name: 'Sipariş durumu' });
-    await user.click(within(chips).getByRole('radio', { name: /^Bekliyor/ }));
-    await waitFor(() =>
-      expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(
-        1 + Math.min(10, pending.length),
-      ),
-    );
-    await user.click(within(chips).getByRole('radio', { name: /^Tümü/ }));
+  it('arama müşteri ve sipariş no üzerinde çalışır', async () => {
+    const user = await openOrders();
     await user.type(screen.getByRole('searchbox', { name: 'Sipariş ara' }), orderSeeds[0]!.no);
     await waitFor(() =>
       expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2),
     );
   });
 
-  it('filtre paneli: ödeme durumu ve kaynak süzer, rozet sayıyı gösterir, Sıfırla temizler', async () => {
-    const user = await open('/uygulama/siparisler', 'Sipariş durumu');
-    await user.click(screen.getByRole('button', { name: 'Filtreler' }));
-    const panel = screen.getByRole('region', { name: 'Filtreler' });
-    await user.click(within(panel).getByRole('radio', { name: 'Ödenmedi' }));
+  it('Süzgeçler penceresi: ödeme durumu seçilir, canlı sayı yazar, etiket çıkar ve kaldırılır', async () => {
+    const user = await openOrders();
+    await user.click(screen.getByRole('button', { name: 'Süzgeçler' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Süzgeçler' });
+    await user.click(within(dialog).getByRole('radio', { name: /Ödenmedi/ }));
     const unpaid = orderSeeds.filter((o) => !o.paid).length;
+    await user.click(within(dialog).getByRole('button', { name: `${unpaid} Siparişi Göster` }));
+    const chips = await screen.findByRole('list', { name: 'Açık süzgeçler' });
+    expect(within(chips).getByText('Ödenmedi')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Süzgeçler, 1 açık' })).toBeInTheDocument();
+    await user.click(within(chips).getByRole('button', { name: 'Ödenmedi süzgecini kaldır' }));
+    expect(screen.queryByRole('list', { name: 'Açık süzgeçler' })).not.toBeInTheDocument();
+  });
+
+  it('sahne: satıra basınca sipariş sahneye gelir; adım ilerler, iptal koliyi çöpe atar', async () => {
+    const user = await openOrders();
+    const target = pending[0]!;
+    await user.type(screen.getByRole('searchbox', { name: 'Sipariş ara' }), target.no);
+    const scene = screen.getByRole('region', { name: 'Sipariş sahnesi' });
     await waitFor(() =>
-      expect(
-        screen.getByRole('radio', { name: new RegExp(`^Tümü\\s*${unpaid}`) }),
-      ).toBeInTheDocument(),
+      expect(within(scene).getByText(new RegExp(`#${target.no}`))).toBeInTheDocument(),
     );
-    expect(screen.getByRole('button', { name: 'Filtreler' })).toHaveTextContent('1');
-    await user.click(within(panel).getByRole('button', { name: 'Sıfırla' }));
-    expect(
-      screen.getByRole('radio', { name: new RegExp(`^Tümü\\s*${orderSeeds.length}`) }),
-    ).toBeInTheDocument();
+    expect(within(scene).getByRole('img')).toHaveAccessibleName(/koli hazırlanıyor/);
+    await user.click(within(scene).getByRole('button', { name: /Sıradaki adım: Hazırlanıyor/ }));
+    await waitFor(() =>
+      expect(within(scene).getByRole('img')).toHaveAccessibleName(/koli bantlanıyor/),
+    );
+    await user.click(within(scene).getByRole('button', { name: /Sıradaki adım: Kargoda/ }));
+    await waitFor(() => expect(within(scene).getByRole('img')).toHaveAccessibleName(/yolda/));
+    await user.click(within(scene).getByRole('button', { name: 'İptal Et' }));
+    await waitFor(() => expect(within(scene).getByRole('img')).toHaveAccessibleName(/çöpe gitti/));
+    expect(within(scene).getByText('İptal Edildi')).toBeInTheDocument();
   });
 
   it('sipariş ayrıntısı açılır ve "sıradaki adıma geç" durumu ilerletir', async () => {
-    const user = await open('/uygulama/siparisler', 'Sipariş durumu');
+    const user = await openOrders();
     const target = pending[0]!;
-    await user.click(screen.getByRole('radio', { name: /^Bekliyor/ }));
+    await user.type(screen.getByRole('searchbox', { name: 'Sipariş ara' }), target.no);
     await user.click(
       await screen.findByRole('button', { name: `${target.no} numaralı siparişi görüntüle` }),
     );
@@ -90,12 +103,44 @@ describe('Gelen Siparişler', () => {
     );
   });
 
-  it('filtre ve CSV yardımcıları', () => {
+  it('dışa aktarma sihirbazı: ne indirilsin → sütunlar → özet; belirli durum seçilebilir', async () => {
+    const user = await openOrders();
+    await user.click(screen.getByRole('button', { name: 'Dışa aktar' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Siparişleri Dışa Aktar' });
+    expect(within(dialog).getByRole('list', { name: 'Adımlar' })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('radio', { name: /Belirli bir durum/ }));
+    await user.click(within(dialog).getByRole('radio', { name: 'Bekliyor' }));
+    expect(within(dialog).getByText(`${pending.length} sipariş`)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Devam' }));
+    await user.click(within(dialog).getByRole('switch', { name: 'Ürünler' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Devam' }));
+    expect(within(dialog).getByText('siparisler.csv (Excel)')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'İndir' }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Siparişleri Dışa Aktar' }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it('filtre, CSV ve dışa aktarma seçici yardımcıları', async () => {
+    const { selectForExport, distinctProducts } =
+      await import('../../features/orders/order-filter');
     const f = { ...emptyOrderFilters, paid: 'unpaid' as const };
     expect(filterOrders(orderSeeds, f).every((o) => !o.paid)).toBe(true);
     const csv = ordersToCsv(orderSeeds.slice(0, 2));
-    expect(csv.startsWith('﻿"Sipariş No"')).toBe(true);
+    expect(csv.startsWith('\uFEFF"Sipariş No"')).toBe(true);
     expect(csv.split('\r\n')).toHaveLength(3);
+    expect(ordersToCsv(orderSeeds.slice(0, 1), ['no', 'lines']).split('\r\n')[0]).toBe(
+      '﻿"Sipariş No";"Ürünler"',
+    );
+    const code = distinctProducts(orderSeeds)[0]!.code;
+    expect(
+      selectForExport(orderSeeds, [], { kind: 'product', code }).every((o) =>
+        o.lines.some((l) => l.code === code),
+      ),
+    ).toBe(true);
+    expect(selectForExport(orderSeeds, [], { kind: 'all' })).toHaveLength(orderSeeds.length);
   });
 });
 

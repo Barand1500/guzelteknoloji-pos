@@ -1,4 +1,10 @@
-import type { Order, OrderSource, OrderStatus } from './types';
+import {
+  SOURCE_LABEL,
+  STATUS_LABEL,
+  type Order,
+  type OrderSource,
+  type OrderStatus,
+} from './types';
 
 export interface OrderFilters {
   status: OrderStatus | 'all';
@@ -71,32 +77,96 @@ export function sortOrders(orders: Order[], sort: OrderSort): Order[] {
   });
 }
 
+export type ExportColumnKey =
+  | 'no'
+  | 'date'
+  | 'customer'
+  | 'source'
+  | 'total'
+  | 'totalWithVat'
+  | 'paymentMethod'
+  | 'paid'
+  | 'status'
+  | 'lines';
+
+const money = (n: number) => n.toFixed(2).replace('.', ',');
+
+/** Dışa aktarılabilen sütunlar ("Neler olsun?" adımı). `lines`: her ürün satırı bir hücrede. */
+export const EXPORT_COLUMNS: {
+  key: ExportColumnKey;
+  label: string;
+  get: (o: Order) => string;
+}[] = [
+  { key: 'no', label: 'Sipariş No', get: (o) => o.no },
+  { key: 'date', label: 'Tarih', get: (o) => o.date.slice(0, 16).replace('T', ' ') },
+  { key: 'customer', label: 'Müşteri', get: (o) => o.customer },
+  { key: 'source', label: 'Kaynak', get: (o) => SOURCE_LABEL[o.source] },
+  { key: 'total', label: 'Tutar', get: (o) => money(o.total) },
+  { key: 'totalWithVat', label: 'Tutar (KDV Dahil)', get: (o) => money(o.totalWithVat) },
+  { key: 'paymentMethod', label: 'Ödeme', get: (o) => o.paymentMethod },
+  { key: 'paid', label: 'Ödendi', get: (o) => (o.paid ? 'Evet' : 'Hayır') },
+  { key: 'status', label: 'Durum', get: (o) => STATUS_LABEL[o.status] },
+  {
+    key: 'lines',
+    label: 'Ürünler',
+    get: (o) => o.lines.map((l) => `${l.qty}x ${l.name}`).join(' | '),
+  },
+];
+
+export const DEFAULT_EXPORT_COLUMNS: ExportColumnKey[] = [
+  'no',
+  'date',
+  'customer',
+  'total',
+  'totalWithVat',
+  'paymentMethod',
+  'paid',
+  'status',
+];
+
 /** Excel'in açabildiği CSV (Türkçe yerel: noktalı virgül ayraç, BOM'lu). */
-export function ordersToCsv(orders: Order[]): string {
-  const head = [
-    'Sipariş No',
-    'Tarih',
-    'Müşteri',
-    'Tutar',
-    'Tutar (KDV Dahil)',
-    'Ödeme',
-    'Ödendi',
-    'Durum',
-  ];
-  const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-  const rows = orders.map((o) =>
-    [
-      o.no,
-      o.date.slice(0, 16).replace('T', ' '),
-      o.customer,
-      o.total.toFixed(2).replace('.', ','),
-      o.totalWithVat.toFixed(2).replace('.', ','),
-      o.paymentMethod,
-      o.paid ? 'Evet' : 'Hayır',
-      o.status,
-    ]
-      .map(esc)
-      .join(';'),
-  );
-  return '﻿' + [head.map(esc).join(';'), ...rows].join('\r\n');
+export function ordersToCsv(
+  orders: Order[],
+  keys: readonly ExportColumnKey[] = DEFAULT_EXPORT_COLUMNS,
+): string {
+  const cols = EXPORT_COLUMNS.filter((c) => keys.includes(c.key));
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const head = cols.map((c) => esc(c.label)).join(';');
+  const rows = orders.map((o) => cols.map((c) => esc(c.get(o))).join(';'));
+  return '\uFEFF' + [head, ...rows].join('\r\n');
+}
+
+/** "Ne indirilsin?" seçenekleri için siparişleri seçer. */
+export type ExportScope =
+  | { kind: 'list' }
+  | { kind: 'all' }
+  | { kind: 'product'; code: string }
+  | { kind: 'status'; status: OrderStatus }
+  | { kind: 'range'; from: string; to: string };
+
+export function selectForExport(all: Order[], listed: Order[], scope: ExportScope): Order[] {
+  switch (scope.kind) {
+    case 'list':
+      return listed;
+    case 'all':
+      return all;
+    case 'product':
+      return all.filter((o) => o.lines.some((l) => l.code === scope.code));
+    case 'status':
+      return all.filter((o) => o.status === scope.status);
+    case 'range':
+      return all.filter((o) => {
+        const day = o.date.slice(0, 10);
+        return (!scope.from || day >= scope.from) && (!scope.to || day <= scope.to);
+      });
+  }
+}
+
+/** Siparişlerdeki ürünlerin tekil listesi (belirli ürün seçimi için). */
+export function distinctProducts(orders: Order[]): { code: string; name: string }[] {
+  const map = new Map<string, string>();
+  for (const o of orders) for (const l of o.lines) map.set(l.code, l.name);
+  return [...map]
+    .map(([code, name]) => ({ code, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
 }

@@ -1,41 +1,25 @@
-import { Download, Eye, ListFilter, RotateCcw } from 'lucide-react';
+import { Download, Eye, ListFilter, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Alert } from '../../../components/ui/Alert';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
-import { Segmented } from '../../../components/ui/Segmented';
-import { SelectField } from '../../../components/ui/SelectField';
-import { TextField } from '../../../components/ui/TextField';
 import { CountUp, formatMoney, formatMoneyShort } from '../../home/components/parts';
 import { useOrders } from '../hooks/useOrders';
 import {
   activeFilterCount,
   emptyOrderFilters,
   filterOrders,
-  ordersToCsv,
   sortOrders,
   type OrderFilters,
   type OrderSort,
   type OrderSortKey,
 } from '../order-filter';
-import {
-  SOURCE_LABEL,
-  STATUS_LABEL,
-  STATUS_ORDER,
-  type Order,
-  type OrderSource,
-  type OrderStatus,
-} from '../types';
+import { SOURCE_LABEL, type OrderStatus } from '../types';
+import { OrderExportSheet } from './OrderExportSheet';
+import { OrderFilterSheet } from './OrderFilterSheet';
+import { OrderScene } from './OrderScene';
 import { OrderSheet } from './OrderSheet';
-import { CountChips, SampleNote, SortTh, StatusPill, formatDateTime } from './parts';
-
-const SOURCE_OPTIONS = [
-  { value: 'all', label: 'Tüm kaynaklar' },
-  ...(Object.keys(SOURCE_LABEL) as OrderSource[]).map((value) => ({
-    value,
-    label: SOURCE_LABEL[value],
-  })),
-];
+import { SampleNote, SortTh, StatusPill, formatDateTime } from './parts';
 
 const COLUMNS: { key: OrderSortKey; label: string; align?: string }[] = [
   { key: 'no', label: 'Sipariş No' },
@@ -46,44 +30,55 @@ const COLUMNS: { key: OrderSortKey; label: string; align?: string }[] = [
   { key: 'status', label: 'Durum' },
 ];
 
-function downloadCsv(orders: Order[]) {
-  if (typeof URL.createObjectURL !== 'function') return;
-  const url = URL.createObjectURL(
-    new Blob([ordersToCsv(orders)], { type: 'text/csv;charset=utf-8' }),
-  );
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'siparisler.csv';
-  a.click();
-  URL.revokeObjectURL(url);
+/** Açık süzgeçlerin kaldırılabilir küçük etiketleri. */
+function chipsOf(f: OrderFilters): { id: string; label: string; clear: Partial<OrderFilters> }[] {
+  const out: { id: string; label: string; clear: Partial<OrderFilters> }[] = [];
+  if (f.source !== 'all')
+    out.push({ id: 'source', label: SOURCE_LABEL[f.source], clear: { source: 'all' } });
+  if (f.paid !== 'all')
+    out.push({
+      id: 'paid',
+      label: f.paid === 'paid' ? 'Ödendi' : 'Ödenmedi',
+      clear: { paid: 'all' },
+    });
+  if (f.from || f.to)
+    out.push({
+      id: 'date',
+      label: `${f.from || '…'} → ${f.to || '…'}`,
+      clear: { from: '', to: '' },
+    });
+  if (f.min || f.max)
+    out.push({
+      id: 'amount',
+      label: `${f.min || '0'} – ${f.max || '∞'} ₺`,
+      clear: { min: '', max: '' },
+    });
+  return out;
 }
 
 /**
- * Gelen Siparişler: üstte üç özet kutusu (sayı, toplam tutar, ödeme bekleyen), arama + filtreler +
- * dışa aktar, durum hapları (sayaçlı), masaüstünde sıralanabilir tablo / telefonda kartlar, altta
- * sayfalama. Bir siparişe basınca ayrıntı penceresi açılır (akış, ürünler, tutarlar, durum değişimi).
+ * Gelen Siparişler: üstte üç özet kutusu, arama + Süzgeçler (pencere) + Dışa Aktar (sihirbaz), açık
+ * süzgeç etiketleri, masaüstünde sıralanabilir tablo / telefonda kartlar, sayfalama ve en altta tüm
+ * genişliği kaplayan "Sipariş Sahnesi" (seçili siparişin durumunu animasyonla gösterir). Satıra
+ * bir kez basınca sipariş sahneye gelir; çift tıklayınca (ya da göz simgesiyle) ayrıntı açılır.
  */
 export function OrdersView() {
   const { orders, loading, error, sample, refresh, setStatus } = useOrders();
   const [filters, setFilters] = useState<OrderFilters>(emptyOrderFilters);
-  const [panel, setPanel] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [sort, setSort] = useState<OrderSort>({ key: 'date', dir: 'desc' });
   const [page, setPage] = useState(1);
   const [sizeText, setSizeText] = useState('10');
   const [openId, setOpenId] = useState<string | null>(null);
-
-  const set = <K extends keyof OrderFilters>(key: K, value: OrderFilters[K]) => {
-    setFilters((f) => ({ ...f, [key]: value }));
-    setPage(1);
-  };
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
   const filtered = useMemo(
     () => sortOrders(filterOrders(orders, filters), sort),
     [orders, filters, sort],
   );
-  // Durum sayaçları: durum dışındaki süzgeçler uygulanmış haliyle.
-  const forCounts = useMemo(() => filterOrders(orders, filters, true), [orders, filters]);
-  const countOf = (s: OrderStatus) => forCounts.filter((o) => o.status === s).length;
 
   const size = Math.min(100, Math.max(1, Number(sizeText) || 10));
   const pageCount = Math.max(1, Math.ceil(filtered.length / size));
@@ -97,14 +92,24 @@ export function OrdersView() {
     .filter((o) => !o.paid && o.status !== 'cancelled')
     .reduce((n, o) => n + o.totalWithVat, 0);
   const extra = activeFilterCount(filters);
+  const chips = chipsOf(filters);
   const open = orders.find((o) => o.id === openId) ?? null;
+  // Sahnedeki sipariş: seçilen; yoksa listedeki ilk.
+  const selected = orders.find((o) => o.id === selectedId) ?? shown[0] ?? null;
 
   const sortBy = (key: OrderSortKey) =>
     setSort((s) => ({ key, dir: s.key === key && s.dir === 'desc' ? 'asc' : 'desc' }));
 
-  const reset = () => {
-    setFilters(emptyOrderFilters);
-    setPage(1);
+  const changeStatus = async (id: string, status: OrderStatus) => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      await setStatus(id, status);
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : 'Durum değiştirilemedi.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -117,6 +122,7 @@ export function OrdersView() {
           </button>
         </Alert>
       ) : null}
+      {problem ? <Alert tone="error">{problem}</Alert> : null}
       {sample ? <SampleNote /> : null}
 
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -146,25 +152,27 @@ export function OrdersView() {
         <div className="min-w-0 flex-1">
           <SearchField
             value={filters.query}
-            onChange={(v) => set('query', v)}
+            onChange={(v) => {
+              setFilters((f) => ({ ...f, query: v }));
+              setPage(1);
+            }}
             label="Sipariş ara"
             placeholder="Sipariş no veya müşteri ara…"
           />
         </div>
         <button
           type="button"
-          onClick={() => setPanel((v) => !v)}
-          aria-expanded={panel}
-          aria-label="Filtreler"
+          onClick={() => setFilterOpen(true)}
+          aria-label={extra > 0 ? `Süzgeçler, ${extra} açık` : 'Süzgeçler'}
           className={[
-            'relative inline-flex h-13 shrink-0 items-center gap-2 rounded-full border px-4 font-bold transition-colors',
-            panel || extra > 0
+            'inline-flex h-13 shrink-0 items-center gap-2 rounded-full border px-4 font-bold transition-colors',
+            extra > 0
               ? 'border-brand-600 bg-brand-50 text-brand-ink'
               : 'border-field-border bg-surface-raised text-ink-muted hover:border-brand-500',
           ].join(' ')}
         >
           <ListFilter className="size-5" aria-hidden="true" />
-          <span className="max-sm:sr-only">Filtreler</span>
+          <span className="max-sm:sr-only">Süzgeçler</span>
           {extra > 0 ? (
             <span className="flex size-5 items-center justify-center rounded-full bg-brand-700 text-xs text-white">
               {extra}
@@ -173,84 +181,44 @@ export function OrdersView() {
         </button>
         <button
           type="button"
-          onClick={() => downloadCsv(filtered)}
+          onClick={() => setExportOpen(true)}
           aria-label="Dışa aktar"
-          title="Dışa aktar (CSV)"
+          title="Dışa aktar"
           className="inline-flex size-13 shrink-0 items-center justify-center rounded-full border border-field-border bg-surface-raised text-ink-muted transition-colors hover:border-brand-500 hover:text-brand-ink"
         >
           <Download className="size-5" aria-hidden="true" />
         </button>
       </div>
 
-      {panel ? (
-        <section
-          aria-label="Filtreler"
-          className="grid animate-fade-in gap-4 rounded-3xl border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-4"
-        >
-          <SelectField
-            label="Kaynak"
-            options={SOURCE_OPTIONS}
-            value={filters.source}
-            onChange={(v) => set('source', v as OrderFilters['source'])}
-          />
-          <div className="sm:col-span-1 lg:col-span-1">
-            <Segmented
-              label="Ödeme durumu"
-              value={filters.paid}
-              options={[
-                { value: 'all', label: 'Hepsi' },
-                { value: 'paid', label: 'Ödendi' },
-                { value: 'unpaid', label: 'Ödenmedi' },
-              ]}
-              onChange={(v) => set('paid', v as OrderFilters['paid'])}
-            />
-          </div>
-          <TextField
-            label="Başlangıç tarihi"
-            type="date"
-            value={filters.from}
-            onChange={(e) => set('from', e.target.value)}
-          />
-          <TextField
-            label="Bitiş tarihi"
-            type="date"
-            value={filters.to}
-            onChange={(e) => set('to', e.target.value)}
-          />
-          <TextField
-            label="En düşük tutar (KDV dahil)"
-            numeric="decimal"
-            value={filters.min}
-            onChange={(e) => set('min', e.target.value)}
-          />
-          <TextField
-            label="En yüksek tutar (KDV dahil)"
-            numeric="decimal"
-            value={filters.max}
-            onChange={(e) => set('max', e.target.value)}
-          />
-          <div className="flex items-center sm:col-span-2">
+      {chips.length > 0 ? (
+        <ul aria-label="Açık süzgeçler" className="flex flex-wrap items-center gap-2">
+          {chips.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, ...c.clear }));
+                  setPage(1);
+                }}
+                aria-label={`${c.label} süzgecini kaldır`}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-brand-50 pr-2.5 pl-3.5 text-sm font-bold text-brand-ink transition-colors hover:bg-brand-100"
+              >
+                {c.label}
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+          <li>
             <button
               type="button"
-              onClick={reset}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-danger-soft px-5 text-sm font-bold text-danger transition-colors hover:bg-danger hover:text-white"
+              onClick={() => setFilters((f) => ({ ...emptyOrderFilters, query: f.query }))}
+              className="min-h-9 px-2 text-sm font-semibold text-ink-muted underline"
             >
-              <RotateCcw className="size-4" aria-hidden="true" />
-              Sıfırla
+              Hepsini temizle
             </button>
-          </div>
-        </section>
+          </li>
+        </ul>
       ) : null}
-
-      <CountChips<OrderStatus | 'all'>
-        label="Sipariş durumu"
-        value={filters.status}
-        onChange={(v) => set('status', v)}
-        options={[
-          { value: 'all', label: 'Tümü', count: forCounts.length },
-          ...STATUS_ORDER.map((s) => ({ value: s, label: STATUS_LABEL[s], count: countOf(s) })),
-        ]}
-      />
 
       {loading ? (
         <div className="flex flex-col gap-2.5" aria-busy="true">
@@ -261,7 +229,7 @@ export function OrdersView() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-[1.75rem] border border-dashed border-line-strong/60 bg-surface-raised px-6 py-14 text-center">
           <p className="text-lg font-bold">Eşleşen sipariş yok</p>
-          <p className="text-ink-muted">Arama ya da filtreleri değiştirmeyi deneyin.</p>
+          <p className="text-ink-muted">Arama ya da süzgeçleri değiştirmeyi deneyin.</p>
         </div>
       ) : (
         <>
@@ -287,8 +255,13 @@ export function OrdersView() {
                 {shown.map((o) => (
                   <tr
                     key={o.id}
+                    onClick={() => setSelectedId(o.id)}
                     onDoubleClick={() => setOpenId(o.id)}
-                    className="border-b border-line transition-colors last:border-0 hover:bg-brand-50/50"
+                    aria-selected={selected?.id === o.id}
+                    className={[
+                      'cursor-pointer border-b border-line transition-colors last:border-0',
+                      selected?.id === o.id ? 'bg-brand-50' : 'hover:bg-brand-50/50',
+                    ].join(' ')}
                   >
                     <td className="px-4 py-3 font-bold">#{o.no}</td>
                     <td className="px-4 py-3 text-sm whitespace-nowrap text-ink-muted">
@@ -310,7 +283,10 @@ export function OrdersView() {
                     <td className="px-2 py-3">
                       <button
                         type="button"
-                        onClick={() => setOpenId(o.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenId(o.id);
+                        }}
                         aria-label={`${o.no} numaralı siparişi görüntüle`}
                         title="Görüntüle"
                         className="inline-flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-ink"
@@ -330,9 +306,15 @@ export function OrdersView() {
               <li key={o.id} style={{ animationDelay: `${i * 40}ms` }} className="animate-rise-in">
                 <button
                   type="button"
-                  onClick={() => setOpenId(o.id)}
+                  onClick={() => {
+                    setSelectedId(o.id);
+                    setOpenId(o.id);
+                  }}
                   aria-label={`${o.no} numaralı siparişi aç`}
-                  className="flex w-full flex-col gap-2.5 rounded-3xl border border-line bg-surface-raised p-4 text-left transition-colors active:border-brand-500"
+                  className={[
+                    'flex w-full flex-col gap-2.5 rounded-3xl border bg-surface-raised p-4 text-left transition-colors active:border-brand-500',
+                    selected?.id === o.id ? 'border-brand-600' : 'border-line',
+                  ].join(' ')}
                 >
                   <span className="flex items-center justify-between gap-3">
                     <span className="font-extrabold">#{o.no}</span>
@@ -376,6 +358,28 @@ export function OrdersView() {
         </>
       )}
 
+      {!loading && orders.length > 0 ? (
+        <OrderScene
+          order={selected}
+          busy={busy}
+          onStatus={(s) => selected && void changeStatus(selected.id, s)}
+        />
+      ) : null}
+
+      {filterOpen ? (
+        <OrderFilterSheet
+          orders={orders}
+          value={filters}
+          onApply={(next) => {
+            setFilters(next);
+            setPage(1);
+          }}
+          onClose={() => setFilterOpen(false)}
+        />
+      ) : null}
+      {exportOpen ? (
+        <OrderExportSheet orders={orders} listed={filtered} onClose={() => setExportOpen(false)} />
+      ) : null}
       {open ? (
         <OrderSheet
           key={open.id}
