@@ -4,6 +4,7 @@ import { Button } from '../../../components/ui/Button';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import { dataError } from '../../../lib/catalog-data';
+import { useLiveRate } from '../hooks/useLiveRate';
 import {
   CATALOG,
   DEFAULT_API,
@@ -26,8 +27,11 @@ export function CurrencyForm({
   preview,
   onSave,
   onCancel,
+  embedded = false,
 }: {
   currency: Currency | null;
+  /** true: bir pencerenin içinde (kendi çerçevesi ve başlığı yok). */
+  embedded?: boolean;
   preview: (code: string, type: RateType) => Promise<number | null>;
   onSave: (draft: CurrencyDraft) => Promise<void>;
   onCancel: () => void;
@@ -51,7 +55,6 @@ export function CurrencyForm({
   const [advanced, setAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const [live, setLive] = useState<{ key: string; rate: number | null } | null>(null);
   const firstField = useRef<HTMLInputElement>(null);
   const base = currency?.base ?? false;
 
@@ -59,22 +62,7 @@ export function CurrencyForm({
     firstField.current?.focus();
   }, []);
 
-  // Merkez Bankası önizlemesi (kod ya da kur tipi değişince yeniden sorulur).
-  const key = `${draft.shortName.trim().toUpperCase()}|${draft.rateType}`;
-  useEffect(() => {
-    if (base || !draft.auto || draft.shortName.trim().length < 2) return;
-    let cancelled = false;
-    const handle = window.setTimeout(() => {
-      void preview(draft.shortName.trim(), draft.rateType)
-        .then((rate) => !cancelled && setLive({ key, rate }))
-        .catch(() => !cancelled && setLive({ key, rate: null }));
-    }, 250);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(handle);
-    };
-  }, [key, draft.auto, draft.shortName, draft.rateType, base, preview]);
-  const liveRate = live?.key === key ? live.rate : undefined;
+  const liveRate = useLiveRate(preview, !base && draft.auto, draft.shortName, draft.rateType);
 
   const set = <K extends keyof CurrencyDraft>(k: K, v: CurrencyDraft[K]) => {
     setDraft((d) => ({ ...d, [k]: v }));
@@ -124,11 +112,13 @@ export function CurrencyForm({
   return (
     <section
       aria-label={currency ? 'Para birimini düzenle' : 'Yeni para birimi'}
-      className="animate-rise-in rounded-3xl border border-brand-500/40 bg-surface-raised p-4 shadow-soft ring-2 ring-brand-500/10 sm:p-5"
+      className={embedded ? '' : 'animate-rise-in rounded-3xl border border-brand-500/40 bg-surface-raised p-4 shadow-soft ring-2 ring-brand-500/10 sm:p-5'}
     >
-      <h2 className="mb-3 text-lg font-extrabold tracking-tight">
-        {currency ? 'Para Birimini Düzenle' : 'Yeni Para Birimi'}
-      </h2>
+      {embedded ? null : (
+        <h2 className="mb-3 text-lg font-extrabold tracking-tight">
+          {currency ? 'Para Birimini Düzenle' : 'Yeni Para Birimi'}
+        </h2>
+      )}
       {problem ? (
         <p role="alert" className="mb-3 text-danger">
           {problem}

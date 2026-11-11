@@ -19,45 +19,54 @@ afterEach(() => {
 });
 
 describe('Para Birimleri', () => {
-  it('kartlar gelir; ana para birimi silinemez, otomatik olanda güncelle düğmesi vardır', async () => {
+  it('kur panosu gelir: ana para birimi, kurlar ve tek dokunuşla ekleme şeridi', async () => {
     await open();
     expect(await screen.findByText('ÖRNEK VERİ')).toBeInTheDocument();
-    expect(screen.getByText('Ana para birimi')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Türk Lirası sil' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'ABD Doları kurunu şimdi güncelle' })).toBeInTheDocument();
-    expect(screen.getByText(/1 USD = ₺50,30/)).toBeInTheDocument();
+    const board = screen.getByRole('list', { name: 'Para birimleri' });
+    expect(within(board).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(board).getByText('Ana')).toBeInTheDocument();
+    expect(within(board).getByText('₺50,30')).toBeInTheDocument();
+    // hazır sembollerden zaten ekli olanlar şeritte görünmez
+    expect(screen.queryByRole('button', { name: 'ABD Doları ekle' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Japon Yeni ekle' })).toBeInTheDocument();
   });
 
-  it('hızlı ekleme: sembol seçince ad/kısa ad dolar, kur Merkez Bankası’ndan önizlenir, aktif eklenir', async () => {
+  it('tek dokunuşla ekleme: Merkez Bankası kuruyla ve aktif olarak eklenir', async () => {
     const user = await open();
-    const dock = screen.getByRole('navigation', { name: 'Ana gezinme' });
-    await user.click(within(dock).getByRole('button', { name: 'Para Birimi Ekle' }));
-    const form = await screen.findByRole('region', { name: 'Yeni para birimi' });
-    await user.click(within(form).getByRole('button', { name: 'Japon Yeni (¥)' }));
-    expect(within(form).getByLabelText('Adı')).toHaveValue('Japon Yeni');
-    expect(within(form).getByLabelText('Kısa Adı')).toHaveValue('JPY');
-    expect(await within(form).findByText(/₺0,3373/)).toBeInTheDocument();
-    await user.click(within(form).getByRole('button', { name: 'Kaydet' }));
-    await waitFor(() => expect(screen.queryByRole('region', { name: 'Yeni para birimi' })).not.toBeInTheDocument());
-    const sw = screen.getByRole('switch', { name: 'Japon Yeni aktif' });
-    expect(sw).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Japon Yeni ekle' }));
+    const board = screen.getByRole('list', { name: 'Para birimleri' });
+    await waitFor(() => expect(within(board).getAllByRole('listitem')).toHaveLength(5));
+    expect(within(board).getByText('₺0,3373')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Japon Yeni ekle' })).not.toBeInTheDocument();
   });
 
-  it('elle kur: kur yazılmadan kaydedilmez; sil onay ister', async () => {
+  it('satıra basınca düzenleyici açılır: elle kur zorunlu, kaydedilir, pasifleştirilir ve silinir', async () => {
+    const user = await open();
+    await user.click(screen.getByRole('button', { name: 'ABD Doları düzenle' }));
+    await user.click(screen.getByRole('radio', { name: 'Elle' }));
+    const dock = screen.getByRole('navigation', { name: 'Ana gezinme' });
+    await user.click(within(dock).getByRole('button', { name: 'Kaydet' }));
+    expect(screen.getByText(/Kuru yazın/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Kur (₺)'), '51,5');
+    await user.click(within(dock).getByRole('button', { name: 'Kaydet' }));
+    expect(await screen.findByText('₺51,50')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'ABD Doları düzenle' }));
+    await user.click(screen.getByRole('switch', { name: 'ABD Doları aktif' }));
+    await waitFor(() => expect(screen.getAllByText('Pasif')).toHaveLength(2));
+    await user.click(screen.getByRole('button', { name: 'ABD Doları sil' }));
+    expect(await screen.findByRole('dialog', { name: /Silinsin Mi/ })).toBeInTheDocument();
+  });
+
+  it('özel ekleme: dock “+” sembol-öncelikli pencereyi açar; sembol seçince ad dolar', async () => {
     const user = await open();
     await user.click(within(screen.getByRole('navigation', { name: 'Ana gezinme' })).getByRole('button', { name: 'Para Birimi Ekle' }));
-    const form = await screen.findByRole('region', { name: 'Yeni para birimi' });
-    fireEvent.change(within(form).getByLabelText('Sembol'), { target: { value: '₮' } });
-    await user.type(within(form).getByLabelText('Adı'), 'Tugrik');
-    await user.type(within(form).getByLabelText('Kısa Adı'), 'MNT');
-    await user.click(within(form).getByRole('radio', { name: /Elle/ }));
-    await user.click(within(form).getByRole('button', { name: 'Kaydet' }));
-    expect(within(form).getByRole('button', { name: /Kuru yazın/ })).toBeInTheDocument();
-    await user.type(within(form).getByLabelText('Kur (₺)'), '0,015');
-    await user.click(within(form).getByRole('button', { name: 'Kaydet' }));
-    expect(await screen.findByText(/1 MNT = ₺0,015/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Tugrik sil' }));
-    expect(await screen.findByRole('dialog', { name: /Silinsin Mi/ })).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: 'Para Birimi Ekle' });
+    await user.click(within(dialog).getByRole('button', { name: 'Hindistan Rupisi (₹)' }));
+    expect(within(dialog).getByLabelText('Adı')).toHaveValue('Hindistan Rupisi');
+    expect(within(dialog).getByLabelText('Kısa Adı')).toHaveValue('INR');
+    fireEvent.change(within(dialog).getByLabelText('Sembol'), { target: { value: '₮' } });
+    await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Para birimleri' })).getByText('INR')).toBeInTheDocument());
   });
 
   it('yardımcılar', () => {
