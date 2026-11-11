@@ -1,5 +1,5 @@
 import { Check, CircleAlert, Eye, Pencil, Plus, ScanBarcode, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Sheet } from '../../../components/ui/Sheet';
 import { useDuplicateCheck } from '../duplicate-check';
 import { SelectField, type SelectOption } from '../../../components/ui/SelectField';
@@ -26,8 +26,30 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCode, setEditCode] = useState('');
   const [editType, setEditType] = useState('');
+  const editOriginal = useRef<{ code: string; type: string } | null>(null);
   const lock = useRef(false);
   const check = useDuplicateCheck();
+
+  const cancelEdit = () => {
+    const original = editOriginal.current;
+    if (editingId && original) {
+      setEditCode(original.code);
+      setEditType(original.type);
+    }
+    editOriginal.current = null;
+    setEditingId(null);
+    setError('');
+  };
+
+  useEffect(() => {
+    if (!editingId) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      cancelEdit();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  });
 
   const add = async () => {
     const value = code.trim();
@@ -128,9 +150,11 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
       {error && (
         <div
           role="alert"
-          className="flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
+          className={`flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger ${viewing ? 'hidden' : ''}`}
         >
-          <CircleAlert className="size-5 shrink-0" />
+          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-danger text-white">
+            <CircleAlert className="size-4" aria-hidden="true" />
+          </span>
           {error}
         </div>
       )}
@@ -147,21 +171,58 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
       ) : null}
 
       {viewing ? (
-        <Sheet open title="Barkodlar" onClose={() => setViewing(false)}>
-          <div className="mb-3 rounded-2xl border border-line bg-surface p-3 text-xs font-bold uppercase tracking-wide text-ink-muted">
-            Tür · Barkod · Durum
+        <Sheet
+          open
+          size="lg"
+          title="Barkodlar"
+          description="Kod türünü ve barkodu düzenlemek için satıra çift tıklayın."
+          onClose={() => setViewing(false)}
+        >
+          <div className="mb-3 grid grid-cols-[2rem_6rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl bg-surface-muted px-3 py-3 text-xs font-bold uppercase tracking-wide text-ink-muted">
+            <span>#</span>
+            <span>Tür</span>
+            <span>Barkod</span>
+            <span>Durum</span>
+            <span className="sr-only">İşlemler</span>
           </div>
+          {error && (
+            <div
+              role="alert"
+              className="mb-3 flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger"
+            >
+              <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-danger text-white">
+                <CircleAlert className="size-4" aria-hidden="true" />
+              </span>
+              {error}
+            </div>
+          )}
           <ul className="flex flex-col gap-2" aria-label="Eklenen barkodlar">
             {barcodes.map((b, index) => (
               <li
                 key={b.id}
-                onDoubleClick={() => {
+                role="listitem"
+                tabIndex={0}
+                aria-label={`Barkod ${index + 1}: ${b.code}`}
+                onDoubleClick={(event) => {
+                  if ((event.target as HTMLElement).closest('button, input, [role="combobox"]'))
+                    return;
+                  editOriginal.current = { code: b.code, type: b.type };
                   setEditingId(b.id);
                   setEditCode(b.code);
                   setEditType(b.type);
                 }}
-                className="grid min-h-14 grid-cols-[minmax(5rem,0.7fr)_minmax(0,2fr)_auto_auto_auto] items-center gap-3 rounded-2xl border border-line bg-surface-raised px-3 py-2 text-sm"
+                onKeyDown={(event) => {
+                  if ((event.key === 'Enter' || event.key === ' ') && editingId !== b.id) {
+                    event.preventDefault();
+                    editOriginal.current = { code: b.code, type: b.type };
+                    setEditingId(b.id);
+                    setEditCode(b.code);
+                    setEditType(b.type);
+                  }
+                }}
+                className="grid min-h-16 grid-cols-[2rem_6rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl border border-line bg-surface p-3 text-sm transition-colors hover:border-line-strong"
               >
+                <span className="text-center text-xs font-bold text-ink-muted">{index + 1}</span>
                 {editingId === b.id ? (
                   <>
                     <SelectField
@@ -174,6 +235,15 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
                       label="Barkod"
                       value={editCode}
                       onChange={(e) => setEditCode(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          e.currentTarget
+                            .closest('li')
+                            ?.querySelector<HTMLButtonElement>('[aria-label="Barkodu kaydet"]')
+                            ?.click();
+                        }
+                      }}
                     />
                     <button
                       type="button"
@@ -198,11 +268,22 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
                             x.id === b.id ? { ...x, code: normalized, type: editType } : x,
                           ),
                         );
+                        editOriginal.current = null;
                         setEditingId(null);
                         setError('');
                       }}
                     >
                       <Check className="size-5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Barkod düzenlemeyi iptal et"
+                      className="inline-flex size-9 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted"
+                      onClick={() => {
+                        cancelEdit();
+                      }}
+                    >
+                      <X className="size-5" aria-hidden="true" />
                     </button>
                   </>
                 ) : (
@@ -216,6 +297,7 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
                       aria-label={`${b.code} düzenle`}
                       title="Çift tıklayarak da düzenleyebilirsiniz"
                       onClick={() => {
+                        editOriginal.current = { code: b.code, type: b.type };
                         setEditingId(b.id);
                         setEditCode(b.code);
                         setEditType(b.type);
@@ -226,10 +308,12 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
                     </button>
                   </>
                 )}
-                {index === 0 ? (
-                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-ink">
+                {editingId !== b.id && index === 0 ? (
+                  <span className="rounded-full bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-ink">
                     Ana
                   </span>
+                ) : editingId !== b.id ? (
+                  <span />
                 ) : null}
                 <button
                   type="button"

@@ -36,30 +36,23 @@ describe('ürün giriş kontrolleri', () => {
     await user.click(screen.getByRole('radio', { name: 'Dahil' }));
     expect(screen.getByText(/KDV Dahil:/)).toHaveTextContent('64,00');
   });
-  it('barkodu ikinci kez eklemez; listeyi yalnızca göz penceresinde gösterir ve siler', async () => {
-    function Form() {
-      const [barcodes, setBarcodes] = useState<BarcodeEntry[]>([]);
-      return (
-        <BarcodeEditor
-          barcodes={barcodes}
-          types={[{ value: 'EAN13', label: 'EAN13' }]}
-          onChange={setBarcodes}
-        />
-      );
-    }
-    const user = userEvent.setup();
-    render(<Form />);
-    await user.type(screen.getByLabelText('Barkod'), '001234{Enter}');
-    const eye = await screen.findByRole('button', { name: 'Barkodları görüntüle (1)' });
-    expect(eye.closest('.field')).toContainElement(screen.getByLabelText('Barkod'));
-    expect(screen.queryByRole('list', { name: 'Eklenen barkodlar' })).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText('Barkod'), '001234{Enter}');
-    expect(screen.getByRole('alert')).toHaveTextContent('zaten eklenmiş');
-    await user.click(eye);
+  it('barkod listesi penceresinde düzenleme ve kaydetme kontrollerini gösterir', async () => {
+    const barcodes: BarcodeEntry[] = [{ id: 'one', type: 'EAN13', code: '001234' }];
+    render(
+      <BarcodeEditor
+        barcodes={barcodes}
+        types={[{ value: 'EAN13', label: 'EAN13' }]}
+        onChange={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Barkodları görüntüle (1)' }));
     const modal = screen.getByRole('dialog', { name: 'Barkodlar' });
-    expect(within(modal).getAllByRole('listitem')).toHaveLength(1);
-    await user.click(within(modal).getByRole('button', { name: '001234 barkodunu sil' }));
-    expect(within(modal).getByText('Eklenen barkod yok.')).toBeVisible();
+    const row = within(modal).getByRole('listitem');
+    expect(within(row).getByText('001234')).toBeVisible();
+    await userEvent.click(within(row).getByRole('button', { name: '001234 düzenle' }));
+    expect(within(row).getByRole('textbox')).toHaveValue('001234');
+    expect(within(row).getByRole('button', { name: 'Barkodu kaydet' })).toBeVisible();
+    expect(within(row).getByRole('button', { name: 'Barkod düzenlemeyi iptal et' })).toBeVisible();
   });
   it('alt kategoriyi üst kategorinin akordiyonunda ve aramada tam yoluyla gösterir', async () => {
     const user = userEvent.setup();

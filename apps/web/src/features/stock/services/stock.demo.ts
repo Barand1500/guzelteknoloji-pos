@@ -19,9 +19,11 @@ import type { StockService } from './stock.service';
 
 /** Formda eklenen fiyat listeleri (deneme verisi, sayfa yenilenince sıfırlanır). */
 let customPriceLists: SelectOption[] = [];
+let basePriceListLabel = stockLookupsMock.priceLists[0]?.label ?? 'FİYAT';
 /** Yalnızca testler için. */
 export const resetDemoStock = () => {
   customPriceLists = [];
+  basePriceListLabel = stockLookupsMock.priceLists[0]?.label ?? 'FİYAT';
 };
 
 const fakeDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -53,7 +55,11 @@ export const demoStockService: StockService = {
     return {
       ...stockLookupsMock,
       brands,
-      priceLists: [...stockLookupsMock.priceLists, ...customPriceLists],
+      priceLists: [
+        { ...stockLookupsMock.priceLists[0]!, label: basePriceListLabel },
+        ...stockLookupsMock.priceLists.slice(1),
+        ...customPriceLists,
+      ],
     };
   },
 
@@ -78,6 +84,10 @@ export const demoStockService: StockService = {
 
   async renameOption(list: OptionListKey, value: string, label: string): Promise<SelectOption> {
     await fakeDelay(0);
+    if (list === 'priceLists' && value === 'fiyat') {
+      basePriceListLabel = label;
+      return { value, label, removable: false };
+    }
     const option = { value, label, removable: true };
     if (list === 'priceLists')
       customPriceLists = customPriceLists.map((o) => (o.value === value ? option : o));
