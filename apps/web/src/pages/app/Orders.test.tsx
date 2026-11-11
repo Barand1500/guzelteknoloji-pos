@@ -31,22 +31,23 @@ async function openOrders() {
 }
 
 describe('Gelen Siparişler', () => {
-  it('özet kutuları, 10 satırlık ilk sayfa ve sipariş sahnesi gelir; durum hapları yoktur', async () => {
+  it('özet kutuları, 10 satırlık ilk sayfa ve açık satırın sipariş akışı gelir; durum hapları yoktur', async () => {
     await openOrders();
     expect(await screen.findByText('ÖRNEK VERİ')).toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'Sipariş durumu' })).not.toBeInTheDocument();
-    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(1 + 10);
+    // başlık + 10 sipariş + açık satırın akış satırı
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(1 + 10 + 1);
     expect(screen.getByRole('navigation', { name: 'Sayfalama' })).toBeInTheDocument();
-    const scene = screen.getByRole('region', { name: 'Sipariş sahnesi' });
-    expect(within(scene).getByRole('list', { name: 'Sipariş adımları' })).toBeInTheDocument();
-    expect(within(scene).getByRole('img')).toBeInTheDocument();
+    // İlk satır açık gelir: altında 4 adımlı sipariş akışı vardır.
+    const flow = screen.getByRole('list', { name: 'Sipariş akışı' });
+    expect(within(flow).getAllByRole('listitem')).toHaveLength(4);
   });
 
   it('arama müşteri ve sipariş no üzerinde çalışır', async () => {
     const user = await openOrders();
     await user.type(screen.getByRole('searchbox', { name: 'Sipariş ara' }), orderSeeds[0]!.no);
     await waitFor(() =>
-      expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2),
+      expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3),
     );
   });
 
@@ -64,24 +65,34 @@ describe('Gelen Siparişler', () => {
     expect(screen.queryByRole('list', { name: 'Açık süzgeçler' })).not.toBeInTheDocument();
   });
 
-  it('sahne: satıra basınca sipariş sahneye gelir; adım ilerler, iptal koliyi çöpe atar', async () => {
+  it('akış: satır büyür; adım ilerler, geçilenler tikli, gelmeyenler pasif; iptalde son adım çöpe döner', async () => {
     const user = await openOrders();
     const target = pending[0]!;
     await user.type(screen.getByRole('searchbox', { name: 'Sipariş ara' }), target.no);
-    const scene = screen.getByRole('region', { name: 'Sipariş sahnesi' });
+    const flow = await screen.findByRole('list', { name: 'Sipariş akışı' });
+    const stepNow = () => within(flow).getByText('Geçerli adım').closest('li')!;
+    await waitFor(() => expect(stepNow()).toHaveTextContent('Bekliyor'));
+    expect(within(flow).getAllByText('Bekliyor').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: /Sıradaki adım: Hazırlanıyor/ }));
+    await waitFor(() => expect(stepNow()).toHaveTextContent('Hazırlanıyor'));
+    expect(within(flow).getAllByText('Tamamlandı')).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: /Sıradaki adım: Kargoda/ }));
+    await waitFor(() => expect(stepNow()).toHaveTextContent('Kargoda'));
+    expect(within(flow).getAllByText('Tamamlandı')).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'İptal Et' }));
+    await waitFor(() => expect(stepNow()).toHaveTextContent('İptal Edildi'));
+    expect(within(flow).queryByText('Tamamlandı')).not.toBeInTheDocument();
+    expect(screen.getByText('Bu sipariş iptal edildi.')).toBeInTheDocument();
+  });
+
+  it('açık satıra bir daha basınca akış kapanır', async () => {
+    const user = await openOrders();
+    expect(screen.getByRole('list', { name: 'Sipariş akışı' })).toBeInTheDocument();
+    const first = within(screen.getByRole('table')).getAllByRole('row')[1]!;
+    await user.click(first);
     await waitFor(() =>
-      expect(within(scene).getByText(new RegExp(`#${target.no}`))).toBeInTheDocument(),
+      expect(screen.queryByRole('list', { name: 'Sipariş akışı' })).not.toBeInTheDocument(),
     );
-    expect(within(scene).getByRole('img')).toHaveAccessibleName(/koli hazırlanıyor/);
-    await user.click(within(scene).getByRole('button', { name: /Sıradaki adım: Hazırlanıyor/ }));
-    await waitFor(() =>
-      expect(within(scene).getByRole('img')).toHaveAccessibleName(/koli bantlanıyor/),
-    );
-    await user.click(within(scene).getByRole('button', { name: /Sıradaki adım: Kargoda/ }));
-    await waitFor(() => expect(within(scene).getByRole('img')).toHaveAccessibleName(/yolda/));
-    await user.click(within(scene).getByRole('button', { name: 'İptal Et' }));
-    await waitFor(() => expect(within(scene).getByRole('img')).toHaveAccessibleName(/çöpe gitti/));
-    expect(within(scene).getByText('İptal Edildi')).toBeInTheDocument();
   });
 
   it('sipariş ayrıntısı açılır ve "sıradaki adıma geç" durumu ilerletir', async () => {
@@ -114,7 +125,12 @@ describe('Gelen Siparişler', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Devam' }));
     await user.click(within(dialog).getByRole('switch', { name: 'Ürünler' }));
     await user.click(within(dialog).getByRole('button', { name: 'Devam' }));
-    expect(within(dialog).getByText('siparisler.csv (Excel)')).toBeInTheDocument();
+    // Dosya adı elle yazılır; uzantı .csv kalır, geçersiz karakterler atılır.
+    const name = within(dialog).getByRole('textbox', { name: 'Dosya adı' });
+    expect(name).toHaveValue('siparisler');
+    await user.clear(name);
+    await user.type(name, 'ekim:raporu?');
+    expect(within(dialog).getByText(/ekimraporu.csv olarak iner/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'İndir' }));
     await waitFor(() =>
       expect(
@@ -186,5 +202,38 @@ describe('İade/Değişim Talepleri', () => {
     expect(within(dock).getByRole('link', { name: /Gelen Siparişler/ })).not.toHaveAttribute(
       'aria-current',
     );
+  });
+});
+
+describe('Süzgeçler ve ayrıntı penceresi', () => {
+  it('tutar aralığı: en yüksek, en düşükten küçükse uyarı çıkar ve uygulanamaz; seçili hap tiksiz turuncudur', async () => {
+    const user = await openOrders();
+    await user.click(screen.getByRole('button', { name: 'Süzgeçler' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Süzgeçler' });
+    const hepsi = within(dialog).getAllByRole('radio', { name: 'Hepsi' })[0]!;
+    expect(hepsi).toHaveAttribute('aria-checked', 'true');
+    expect(hepsi.querySelector('svg')).toBeNull();
+    await user.type(within(dialog).getByLabelText('En düşük tutar'), '10');
+    await user.type(within(dialog).getByLabelText('En yüksek tutar'), '5');
+    expect(
+      within(dialog).getByRole('button', { name: /en düşük tutardan küçük olamaz/ }),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /Siparişi Göster/ })).toBeDisabled();
+    await user.clear(within(dialog).getByLabelText('En yüksek tutar'));
+    await user.type(within(dialog).getByLabelText('En yüksek tutar'), '5000000');
+    expect(within(dialog).getByRole('button', { name: /Siparişi Göster/ })).toBeEnabled();
+  });
+
+  it('sipariş ayrıntısı fiş düzenindedir: damga, noktalı ürün satırları, toplam', async () => {
+    const user = await openOrders();
+    const o = orderSeeds[0]!;
+    await user.click(
+      await screen.findByRole('button', { name: `${o.no} numaralı siparişi görüntüle` }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: `Sipariş #${o.no}` });
+    const receipt = within(dialog).getByRole('region', { name: 'Sipariş fişi' });
+    expect(within(receipt).getByText(o.paid ? 'ÖDENDİ' : 'ÖDEME BEKLİYOR')).toBeInTheDocument();
+    expect(within(receipt).getByText('Toplam')).toBeInTheDocument();
+    expect(within(dialog).getByRole('region', { name: 'Sipariş durumu' })).toBeInTheDocument();
   });
 });

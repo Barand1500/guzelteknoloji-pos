@@ -50,12 +50,23 @@ const OPTIONS: { kind: ScopeKind; icon: LucideIcon; title: string; hint: string 
   },
 ];
 
-function save(csv: string) {
+/** Dosya adı: geçersiz karakterler atılır, boşsa "siparisler" olur; uzantı hep .csv'dir. */
+export function cleanFileName(text: string): string {
+  const base = text
+    .replace(/\.csv$/i, '')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '')
+    .trim()
+    .slice(0, 80);
+  return base === '' ? 'siparisler' : base;
+}
+
+function save(csv: string, fileName: string) {
   if (typeof URL.createObjectURL !== 'function') return;
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'siparisler.csv';
+  a.download = `${fileName}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -80,6 +91,8 @@ export function OrderExportSheet({ orders, listed, onClose }: OrderExportSheetPr
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [columns, setColumns] = useState<ExportColumnKey[]>(DEFAULT_EXPORT_COLUMNS);
+  const [fileText, setFileText] = useState('siparisler');
+  const fileName = cleanFileName(fileText);
 
   const scope: ExportScope =
     kind === 'product'
@@ -249,17 +262,33 @@ export function OrderExportSheet({ orders, listed, onClose }: OrderExportSheetPr
                 <dt className="text-ink-muted">Sütun</dt>
                 <dd className="font-bold">{columns.length}</dd>
               </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-ink-muted">Dosya</dt>
-                <dd className="font-bold">siparisler.csv (Excel)</dd>
-              </div>
             </dl>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-bold">Dosya adı</span>
+              <span className="flex items-end gap-1 border-b-2 border-brand-600 pb-1 transition-colors focus-within:border-brand-800">
+                <input
+                  type="text"
+                  value={fileText}
+                  onChange={(e) => setFileText(e.target.value)}
+                  aria-label="Dosya adı"
+                  maxLength={80}
+                  placeholder="siparisler"
+                  className="min-w-0 flex-1 bg-transparent py-1 text-lg font-bold outline-none placeholder:text-ink-muted/60"
+                />
+                <span aria-hidden="true" className="pb-1 text-lg font-bold text-ink-muted">
+                  .csv
+                </span>
+              </span>
+              <span className="text-xs text-ink-muted">
+                İstediğin adı yazabilirsin; dosya {fileName}.csv olarak iner (Excel'de açılır).
+              </span>
+            </label>
             <div className="flex flex-col gap-3 sm:flex-row-reverse">
               <Button
                 flow={false}
                 leadingIcon={<Download className="size-5" aria-hidden="true" />}
                 onClick={() => {
-                  save(ordersToCsv(chosen, columns));
+                  save(ordersToCsv(chosen, columns), fileName);
                   onClose();
                 }}
               >

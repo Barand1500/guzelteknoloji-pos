@@ -1,7 +1,6 @@
 import {
   Banknote,
   CalendarDays,
-  Check,
   Globe,
   Hand,
   Smartphone,
@@ -67,7 +66,6 @@ function Choice({
     >
       {Icon ? <Icon className="size-4" aria-hidden="true" /> : null}
       {children}
-      {on ? <Check className="size-4" aria-hidden="true" /> : null}
     </button>
   );
 }
@@ -110,7 +108,15 @@ export function OrderFilterSheet({ orders, value, onApply, onClose }: OrderFilte
   const [draft, setDraft] = useState<OrderFilters>(value);
   const set = <K extends keyof OrderFilters>(key: K, v: OrderFilters[K]) =>
     setDraft((d) => ({ ...d, [key]: v }));
-  const count = filterOrders(orders, draft).length;
+  // En yüksek tutar, en düşük tutardan küçük olamaz.
+  const toNumber = (t: string) => (t.trim() === '' ? null : Number(t.replace(',', '.')));
+  const lo = toNumber(draft.min);
+  const hi = toNumber(draft.max);
+  const rangeError =
+    lo !== null && hi !== null && Number.isFinite(lo) && Number.isFinite(hi) && hi < lo
+      ? 'En yüksek tutar, en düşük tutardan küçük olamaz.'
+      : undefined;
+  const count = rangeError ? 0 : filterOrders(orders, draft).length;
   const ranges = presets();
   const activePreset = ranges.find((r) => r.from === draft.from && r.to === draft.to)?.id;
 
@@ -197,6 +203,7 @@ export function OrderFilterSheet({ orders, value, onApply, onClose }: OrderFilte
               label="En yüksek tutar"
               numeric="decimal"
               value={draft.max}
+              error={rangeError}
               onChange={(e) => set('max', e.target.value)}
             />
           </div>
@@ -205,6 +212,7 @@ export function OrderFilterSheet({ orders, value, onApply, onClose }: OrderFilte
         <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row-reverse">
           <Button
             flow={false}
+            disabled={rangeError !== undefined}
             onClick={() => {
               onApply(draft);
               onClose();

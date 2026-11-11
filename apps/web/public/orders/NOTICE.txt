@@ -1,0 +1,3 @@
+Bu klasördeki animasyonlu görseller Google Noto Emoji Animation setindendir.
+Kaynak: https://googlefonts.github.io/noto-emoji-animation/ — Lisans: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+(c) Google LLC. Görseller değiştirilmemiştir.

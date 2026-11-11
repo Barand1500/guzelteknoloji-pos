@@ -1,5 +1,6 @@
 import { Download, Eye, ListFilter, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
+import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { Alert } from '../../../components/ui/Alert';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
@@ -17,7 +18,7 @@ import {
 import { SOURCE_LABEL, type OrderStatus } from '../types';
 import { OrderExportSheet } from './OrderExportSheet';
 import { OrderFilterSheet } from './OrderFilterSheet';
-import { OrderScene } from './OrderScene';
+import { OrderTrack } from './OrderTrack';
 import { OrderSheet } from './OrderSheet';
 import { SampleNote, SortTh, StatusPill, formatDateTime } from './parts';
 
@@ -59,11 +60,13 @@ function chipsOf(f: OrderFilters): { id: string; label: string; clear: Partial<O
 /**
  * Gelen Siparişler: üstte üç özet kutusu, arama + Süzgeçler (pencere) + Dışa Aktar (sihirbaz), açık
  * süzgeç etiketleri, masaüstünde sıralanabilir tablo / telefonda kartlar, sayfalama ve en altta tüm
- * genişliği kaplayan "Sipariş Sahnesi" (seçili siparişin durumunu animasyonla gösterir). Satıra
- * bir kez basınca sipariş sahneye gelir; çift tıklayınca (ya da göz simgesiyle) ayrıntı açılır.
+ * Satıra bir kez basınca satır BÜYÜR: altında siparişin akışı (Bekliyor → Hazırlanıyor → Kargoda →
+ * Teslim) görsellerle açılır; çift tıklayınca (ya da göz simgesiyle) ayrıntı penceresi açılır.
  */
 export function OrdersView() {
   const { orders, loading, error, sample, refresh, setStatus } = useOrders();
+  // Tablo ve kartlar aynı anda çizilmez (görseller iki kez yüklenmesin).
+  const wide = useMediaQuery('(min-width: 48rem)');
   const [filters, setFilters] = useState<OrderFilters>(emptyOrderFilters);
   const [filterOpen, setFilterOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -94,8 +97,10 @@ export function OrdersView() {
   const extra = activeFilterCount(filters);
   const chips = chipsOf(filters);
   const open = orders.find((o) => o.id === openId) ?? null;
-  // Sahnedeki sipariş: seçilen; yoksa listedeki ilk.
-  const selected = orders.find((o) => o.id === selectedId) ?? shown[0] ?? null;
+  // Genişleyen (akışı açık) sipariş: seçilen; hiç seçilmediyse listedeki ilk; '' = hepsi kapalı.
+  const selected =
+    selectedId === '' ? null : (orders.find((o) => o.id === selectedId) ?? shown[0] ?? null);
+  const toggle = (id: string) => setSelectedId(selected?.id === id ? '' : id);
 
   const sortBy = (key: OrderSortKey) =>
     setSort((s) => ({ key, dir: s.key === key && s.dir === 'desc' ? 'asc' : 'desc' }));
@@ -234,112 +239,140 @@ export function OrdersView() {
       ) : (
         <>
           {/* Masaüstü: tablo */}
-          <div className="hidden overflow-x-auto rounded-3xl border border-line bg-surface-raised md:block">
-            <table className="w-full min-w-[56rem] border-collapse">
-              <thead className="border-b border-line bg-surface-muted/50">
-                <tr>
-                  {COLUMNS.map((c) => (
-                    <SortTh
-                      key={c.key}
-                      label={c.label}
-                      active={sort.key === c.key}
-                      dir={sort.dir}
-                      onSort={() => sortBy(c.key)}
-                      className={c.align}
-                    />
+          {wide ? (
+            <div className="overflow-x-auto rounded-3xl border border-line bg-surface-raised">
+              <table className="w-full min-w-[56rem] border-collapse">
+                <thead className="border-b border-line bg-surface-muted/50">
+                  <tr>
+                    {COLUMNS.map((c) => (
+                      <SortTh
+                        key={c.key}
+                        label={c.label}
+                        active={sort.key === c.key}
+                        dir={sort.dir}
+                        onSort={() => sortBy(c.key)}
+                        className={c.align}
+                      />
+                    ))}
+                    <th className="w-12 px-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((o) => (
+                    <Fragment key={o.id}>
+                      <tr
+                        onClick={() => toggle(o.id)}
+                        onDoubleClick={() => setOpenId(o.id)}
+                        aria-selected={selected?.id === o.id}
+                        className={[
+                          'cursor-pointer border-b border-line transition-colors last:border-0',
+                          selected?.id === o.id ? 'bg-brand-50' : 'hover:bg-brand-50/50',
+                        ].join(' ')}
+                      >
+                        <td className="px-4 py-3 font-bold">#{o.no}</td>
+                        <td className="px-4 py-3 text-sm whitespace-nowrap text-ink-muted">
+                          {formatDateTime(o.date)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="block max-w-56 truncate font-semibold">
+                            {o.customer}
+                          </span>
+                          <span className="text-xs text-ink-muted">
+                            {SOURCE_LABEL[o.source]} · {o.paid ? 'Ödendi' : 'Ödeme bekleniyor'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm">{formatMoney(o.total)}</td>
+                        <td className="px-4 py-3 text-right font-bold">
+                          {formatMoney(o.totalWithVat)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusPill status={o.status} />
+                        </td>
+                        <td className="px-2 py-3">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenId(o.id);
+                            }}
+                            aria-label={`${o.no} numaralı siparişi görüntüle`}
+                            title="Görüntüle"
+                            className="inline-flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-ink"
+                          >
+                            <Eye className="size-5" aria-hidden="true" />
+                          </button>
+                        </td>
+                      </tr>
+                      {selected?.id === o.id ? (
+                        <tr className="border-b border-line bg-brand-50 last:border-0">
+                          <td colSpan={COLUMNS.length + 1} className="px-4 pt-1 pb-5">
+                            <OrderTrack
+                              order={o}
+                              busy={busy}
+                              onStatus={(st) => void changeStatus(o.id, st)}
+                              onDetails={() => setOpenId(o.id)}
+                            />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   ))}
-                  <th className="w-12 px-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((o) => (
-                  <tr
-                    key={o.id}
-                    onClick={() => setSelectedId(o.id)}
-                    onDoubleClick={() => setOpenId(o.id)}
-                    aria-selected={selected?.id === o.id}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <ul aria-label="Siparişler" className="flex flex-col gap-2.5">
+              {shown.map((o, i) => (
+                <li
+                  key={o.id}
+                  style={{ animationDelay: `${i * 40}ms` }}
+                  className="animate-rise-in"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggle(o.id)}
+                    aria-expanded={selected?.id === o.id}
+                    aria-label={`${o.no} numaralı siparişi aç`}
                     className={[
-                      'cursor-pointer border-b border-line transition-colors last:border-0',
-                      selected?.id === o.id ? 'bg-brand-50' : 'hover:bg-brand-50/50',
+                      'flex w-full flex-col gap-2.5 rounded-3xl border bg-surface-raised p-4 text-left transition-colors active:border-brand-500',
+                      selected?.id === o.id ? 'border-brand-600' : 'border-line',
                     ].join(' ')}
                   >
-                    <td className="px-4 py-3 font-bold">#{o.no}</td>
-                    <td className="px-4 py-3 text-sm whitespace-nowrap text-ink-muted">
-                      {formatDateTime(o.date)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="block max-w-56 truncate font-semibold">{o.customer}</span>
-                      <span className="text-xs text-ink-muted">
-                        {SOURCE_LABEL[o.source]} · {o.paid ? 'Ödendi' : 'Ödeme bekleniyor'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm">{formatMoney(o.total)}</td>
-                    <td className="px-4 py-3 text-right font-bold">
-                      {formatMoney(o.totalWithVat)}
-                    </td>
-                    <td className="px-4 py-3">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="font-extrabold">#{o.no}</span>
                       <StatusPill status={o.status} />
-                    </td>
-                    <td className="px-2 py-3">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenId(o.id);
-                        }}
-                        aria-label={`${o.no} numaralı siparişi görüntüle`}
-                        title="Görüntüle"
-                        className="inline-flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-ink"
-                      >
-                        <Eye className="size-5" aria-hidden="true" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Telefon: kartlar */}
-          <ul aria-label="Siparişler" className="flex flex-col gap-2.5 md:hidden">
-            {shown.map((o, i) => (
-              <li key={o.id} style={{ animationDelay: `${i * 40}ms` }} className="animate-rise-in">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedId(o.id);
-                    setOpenId(o.id);
-                  }}
-                  aria-label={`${o.no} numaralı siparişi aç`}
-                  className={[
-                    'flex w-full flex-col gap-2.5 rounded-3xl border bg-surface-raised p-4 text-left transition-colors active:border-brand-500',
-                    selected?.id === o.id ? 'border-brand-600' : 'border-line',
-                  ].join(' ')}
-                >
-                  <span className="flex items-center justify-between gap-3">
-                    <span className="font-extrabold">#{o.no}</span>
-                    <StatusPill status={o.status} />
-                  </span>
-                  <span className="flex items-end justify-between gap-3">
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold">{o.customer}</span>
-                      <span className="block text-xs text-ink-muted">
-                        {formatDateTime(o.date)} · {SOURCE_LABEL[o.source]}
+                    </span>
+                    <span className="flex items-end justify-between gap-3">
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold">{o.customer}</span>
+                        <span className="block text-xs text-ink-muted">
+                          {formatDateTime(o.date)} · {SOURCE_LABEL[o.source]}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block font-extrabold">{formatMoney(o.totalWithVat)}</span>
+                        <span
+                          className={`text-xs font-bold ${o.paid ? 'text-success' : 'text-brand-800'}`}
+                        >
+                          {o.paid ? 'Ödendi' : 'Ödeme bekleniyor'}
+                        </span>
                       </span>
                     </span>
-                    <span className="shrink-0 text-right">
-                      <span className="block font-extrabold">{formatMoney(o.totalWithVat)}</span>
-                      <span
-                        className={`text-xs font-bold ${o.paid ? 'text-success' : 'text-brand-800'}`}
-                      >
-                        {o.paid ? 'Ödendi' : 'Ödeme bekleniyor'}
-                      </span>
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                  </button>
+                  {selected?.id === o.id ? (
+                    <div className="-mt-2 rounded-b-3xl border border-t-0 border-brand-600 bg-brand-50 px-3 pt-5 pb-4">
+                      <OrderTrack
+                        order={o}
+                        busy={busy}
+                        onStatus={(st) => void changeStatus(o.id, st)}
+                        onDetails={() => setOpenId(o.id)}
+                      />
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
 
           <PaginationBar
             total={filtered.length}
@@ -357,14 +390,6 @@ export function OrdersView() {
           />
         </>
       )}
-
-      {!loading && orders.length > 0 ? (
-        <OrderScene
-          order={selected}
-          busy={busy}
-          onStatus={(s) => selected && void changeStatus(selected.id, s)}
-        />
-      ) : null}
 
       {filterOpen ? (
         <OrderFilterSheet
