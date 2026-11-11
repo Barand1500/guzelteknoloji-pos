@@ -1273,7 +1273,8 @@ function SettingsPageContent({
           )}
           {section === 'images' && (
             <p className="text-sm text-ink-muted">
-              Açık olduğunda görselin kenarlarına bağlı beyaz arka plan temizlenir. Özgün dosya
+              Açık olduğunda görselin arkasındaki açık fon (düz ya da gradyanlı) ve çanta kulpu gibi
+              kapalı boşluklar temizlenir; ürünün kendi açık renkli yüzeyleri korunur. Özgün dosya
               korunur; kapattığınızda özgün görsel gösterilir.
             </p>
           )}

@@ -194,7 +194,7 @@ export function RobotChallenge({
   );
 }
 
-export function useRobotChallenge(email?: string) {
+export function useRobotChallenge(email?: string, flowToken?: string) {
   const configKey = useRef('');
   const [config, setConfig] = useState<ChallengeConfig | null>(null);
   const [token, setToken] = useState('');
@@ -206,7 +206,10 @@ export function useRobotChallenge(email?: string) {
       () => {
         void apiRequest<{ challenge: ChallengeConfig | null }>('/api/auth/robot', {
           method: 'POST',
-          body: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? { email } : {},
+          body: {
+            ...(email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? { email } : {}),
+            ...(flowToken ? { flowToken } : {}),
+          },
         })
           .then((result) => {
             if (!active || !result || !('challenge' in result)) return;
@@ -232,7 +235,7 @@ export function useRobotChallenge(email?: string) {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [email]);
+  }, [email, flowToken]);
   return {
     token,
     pending:

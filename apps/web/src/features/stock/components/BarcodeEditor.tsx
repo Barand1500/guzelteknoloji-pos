@@ -23,6 +23,7 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
   const [viewing, setViewing] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCode, setEditCode] = useState('');
   const [editType, setEditType] = useState('');
@@ -59,6 +60,7 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
       barcodes.some((b) => b.code.toLocaleLowerCase('en-US') === value.toLocaleLowerCase('en-US'))
     ) {
       setError('Bu barkod zaten eklenmiş.');
+      inputRef.current?.focus();
       return;
     }
     lock.current = true;
@@ -67,12 +69,16 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
       const hit = await check?.({ code: '', barcode: value });
       if (hit?.barcode) {
         setError(`Bu barkod kullanılıyor: ${hit.barcode.name || hit.barcode.code}`);
+        inputRef.current?.focus();
         return;
       }
       onChange([...barcodes, { id: uid(), type, code: value }]);
-      setCode('');
+      // Art arda giriş için odak inputta kalır; kullanıcı bu arada yeni bir şey yazdıysa silinmez.
+      setCode((current) => (current === value ? '' : current));
+      inputRef.current?.focus();
     } catch {
       setError('Barkod kontrol edilemedi. Tekrar deneyin.');
+      inputRef.current?.focus();
     } finally {
       lock.current = false;
       setBusy(false);
@@ -99,10 +105,11 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
         <div className="relative min-w-0 flex-1 focus-within:z-10 sm:-ml-px">
           <TextField
             label="Barkod"
+            ref={inputRef}
             inputMode="numeric"
             value={code}
             className={`rounded-r-none! sm:rounded-none! ${barcodes.length > 0 ? 'pr-24!' : ''}`}
-            disabled={busy}
+            readOnly={busy}
             onChange={(e) => setCode(e.target.value)}
             trailing={
               <span className="flex items-center">
@@ -292,37 +299,39 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
                       {b.type === 'none' ? 'Barkod' : b.type}
                     </span>
                     <span className="min-w-0 break-all font-mono text-ink">{b.code}</span>
-                    <button
-                      type="button"
-                      aria-label={`${b.code} düzenle`}
-                      title="Çift tıklayarak da düzenleyebilirsiniz"
-                      onClick={() => {
-                        editOriginal.current = { code: b.code, type: b.type };
-                        setEditingId(b.id);
-                        setEditCode(b.code);
-                        setEditType(b.type);
-                      }}
-                      className="inline-flex size-8 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted"
-                    >
-                      <Pencil className="size-4" />
-                    </button>
+                    {index === 0 ? (
+                      <span className="justify-self-start rounded-full bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-ink">
+                        Ana
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    <span className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        aria-label={`${b.code} düzenle`}
+                        title="Çift tıklayarak da düzenleyebilirsiniz"
+                        onClick={() => {
+                          editOriginal.current = { code: b.code, type: b.type };
+                          setEditingId(b.id);
+                          setEditCode(b.code);
+                          setEditType(b.type);
+                        }}
+                        className="inline-flex size-9 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted"
+                      >
+                        <Pencil className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`${b.code} barkodunu sil`}
+                        onClick={() => onChange(barcodes.filter((x) => x.id !== b.id))}
+                        className="inline-flex size-9 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                      >
+                        <X className="size-4" aria-hidden="true" />
+                      </button>
+                    </span>
                   </>
                 )}
-                {editingId !== b.id && index === 0 ? (
-                  <span className="rounded-full bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-ink">
-                    Ana
-                  </span>
-                ) : editingId !== b.id ? (
-                  <span />
-                ) : null}
-                <button
-                  type="button"
-                  aria-label={`${b.code} barkodunu sil`}
-                  onClick={() => onChange(barcodes.filter((x) => x.id !== b.id))}
-                  className="inline-flex size-7 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger"
-                >
-                  <X className="size-4" aria-hidden="true" />
-                </button>
               </li>
             ))}
           </ul>

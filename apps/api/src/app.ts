@@ -26,6 +26,8 @@ import type { PrismaClient } from './lib/prisma';
 import { createCatalogRouter } from './modules/catalog/catalog.routes';
 import { createDealRouter } from './modules/catalog/deal.routes';
 import { createAttributeRouter } from './modules/catalog/attribute.routes';
+import { createOrderRouter, createHomeRouter } from './modules/orders/order.routes';
+import { PrismaOrderStore } from './modules/orders/order.store';
 import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
 import { WorkspaceChallenge, whatsappWebhook } from './modules/workspace/workspace.integrations';
@@ -45,6 +47,8 @@ export interface AppDeps {
   stockRepo?: StockRepository;
   brandRepo?: PrismaBrandRepository;
   catalogDb?: PrismaClient;
+  /** Testlerde sahte doğrulama sağlayıcısı enjekte etmek için; normalde catalogDb'den üretilir. */
+  challenge?: WorkspaceChallenge;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -115,6 +119,9 @@ export function createApp(deps: AppDeps): Express {
     codeSecret: env.COOKIE_SECRET,
     sessionTtlMs: env.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
   });
+  const challenge =
+    deps.challenge ??
+    (deps.catalogDb ? new WorkspaceChallenge(deps.catalogDb, env) : undefined);
 
   const checkOrigin = originCheck(env.allowedOrigins);
   app.use('/api', (req, res, next) => {
@@ -141,7 +148,7 @@ export function createApp(deps: AppDeps): Express {
       apple:
         deps.apple !== undefined ? deps.apple : env.apple ? createAppleOidcClient(env.apple) : null,
       logger,
-      ...(deps.catalogDb ? { challenge: new WorkspaceChallenge(deps.catalogDb, env) } : {}),
+      ...(challenge ? { challenge } : {}),
     }),
   );
   if (deps.stockRepo)
@@ -155,6 +162,14 @@ export function createApp(deps: AppDeps): Express {
   if (deps.catalogDb) {
     app.use('/api/firsatlar', createDealRouter(env, service, deps.catalogDb));
     app.use('/api/ozellikler', createAttributeRouter(env, service, deps.catalogDb));
+    const orderStore = new PrismaOrderStore(deps.catalogDb);
+    const orderLimit = createRateLimiter({
+      enabled: env.rateLimitEnabled,
+      windowMs: 60000,
+      limit: 180,
+    });
+    app.use('/api/siparisler', orderLimit, createOrderRouter(orderStore));
+    app.use('/api/anasayfa', orderLimit, createHomeRouter(orderStore));
   }
   app.use('/api', notFoundHandler);
 

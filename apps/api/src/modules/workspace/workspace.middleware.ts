@@ -45,7 +45,9 @@ export function workspaceMiddleware(
     const permission = requestPermission(path, req.method, req.body);
     const account = path.startsWith('/api/hesap');
     const logout = path === '/api/auth/logout';
-    if (!permission && !account && !logout) return next();
+    // Siparişler ve anasayfa yalnızca oturum ister; ayrı bir bölüm yetkisi yoktur (menüde de yok).
+    const orders = path.startsWith('/api/siparisler') || path.startsWith('/api/anasayfa');
+    if (!permission && !account && !logout && !orders) return next();
     const token = readSessionToken(req, env);
     const session = token ? await auth.getSession(token) : null;
     if (!session) {
@@ -73,18 +75,22 @@ export function workspaceMiddleware(
             ? 'roles'
             : path.includes('/ayarlar') || path.includes('/google')
               ? 'settings'
-              : 'profile');
+              : path.startsWith('/api/siparisler') || path.startsWith('/api/anasayfa')
+                ? 'orders'
+                : 'profile');
       const action = logout
         ? 'Çıkış Yap'
         : permission?.action === 'delete' || path.endsWith('/sil')
           ? 'Sil'
-          : path.endsWith('/cikar')
-            ? 'Ürün Çıkar'
-            : path.endsWith('/ata')
-              ? 'Ürün Ata'
-              : path.includes('sirala')
-                ? 'Sırala'
-                : 'Kaydet';
+          : path.includes('/durum')
+            ? 'Durum Değiştir'
+            : path.endsWith('/cikar')
+              ? 'Ürün Çıkar'
+              : path.endsWith('/ata')
+                ? 'Ürün Ata'
+                : path.includes('sirala')
+                  ? 'Sırala'
+                  : 'Kaydet';
       const target =
         path
           .split('/')

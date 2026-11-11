@@ -12,6 +12,8 @@ Girişte işletme, yazılan e-postanın sunucudaki aktif üyeliğinden belirleni
 
 Sağlayıcı tokenı test sırasında tüketilir; tekrar denemede yeni doğrulama gerekir. Kaydetmek tek başına harici anahtarların doğruluğunu kanıtlamaz. İşletmenin mevcut oturumu ayar değiştirmek için kullanılabilir.
 
+E-posta girişinde robot doğrulaması akışın **ilk adımında bir kez** yapılır. Sunucu, doğrulamanın geçtiğini gösteren imzalı ve kısa ömürlü bir akış anahtarı üretir; bu anahtar HttpOnly çerezle ve yanıt gövdesiyle taşınır. Kod veya şifre adımında çerez engellenmiş olsa bile anahtar doğrulanır ve widget ikinci kez istenmez. Anahtar e-postaya bağlıdır ve 10 dakika geçerlidir; başka e-posta için kullanılamaz.
+
 ## Meta WhatsApp Cloud API
 
 Alanlar: Meta Uygulama Kimliği, Uygulama Gizli Anahtarı, Telefon Numarası Kimliği, Erişim Belirteci ve Webhook Doğrulama Belirteci. Meta Graph API sürümü uygulama tarafından arka planda yönetilir (`v25.0`); kullanıcıdan istenmez ve eski işletme sürüm ayarları kullanılmaz. Uygulama ID'si ve telefon numarası ID'si, ekranda gösterilen telefon numarasından farklı kimliklerdir.

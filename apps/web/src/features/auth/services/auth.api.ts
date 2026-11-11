@@ -14,26 +14,46 @@ import { API_BASE_URL, ApiError, apiRequest } from '../../../lib/http';
  * ve ilgili form değişir.
  */
 export const authApi = {
-  async login(input: LoginInput, challengeToken?: string): Promise<PublicUser> {
+  async login(input: LoginInput, challengeToken?: string, flowToken?: string): Promise<PublicUser> {
     const { user } = await apiRequest<MeResponse>('/api/auth/login', {
       method: 'POST',
-      body: { ...input, ...(challengeToken ? { challengeToken } : {}) },
+      body: {
+        ...input,
+        ...(challengeToken ? { challengeToken } : {}),
+        ...(flowToken ? { flowToken } : {}),
+      },
     });
     return user;
   },
 
   /** E-Posta ile Devam Et adım 1: hesap kayıtlıysa 'password', değilse kod gönderilir ('code'). */
-  emailStart(email: string, challengeToken?: string): Promise<EmailStartResponse> {
+  emailStart(
+    email: string,
+    challengeToken?: string,
+    flowToken?: string,
+  ): Promise<EmailStartResponse> {
     return apiRequest<EmailStartResponse>('/api/auth/email/start', {
       method: 'POST',
-      body: { email, ...(challengeToken ? { challengeToken } : {}) },
+      body: {
+        email,
+        ...(challengeToken ? { challengeToken } : {}),
+        ...(flowToken ? { flowToken } : {}),
+      },
     });
   },
 
-  async emailVerify(input: EmailVerifyInput, challengeToken?: string): Promise<PublicUser> {
+  async emailVerify(
+    input: EmailVerifyInput,
+    challengeToken?: string,
+    flowToken?: string,
+  ): Promise<PublicUser> {
     const { user } = await apiRequest<MeResponse>('/api/auth/email/verify', {
       method: 'POST',
-      body: { ...input, ...(challengeToken ? { challengeToken } : {}) },
+      body: {
+        ...input,
+        ...(challengeToken ? { challengeToken } : {}),
+        ...(flowToken ? { flowToken } : {}),
+      },
     });
     return user;
   },

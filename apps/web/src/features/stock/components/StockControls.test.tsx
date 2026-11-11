@@ -54,6 +54,58 @@ describe('ürün giriş kontrolleri', () => {
     expect(within(row).getByRole('button', { name: 'Barkodu kaydet' })).toBeVisible();
     expect(within(row).getByRole('button', { name: 'Barkod düzenlemeyi iptal et' })).toBeVisible();
   });
+  it('barkod ekledikten sonra odak inputta kalır, art arda yazılabilir; silme düzenlemenin yanındadır', async () => {
+    function Form() {
+      const [barcodes, setBarcodes] = useState<BarcodeEntry[]>([]);
+      return (
+        <BarcodeEditor
+          barcodes={barcodes}
+          types={[{ value: 'EAN13', label: 'EAN13' }]}
+          onChange={setBarcodes}
+        />
+      );
+    }
+    const user = userEvent.setup();
+    render(<Form />);
+    const input = screen.getByLabelText('Barkod');
+    await user.type(input, '111111{Enter}');
+    expect(input).toHaveValue('');
+    expect(input).toHaveFocus();
+    await user.type(input, '222222{Enter}');
+    expect(input).toHaveFocus();
+
+    await user.click(screen.getByRole('button', { name: 'Barkodları görüntüle (2)' }));
+    const modal = screen.getByRole('dialog', { name: 'Barkodlar' });
+    const first = within(modal).getAllByRole('listitem')[0]!;
+    const edit = within(first).getByRole('button', { name: '111111 düzenle' });
+    const remove = within(first).getByRole('button', { name: '111111 barkodunu sil' });
+    // X, düzenle düğmesiyle aynı işlem grubunda (aynı satırda) olmalı.
+    expect(edit.parentElement).toBe(remove.parentElement);
+    expect(edit.parentElement?.tagName).toBe('SPAN');
+    expect(edit.parentElement?.querySelectorAll('button')).toHaveLength(2);
+  });
+  it('aynı barkodu ikinci kez eklemez ve uyarı gösterir', async () => {
+    function Form() {
+      const [barcodes, setBarcodes] = useState<BarcodeEntry[]>([]);
+      return (
+        <BarcodeEditor
+          barcodes={barcodes}
+          types={[{ value: 'EAN13', label: 'EAN13' }]}
+          onChange={setBarcodes}
+        />
+      );
+    }
+    const user = userEvent.setup();
+    render(<Form />);
+    const input = screen.getByLabelText('Barkod');
+    await user.type(input, '123456{Enter}');
+    await user.type(input, '123456{Enter}');
+    expect(screen.getByRole('alert')).toHaveTextContent('Bu barkod zaten eklenmiş.');
+    expect(input).toHaveValue('123456');
+    await user.click(screen.getByRole('button', { name: 'Barkodları görüntüle (1)' }));
+    const modal = screen.getByRole('dialog', { name: 'Barkodlar' });
+    expect(within(modal).getAllByRole('listitem')).toHaveLength(1);
+  });
   it('alt kategoriyi üst kategorinin akordiyonunda ve aramada tam yoluyla gösterir', async () => {
     const user = userEvent.setup();
     render(

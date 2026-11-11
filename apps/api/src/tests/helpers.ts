@@ -4,6 +4,7 @@ import { createLogger } from '../lib/logger';
 import { argon2Hasher } from '../lib/password';
 import type { Mailer } from '../lib/mailer';
 import type { GoogleOidcClient } from '../modules/auth/google.client';
+import type { WorkspaceChallenge } from '../modules/workspace/workspace.integrations';
 import { InMemoryAuthRepository } from './in-memory-repository';
 import { InMemoryEmailCodeStore } from './in-memory-email-code.store';
 
@@ -40,6 +41,7 @@ export function buildTestApp(
     apple?: GoogleOidcClient | null;
     repo?: InMemoryAuthRepository;
     mailer?: FakeMailer;
+    challenge?: WorkspaceChallenge;
   } = {},
 ) {
   const env = testEnv(options.env);
@@ -55,6 +57,7 @@ export function buildTestApp(
     mailer,
     google: options.google ?? null,
     apple: options.apple ?? null,
+    ...(options.challenge ? { challenge: options.challenge } : {}),
   });
   return { app, repo, env, mailer, codes };
 }
