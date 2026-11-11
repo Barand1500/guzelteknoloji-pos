@@ -99,6 +99,8 @@ export function clearWhiteBackground(data: Uint8ClampedArray, width: number, hei
     smooth[y * 3 + 2] = b / n;
   }
 
+  const backdropLight = (y: number): number =>
+    0.299 * smooth[y * 3]! + 0.587 * smooth[y * 3 + 1]! + 0.114 * smooth[y * 3 + 2]!;
   const rowDistance = (index: number): number => {
     const y = (index / width) | 0;
     const offset = index * 4;
@@ -172,7 +174,7 @@ export function clearWhiteBackground(data: Uint8ClampedArray, width: number, hei
   const seen = new Uint8Array(total);
   const holeQueue = new Uint32Array(total);
   const component: number[] = [];
-  const minArea = Math.max(200, Math.round(total * 0.0003));
+  const minArea = Math.max(120, Math.round(total * 0.0002));
   for (let start = 0; start < total; start++) {
     if (background[start] || seen[start]) continue;
     if (sat[start]! > 35 || lum[start]! < 190) continue;
@@ -225,12 +227,13 @@ export function clearWhiteBackground(data: Uint8ClampedArray, width: number, hei
       }
     }
     if (touchesBorder || component.length < minArea) continue;
+    if (backdropLight((start / width) | 0) < 200) continue;
     const count = component.length;
     const mean = sumLum / count;
     const deviation = Math.sqrt(Math.max(0, sumLumSq / count - mean * mean));
     // 240: gerçekten beyaza yakın; 4: dış fonla aynı renk. Açık gri ürün içi bu iki koşulu
     // geçmediği için (ör. kalem gövdesi 248, fon 255) korunur.
-    if (mean < 236 || deviation > 8 || sumDistance / count > 5) continue;
+    if (mean < 230 || deviation > 10 || sumDistance / count > 6) continue;
     for (const index of component) background[index] = 1;
   }
 
