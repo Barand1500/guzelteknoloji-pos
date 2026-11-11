@@ -51,6 +51,9 @@ const MAX_SEGMENTS = 3;
 const TOOL =
   'flex size-12 shrink-0 items-center justify-center rounded-full border border-field-border text-ink-muted transition-colors hover:border-brand-500 hover:text-brand-ink';
 
+const SMALL_TOOL =
+  'flex size-11 shrink-0 items-center justify-center rounded-full border border-field-border text-ink-muted transition-colors hover:border-brand-500 hover:text-brand-ink';
+
 export function ProductsView() {
   const desktop = useMediaQuery('(min-width: 64rem)');
   const navigate = useNavigate();
@@ -377,45 +380,48 @@ export function ProductsView() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {/* Telefon/tablet: web'deki gibi yalnızca simgeli yuvarlak düğmeler yan yana. */}
         {desktop ? null : (
           <>
             <button
               type="button"
               onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
               aria-pressed={selecting}
+              aria-label="Seç"
+              title={selecting ? 'Seçimi Bitir' : 'Seç'}
               className={[
-                'inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors',
-                selecting
-                  ? 'border-brand-600 bg-brand-50 text-brand-ink'
-                  : 'border-field-border text-ink-muted',
+                SMALL_TOOL,
+                selecting ? 'border-brand-600 bg-brand-50 text-brand-ink' : '',
               ].join(' ')}
             >
-              <ListChecks className="size-4" aria-hidden="true" />
-              {selecting ? 'Seçimi Bitir' : 'Seç'}
+              <ListChecks className="size-5" aria-hidden="true" />
             </button>
             <button
               type="button"
               onClick={() => setImportOpen(true)}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-field-border px-3.5 text-sm font-semibold text-ink-muted"
+              aria-label="Excel ile Yükle"
+              title="Excel ile Yükle"
+              className={SMALL_TOOL}
             >
-              <FileSpreadsheet className="size-4" aria-hidden="true" />
-              Excel
+              <FileSpreadsheet className="size-5" aria-hidden="true" />
             </button>
           </>
         )}
         <Link
           to={DEALS_PATH}
-          className="inline-flex min-h-10 lg:hidden items-center gap-1.5 rounded-full border border-field-border px-3.5 text-sm font-semibold text-ink-muted transition-colors hover:border-brand-500 hover:text-ink"
+          aria-label="Fırsat Yönetimi"
+          title="Fırsat Yönetimi"
+          className={`${SMALL_TOOL} lg:hidden`}
         >
-          <Sparkles className="size-4" aria-hidden="true" />
-          Fırsatlar
+          <Sparkles className="size-5" aria-hidden="true" />
         </Link>
         <Link
           to={BULK_IMAGES_PATH}
-          className="inline-flex min-h-10 lg:hidden items-center gap-1.5 rounded-full border border-field-border px-3.5 text-sm font-semibold text-ink-muted transition-colors hover:border-brand-500 hover:text-ink"
+          aria-label="Toplu Görsel"
+          title="Toplu Görsel"
+          className={`${SMALL_TOOL} lg:hidden`}
         >
-          <Images className="size-4" aria-hidden="true" />
-          Toplu Görsel
+          <Images className="size-5" aria-hidden="true" />
         </Link>
         {filterCount > 0 ? (
           <button

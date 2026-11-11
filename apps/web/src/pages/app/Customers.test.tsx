@@ -54,7 +54,7 @@ describe('Müşteriler listesi', () => {
         .getAllByRole('button')
         .map((t) => t.textContent)
         .filter((t) => t),
-    ).toEqual(['Bilgiler', 'Adresler', 'Hesap', 'Alışveriş', 'Yorumlar']);
+    ).toEqual(['Müşteriler', 'Bilgiler', 'Adresler', 'Hesap', 'Alışveriş', 'Yorumlar']);
     // Bilgiler: giriş hesapları + anahtar
     const users = await screen.findByRole('list', { name: 'Kullanıcılar' });
     const toggle = within(users).getByRole('switch', { name: 'Yunus Durgun girişi' });

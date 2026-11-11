@@ -1,10 +1,10 @@
 import {
-  ArrowLeftToLine,
   KeyRound,
   MapPin,
   MessageSquareHeart,
   ShoppingBag,
   Trash2,
+  UserCog,
   UserRound,
   Wallet,
   X,
@@ -44,9 +44,9 @@ const TABS = [
   { id: 'geri-bildirim', label: 'Yorumlar', icon: MessageSquareHeart },
 ];
 
-/** Adadaki sıra: önce listeye dönüş (yalnızca simge), sonra sekmeler. */
+/** Adadaki sıra: önce listeye dönüş ("Müşteriler"), sonra sekmeler. */
 const DOCK_ITEMS = [
-  { id: 'liste', label: 'Müşteriler', icon: ArrowLeftToLine, iconOnly: true },
+  { id: 'liste', label: 'Müşteriler', icon: UserCog },
   ...TABS,
 ];
 

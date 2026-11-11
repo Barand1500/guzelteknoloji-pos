@@ -176,14 +176,14 @@ export function ProductFilterSheet({
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="sticky bottom-0 z-10 -mx-6 flex flex-col gap-3 border-t border-line bg-surface-raised px-6 pt-3 pb-4 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
           {invalid || countError ? (
             <p role="alert" className="flex items-start gap-2 text-sm leading-relaxed text-danger">
               <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>{invalid ?? countError}</span>
             </p>
           ) : null}
-          <div className="flex flex-col gap-3 sm:flex-row-reverse">
+          <div className="flex flex-row-reverse gap-3">
             <Button
               flow={false}
               disabled={Boolean(invalid)}

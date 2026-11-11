@@ -33,7 +33,7 @@ describe('Fırsat Yönetimi ekranı', () => {
     mockFetch(anonymousRoutes);
     const user = userEvent.setup();
     renderApp('/uygulama/urunler');
-    await user.click(await screen.findByRole('link', { name: /Fırsatlar/ }));
+    await user.click((await screen.findAllByRole('link', { name: 'Fırsat Yönetimi' }))[0]!);
     expect(await screen.findByRole('list', { name: 'Fırsatlar' })).toBeInTheDocument();
   });
 
