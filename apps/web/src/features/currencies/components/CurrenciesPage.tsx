@@ -25,7 +25,8 @@ import { CurrencyForm } from './CurrencyForm';
 
 /**
  * Satırın içinde açılan küçük düzenleyici. "Kaydet" düğmesi yok: bir şey değişince alttaki yüzen adanın "+"
- * düğmesi "Kaydet"e döner. İçinde: ad, kısa ad, kaynak (Merkez Bankası / Elle), kur tipi ya da elle kur, aktif, sil.
+ * düğmesi "Kaydet"e döner. Üst satırda kaynak seçimi (Merkez Bankası / Elle) solda, Aktif anahtarı ve sil sağda;
+ * altında ad, kısa ad ve kur tipi ya da elle kur.
  */
 function RowEditor({
   currency,
@@ -88,18 +89,9 @@ function RowEditor({
           {error}
         </p>
       ) : null}
-      <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2.5">
-        <TextField label="Adı" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
-        <TextField
-          label="Kısa Adı"
-          value={short}
-          maxLength={5}
-          onChange={(e) => setShort(e.target.value.toUpperCase())}
-        />
-      </div>
 
       {base ? null : (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex items-center gap-2">
           <div role="radiogroup" aria-label="Kur kaynağı" className="inline-flex rounded-full bg-surface-muted p-1 text-sm">
             {(
               [
@@ -113,70 +105,78 @@ function RowEditor({
                 role="radio"
                 aria-checked={auto === v}
                 onClick={() => setAuto(v)}
-                className={`min-h-9 rounded-full px-3.5 font-extrabold transition-all ${auto === v ? 'bg-surface-raised text-brand-ink shadow-soft' : 'text-ink-muted'}`}
+                className={`min-h-9 whitespace-nowrap rounded-full px-3 text-[0.8125rem] font-extrabold transition-all sm:px-3.5 sm:text-sm ${auto === v ? 'bg-surface-raised text-brand-ink shadow-soft' : 'text-ink-muted'}`}
               >
                 {text}
               </button>
             ))}
           </div>
-          {auto ? (
-            <>
-              <div className="min-w-0 flex-1 basis-40">
-                <SelectField
-                  label="Kur Tipi"
-                  options={RATE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-                  value={type}
-                  onChange={(v) => setType(v as RateType)}
-                />
-              </div>
-              <p aria-live="polite" className="basis-full text-sm text-ink-muted">
-                {live === undefined
-                  ? 'Kur aranıyor…'
-                  : live === null
-                    ? 'Bu kod için kur bulunamadı. “Elle” seçin.'
-                    : `Şu an: 1 ${short.toUpperCase()} = ₺${formatRate(live)}`}
-              </p>
-            </>
-          ) : (
-            <span className="flex items-center gap-2 font-bold">
-              1 {short.toUpperCase()} =
-              <input
-                inputMode="decimal"
-                aria-label="Kur (₺)"
-                value={rateText}
-                placeholder="0,00"
-                onFocus={(e) => e.currentTarget.select()}
-                onChange={(e) => {
-                  setRateText(e.target.value.replace(/[^\d.,]/g, ''));
-                  setError(null);
-                }}
-                className="h-11 w-28 rounded-xl border border-field-border bg-surface px-3 text-right font-extrabold tabular-nums outline-none transition-colors hover:border-brand-500 focus:border-brand-600"
+          <span className="ml-auto flex items-center gap-0.5">
+            <span className="flex items-center text-sm font-bold">
+              Aktif
+              <ToggleSwitch
+                label={`${currency.name} aktif`}
+                checked={currency.active}
+                onChange={(v) => void store.setActive(currency.id, v)}
               />
-              ₺
             </span>
-          )}
+            <button
+              type="button"
+              aria-label={`${currency.name} sil`}
+              onClick={onDelete}
+              className="flex size-10 items-center justify-center rounded-full text-danger hover:bg-danger-soft"
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+            </button>
+          </span>
         </div>
       )}
 
-      {base ? null : (
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-sm font-bold">
-            Aktif
-            <ToggleSwitch
-              label={`${currency.name} aktif`}
-              checked={currency.active}
-              onChange={(v) => void store.setActive(currency.id, v)}
+      <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-2.5">
+        <TextField label="Adı" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
+        <TextField
+          label="Kısa Adı"
+          value={short}
+          maxLength={5}
+          onChange={(e) => setShort(e.target.value.toUpperCase())}
+        />
+      </div>
+
+      {base ? null : auto ? (
+        <div className="flex animate-fade-in flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="min-w-0 flex-1 basis-40">
+            <SelectField
+              label="Kur Tipi"
+              options={RATE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+              value={type}
+              onChange={(v) => setType(v as RateType)}
             />
-          </span>
-          <button
-            type="button"
-            aria-label={`${currency.name} sil`}
-            onClick={onDelete}
-            className="ml-auto flex size-10 items-center justify-center rounded-full text-danger hover:bg-danger-soft"
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-          </button>
+          </div>
+          <p aria-live="polite" className="basis-full text-sm text-ink-muted">
+            {live === undefined
+              ? 'Kur aranıyor…'
+              : live === null
+                ? 'Bu kod için kur bulunamadı. “Elle” seçin.'
+                : `Şu an: 1 ${short.toUpperCase()} = ₺${formatRate(live)}`}
+          </p>
         </div>
+      ) : (
+        <span className="flex animate-fade-in items-center gap-2 font-bold">
+          1 {short.toUpperCase()} =
+          <input
+            inputMode="decimal"
+            aria-label="Kur (₺)"
+            value={rateText}
+            placeholder="0,00"
+            onFocus={(e) => e.currentTarget.select()}
+            onChange={(e) => {
+              setRateText(e.target.value.replace(/[^\d.,]/g, ''));
+              setError(null);
+            }}
+            className="h-11 w-28 rounded-xl border border-field-border bg-surface px-3 text-right font-extrabold tabular-nums outline-none transition-colors hover:border-brand-500 focus:border-brand-600"
+          />
+          ₺
+        </span>
       )}
     </div>
   );
@@ -191,6 +191,7 @@ export function CurrenciesPage() {
   const store = useCurrencies();
   const [open, setOpen] = useState<string | null>(null);
   const [custom, setCustom] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const [deleting, setDeleting] = useState<Currency | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -327,29 +328,52 @@ export function CurrenciesPage() {
       </ul>
 
       {quick.length > 0 ? (
-        <section aria-label="Tek dokunuşla ekle" className="flex flex-col gap-2">
-          <p className="text-sm font-extrabold tracking-wider text-ink-muted uppercase">
-            Tek dokunuşla ekle
-          </p>
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0">
-            {quick.map((c) => (
-              <button
-                key={c.code}
-                type="button"
-                disabled={busy !== null}
-                onClick={() => void quickAdd(c)}
-                aria-label={`${c.name} ekle`}
-                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-dashed border-brand-500/60 px-4 font-bold text-brand-ink transition-colors hover:bg-brand-50 disabled:opacity-60"
-              >
-                {busy === c.code ? (
-                  <RefreshCw className="size-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Plus className="size-4" aria-hidden="true" />
-                )}
-                <span className="text-lg">{c.symbol}</span>
-                {c.code}
-              </button>
-            ))}
+        <section aria-label="Tek dokunuşla ekle" className="overflow-hidden rounded-3xl border border-line bg-surface-raised">
+          <button
+            type="button"
+            aria-expanded={quickOpen}
+            onClick={() => setQuickOpen((v) => !v)}
+            className="flex min-h-14 w-full items-center gap-3 px-4 text-left transition-colors hover:bg-brand-50/50"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-ink">
+              <Plus className="size-5" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-extrabold">Tek dokunuşla ekle</span>
+              <span className="block text-xs text-ink-muted">{quick.length} hazır para birimi</span>
+            </span>
+            <ChevronDown
+              className={`size-5 shrink-0 text-ink-muted transition-transform duration-300 ${quickOpen ? 'rotate-180' : ''}`}
+              aria-hidden="true"
+            />
+          </button>
+          <div
+            className={`grid transition-[grid-template-rows] duration-300 ease-out ${quickOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="flex flex-wrap gap-2 border-t border-line px-4 py-3">
+                {quickOpen
+                  ? quick.map((c) => (
+                      <button
+                        key={c.code}
+                        type="button"
+                        disabled={busy !== null}
+                        onClick={() => void quickAdd(c)}
+                        aria-label={`${c.name} ekle`}
+                        className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-dashed border-brand-500/60 px-4 font-bold text-brand-ink transition-colors hover:bg-brand-50 disabled:opacity-60"
+                      >
+                        {busy === c.code ? (
+                          <RefreshCw className="size-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Plus className="size-4" aria-hidden="true" />
+                        )}
+                        <span className="text-lg">{c.symbol}</span>
+                        {c.code}
+                      </button>
+                    ))
+                  : null}
+              </div>
+            </div>
           </div>
         </section>
       ) : null}

@@ -26,13 +26,16 @@ describe('Para Birimleri', () => {
     expect(within(board).getAllByRole('listitem')).toHaveLength(4);
     expect(within(board).getByText('Ana')).toBeInTheDocument();
     expect(within(board).getByText('₺50,30')).toBeInTheDocument();
-    // hazır sembollerden zaten ekli olanlar şeritte görünmez
+    // akordeon kapalıdır; açınca hazır para birimleri çıkar, ekli olanlar yoktur
+    expect(screen.queryByRole('button', { name: 'Japon Yeni ekle' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Tek dokunuşla ekle/ }));
     expect(screen.queryByRole('button', { name: 'ABD Doları ekle' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Japon Yeni ekle' })).toBeInTheDocument();
   });
 
   it('tek dokunuşla ekleme: Merkez Bankası kuruyla ve aktif olarak eklenir', async () => {
     const user = await open();
+    await user.click(screen.getByRole('button', { name: /Tek dokunuşla ekle/ }));
     await user.click(screen.getByRole('button', { name: 'Japon Yeni ekle' }));
     const board = screen.getByRole('list', { name: 'Para birimleri' });
     await waitFor(() => expect(within(board).getAllByRole('listitem')).toHaveLength(5));
