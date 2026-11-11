@@ -59,11 +59,12 @@ describe('Profil ve işletme ekranları', () => {
     const smtp = await screen.findByRole('form', { name: 'SMTP' });
     await screen.findByRole('form', { name: 'IMAP' });
     await screen.findByRole('form', { name: 'Meta WhatsApp Cloud API' });
-    expect(within(smtp).getByLabelText('Sunucu')).toHaveValue('smtp.guzelteknoloji.com');
+    expect(within(smtp).getByLabelText('Sunucu')).toHaveValue('smtp.example.com');
     expect(within(smtp).getByLabelText('Port')).toHaveValue('587');
     const imap = screen.getByRole('form', { name: 'IMAP' });
-    expect(within(imap).getByLabelText('Sunucu')).toHaveValue('imap.guzelteknoloji.com');
+    expect(within(imap).getByLabelText('Sunucu')).toHaveValue('imap.example.com');
     expect(within(imap).getByLabelText('Port')).toHaveValue('993');
+    await user.clear(within(smtp).getByLabelText('Sunucu'));
     await user.type(within(smtp).getByLabelText('Sunucu'), 'smtp.example.com');
     await user.click(within(smtp).getByRole('button', { name: 'Kaydet' }));
     expect(
