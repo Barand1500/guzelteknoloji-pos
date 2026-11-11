@@ -20,9 +20,9 @@ export function createWorkspaceMailer(
       // İşletme istemci gövdesinden seçilmez: doğrulanacak adresin sunucudaki üyeliği esas alınır.
       const member = await db.isletmeUyesi.findUnique({
         where: { email: to.trim().toLowerCase() },
-        select: { businessId: true, active: true },
+        select: { businessId: true, durum: true },
       });
-      if (!member?.active) return fallback.sendLoginCode(to, code, expiresInMinutes);
+      if (!member?.durum) return fallback.sendLoginCode(to, code, expiresInMinutes);
       const connection = await settings.effective(member.businessId, 'smtp', env);
       if (connection.source !== 'database')
         return fallback.sendLoginCode(to, code, expiresInMinutes);

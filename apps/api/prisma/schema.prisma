@@ -28,6 +28,16 @@ enum GirisYontemi {
   APPLE
 }
 
+enum KampanyaTuru {
+  SEPET_INDIRIMI
+  UCRETSIZ_KARGO
+}
+
+enum IndirimTuru {
+  YUZDE
+  TUTAR
+}
+
 model Kullanici {
   ownedBusiness Isletme? @relation("BusinessOwner")
   businessMember IsletmeUyesi?
@@ -58,6 +68,7 @@ model Kullanici {
   kategoriler           Kategori[]
   firsatlar             Firsat[]
   ozellikSablonlari      OzellikSablonu[]
+  campaigns              Kampanya[]
 
   @@map("kullanicilar")
 }
@@ -87,7 +98,7 @@ model Oturum {
   /// Cookie'deki opak token'ın SHA-256 hash'i (hex). Ham token veritabanında tutulmaz.
   girisYontemi          GirisYontemi? @map("giris_yontemi")
   oturumAnahtariHash    String        @unique(map: "oturumlar_anahtar_hash_tekil") @map("oturum_anahtari_hash") @db.Char(64)
-  gecerlilikBitisZamani DateTime      @map("gecerlilik_bitis_zamani")
+  gecerlilikBitisTarihi DateTime      @map("gecerlilik_bitis_tarihi")
   sonGorulmeZamani      DateTime      @default(now()) @map("son_gorulme_zamani")
   iptalZamani           DateTime?     @map("iptal_zamani")
   ipAdresi              String?       @map("ip_adresi") @db.VarChar(45)
@@ -97,7 +108,7 @@ model Oturum {
   kullanici Kullanici @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "oturumlar_kullanici_baglantisi")
 
   @@index([kullaniciKimligi], map: "oturumlar_kullanici_indeks")
-  @@index([gecerlilikBitisZamani], map: "oturumlar_gecerlilik_indeks")
+  @@index([gecerlilikBitisTarihi], map: "oturumlar_gecerlilik_indeks")
   @@map("oturumlar")
 }
 
@@ -109,7 +120,7 @@ model EpostaGirisKodu {
   epostaHash            String   @map("eposta_hash") @db.Char(64)
   /// HMAC-SHA256(gizli anahtar, "e-posta:kod") hex.
   kodHash               String   @map("kod_hash") @db.Char(64)
-  gecerlilikBitisZamani DateTime @map("gecerlilik_bitis_zamani")
+  gecerlilikBitisTarihi DateTime @map("gecerlilik_bitis_tarihi")
   /// Yanlış deneme sayısı; sınır aşılınca kod geçersiz olur.
   denemeSayisi          Int      @default(0) @map("deneme_sayisi")
   olusturmaZamani       DateTime @default(now()) @map("olusturma_zamani")
@@ -128,7 +139,7 @@ model StokSecenegi {
   secenekAdi        String             @map("secenek_adi") @db.VarChar(120)
   adHash            String             @map("ad_hash") @db.Char(64)
   silinebilir       Boolean            @default(false) @map("silinebilir")
-  etkin             Boolean            @default(true) @map("etkin")
+  durum             Boolean            @default(true) @map("durum")
   sira              Int                @default(0) @map("sira")
   olusturmaZamani   DateTime           @default(now()) @map("olusturma_zamani")
   kullanici         Kullanici          @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "urun_secenekleri_kullanici_baglantisi")
@@ -149,7 +160,7 @@ model Marka {
   markaKodu        String      @map("marka_kodu") @db.VarChar(100)
   markaAdi         String      @map("marka_adi") @db.VarChar(120)
   adHash           String      @map("ad_hash") @db.Char(64)
-  etkin            Boolean     @default(true) @map("etkin")
+  durum            Boolean     @default(true) @map("durum")
   sira             Int         @default(0) @map("sira")
   olusturmaZamani  DateTime    @default(now()) @map("olusturma_zamani")
   aciklama         String      @map("aciklama") @db.Text
@@ -161,6 +172,7 @@ model Marka {
   guncellemeZamani DateTime    @updatedAt @map("guncelleme_zamani")
   kullanici        Kullanici   @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "markalar_kullanici_baglantisi")
   stokKartlari     StokKarti[]
+  kampanyaKurallari KampanyaKuralMarkasi[]
 
   @@unique([kullaniciKimligi, markaKodu], map: "markalar_kod_tekil")
   @@unique([kullaniciKimligi, adHash], map: "markalar_ad_tekil")
@@ -219,7 +231,7 @@ model Kategori {
   ad              String                  @db.VarChar(120)
   aciklama        String                  @db.Text
   gorselDosyasi   String?                 @map("gorsel_dosyasi") @db.VarChar(255)
-  etkin           Boolean                 @default(true)
+  durum           Boolean                 @default(true) @map("durum")
   gizli           Boolean                 @default(false)
   seoBasligi      String                  @map("seo_basligi") @db.VarChar(250)
   seoAciklamasi   String                  @map("seo_aciklamasi") @db.VarChar(1000)
@@ -229,6 +241,7 @@ model Kategori {
   altlar          Kategori[]              @relation("KategoriAgaci")
   stokKartlari    StokKartiKategori[]
   ozellikSablonlari OzellikSablonKategori[]
+  kampanyaKurallari KampanyaKuralKategorisi[]
   @@index([kullaniciId, ustId])
   @@map("kategoriler")
 }
@@ -247,7 +260,7 @@ model Firsat {
   kullaniciId Int @map("kullanici_id")
   ad String @db.VarChar(120)
   ikonDosyasi String? @map("ikon_dosyasi") @db.VarChar(255)
-  etkin Boolean @default(true)
+  durum Boolean @default(true) @map("durum")
   resimdeGoster Boolean @map("resimde_goster")
   konum String @db.VarChar(10)
   boyut String @db.VarChar(10)
@@ -267,6 +280,68 @@ model StokFirsati {
   firsat Firsat @relation(fields: [firsatId], references: [id], onDelete: Cascade)
   @@id([stokKartiId, firsatId])
   @@map("urun_firsatlari")
+}
+
+/// İki kampanya ekranının genel kuralı; işletme sahibine ve kampanya türüne göre tektir.
+model Kampanya {
+  id                 Int          @id @default(autoincrement())
+  userId             Int          @map("kullanici_id")
+  kind               KampanyaTuru @map("tur")
+  durum              Boolean      @default(false) @map("durum")
+  customerTypes      Json         @map("cari_tipleri")
+  priceLists         Json         @map("fiyat_listeleri")
+  minTotal           Decimal      @default(0) @map("minimum_sepet") @db.Decimal(18, 2)
+  discountKind       IndirimTuru? @map("indirim_turu")
+  discountValue      Decimal?     @map("indirim_degeri") @db.Decimal(18, 2)
+  olusturmaTarihi    DateTime     @default(now()) @map("olusturma_tarihi")
+  guncellemeTarihi   DateTime     @updatedAt @map("guncelleme_tarihi")
+  user               Kullanici    @relation(fields: [userId], references: [kimlik], onDelete: Cascade)
+  rules              KampanyaKural[]
+
+  @@unique([userId, kind], map: "kampanyalar_kullanici_tur_tekil")
+  @@map("kampanyalar")
+}
+
+/// Belirli kategori/marka ve müşteri kapsamına uygulanacak özel kampanya kuralı.
+model KampanyaKural {
+  id              Int                       @id @default(autoincrement())
+  campaignId      Int                       @map("kampanya_id")
+  durum           Boolean                   @default(true) @map("durum")
+  customerTypes   Json                      @map("cari_tipleri")
+  priceLists      Json                      @map("fiyat_listeleri")
+  minTotal        Decimal                   @default(0) @map("minimum_sepet") @db.Decimal(18, 2)
+  discountKind    IndirimTuru?              @map("indirim_turu")
+  discountValue   Decimal?                  @map("indirim_degeri") @db.Decimal(18, 2)
+  olusturmaTarihi DateTime                  @default(now()) @map("olusturma_tarihi")
+  guncellemeTarihi DateTime                 @updatedAt @map("guncelleme_tarihi")
+  campaign        Kampanya                  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  categoryLinks   KampanyaKuralKategorisi[]
+  brandLinks      KampanyaKuralMarkasi[]
+
+  @@index([campaignId, id], map: "kampanya_kurallari_kampanya_indeks")
+  @@map("kampanya_kurallari")
+}
+
+model KampanyaKuralKategorisi {
+  ruleId     Int           @map("kural_id")
+  categoryId Int           @map("kategori_id")
+  rule       KampanyaKural @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  category   Kategori      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([ruleId, categoryId])
+  @@index([categoryId], map: "kampanya_kural_kategorileri_kategori_indeks")
+  @@map("kampanya_kural_kategorileri")
+}
+
+model KampanyaKuralMarkasi {
+  ruleId  Int           @map("kural_id")
+  brandId Int           @map("marka_id")
+  rule    KampanyaKural @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  brand   Marka         @relation(fields: [brandId], references: [kimlik], onDelete: Cascade)
+
+  @@id([ruleId, brandId])
+  @@index([brandId], map: "kampanya_kural_markalari_marka_indeks")
+  @@map("kampanya_kural_markalari")
 }
 
 model OzellikSablonu {
@@ -419,6 +494,7 @@ model Isletme {
   logs IslemKaydi[]
   orders Siparis[]
   returns IadeTalebi[]
+  musteriler Musteri[]
   @@map("isletmeler")
 }
 
@@ -429,7 +505,7 @@ model IsletmeUyesi {
   email String? @unique @map("eposta") @db.VarChar(254)
   name String @map("ad") @db.VarChar(120)
   roleId Int? @map("rol_id")
-  active Boolean @default(true) @map("etkin")
+  durum Boolean @default(true) @map("durum")
   createdAt DateTime @default(now()) @map("olusturma_zamani")
   business Isletme @relation(fields: [businessId], references: [id], onDelete: Cascade)
   user Kullanici? @relation(fields: [userId], references: [kimlik], onDelete: Restrict)
@@ -463,10 +539,9 @@ model RolYetkisi {
 model IsletmeAyari {
   businessId Int @map("isletme_id")
   section String @map("bolum") @db.VarChar(30)
-  key String @map("alan") @db.VarChar(80)
-  value String @map("deger") @db.Text
+  values Json @map("degerler")
   business Isletme @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  @@id([businessId, section, key])
+  @@id([businessId, section])
   @@map("isletme_ayarlari")
 }
 
@@ -528,9 +603,12 @@ model Siparis {
   guncellemeZamani DateTime        @updatedAt @map("guncelleme_zamani")
   business         Isletme         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   satirlar         SiparisSatiri[]
+  musteriId        Int?            @map("musteri_id")
+  musteri          Musteri?        @relation(fields: [musteriId], references: [id], onDelete: SetNull)
 
   @@unique([businessId, siparisNo], map: "siparisler_isletme_no_tekil")
   @@index([businessId, tarih], map: "siparisler_isletme_tarih_indeks")
+  @@index([musteriId], map: "siparisler_musteri_indeks")
   @@map("siparisler")
 }
 
@@ -567,7 +645,81 @@ model IadeTalebi {
   olusturmaZamani  DateTime @default(now()) @map("olusturma_zamani")
   guncellemeZamani DateTime @updatedAt @map("guncelleme_zamani")
   business         Isletme  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  musteriId        Int?     @map("musteri_id")
+  musteri          Musteri? @relation(fields: [musteriId], references: [id], onDelete: SetNull)
 
   @@index([businessId, tarih], map: "iade_talepleri_isletme_tarih_indeks")
+  @@index([musteriId], map: "iade_talepleri_musteri_indeks")
   @@map("iade_talepleri")
+}
+
+/// İşletmenin müşterisi. Liste ve detay sekmeleri bu kayda bağlıdır; adres, giriş hesabı ve cari
+/// hareketler ayrı tablolarda tutulur.
+model Musteri {
+  id               Int                 @id @default(autoincrement())
+  businessId       Int                 @map("isletme_id")
+  musteriKodu      String              @default("") @map("musteri_kodu") @db.VarChar(40)
+  ad               String              @db.VarChar(160)
+  tur              String              @default("real") @db.VarChar(20)
+  vergiKimligi     String              @default("") @map("vergi_kimligi") @db.VarChar(20)
+  telefon          String              @db.VarChar(30)
+  eposta           String              @db.VarChar(254)
+  fiyatListesi     String              @map("fiyat_listesi") @db.VarChar(40)
+  cariTipi         String              @map("cari_tipi") @db.VarChar(40)
+  odemeSekilleri   String              @map("odeme_sekilleri") @db.Text
+  kartAnlasmasi    String              @default("") @map("kart_anlasmasi") @db.VarChar(80)
+  durum            Boolean             @default(true) @map("durum")
+  olusturmaZamani  DateTime            @default(now()) @map("olusturma_zamani")
+  guncellemeZamani DateTime            @updatedAt @map("guncelleme_zamani")
+  business         Isletme             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  kullanicilar     MusteriKullanicisi[]
+  adresler         MusteriAdresi[]
+  hareketler       MusteriHareketi[]
+  siparisler       Siparis[]
+  iadeTalepleri    IadeTalebi[]
+
+  @@index([businessId, ad], map: "musteriler_isletme_ad_indeks")
+  @@map("musteriler")
+}
+
+model MusteriKullanicisi {
+  id              Int       @id @default(autoincrement())
+  musteriId       Int       @map("musteri_id")
+  ad              String    @db.VarChar(160)
+  eposta          String    @db.VarChar(254)
+  durum           Boolean   @default(true) @map("durum")
+  sonGiris        DateTime? @map("son_giris")
+  olusturmaZamani DateTime  @default(now()) @map("olusturma_zamani")
+  musteri         Musteri   @relation(fields: [musteriId], references: [id], onDelete: Cascade)
+
+  @@index([musteriId], map: "musteri_kullanicilari_musteri_indeks")
+  @@map("musteri_kullanicilari")
+}
+
+model MusteriAdresi {
+  id               Int      @id @default(autoincrement())
+  musteriId        Int      @map("musteri_id")
+  baslik           String   @db.VarChar(60)
+  adres            String   @db.VarChar(300)
+  varsayilan       Boolean  @default(false)
+  olusturmaZamani  DateTime @default(now()) @map("olusturma_zamani")
+  guncellemeZamani DateTime @updatedAt @map("guncelleme_zamani")
+  musteri          Musteri  @relation(fields: [musteriId], references: [id], onDelete: Cascade)
+
+  @@index([musteriId], map: "musteri_adresleri_musteri_indeks")
+  @@map("musteri_adresleri")
+}
+
+model MusteriHareketi {
+  id              Int      @id @default(autoincrement())
+  musteriId       Int      @map("musteri_id")
+  tarih           DateTime @map("tarih")
+  referans        String   @default("") @db.VarChar(100)
+  borc            Decimal  @default(0) @db.Decimal(18, 2)
+  alacak          Decimal  @default(0) @db.Decimal(18, 2)
+  olusturmaZamani DateTime @default(now()) @map("olusturma_zamani")
+  musteri         Musteri  @relation(fields: [musteriId], references: [id], onDelete: Cascade)
+
+  @@index([musteriId, tarih], map: "musteri_hareketleri_musteri_tarih_indeks")
+  @@map("musteri_hareketleri")
 }

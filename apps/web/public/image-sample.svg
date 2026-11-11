@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" role="img" aria-label="Örnek görsel">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd9a0"/>
+      <stop offset="0.6" stop-color="#f79b6a"/>
+      <stop offset="1" stop-color="#c95b4f"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#376579"/>
+      <stop offset="1" stop-color="#173a47"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="200" fill="url(#sky)"/>
+  <circle cx="96" cy="62" r="30" fill="#fff4da" opacity="0.94"/>
+  <rect y="112" width="480" height="88" fill="url(#sea)"/>
+  <path d="M0 146c48-8 92 6 140 0s92-8 140-2 100 4 200-6v10c-100 10-152 12-200 6s-92 6-140 2-92 10-140 0z" fill="#ffffff" opacity="0.16"/>
+  <path d="M300 200l52-116 52 116z" fill="#7b4a2c"/>
+  <g stroke="#5a351f" stroke-width="4" opacity="0.7">
+    <path d="M322 172h60M330 152h44M338 132h28M346 114h12"/>
+  </g>
+  <g fill="#2b2118">
+    <rect x="348" y="92" width="8" height="26" rx="3"/>
+    <circle cx="352" cy="88" r="8"/>
+  </g>
+  <rect x="18" y="150" width="70" height="8" rx="4" fill="#ffffff" opacity="0.35"/>
+</svg>

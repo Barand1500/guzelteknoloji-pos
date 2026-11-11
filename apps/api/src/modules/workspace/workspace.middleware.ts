@@ -22,6 +22,7 @@ export function requestPermission(
       katalog: 'categories',
       ozellikler: 'attributes',
       firsatlar: 'deals',
+      kampanyalar: 'campaigns',
     } as const
   )[section as 'stok'];
   if (!resource) return null;
@@ -45,9 +46,12 @@ export function workspaceMiddleware(
     const permission = requestPermission(path, req.method, req.body);
     const account = path.startsWith('/api/hesap');
     const logout = path === '/api/auth/logout';
-    // Siparişler ve anasayfa yalnızca oturum ister; ayrı bir bölüm yetkisi yoktur (menüde de yok).
-    const orders = path.startsWith('/api/siparisler') || path.startsWith('/api/anasayfa');
-    if (!permission && !account && !logout && !orders) return next();
+    // Siparişler, anasayfa ve müşteriler yalnızca oturum ister; ayrı bir bölüm yetkisi yoktur.
+    const sessionOnly =
+      path.startsWith('/api/siparisler') ||
+      path.startsWith('/api/anasayfa') ||
+      path.startsWith('/api/musteriler');
+    if (!permission && !account && !logout && !sessionOnly) return next();
     const token = readSessionToken(req, env);
     const session = token ? await auth.getSession(token) : null;
     if (!session) {
@@ -77,20 +81,26 @@ export function workspaceMiddleware(
               ? 'settings'
               : path.startsWith('/api/siparisler') || path.startsWith('/api/anasayfa')
                 ? 'orders'
-                : 'profile');
+                : path.startsWith('/api/musteriler')
+                  ? 'customers'
+                  : 'profile');
       const action = logout
         ? 'Çıkış Yap'
         : permission?.action === 'delete' || path.endsWith('/sil')
           ? 'Sil'
           : path.includes('/durum')
             ? 'Durum Değiştir'
-            : path.endsWith('/cikar')
-              ? 'Ürün Çıkar'
-              : path.endsWith('/ata')
-                ? 'Ürün Ata'
-                : path.includes('sirala')
-                  ? 'Sırala'
-                  : 'Kaydet';
+            : path.endsWith('/giris')
+              ? 'Giriş Aç/Kapat'
+              : path.includes('/adresler')
+                ? 'Adres Kaydet'
+                : path.endsWith('/cikar')
+                  ? 'Ürün Çıkar'
+                  : path.endsWith('/ata')
+                    ? 'Ürün Ata'
+                    : path.includes('sirala')
+                      ? 'Sırala'
+                      : 'Kaydet';
       const target =
         path
           .split('/')
@@ -271,6 +281,11 @@ async function snapshot(
       where: { id, kullaniciId: ctx.ownerId },
       include: { stokKartlari: true },
     });
+  if (resource === 'campaigns')
+    row = await db.kampanyaKural.findFirst({
+      where: { id, campaign: { userId: ctx.ownerId } },
+      include: { categoryLinks: true, brandLinks: true, campaign: true },
+    });
   if (resource === 'attributes') {
     if (path.includes('/sablonlar'))
       row = await db.ozellikSablonu.findFirst({
@@ -295,7 +310,7 @@ async function snapshot(
     markaAdi: 'Marka Adı',
     aciklama: 'Açıklama',
     ad: 'Ad',
-    etkin: 'Aktif',
+    durum: 'Aktif',
     gizli: 'Gizli',
     birimler: 'Birimler',
     fiyatlar: 'Fiyatlar',

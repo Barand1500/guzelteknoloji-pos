@@ -9,17 +9,7 @@ import {
   type FormEvent,
 } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
-import {
-  Image as ImageIcon,
-  Pencil,
-  Plus,
-  Trash2,
-  Mail,
-  Settings,
-  ShieldCheck,
-  Eye,
-  EyeOff,
-} from 'lucide-react';
+import { Pencil, Plus, Trash2, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import {
   SETTINGS_PAGES,
   WORKSPACE_RESOURCES,
@@ -40,10 +30,12 @@ import { ToggleSwitch } from '../../components/ui/ToggleSwitch';
 import { apiRequest } from '../../lib/http';
 import { dataError } from '../../lib/catalog-data';
 import { useSession } from '../auth/hooks/session-context';
-import { useWorkspace } from './workspace-context';
+import { useWorkspace, writeDemoImageAppearance } from './workspace-context';
 import { UnsavedChanges } from './UnsavedChanges';
 import { visibleLogChanges } from './log-display';
 import { RobotChallenge } from '../auth/components/RobotChallenge';
+import { SettingsTabs } from './SettingsTabs';
+import { SmsIntegrationCard } from './SmsIntegrationCard';
 
 const base = '/api/hesap';
 const post = <T,>(path: string, body: unknown = {}) =>
@@ -51,75 +43,6 @@ const post = <T,>(path: string, body: unknown = {}) =>
 const iconButton =
   'inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted hover:text-ink disabled:opacity-40';
 const panel = 'rounded-3xl border border-line bg-surface-raised p-4 sm:p-6';
-const tabStyle = (active: boolean) =>
-  `flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors ${active ? 'border-brand-700 text-brand-ink' : 'border-transparent text-ink-muted hover:text-ink'}`;
-function SettingsTabs({ pathname }: { pathname: string }) {
-  const tabs = [
-    {
-      key: 'general',
-      label: 'Genel',
-      icon: Settings,
-      active: pathname.endsWith('/ayarlar') || pathname.endsWith('/general'),
-    },
-    { key: 'images', label: 'Görseller', icon: ImageIcon, active: pathname.endsWith('/images') },
-    {
-      key: 'entegrasyonlar',
-      label: 'Entegrasyonlar',
-      icon: Mail,
-      active:
-        /\/(smtp|imap|google|cloudflare|whatsapp|recaptcha|entegrasyonlar|iletisim|robot-dogrulama|sosyal-giris)$/.test(
-          pathname,
-        ),
-    },
-  ];
-  return (
-    <div className="space-y-1">
-      <nav aria-label="Ayar bölümleri" className="flex overflow-x-auto border-b border-line">
-        {tabs.map((t) => (
-          <Link
-            key={t.key}
-            to={`/uygulama/ayarlar/${t.key}`}
-            aria-current={t.active ? 'page' : undefined}
-            className={tabStyle(t.active)}
-          >
-            <t.icon className="size-4" />
-            {t.label}
-          </Link>
-        ))}
-      </nav>
-      {tabs[2]?.active && (
-        <nav aria-label="Entegrasyonlar" className="flex overflow-x-auto border-b border-line">
-          {[
-            ['iletisim', 'İletişim'],
-            ['robot-dogrulama', 'Doğrulama'],
-            ['sosyal-giris', 'Hızlı Giriş'],
-          ].map(([key, label]) => (
-            <Link
-              key={key}
-              to={`/uygulama/ayarlar/${key}`}
-              aria-current={
-                pathname.endsWith(`/${key}`) ||
-                (key === 'iletisim' && /\/(smtp|imap|whatsapp|entegrasyonlar)$/.test(pathname)) ||
-                (key === 'robot-dogrulama' && /\/(cloudflare|recaptcha)$/.test(pathname)) ||
-                (key === 'sosyal-giris' && pathname.endsWith('/google'))
-                  ? 'page'
-                  : undefined
-              }
-              className={tabStyle(
-                pathname.endsWith(`/${key}`) ||
-                  (key === 'iletisim' && /\/(smtp|imap|whatsapp|entegrasyonlar)$/.test(pathname)) ||
-                  (key === 'robot-dogrulama' && /\/(cloudflare|recaptcha)$/.test(pathname)) ||
-                  (key === 'sosyal-giris' && pathname.endsWith('/google')),
-              )}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
-      )}
-    </div>
-  );
-}
 
 function Frame({
   children,
@@ -137,7 +60,7 @@ function Frame({
     <div className="flex w-full min-w-0 flex-col gap-4">
       {pathname.includes('/ayarlar') && <SettingsTabs pathname={pathname} />}
       {description && <p className="text-sm text-ink-muted">{description}</p>}
-      {demo && !demoContent ? (
+      {demo && !demoContent && !pathname.includes('/ayarlar') ? (
         <Alert tone="info">Hesap yönetimi için kendi hesabınızla giriş yapın.</Alert>
       ) : (
         <div className="flex min-w-0 flex-col gap-4">{children}</div>
@@ -146,6 +69,7 @@ function Frame({
   );
 }
 function useRows<T>(path: string, initial: T) {
+  const { demo } = useWorkspace();
   const [initialValue] = useState(() => initial);
   const revision = useRef(0);
   const [state, setState] = useState({
@@ -155,6 +79,10 @@ function useRows<T>(path: string, initial: T) {
   });
   const reload = useCallback(async () => {
     const request = ++revision.current;
+    if (demo) {
+      setState({ path, value: initialValue, error: null });
+      return;
+    }
     try {
       const value = await apiRequest<T>(base + path);
       if (request === revision.current) setState({ path, value, error: null });
@@ -162,7 +90,7 @@ function useRows<T>(path: string, initial: T) {
       if (request === revision.current)
         setState({ path, value: initialValue, error: dataError(e) });
     }
-  }, [path, initialValue]);
+  }, [path, initialValue, demo]);
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(() => {
@@ -969,6 +897,8 @@ const IntegrationDirtyContext = createContext<{
   reportRobotEnabled: (section: 'cloudflare' | 'recaptcha', enabled: boolean) => void;
   activeRobot: string | null;
   selectRobot: (section: string | null) => void;
+  /** Gömülü kartların kaydet işlemini grubun tek "Kaydet" düğmesine bağlar. */
+  registerSave: (section: string, save: (() => Promise<void>) | null) => void;
 } | null>(null);
 
 function EmbeddedSettings({
@@ -977,12 +907,20 @@ function EmbeddedSettings({
   children: ReactNode;
   back?: string;
   description?: string;
+  demoContent?: boolean;
 }) {
   return <div className="h-full min-w-0 space-y-4">{children}</div>;
 }
 
 function IntegrationGroupPage({ group }: { group: string }) {
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
+  const [savingAll, setSavingAll] = useState(false);
+  const { can } = useWorkspace();
+  const savers = useRef(new Map<string, () => Promise<void>>());
+  const registerSave = useCallback((section: string, save: (() => Promise<void>) | null) => {
+    if (save) savers.current.set(section, save);
+    else savers.current.delete(section);
+  }, []);
   const [robotStates, setRobotStates] = useState<
     Record<'cloudflare' | 'recaptcha', boolean | null>
   >({
@@ -1015,11 +953,25 @@ function IntegrationGroupPage({ group }: { group: string }) {
       : group === 'sosyal-giris'
         ? ['google']
         : ['cloudflare', 'recaptcha'];
+  const dirtySections = sections.filter((section) => dirty[section]);
+  const saveAll = async () => {
+    if (savingAll) return;
+    setSavingAll(true);
+    try {
+      // Yalnızca değiştirilmiş kartlar sırayla kaydedilir; hata olursa kart kendi uyarısını gösterir.
+      for (const section of dirtySections) {
+        const save = savers.current.get(section);
+        if (save) await save();
+      }
+    } finally {
+      setSavingAll(false);
+    }
+  };
   return (
     <Frame
       description={
         group === 'iletisim'
-          ? 'E-posta ve WhatsApp bağlantılarınızı yönetin.'
+          ? 'E-posta, WhatsApp ve SMS bağlantılarınızı yönetin.'
           : group === 'robot-dogrulama'
             ? 'Girişte kullanılacak robot doğrulama sağlayıcısını yapılandırın.'
             : 'Google ve Apple hesabıyla giriş bağlantıları.'
@@ -1031,6 +983,7 @@ function IntegrationGroupPage({ group }: { group: string }) {
           reportRobotEnabled,
           activeRobot,
           selectRobot: setActiveRobot,
+          registerSave,
         }}
       >
         <UnsavedChanges dirty={Object.values(dirty).some(Boolean)} />
@@ -1038,10 +991,28 @@ function IntegrationGroupPage({ group }: { group: string }) {
           <>
             <div className="grid min-w-0 gap-4 xl:grid-cols-2">
               {['smtp', 'imap'].map((section) => (
-                <SettingsPageContent key={section} section={section} embedded />
+                <SettingsPageContent key={section} section={section} embedded hideSubmit />
               ))}
             </div>
-            <SettingsPageContent section="whatsapp" embedded />
+            <SettingsPageContent section="whatsapp" embedded hideSubmit />
+            <SmsIntegrationCard />
+            <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-line bg-surface-raised p-4 sm:p-6">
+              <Button
+                flow={false}
+                type="button"
+                fullWidth={false}
+                loading={savingAll}
+                disabled={!can('settings', 'save') || dirtySections.length === 0}
+                onClick={() => void saveAll()}
+              >
+                Değişiklikleri Kaydet
+              </Button>
+              <span className="text-sm text-ink-muted">
+                {dirtySections.length === 0
+                  ? 'Kaydedilecek değişiklik yok.'
+                  : `${dirtySections.length} karttaki değişiklik kaydedilecek.`}
+              </span>
+            </div>
           </>
         ) : group === 'robot-dogrulama' ? (
           <>
@@ -1110,67 +1081,81 @@ function SocialLoginStatus() {
 function SettingsPageContent({
   section,
   embedded = false,
+  hideSubmit = false,
 }: {
   section: string;
   embedded?: boolean;
+  /** Gömülü kartta kendi Kaydet düğmesini gizler (grup tek satırdan kaydeder). */
+  hideSubmit?: boolean;
 }) {
   const integration = useContext(IntegrationDirtyContext);
   const reportDirty = integration?.reportDirty;
   const page = SETTINGS_PAGES.find((p) => p.key === section);
-  const { can, refresh } = useWorkspace();
+  const { can, refresh, demo, data, loading: workspaceLoading } = useWorkspace();
   const rows = useRows<FullSettings>(`/ayarlar/${page?.key ?? 'general'}`, {
     values: {},
     configured: [],
   });
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const [draftSource, setDraftSource] = useState<FullSettings | null>(null);
+  /**
+   * Temiz başlangıç anlık görüntüsü. "Kaydedilmemiş değişiklik" yalnızca bu görüntüye göre
+   * hesaplanır; başlangıç değerleri iki ayrı asenkron kaynaktan geldiği için tek tek
+   * karşılaştırma yanlış uyarı üretiyordu.
+   */
+  const [baseline, setBaseline] = useState<Record<string, string> | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [params] = useSearchParams();
   const [challengeToken, setChallengeToken] = useState('');
   const [challengeRevision, setChallengeRevision] = useState(0);
-  const defaultValues: Record<string, string> = {
-    ...rows.value.values,
-    ...(['smtp', 'imap', 'google'].includes(section)
-      ? {
-          enabled:
-            rows.value.values.enabled ?? (rows.value.source === 'unconfigured' ? 'false' : 'true'),
-        }
-      : {}),
-    ...(section === 'smtp'
-      ? {
-          host: rows.value.values.host || 'smtp.example.com',
-          port: rows.value.values.port || '587',
-        }
-      : section === 'imap'
-        ? {
-            host: rows.value.values.host || 'imap.example.com',
-            port: rows.value.values.port || '993',
-          }
-        : {}),
-  };
+  const appearanceKey = section === 'images' ? JSON.stringify(data?.imageAppearance ?? {}) : '';
+  const syncedRows = useRef<FullSettings | null>(null);
+  const syncedAppearance = useRef<string | null>(null);
   const dirty =
     !busy &&
-    draftSource === rows.value &&
+    baseline !== null &&
     !!page &&
-    page.fields.some((field) => (draft[field.key] ?? '') !== (defaultValues[field.key] ?? ''));
+    page.fields.some((field) => (draft[field.key] ?? '') !== (baseline[field.key] ?? ''));
   useEffect(() => {
     reportDirty?.(section, dirty);
     return () => reportDirty?.(section, false);
   }, [reportDirty, section, dirty]);
   useEffect(() => {
-    let active = true;
-    void Promise.resolve().then(() => {
-      if (active) {
-        setDraft(defaultValues);
-        setDraftSource(rows.value);
-      }
-    });
-    return () => {
-      active = false;
+    // Bölüm ayarları ya da işletme verisi henüz yüklenmediyse taslak oluşturulmaz.
+    if (rows.loading || rows.error) return;
+    if (section === 'images' && workspaceLoading) return;
+    // Kaynak değişmediyse kullanıcının düzenlemesi ezilmez (yalnızca gerçek yenilemede sıfırlanır).
+    if (syncedRows.current === rows.value && syncedAppearance.current === appearanceKey) return;
+    syncedRows.current = rows.value;
+    syncedAppearance.current = appearanceKey;
+    // Başlangıç değerleri tek yerde ve kaynaklar hazırken üretilir; taslak ile karşılaştırma
+    // aynı anlık görüntüye dayandığı için boş sayfada yanlış uyarı çıkmaz.
+    const defaults: Record<string, string> = {
+      ...rows.value.values,
+      ...(section === 'images' ? (data?.imageAppearance ?? {}) : {}),
+      ...(['smtp', 'imap', 'google'].includes(section)
+        ? {
+            enabled:
+              rows.value.values.enabled ??
+              (rows.value.source === 'unconfigured' ? 'false' : 'true'),
+          }
+        : {}),
+      ...(section === 'smtp'
+        ? {
+            host: rows.value.values.host || 'smtp.example.com',
+            port: rows.value.values.port || '587',
+          }
+        : section === 'imap'
+          ? {
+              host: rows.value.values.host || 'imap.example.com',
+              port: rows.value.values.port || '993',
+            }
+          : {}),
     };
-  }, [rows.value]);
+    setDraft(defaults);
+    setBaseline(defaults);
+  }, [appearanceKey, data?.imageAppearance, rows.error, rows.loading, rows.value, section, workspaceLoading]);
   useEffect(() => {
     if (section === 'cloudflare' || section === 'recaptcha')
       integration?.reportRobotEnabled(section, rows.value.values.enabled === 'true');
@@ -1185,14 +1170,12 @@ function SettingsPageContent({
         previous.enabled === 'true' ? { ...previous, enabled: 'false' } : previous,
       );
   }, [integration?.activeRobot, section]);
-  if (!page)
-    return (
-      <Frame>
-        <Alert tone="info">Ayar sayfası bulunamadı.</Alert>
-      </Frame>
-    );
   const run = async (fn: () => Promise<void>) => {
     if (busy) return;
+    if (demo) {
+      setMessage('Test modunda değişiklikler kaydedilmez.');
+      return;
+    }
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -1204,33 +1187,57 @@ function SettingsPageContent({
       setBusy(false);
     }
   };
+  const submit = async () => {
+    if (!page) return;
+    await run(async () => {
+      await post(`/ayarlar/${page.key}`, { values: draft });
+      // Kayıt başarılı: temiz başlangıç gönderilen değerler olur, uyarı hemen söner.
+      setBaseline({ ...draft });
+      await rows.reload();
+      await refresh();
+      setMessage('Ayarlar kaydedildi.');
+    });
+  };
+  // Tek kaydet satırı kartın o anki taslağını kaydetsin diye en güncel işlev ref'te tutulur.
+  const submitRef = useRef(submit);
+  useEffect(() => {
+    submitRef.current = submit;
+  });
+  const registerSave = integration?.registerSave;
+  useEffect(() => {
+    if (!embedded || !hideSubmit || !registerSave) return;
+    registerSave(section, () => submitRef.current());
+    return () => registerSave(section, null);
+  }, [embedded, hideSubmit, registerSave, section]);
+  if (!page)
+    return (
+      <Frame>
+        <Alert tone="info">Ayar sayfası bulunamadı.</Alert>
+      </Frame>
+    );
   const Layout = embedded ? EmbeddedSettings : Frame;
   return (
     <Layout
+      demoContent={demo}
       back={section === 'general' ? '/uygulama/ayarlar' : '/uygulama/ayarlar/entegrasyonlar'}
       description={page.description}
     >
       <LoadState {...rows} retry={rows.reload} />
-      {!rows.loading && !rows.error && draftSource === rows.value && (
+      {!rows.loading && !rows.error && baseline !== null && (
         <form
           aria-label={page.title}
           className={`${panel} w-full ${embedded ? 'flex h-full flex-col gap-5' : 'space-y-5'}`}
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
-            void run(async () => {
-              await post(`/ayarlar/${page.key}`, { values: draft });
-              await rows.reload();
-              await refresh();
-              setMessage('Ayarlar kaydedildi.');
-            });
+            void submit();
           }}
         >
           {!embedded && (
             <UnsavedChanges
               dirty={
                 !busy &&
-                draftSource === rows.value &&
-                page.fields.some((f) => (draft[f.key] ?? '') !== (defaultValues[f.key] ?? ''))
+                baseline !== null &&
+                page.fields.some((f) => (draft[f.key] ?? '') !== (baseline[f.key] ?? ''))
               }
             />
           )}
@@ -1238,7 +1245,7 @@ function SettingsPageContent({
             <h2 className="text-xl font-extrabold">{page.title}</h2>
             {page.fields.some((f) => f.key === 'enabled') && (
               <fieldset
-                disabled={busy || !can('settings', 'save')}
+                disabled={busy || !can('settings', 'save') || demo}
                 className="flex items-center gap-2 text-sm font-semibold"
               >
                 <span>{draft.enabled === 'true' ? 'Aktif' : 'Pasif'}</span>
@@ -1295,7 +1302,7 @@ function SettingsPageContent({
             </Alert>
           )}
           <fieldset
-            disabled={!can('settings', 'save') || busy}
+            disabled={!can('settings', 'save') || busy || (demo && section !== 'images')}
             className="grid gap-5 sm:grid-cols-2"
           >
             {page.fields
@@ -1310,7 +1317,13 @@ function SettingsPageContent({
                         <ToggleSwitch
                           label={f.label}
                           checked={draft[f.key] === 'true'}
-                          onChange={(v) => setDraft({ ...draft, [f.key]: String(v) })}
+                          onChange={(v) => {
+                            setDraft({ ...draft, [f.key]: String(v) });
+                            if (demo) {
+                              writeDemoImageAppearance(f.key, v);
+                              void refresh();
+                            }
+                          }}
                         />
                       </div>
                     ) : type === 'boolean' ? (
@@ -1425,9 +1438,11 @@ function SettingsPageContent({
           )}
           {can('settings', 'save') && (
             <div className={`flex flex-wrap gap-3 ${embedded ? 'mt-auto' : ''}`}>
-              <Button flow={false} type="submit" fullWidth={false} loading={busy}>
-                Kaydet
-              </Button>
+              {!hideSubmit && (
+                <Button flow={false} type="submit" fullWidth={false} loading={busy}>
+                  Kaydet
+                </Button>
+              )}
               {(section === 'smtp' || section === 'imap' || section === 'whatsapp') && (
                 <Button
                   flow={false}

@@ -65,8 +65,8 @@ describe('Profil ve işletme ekranları', () => {
     expect(within(imap).getByLabelText('Sunucu')).toHaveValue('imap.example.com');
     expect(within(imap).getByLabelText('Port')).toHaveValue('993');
     await user.clear(within(smtp).getByLabelText('Sunucu'));
-    await user.type(within(smtp).getByLabelText('Sunucu'), 'smtp.example.com');
-    await user.click(within(smtp).getByRole('button', { name: 'Kaydet' }));
+    await user.type(within(smtp).getByLabelText('Sunucu'), 'smtp.example.org');
+    await user.click(screen.getByRole('button', { name: 'Değişiklikleri Kaydet' }));
     expect(
       fetch.mock.calls.filter(([, init]) => init?.method === 'POST').map(([url]) => url),
     ).toEqual(['/api/hesap/ayarlar/smtp']);
@@ -458,5 +458,74 @@ describe('Profil ve işletme ekranları', () => {
     expect(within(detail).getByText('Evet')).toBeVisible();
     expect(within(detail).getByText('Hayır')).toBeVisible();
     expect(within(detail).queryByText(/kimli|Sıra|true|false/)).not.toBeInTheDocument();
+  });
+});
+
+describe('Ayarlarda kaydedilmemiş değişiklik uyarısı', () => {
+  it('ilk yüklemede hiçbir şey değişmemişken uyarı çıkmaz', async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      ...login,
+      'GET /api/hesap': () =>
+        jsonResponse(200, { ...owner, imageAppearance: { brands: 'false' } }),
+      'GET /api/hesap/ayarlar/images': () => jsonResponse(200, { values: {}, configured: [] }),
+      'GET /api/hesap/ayarlar/general': () => jsonResponse(200, { values: {}, configured: [] }),
+    });
+    renderApp('/uygulama/ayarlar/images');
+    await screen.findByRole('switch', { name: 'Markalarda Şeffaf Zemin' });
+    await user.click(screen.getByRole('link', { name: 'Genel' }));
+    await screen.findByRole('heading', { level: 2, name: 'Genel Ayarlar' });
+    expect(screen.queryByText('Kaydedilmemiş Değişiklikler')).not.toBeInTheDocument();
+  });
+
+  it('değişiklik geri alınınca uyarı çıkmaz', async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      ...login,
+      'GET /api/hesap/ayarlar/smtp': () => jsonResponse(200, { values: {}, configured: [] }),
+      'GET /api/hesap/ayarlar/images': () => jsonResponse(200, { values: {}, configured: [] }),
+    });
+    renderApp('/uygulama/ayarlar/smtp');
+    const username = await screen.findByLabelText('Kullanıcı Adı');
+    await user.type(username, 'deneme');
+    await user.clear(username);
+    await user.click(screen.getByRole('link', { name: 'Görseller' }));
+    await screen.findByRole('heading', { level: 2, name: 'Görsel Ayarları' });
+    expect(screen.queryByText('Kaydedilmemiş Değişiklikler')).not.toBeInTheDocument();
+  });
+
+  it('başarılı kayıttan sonra uyarı çıkmaz', async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      ...login,
+      'GET /api/hesap/ayarlar/smtp': () => jsonResponse(200, { values: {}, configured: [] }),
+      'GET /api/hesap/ayarlar/images': () => jsonResponse(200, { values: {}, configured: [] }),
+      'POST /api/hesap/ayarlar/smtp': () => jsonResponse(200, { values: {}, configured: [] }),
+    });
+    renderApp('/uygulama/ayarlar/smtp');
+    await user.type(await screen.findByLabelText('Kullanıcı Adı'), 'deneme');
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await screen.findByText('Ayarlar kaydedildi.');
+    await user.click(screen.getByRole('link', { name: 'Görseller' }));
+    await screen.findByRole('heading', { level: 2, name: 'Görsel Ayarları' });
+    expect(screen.queryByText('Kaydedilmemiş Değişiklikler')).not.toBeInTheDocument();
+  });
+
+  it('başarısız kayıttan sonra uyarı devam eder', async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      ...login,
+      'GET /api/hesap/ayarlar/smtp': () => jsonResponse(200, { values: {}, configured: [] }),
+      'POST /api/hesap/ayarlar/smtp': () =>
+        jsonResponse(500, { error: { code: 'SERVER', message: 'Kaydedilemedi.' } }),
+    });
+    renderApp('/uygulama/ayarlar/smtp');
+    await user.type(await screen.findByLabelText('Kullanıcı Adı'), 'deneme');
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await screen.findByText('Kaydedilemedi.');
+    await user.click(screen.getByRole('link', { name: 'Görseller' }));
+    expect(
+      await screen.findByRole('dialog', { name: 'Kaydedilmemiş Değişiklikler' }),
+    ).toBeInTheDocument();
   });
 });

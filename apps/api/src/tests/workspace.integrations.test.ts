@@ -27,23 +27,31 @@ const whatsapp = {
 };
 function database(values: Record<string, string>, section = 'whatsapp') {
   const settings = new WorkspaceSettings({} as PrismaClient, testEnv().COOKIE_SECRET);
-  const findMany = vi
+  const findUnique = vi
     .fn()
-    .mockImplementation(({ where }: { where: { businessId: number; section: string } }) =>
+    .mockImplementation(({
+      where,
+    }: {
+      where: { businessId_section: { businessId: number; section: string } };
+    }) =>
       Promise.resolve(
-        where.businessId === 1 && where.section === section
-          ? Object.entries(values).map(([key, value]) => ({
-              key,
-              value: settings.isSecret(key) ? settings.encrypt(value) : value,
-            }))
-          : [],
+        where.businessId_section.businessId === 1 && where.businessId_section.section === section
+          ? {
+              values: Object.fromEntries(
+                Object.entries(values).map(([key, value]) => [
+                  key,
+                  settings.isSecret(key) ? settings.encrypt(value) : value,
+                ]),
+              ),
+            }
+          : null,
       ),
     );
   const create = vi.fn().mockResolvedValue({});
   return {
-    isletmeAyari: { findMany },
+    isletmeAyari: { findUnique },
     islemKaydi: { create },
-    isletmeUyesi: { findUnique: vi.fn().mockResolvedValue({ businessId: 1, active: true }) },
+    isletmeUyesi: { findUnique: vi.fn().mockResolvedValue({ businessId: 1, durum: true }) },
   };
 }
 
@@ -97,11 +105,31 @@ describe('işletme entegrasyonları', () => {
     expect((await settings.values(1, 'whatsapp', true)).accessToken).toBe('private-token');
     expect(await settings.values(2, 'whatsapp', true)).toEqual({});
   });
+  it('ayar bölümünü tek JSON kaydından okur', async () => {
+    const encoder = new WorkspaceSettings({} as PrismaClient, 'secret');
+    const row = {
+      values: {
+        enabled: 'true',
+        appId: whatsapp.appId,
+        appSecret: encoder.encrypt(whatsapp.appSecret),
+        phoneNumberId: whatsapp.phoneNumberId,
+        accessToken: encoder.encrypt(whatsapp.accessToken),
+        verifyToken: encoder.encrypt(whatsapp.verifyToken),
+      },
+    };
+    const db = { isletmeAyari: { findUnique: vi.fn().mockResolvedValue(row) } };
+    const settings = new WorkspaceSettings(db as unknown as PrismaClient, 'secret');
+    expect(await settings.values(1, 'whatsapp', true)).toEqual(whatsapp);
+    expect(db.isletmeAyari.findUnique).toHaveBeenCalledWith({
+      where: { businessId_section: { businessId: 1, section: 'whatsapp' } },
+    });
+  });
   it('eksik bağlantının etkinleşmesini engeller ve iki robot sağlayıcısını birlikte açmaz', async () => {
     const upsert = vi.fn();
+    const findUnique = vi.fn().mockResolvedValue(null);
     const tx = {
       $queryRaw: vi.fn(),
-      isletmeAyari: { findMany: vi.fn().mockResolvedValue([]), upsert },
+      isletmeAyari: { findUnique, upsert },
     };
     const db = { ...tx, $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(tx) };
     const settings = new WorkspaceSettings(db as unknown as PrismaClient, 'secret');
@@ -114,12 +142,12 @@ describe('işletme entegrasyonları', () => {
     });
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { businessId_section_key: { businessId: 1, section: 'recaptcha', key: 'enabled' } },
-        update: { value: 'false' },
+        where: { businessId_section: { businessId: 1, section: 'recaptcha' } },
+        create: { businessId: 1, section: 'recaptcha', values: { enabled: 'false' } },
       }),
     );
-    const secretCall = upsert.mock.calls.find(([arg]) => arg.create.key === 'secretKey')![0];
-    expect(secretCall.create.value).not.toBe('secret');
+    const ownCall = upsert.mock.calls.find(([arg]) => arg.create.section === 'cloudflare')![0];
+    expect(ownCall.create.values.secretKey).not.toBe('secret');
   });
   it('robot yanıtını sunucuda ve doğru alan adı için doğrular; başarısızlığı kabul etmez', async () => {
     const fetch = vi

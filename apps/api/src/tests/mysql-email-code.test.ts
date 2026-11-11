@@ -6,7 +6,7 @@ interface Row {
   kimlik: number;
   epostaHash: string;
   kodHash: string;
-  gecerlilikBitisZamani: Date;
+  gecerlilikBitisTarihi: Date;
   denemeSayisi: number;
   olusturmaZamani: Date;
 }

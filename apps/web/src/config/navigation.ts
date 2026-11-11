@@ -1,4 +1,5 @@
 import { FolderTree, Package, SlidersHorizontal, Tags, type LucideIcon } from 'lucide-react';
+import { ecommercePageTitle } from './ecommerce-settings';
 
 /** Uygulama yolları tek yerden yönetilir; sayfa eklerken yalnızca burası ve App.tsx değişir. */
 export const APP_BASE = '/uygulama';
@@ -42,6 +43,9 @@ export const navRight: readonly NavItem[] = [
 
 /** Üst çubuk başlığı: bilinen sayfalar sabit, stok kartı düzenleme yolu ayrıca tanınır. */
 export function pageTitle(pathname: string): string | undefined {
+  // E-ticaret ayarları kendi başlık tablosunu kullanır (liste ve form ekranları ayrı adlanır).
+  const ecommerce = ecommercePageTitle(pathname);
+  if (ecommerce) return ecommerce;
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
   if (pathname.startsWith(`${STOCK_BASE}/`)) return 'Stok Kartını Düzenle';
   return undefined;

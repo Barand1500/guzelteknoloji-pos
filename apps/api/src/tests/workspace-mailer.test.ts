@@ -18,7 +18,7 @@ beforeEach(() => {
 
 function fixture(
   values: Record<string, string>,
-  member: { businessId: number; active: boolean } | null = { businessId: 4, active: true },
+  member: { businessId: number; durum: boolean } | null = { businessId: 4, durum: true },
 ) {
   const env = testEnv({
     SMTP_HOST: 'shared.example.com',
@@ -35,14 +35,16 @@ function fixture(
   const db = {
     isletmeUyesi: { findUnique: vi.fn().mockResolvedValue(member) },
     isletmeAyari: {
-      findMany: vi
+      findUnique: vi
         .fn()
-        .mockResolvedValue(
-          Object.entries(values).map(([key, value]) => ({
-            key,
-            value: crypt.isSecret(key) ? crypt.encrypt(value) : value,
-          })),
-        ),
+        .mockResolvedValue({
+          values: Object.fromEntries(
+            Object.entries(values).map(([key, value]) => [
+              key,
+              crypt.isSecret(key) ? crypt.encrypt(value) : value,
+            ]),
+          ),
+        }),
     },
   };
   const fallback = { sendLoginCode: vi.fn().mockResolvedValue(undefined) };
@@ -64,7 +66,7 @@ describe('İşletme bağlantı önceliği ve gerçek gönderim yolu', () => {
     const f = fixture({}, null);
     await f.mailer.sendLoginCode('new@example.com', '123456', 10);
     expect(f.fallback.sendLoginCode).toHaveBeenCalledWith('new@example.com', '123456', 10);
-    expect(f.db.isletmeAyari.findMany).not.toHaveBeenCalled();
+    expect(f.db.isletmeAyari.findUnique).not.toHaveBeenCalled();
     expect(mocks.transport).not.toHaveBeenCalled();
   });
   it('işletmenin ayarı yoksa env hizmetine döner', async () => {
@@ -85,10 +87,10 @@ describe('İşletme bağlantı önceliği ve gerçek gönderim yolu', () => {
     await f.mailer.sendLoginCode('Owner@Example.com', '123456', 10);
     expect(f.db.isletmeUyesi.findUnique).toHaveBeenCalledWith({
       where: { email: 'owner@example.com' },
-      select: { businessId: true, active: true },
+      select: { businessId: true, durum: true },
     });
-    expect(f.db.isletmeAyari.findMany).toHaveBeenCalledWith({
-      where: { businessId: 4, section: 'smtp' },
+    expect(f.db.isletmeAyari.findUnique).toHaveBeenCalledWith({
+      where: { businessId_section: { businessId: 4, section: 'smtp' } },
     });
     expect(mocks.transport).toHaveBeenCalledWith(
       expect.objectContaining({

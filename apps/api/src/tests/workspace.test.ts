@@ -81,7 +81,7 @@ describe('İşletme yetkileri', () => {
       id: 2,
       businessId: 1,
       userId: 8,
-      active: true,
+      durum: true,
       business: { id: 1, name: 'Ortak', ownerId: 7 },
       role: { permissions: [{ resource: 'products', read: true, save: false, delete: false }] },
     };
@@ -104,7 +104,7 @@ describe('İşletme yetkileri', () => {
     expect(hasPermission(ctx, 'roles', 'save')).toBe(false);
   });
   it('bekleyen daveti yalnızca doğrulanmış e-posta ile bağlar', async () => {
-    const invite = { id: 2, businessId: 1, userId: null, active: true };
+    const invite = { id: 2, businessId: 1, userId: null, durum: true };
     const member = {
       ...invite,
       userId: 8,
@@ -140,7 +140,7 @@ describe('İşletme yetkileri', () => {
   it('kapatılan üye mevcut oturumla işletmeye erişemez', async () => {
     const tx = {
       $queryRaw: vi.fn(),
-      isletmeUyesi: { findUnique: vi.fn().mockResolvedValue({ id: 2, active: false }) },
+      isletmeUyesi: { findUnique: vi.fn().mockResolvedValue({ id: 2, durum: false }) },
     };
     const db = {
       isletmeUyesi: tx.isletmeUyesi,
@@ -242,9 +242,13 @@ describe('Ayar sırları', () => {
   it('sayfa şeffaflığını ilişkili ayar satırına yazar, geçersiz değeri reddeder', async () => {
     const upsert = vi.fn();
     const tx = {
+      $queryRaw: vi.fn(),
       isletmeAyari: {
         upsert,
-        findMany: vi.fn().mockResolvedValue([{ key: 'brands', value: 'true' }]),
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce({ values: { brands: 'false', products: 'true' } })
+          .mockResolvedValue({ values: { brands: 'true', products: 'true' } }),
       },
     };
     const db = { ...tx, $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) };
@@ -256,10 +260,14 @@ describe('Ayar sırları', () => {
     const result = await settings.save(1, 'images', { values: { brands: 'true' } });
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: { businessId: 1, section: 'images', key: 'brands', value: 'true' },
+        create: {
+          businessId: 1,
+          section: 'images',
+          values: { brands: 'true', products: 'true' },
+        },
       }),
     );
-    expect(result.values).toEqual({ brands: 'true' });
+    expect(result.values).toEqual({ brands: 'true', products: 'true' });
   });
   it('şifreyi şifreler, geri açar ve değiştirilmiş şifreli veriyi reddeder', () => {
     const settings = new WorkspaceSettings({} as PrismaClient, 'test-key');
@@ -272,13 +280,18 @@ describe('Ayar sırları', () => {
     ).toThrow();
   });
   it('API yanıtında şifreler ve OAuth tokenları bulunmaz', async () => {
-    const rows = [
-      { key: 'clientId', value: 'client' },
-      { key: 'clientSecret', value: 'encrypted-secret' },
-      { key: 'refreshToken', value: 'encrypted-refresh' },
-      { key: 'expiresAt', value: '123' },
-    ];
-    const db = { isletmeAyari: { findMany: vi.fn().mockResolvedValue(rows) } };
+    const db = {
+      isletmeAyari: {
+        findUnique: vi.fn().mockResolvedValue({
+          values: {
+            clientId: 'client',
+            clientSecret: 'encrypted-secret',
+            refreshToken: 'encrypted-refresh',
+            expiresAt: '123',
+          },
+        }),
+      },
+    };
     const result = await new WorkspaceSettings(db as unknown as PrismaClient, 'key').read(
       1,
       'google',
@@ -316,7 +329,7 @@ describe('Yönetim API sınırları', () => {
       MAIL_FROM: 'shared@example.com',
     });
     const result = await request(
-      app(owner, { isletmeAyari: { findMany: vi.fn().mockResolvedValue([]) } }, env),
+      app(owner, { isletmeAyari: { findUnique: vi.fn().mockResolvedValue(null) } }, env),
     ).get('/ayarlar/smtp');
     expect(result.status).toBe(200);
     expect(result.body.source).toBe('environment');
@@ -329,20 +342,20 @@ describe('Yönetim API sınırları', () => {
     const encrypted = new WorkspaceSettings({} as PrismaClient, testEnv().COOKIE_SECRET).encrypt(
       'saved-secret',
     );
-    const findMany = vi.fn().mockResolvedValue([{ key: 'password', value: encrypted }]);
-    const denied = await request(app(employee, { isletmeAyari: { findMany } })).post(
+    const findUnique = vi.fn().mockResolvedValue({ values: { password: encrypted } });
+    const denied = await request(app(employee, { isletmeAyari: { findUnique } })).post(
       '/ayarlar/smtp/gizli/password',
     );
     expect(denied.status).toBe(403);
-    expect(findMany).not.toHaveBeenCalled();
-    const allowed = await request(app(owner, { isletmeAyari: { findMany } })).post(
+    expect(findUnique).not.toHaveBeenCalled();
+    const allowed = await request(app(owner, { isletmeAyari: { findUnique } })).post(
       '/ayarlar/smtp/gizli/password',
     );
     expect(allowed.status).toBe(200);
     expect(allowed.body).toEqual({ value: 'saved-secret' });
     expect(allowed.headers['cache-control']).toBe('no-store');
-    expect(findMany).toHaveBeenCalledWith({
-      where: { businessId: owner.business.id, section: 'smtp' },
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { businessId_section: { businessId: owner.business.id, section: 'smtp' } },
     });
     const token = await request(app(owner, {})).post('/ayarlar/google/gizli/refreshToken');
     expect(token.status).toBe(400);
