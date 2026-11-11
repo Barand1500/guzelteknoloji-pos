@@ -22,6 +22,7 @@ export function requestPermission(
       katalog: 'categories',
       ozellikler: 'attributes',
       firsatlar: 'deals',
+      kampanyalar: 'campaigns',
     } as const
   )[section as 'stok'];
   if (!resource) return null;
@@ -279,6 +280,11 @@ async function snapshot(
     row = await db.firsat.findFirst({
       where: { id, kullaniciId: ctx.ownerId },
       include: { stokKartlari: true },
+    });
+  if (resource === 'campaigns')
+    row = await db.kampanyaKural.findFirst({
+      where: { id, campaign: { userId: ctx.ownerId } },
+      include: { categoryLinks: true, brandLinks: true, campaign: true },
     });
   if (resource === 'attributes') {
     if (path.includes('/sablonlar'))

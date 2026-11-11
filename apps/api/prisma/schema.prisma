@@ -28,6 +28,16 @@ enum GirisYontemi {
   APPLE
 }
 
+enum KampanyaTuru {
+  SEPET_INDIRIMI
+  UCRETSIZ_KARGO
+}
+
+enum IndirimTuru {
+  YUZDE
+  TUTAR
+}
+
 model Kullanici {
   ownedBusiness Isletme? @relation("BusinessOwner")
   businessMember IsletmeUyesi?
@@ -58,6 +68,7 @@ model Kullanici {
   kategoriler           Kategori[]
   firsatlar             Firsat[]
   ozellikSablonlari      OzellikSablonu[]
+  campaigns              Kampanya[]
 
   @@map("kullanicilar")
 }
@@ -161,6 +172,7 @@ model Marka {
   guncellemeZamani DateTime    @updatedAt @map("guncelleme_zamani")
   kullanici        Kullanici   @relation(fields: [kullaniciKimligi], references: [kimlik], onDelete: Cascade, map: "markalar_kullanici_baglantisi")
   stokKartlari     StokKarti[]
+  kampanyaKurallari KampanyaKuralMarkasi[]
 
   @@unique([kullaniciKimligi, markaKodu], map: "markalar_kod_tekil")
   @@unique([kullaniciKimligi, adHash], map: "markalar_ad_tekil")
@@ -229,6 +241,7 @@ model Kategori {
   altlar          Kategori[]              @relation("KategoriAgaci")
   stokKartlari    StokKartiKategori[]
   ozellikSablonlari OzellikSablonKategori[]
+  kampanyaKurallari KampanyaKuralKategorisi[]
   @@index([kullaniciId, ustId])
   @@map("kategoriler")
 }
@@ -267,6 +280,68 @@ model StokFirsati {
   firsat Firsat @relation(fields: [firsatId], references: [id], onDelete: Cascade)
   @@id([stokKartiId, firsatId])
   @@map("urun_firsatlari")
+}
+
+/// İki kampanya ekranının genel kuralı; işletme sahibine ve kampanya türüne göre tektir.
+model Kampanya {
+  id                 Int          @id @default(autoincrement())
+  userId             Int          @map("kullanici_id")
+  kind               KampanyaTuru @map("tur")
+  durum              Boolean      @default(false) @map("durum")
+  customerTypes      Json         @map("cari_tipleri")
+  priceLists         Json         @map("fiyat_listeleri")
+  minTotal           Decimal      @default(0) @map("minimum_sepet") @db.Decimal(18, 2)
+  discountKind       IndirimTuru? @map("indirim_turu")
+  discountValue      Decimal?     @map("indirim_degeri") @db.Decimal(18, 2)
+  olusturmaTarihi    DateTime     @default(now()) @map("olusturma_tarihi")
+  guncellemeTarihi   DateTime     @updatedAt @map("guncelleme_tarihi")
+  user               Kullanici    @relation(fields: [userId], references: [kimlik], onDelete: Cascade)
+  rules              KampanyaKural[]
+
+  @@unique([userId, kind], map: "kampanyalar_kullanici_tur_tekil")
+  @@map("kampanyalar")
+}
+
+/// Belirli kategori/marka ve müşteri kapsamına uygulanacak özel kampanya kuralı.
+model KampanyaKural {
+  id              Int                       @id @default(autoincrement())
+  campaignId      Int                       @map("kampanya_id")
+  durum           Boolean                   @default(true) @map("durum")
+  customerTypes   Json                      @map("cari_tipleri")
+  priceLists      Json                      @map("fiyat_listeleri")
+  minTotal        Decimal                   @default(0) @map("minimum_sepet") @db.Decimal(18, 2)
+  discountKind    IndirimTuru?              @map("indirim_turu")
+  discountValue   Decimal?                  @map("indirim_degeri") @db.Decimal(18, 2)
+  olusturmaTarihi DateTime                  @default(now()) @map("olusturma_tarihi")
+  guncellemeTarihi DateTime                 @updatedAt @map("guncelleme_tarihi")
+  campaign        Kampanya                  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  categoryLinks   KampanyaKuralKategorisi[]
+  brandLinks      KampanyaKuralMarkasi[]
+
+  @@index([campaignId, id], map: "kampanya_kurallari_kampanya_indeks")
+  @@map("kampanya_kurallari")
+}
+
+model KampanyaKuralKategorisi {
+  ruleId     Int           @map("kural_id")
+  categoryId Int           @map("kategori_id")
+  rule       KampanyaKural @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  category   Kategori      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([ruleId, categoryId])
+  @@index([categoryId], map: "kampanya_kural_kategorileri_kategori_indeks")
+  @@map("kampanya_kural_kategorileri")
+}
+
+model KampanyaKuralMarkasi {
+  ruleId  Int           @map("kural_id")
+  brandId Int           @map("marka_id")
+  rule    KampanyaKural @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  brand   Marka         @relation(fields: [brandId], references: [kimlik], onDelete: Cascade)
+
+  @@id([ruleId, brandId])
+  @@index([brandId], map: "kampanya_kural_markalari_marka_indeks")
+  @@map("kampanya_kural_markalari")
 }
 
 model OzellikSablonu {

@@ -30,6 +30,7 @@ import { createOrderRouter, createHomeRouter } from './modules/orders/order.rout
 import { PrismaOrderStore } from './modules/orders/order.store';
 import { createCustomerRouter } from './modules/customers/customer.routes';
 import { PrismaCustomerStore } from './modules/customers/customer.store';
+import { createCampaignRouter } from './modules/campaigns/campaign.routes';
 import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
 import { WorkspaceChallenge, whatsappWebhook } from './modules/workspace/workspace.integrations';
@@ -163,6 +164,7 @@ export function createApp(deps: AppDeps): Express {
   if (deps.catalogDb) {
     app.use('/api/firsatlar', createDealRouter(env, service, deps.catalogDb));
     app.use('/api/ozellikler', createAttributeRouter(env, service, deps.catalogDb));
+    app.use('/api/kampanyalar', createCampaignRouter(deps.catalogDb));
     const orderStore = new PrismaOrderStore(deps.catalogDb);
     const orderLimit = createRateLimiter({
       enabled: env.rateLimitEnabled,
