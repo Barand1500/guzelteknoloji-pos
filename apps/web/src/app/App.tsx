@@ -10,6 +10,7 @@ import { DealsPage } from '../pages/app/DealsPage';
 import { ProductsPage } from '../pages/app/ProductsPage';
 import { CategoriesPage } from '../pages/app/CategoriesPage';
 import { CurrenciesPage } from '../features/currencies/components/CurrenciesPage';
+import { PaymentsPage } from '../features/payments/components/PaymentsPage';
 import { ShippingPage } from '../features/shipping/components/ShippingPage';
 import { StockDefsPage } from '../features/stockdefs/components/StockDefsPage';
 import { TaxesPage } from '../features/taxes/components/TaxesPage';
@@ -70,6 +71,7 @@ export function App() {
               <Route path="para-birimleri" element={<CurrenciesPage />} />
               <Route path="vergiler" element={<TaxesPage />} />
               <Route path="cari-stok" element={<StockDefsPage />} />
+              <Route path="odeme-sekilleri" element={<PaymentsPage />} />
             </Route>
             <Route path="kampanyalar">
               <Route index element={<Navigate to="sepet-indirimi" replace />} />

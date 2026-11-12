@@ -22,6 +22,7 @@ import {
   Tags,
   UserCog,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import { APP_BASE, BULK_IMAGES_PATH, DEALS_PATH, type NavItem } from './navigation';
@@ -250,6 +251,13 @@ export const SECTIONS: readonly Section[] = [
       Layers,
       'Tipler, fiyat listeleri, birimler',
     );
+    const odeme = p(
+      'odeme-sekilleri',
+      'Ödeme Şekilleri',
+      `${APP_BASE}/tanimlamalar/odeme-sekilleri`,
+      Wallet,
+      'Sıra, simge, kurallar',
+    );
     return {
       id: 'tanimlamalar',
       label: 'Tanımlamalar',
@@ -258,7 +266,7 @@ export const SECTIONS: readonly Section[] = [
       tagline: 'Kargo, ödeme, vergi',
       home: kargo.path,
       addButton: true,
-      pages: [kargo, para, vergi, cariStok],
+      pages: [kargo, para, vergi, cariStok, odeme],
       dock: { left: [], right: [] },
       paths: [`${APP_BASE}/tanimlamalar`],
     } satisfies Section;
