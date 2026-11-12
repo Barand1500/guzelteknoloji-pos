@@ -7,7 +7,13 @@ import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**', 'apps/api/src/generated/**'],
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      '.zwork/**',
+      'apps/api/src/generated/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -22,5 +22,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,
+    // Ağır jsdom testleri 55 dosya paralel koşarken 5 sn'lik varsayılanı aşabiliyordu
+    // (tek başına geçen testler toplu koşuda düşüyordu). Gerçek takılmalar yine yakalanır.
+    testTimeout: 15_000,
   },
 });

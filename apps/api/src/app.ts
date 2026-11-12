@@ -41,7 +41,10 @@ import {
   createTaxOfficeRouter,
   createTaxTypeRouter,
 } from './modules/definitions/tax.routes';
+import { createPaymentRouter } from './modules/definitions/payment.routes';
+import { createHolidayRouter } from './modules/definitions/holiday.routes';
 import { createNotificationRouter } from './modules/notifications/notification.routes';
+import { createSiteRouter } from './modules/site/site.routes';
 import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
 import { WorkspaceChallenge, whatsappWebhook } from './modules/workspace/workspace.integrations';
@@ -116,13 +119,16 @@ export function createApp(deps: AppDeps): Express {
 
   app.use(requestLogger(logger));
   if (deps.catalogDb) app.use('/api/webhooks/whatsapp', whatsappWebhook(deps.catalogDb, env));
-  app.use('/api/hesap/ayarlar', express.json({ limit: '32kb' }));
+  app.use('/api/hesap/ayarlar', express.json({ limit: '256kb' }));
   app.use('/api/stok/gorseller/yukle', express.json({ limit: '7mb' }));
   app.use('/api/stok', express.json({ limit: '512kb' }));
   app.use('/api/markalar', express.json({ limit: '3mb' }));
   app.use('/api/kargo', express.json({ limit: '256kb' }));
   app.use('/api/para-birimleri', express.json({ limit: '64kb' }));
   app.use('/api/bildirimler', express.json({ limit: '64kb' }));
+  app.use('/api/site', express.json({ limit: '8mb' }));
+  app.use('/api/odeme-sekilleri', express.json({ limit: '3mb' }));
+  app.use('/api/resmi-tatiller', express.json({ limit: '64kb' }));
   app.use(['/api/kategoriler', '/api/katalog/kategoriler'], express.json({ limit: '3mb' }));
   app.use(['/api/firsatlar', '/api/ozellikler'], express.json({ limit: '3mb' }));
   app.use(express.json({ limit: '10kb' }));
@@ -185,11 +191,10 @@ export function createApp(deps: AppDeps): Express {
     app.use('/api/vergi-daireleri', createTaxOfficeRouter(deps.catalogDb, env));
     app.use('/api/cari-stok', createStockDefsRouter(deps.catalogDb, env));
     app.use('/api/bildirimler', createNotificationRouter(deps.catalogDb, env));
-    app.use(
-      '/api/seo',
-      express.json({ limit: '64kb' }),
-      createSeoRouter(env, deps.catalogDb),
-    );
+    app.use('/api/site', createSiteRouter(deps.catalogDb, env));
+    app.use('/api/odeme-sekilleri', createPaymentRouter(deps.catalogDb, env));
+    app.use('/api/resmi-tatiller', createHolidayRouter(deps.catalogDb, env));
+    app.use('/api/seo', express.json({ limit: '64kb' }), createSeoRouter(env, deps.catalogDb));
     const orderStore = new PrismaOrderStore(deps.catalogDb);
     const orderLimit = createRateLimiter({
       enabled: env.rateLimitEnabled,

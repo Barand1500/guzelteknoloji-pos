@@ -34,10 +34,12 @@ async function fromPublicApi(year: number): Promise<{ official: OfficialDay[]; o
 export const holidayService = {
   load: async (year: number): Promise<LoadedYear> => {
     try {
-      const r = await apiRequest<{ official: OfficialDay[]; custom: CustomHoliday[] }>(
-        `/api/resmi-tatiller?yil=${year}`,
-      );
-      return { ...r, sample: false, offline: false };
+      const r = await apiRequest<{
+        official: OfficialDay[];
+        custom: CustomHoliday[];
+        offline?: boolean;
+      }>(`/api/resmi-tatiller?yil=${year}`);
+      return { ...r, sample: false, offline: r.offline ?? false };
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
         const { official, offline } = await fromPublicApi(year);
@@ -49,7 +51,10 @@ export const holidayService = {
   create: (draft: CustomDraft) =>
     apiRequest<CustomHoliday>('/api/resmi-tatiller', { method: 'POST', body: draft }),
   update: (id: string, draft: CustomDraft) =>
-    apiRequest<CustomHoliday>(`/api/resmi-tatiller/${encodeURIComponent(id)}`, { method: 'POST', body: draft }),
+    apiRequest<CustomHoliday>(`/api/resmi-tatiller/${encodeURIComponent(id)}`, {
+      method: 'POST',
+      body: draft,
+    }),
   remove: (id: string) =>
     apiRequest<void>(`/api/resmi-tatiller/${encodeURIComponent(id)}/sil`, { method: 'POST' }),
 };

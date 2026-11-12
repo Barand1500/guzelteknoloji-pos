@@ -7,12 +7,16 @@ import { HttpError } from '../../lib/http-error';
 import type { Env } from '../../config/env';
 
 export type ConnectionSection = 'smtp' | 'imap' | 'google';
+/** Görsel kimliği taşıyan ayar alanları: yalnızca sayı ya da boş kabul edilir. */
+const IMAGE_ID_KEYS = ['logoId', 'faviconId', 'popupId', 'campaignId', 'stokYokGorselId'];
 type SettingsStore = Pick<PrismaClient, 'isletmeAyari' | '$queryRaw'>;
 
 function settingsObject(value: Prisma.JsonValue | null | undefined): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return Object.fromEntries(
-    Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    ),
   );
 }
 export function hasOwnConnection(section: ConnectionSection, values: Record<string, string>) {
@@ -148,7 +152,7 @@ export class WorkspaceSettings {
   async save(businessId: number, section: SettingsPage, body: unknown) {
     const input = z
       .strictObject({
-        values: z.record(z.string(), z.string().max(4000)),
+        values: z.record(z.string(), z.string().max(20000)),
         clear: z.array(z.string()).default([]),
       })
       .parse(body);
@@ -163,6 +167,8 @@ export class WorkspaceSettings {
       const field = page.fields.find((f) => f.key === key);
       if (!field) throw new HttpError(400, 'VALIDATION_ERROR', 'Bilinmeyen ayar alanı.');
       const value = input.values[key];
+      if (value && IMAGE_ID_KEYS.includes(key) && !/^\d+$/.test(value))
+        throw new HttpError(400, 'VALIDATION_ERROR', 'Görsel seçimi geçersiz.');
       if (value && 'type' in field && field.type === 'port' && !/^\d+$/.test(value))
         throw new HttpError(400, 'VALIDATION_ERROR', 'Geçerli bir port girin.');
       if (
@@ -228,7 +234,8 @@ export class WorkspaceSettings {
           (input.values.clientId !== undefined && input.values.clientId.trim() !== oldIdValue) ||
           !!input.values.clientSecret ||
           input.clear.some((k) => ['clientId', 'clientSecret'].includes(k))
-        ) input.clear.push('refreshToken', 'accessToken', 'expiresAt');
+        )
+          input.clear.push('refreshToken', 'accessToken', 'expiresAt');
       }
       const patch: Record<string, string> = {};
       for (const [key, value] of Object.entries(input.values)) {

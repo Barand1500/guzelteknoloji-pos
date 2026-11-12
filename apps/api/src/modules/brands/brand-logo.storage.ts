@@ -18,7 +18,14 @@ export class BrandLogoStorage {
   private readonly directory: string;
   constructor(
     root: string,
-    folder: 'markalar' | 'kategoriler' | 'firsatlar' | 'ozellikler' | 'urunler' = 'markalar',
+    folder:
+      | 'markalar'
+      | 'kategoriler'
+      | 'firsatlar'
+      | 'ozellikler'
+      | 'urunler'
+      | 'site'
+      | 'odeme' = 'markalar',
   ) {
     this.directory = path.resolve(root, folder);
   }

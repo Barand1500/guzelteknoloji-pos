@@ -1,86 +1,110 @@
-import { useState } from 'react';
 import { Alert } from '../../../components/ui/Alert';
 import { TextField } from '../../../components/ui/TextField';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
-import { Badge, FieldGrid, SaveBar, ScreenCard } from './Parts';
+import { useSiteSettings } from '../hooks/useSiteSettings';
+import { Badge, FieldGrid, SaveFooter, ScreenCard } from './Parts';
 
-/** ERP Entegrasyon Bilgileri: referanstaki alan sırası ve adları korunur; test/kayıt kapalı. */
+const erpDefaults = {
+  enabled: 'false',
+  apiUrl: '',
+  server: '',
+  database: '',
+  username: '',
+  password: '',
+};
+
+const xmlDefaults = { enabled: 'true' };
+
+/** ERP Entegrasyon Bilgileri: alanlar `site_erp` bölümüne kaydedilir; test bağlantısı yapılmaz. */
 export function ErpScreen() {
-  const [enabled, setEnabled] = useState(false);
-  const [values, setValues] = useState({
-    apiUrl: '',
-    server: '',
-    database: '',
-    username: '',
-    password: '',
-  });
-  const set = (key: keyof typeof values, value: string) =>
-    setValues((previous) => ({ ...previous, [key]: value }));
+  const { values, setValue, loading, ready, saving, error, message, save } = useSiteSettings(
+    'site_erp',
+    erpDefaults,
+  );
+  const enabled = values.enabled === 'true';
+  const v = (key: keyof typeof erpDefaults) => values[key] ?? '';
+  // Ekranda "required" işaretli alanlar gerçekten zorunlu olsun; boş bilgiyle aktif edilmesin.
+  const eksik =
+    !v('apiUrl').trim() || !v('server').trim() || !v('database').trim() || !v('username').trim();
 
   return (
-    <ScreenCard
-      title="ERP Entegrasyon Bilgileri"
-      description="Vega erp entegrasyonunu bu sayfadan gerçekleştiriniz."
-      actions={
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold">Durum</span>
-          <ToggleSwitch
-            label="ERP entegrasyonu aktif"
-            checked={enabled}
-            onChange={setEnabled}
+    <div className="flex flex-col gap-4">
+      <ScreenCard
+        title="ERP Entegrasyon Bilgileri"
+        description="Vega erp entegrasyonunu bu sayfadan gerçekleştiriniz."
+        actions={
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold">Durum</span>
+            <ToggleSwitch
+              label="ERP entegrasyonu aktif"
+              checked={enabled}
+              onChange={(checked) => setValue('enabled', String(checked))}
+            />
+            <Badge tone={enabled ? 'brand' : 'muted'}>{enabled ? 'Açık' : 'Kapalı'}</Badge>
+          </div>
+        }
+      >
+        <div className="space-y-5">
+          <TextField
+            label="API URL"
+            required
+            value={v('apiUrl')}
+            onChange={(e) => setValue('apiUrl', e.target.value)}
           />
-          <Badge tone={enabled ? 'brand' : 'muted'}>{enabled ? 'Açık' : 'Kapalı'}</Badge>
+          <FieldGrid>
+            <TextField
+              label="Sunucu"
+              required
+              value={v('server')}
+              onChange={(e) => setValue('server', e.target.value)}
+            />
+            <TextField
+              label="Veritabanı"
+              required
+              value={v('database')}
+              onChange={(e) => setValue('database', e.target.value)}
+            />
+            <TextField
+              label="Kullanıcı Adı"
+              required
+              value={v('username')}
+              onChange={(e) => setValue('username', e.target.value)}
+            />
+            <TextField
+              label="Şifre"
+              type="password"
+              autoComplete="new-password"
+              hint="Boş bırakılırsa kayıtlı şifre korunur."
+              value={v('password')}
+              onChange={(e) => setValue('password', e.target.value)}
+            />
+          </FieldGrid>
+          <Alert tone="info">
+            Bağlantı bilgileri yalnızca sunucuda şifreli saklanır; bu ekranda gerçek anahtar
+            tutulmaz ve bağlantı testi yapılmaz.
+          </Alert>
+          {error && <Alert tone="error">{error}</Alert>}
         </div>
-      }
-    >
-      <div className="space-y-5">
-        <TextField
-          label="API URL"
-          required
-          value={values.apiUrl}
-          onChange={(e) => set('apiUrl', e.target.value)}
-        />
-        <FieldGrid>
-          <TextField
-            label="Sunucu"
-            required
-            value={values.server}
-            onChange={(e) => set('server', e.target.value)}
-          />
-          <TextField
-            label="Veritabanı"
-            required
-            value={values.database}
-            onChange={(e) => set('database', e.target.value)}
-          />
-          <TextField
-            label="Kullanıcı Adı"
-            required
-            value={values.username}
-            onChange={(e) => set('username', e.target.value)}
-          />
-          <TextField
-            label="Şifre"
-            required
-            type="password"
-            autoComplete="new-password"
-            value={values.password}
-            onChange={(e) => set('password', e.target.value)}
-          />
-        </FieldGrid>
-        <Alert tone="info">
-          Bağlantı bilgileri yalnızca sunucuda şifreli saklanacak; bu ekranda gerçek anahtar
-          tutulmaz ve bağlantı testi yapılmaz.
-        </Alert>
-        <SaveBar label="Değişiklikleri Kaydet" />
-      </div>
-    </ScreenCard>
+      </ScreenCard>
+      <SaveFooter
+        onSave={() => void save()}
+        saving={saving}
+        disabled={loading || !ready || eksik}
+        message={
+          message ?? (eksik ? 'API URL, sunucu, veritabanı ve kullanıcı adı zorunlu.' : null)
+        }
+      />
+    </div>
   );
 }
 
-/** Google & Meta XML: tek durum anahtarı, bilgi notu ve örnek adres. */
+/** Google & Meta XML: tek durum anahtarı (`site_xml`), bilgi notu ve örnek adres. */
 export function XmlScreen() {
-  const [enabled, setEnabled] = useState(true);
+  const { values, setValue, loading, ready, saving, error, message, save } = useSiteSettings(
+    'site_xml',
+    xmlDefaults,
+  );
+  const enabled = values.enabled === 'true';
 
   return (
     <div className="flex flex-col gap-4">
@@ -90,18 +114,19 @@ export function XmlScreen() {
         actions={
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold">Durum</span>
-            <ToggleSwitch label="XML feed aktif" checked={enabled} onChange={setEnabled} />
+            <ToggleSwitch
+              label="XML feed aktif"
+              checked={enabled}
+              onChange={(checked) => setValue('enabled', String(checked))}
+            />
             <Badge tone={enabled ? 'brand' : 'muted'}>{enabled ? 'Açık' : 'Kapalı'}</Badge>
           </div>
         }
       >
-        <div className="space-y-4">
-          <Alert tone="info">
-            Sadece Google ile eşleştirilmiş kategorilerdeki ürünler ve barkodlu ürünler XML
-            verisinde yer alır.
-          </Alert>
-          <SaveBar label="Değişiklikleri Kaydet" />
-        </div>
+        <Alert tone="info">
+          Sadece Google ile eşleştirilmiş kategorilerdeki ürünler ve barkodlu ürünler XML verisinde
+          yer alır.
+        </Alert>
       </ScreenCard>
 
       <ScreenCard
@@ -115,6 +140,14 @@ export function XmlScreen() {
           Gerçek adres, site ve backend bağlantısı hazır olduğunda burada gösterilecek.
         </p>
       </ScreenCard>
+
+      {error && <Alert tone="error">{error}</Alert>}
+      <SaveFooter
+        onSave={() => void save()}
+        saving={saving}
+        disabled={loading || !ready}
+        message={message}
+      />
     </div>
   );
 }

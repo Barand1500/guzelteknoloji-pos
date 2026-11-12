@@ -366,7 +366,22 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
   });
   const page = (value: unknown) =>
     z
-      .enum(['general', 'images', 'smtp', 'imap', 'google', 'cloudflare', 'recaptcha', 'whatsapp'])
+      .enum([
+        'general',
+        'images',
+        'smtp',
+        'imap',
+        'google',
+        'cloudflare',
+        'recaptcha',
+        'whatsapp',
+        'site_system',
+        'site_header',
+        'site_defaults',
+        'site_appearance',
+        'site_erp',
+        'site_xml',
+      ])
       .parse(value);
   router.get('/ayarlar/:section', async (req, res) => {
     const ctx = ctxOf(res);

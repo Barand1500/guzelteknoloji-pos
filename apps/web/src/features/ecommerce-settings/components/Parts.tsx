@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { GripVertical, Pencil, Trash2 } from 'lucide-react';
-import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import type { SortableRowContext } from '../../../components/ui/SortableList';
 import { SettingsTabs } from '../../workspace/SettingsTabs';
@@ -12,10 +11,7 @@ export const BACKEND_NOTICE_ID = 'ecommerce-backend-bekleniyor';
 
 export const panelClass = 'rounded-3xl border border-line bg-surface-raised p-4 sm:p-6';
 
-/**
- * E-ticaret ayarlarının ortak kabuğu: sekme şeridi, açıklama ve (her ekranda görünen) dürüst
- * "kaydedilmiyor" uyarısı. Böylece hiçbir ekran kalıcı kayıt izlenimi vermez.
- */
+/** E-ticaret ayarlarının ortak kabuğu: sekme şeridi ve açıklama. */
 export function EcommerceShell({
   page,
   description,
@@ -32,12 +28,6 @@ export function EcommerceShell({
       <p className="text-sm text-ink-muted">
         {description ?? page?.description ?? 'E-ticaret sitesinin içerik ve görünüm ayarları.'}
       </p>
-      <Alert tone="info">
-        <span id={BACKEND_NOTICE_ID}>
-          Backend bağlantısı bekleniyor — bu ekrandaki değişiklikler kaydedilmez; alanlar yalnızca
-          yerel önizleme içindir.
-        </span>
-      </Alert>
       {children}
     </div>
   );
@@ -68,16 +58,35 @@ export function ScreenCard({
   );
 }
 
-/** Kaydetme kapalıyken kullanılan düğme + tek cümlelik neden. */
-export function SaveBar({ label = 'Kaydet' }: { label?: string }) {
+/**
+ * Sayfa altındaki ORTAK kaydet çubuğu: e-ticaret ayarlarının her ekranında aynı yerde,
+ * aynı etiketle ("Kaydet") durur. Form içindeki pencereler (Sheet) kendi düğmesini kullanır.
+ */
+export function SaveFooter({
+  onSave,
+  saving = false,
+  disabled = false,
+  message,
+}: {
+  onSave: () => void;
+  saving?: boolean;
+  disabled?: boolean;
+  message?: string | null;
+}) {
   return (
-    <div className="flex flex-wrap items-center gap-3 pt-1">
-      <Button flow={false} type="button" disabled fullWidth={false} aria-describedby={BACKEND_NOTICE_ID}>
-        {label}
+    <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
+      <Button
+        flow={false}
+        type="button"
+        fullWidth={false}
+        onClick={onSave}
+        loading={saving}
+        loadingLabel="Kaydediliyor…"
+        disabled={disabled}
+      >
+        Kaydet
       </Button>
-      <span className="text-xs text-ink-muted">
-        Kaydetme, backend bağlantısı gelince açılacak.
-      </span>
+      {message ? <span className="text-xs text-ink-muted">{message}</span> : null}
     </div>
   );
 }
@@ -107,6 +116,40 @@ export function DisabledAction({ label }: { label: string }) {
     >
       <Trash2 className="size-4" aria-hidden="true" />
     </button>
+  );
+}
+
+/** Satır silme: onay penceresini açar; demo oturumunda `DisabledAction` kullanılır. */
+export function DeleteAction({
+  label,
+  onClick,
+  disabled = false,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex size-11 items-center justify-center rounded-full text-ink-muted hover:bg-danger-soft hover:text-danger disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      <Trash2 className="size-4" aria-hidden="true" />
+    </button>
+  );
+}
+
+/** Liste yüklenirken gösterilen iskelet satırlar. */
+export function LoadingRows({ count = 3 }: { count?: number }) {
+  return (
+    <div className="flex flex-col gap-2.5" aria-busy="true">
+      {Array.from({ length: count }, (_, index) => (
+        <div key={index} className="h-[4.25rem] animate-pulse rounded-2xl bg-surface-muted" />
+      ))}
+    </div>
   );
 }
 
@@ -157,7 +200,13 @@ export function SortableRow({
   );
 }
 
-export function Badge({ children, tone = 'muted' }: { children: ReactNode; tone?: 'brand' | 'muted' }) {
+export function Badge({
+  children,
+  tone = 'muted',
+}: {
+  children: ReactNode;
+  tone?: 'brand' | 'muted';
+}) {
   return (
     <span
       className={
@@ -175,11 +224,7 @@ export function Badge({ children, tone = 'muted' }: { children: ReactNode; tone?
  * Sayfalanmış listede sürükle-bırak sonucunu tüm listeye yansıtır; sürükleme geçerli sayfa
  * içinde kalır (proje kuralı 8.15).
  */
-export function reorderPage<T>(
-  all: readonly T[],
-  visible: readonly T[],
-  next: readonly T[],
-): T[] {
+export function reorderPage<T>(all: readonly T[], visible: readonly T[], next: readonly T[]): T[] {
   const first = visible[0];
   if (!first) return [...all];
   const start = all.indexOf(first);

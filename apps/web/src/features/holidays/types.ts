@@ -4,7 +4,7 @@
  * tatiller (köprü günü, sayım, tadilat…) elle eklenir.
  *
  * Sunucu sözleşmesi (uç yoksa 404 → tarayıcı resmî tatilleri API'den doğrudan çeker, özel tatiller yalnızca ekranda):
- *  - GET  /api/resmi-tatiller?yil=2026        → { official: OfficialDay[], custom: CustomHoliday[] }
+ *  - GET  /api/resmi-tatiller?yil=2026        → { official: OfficialDay[], custom: CustomHoliday[], offline: boolean }
  *                                                (official: sunucunun API'den çekip önbelleğe aldığı günler)
  *  - POST /api/resmi-tatiller                 gövde CustomDraft → CustomHoliday
  *  - POST /api/resmi-tatiller/:id             gövde CustomDraft → CustomHoliday
@@ -55,7 +55,8 @@ export function addDays(day: string, n: number): string {
 }
 
 /** İki gün arası fark (gün). */
-export const diffDays = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+export const diffDays = (a: string, b: string) =>
+  Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
 /** 0 = Pazartesi … 6 = Pazar. */
 export const weekdayOf = (day: string) => (new Date(day + 'T00:00:00').getDay() + 6) % 7;
@@ -64,7 +65,10 @@ export const weekdayOf = (day: string) => (new Date(day + 'T00:00:00').getDay() 
 export function parseNager(json: unknown): OfficialDay[] {
   if (!Array.isArray(json)) return [];
   return json
-    .filter((h): h is { date: string; localName: string } => typeof h?.date === 'string' && typeof h?.localName === 'string')
+    .filter(
+      (h): h is { date: string; localName: string } =>
+        typeof h?.date === 'string' && typeof h?.localName === 'string',
+    )
     .map((h) => ({
       date: h.date,
       name: h.localName.replace(/\s*\(Tentative Date\)\s*/i, '').trim(),
@@ -82,11 +86,24 @@ export function groupBlocks(official: OfficialDay[], custom: CustomHoliday[]): B
   for (const d of days) {
     const name = baseName(d.name);
     const last = blocks[blocks.length - 1];
-    if (last && last.source === 'official' && last.name === name && diffDays(last.end, d.date) === 1) {
+    if (
+      last &&
+      last.source === 'official' &&
+      last.name === name &&
+      diffDays(last.end, d.date) === 1
+    ) {
       last.end = d.date;
       last.days += 1;
     } else {
-      blocks.push({ key: `o-${d.date}`, name, start: d.date, end: d.date, days: 1, source: 'official', tentative: d.tentative });
+      blocks.push({
+        key: `o-${d.date}`,
+        name,
+        start: d.date,
+        end: d.date,
+        days: 1,
+        source: 'official',
+        tentative: d.tentative,
+      });
     }
   }
   for (const c of custom)
@@ -138,8 +155,34 @@ export const FALLBACK_2026: OfficialDay[] = [
   ['2026-10-29', 'Cumhuriyet Bayramı'],
 ].map(([date, name]) => ({ date: date!, name: name!, tentative: false }));
 
-export const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-export const MONTHS_SHORT = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+export const MONTHS = [
+  'Ocak',
+  'Şubat',
+  'Mart',
+  'Nisan',
+  'Mayıs',
+  'Haziran',
+  'Temmuz',
+  'Ağustos',
+  'Eylül',
+  'Ekim',
+  'Kasım',
+  'Aralık',
+];
+export const MONTHS_SHORT = [
+  'Oca',
+  'Şub',
+  'Mar',
+  'Nis',
+  'May',
+  'Haz',
+  'Tem',
+  'Ağu',
+  'Eyl',
+  'Eki',
+  'Kas',
+  'Ara',
+];
 
 export const formatDay = (day: string) =>
   new Date(day + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });

@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 export interface PickedImage {
   name: string;
   url: string;
@@ -17,17 +19,23 @@ export function pickImage(
   setter({ name: file.name, url: URL.createObjectURL(file) });
 }
 
-/** Görsel seçimi: dosya kutusu + önizleme + kaldırma. Yükleme yapmaz. */
+/** Görsel seçimi: dosya kutusu + önizleme + kaldırma. Demo oturumunda yükleme yapmaz. */
 export function ImagePicker({
   label,
   hint,
   value,
+  note,
+  busy = false,
   onPick,
   onClear,
 }: {
   label: string;
   hint?: string;
   value: PickedImage | null;
+  /** Önizleme kutusundaki açıklama; verilmezse "yalnızca önizleme" yazar. */
+  note?: ReactNode;
+  /** Yükleme sürerken dosya seçimi ve kaldırma kapalıdır. */
+  busy?: boolean;
   onPick: (file: File | undefined) => void;
   onClear: () => void;
 }) {
@@ -38,8 +46,9 @@ export function ImagePicker({
         type="file"
         accept="image/png,image/jpeg,image/webp,image/svg+xml"
         aria-label={`${label} seç`}
+        disabled={busy}
         onChange={(e) => onPick(e.target.files?.[0])}
-        className="block w-full rounded-2xl border border-field-border bg-surface-raised p-3 text-sm file:mr-3 file:rounded-full file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:font-semibold"
+        className="block w-full rounded-2xl border border-field-border bg-surface-raised p-3 text-sm file:mr-3 file:rounded-full file:border-0 file:bg-surface-muted file:px-4 file:py-2 file:text-sm file:font-semibold disabled:opacity-60"
       />
       {hint && <p className="text-xs text-ink-muted">{hint}</p>}
       {value && (
@@ -51,15 +60,16 @@ export function ImagePicker({
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm">{value.name}</p>
-            <p className="text-xs text-ink-muted">Yalnızca önizleme — yüklenmedi.</p>
+            <p className="text-xs text-ink-muted">{note ?? 'Yalnızca önizleme — yüklenmedi.'}</p>
           </div>
           <button
             type="button"
+            disabled={busy}
             onClick={() => {
               URL.revokeObjectURL(value.url);
               onClear();
             }}
-            className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-danger hover:bg-danger-soft"
+            className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-danger hover:bg-danger-soft disabled:opacity-40"
           >
             Kaldır
           </button>

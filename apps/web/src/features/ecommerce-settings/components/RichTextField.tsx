@@ -85,9 +85,8 @@ export function RichTextField({
     if (url) exec('createLink', url);
   };
 
-const toolButton =
-  'inline-flex size-9 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600';
-
+  const toolButton =
+    'inline-flex size-9 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600';
 
   return (
     <div className="space-y-1">
@@ -125,7 +124,7 @@ const toolButton =
               key={tool.label}
               type="button"
               aria-label={tool.label}
-              title={`${tool.label} — bağlantı gelince açılacak`}
+              title={`${tool.label} — hazırlanıyor`}
               disabled
               className={`${toolButton} disabled:cursor-not-allowed disabled:opacity-35`}
             >
@@ -170,9 +169,7 @@ const toolButton =
           />
         )}
       </div>
-      <p className="text-xs text-ink-muted">
-        {hint ?? 'İçerik HTML olarak tutulur; kayıt backend bağlantısı gelince açılacak.'}
-      </p>
+      <p className="text-xs text-ink-muted">{hint ?? 'İçerik HTML olarak tutulur.'}</p>
     </div>
   );
 }

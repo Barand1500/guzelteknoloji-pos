@@ -38,7 +38,7 @@ export function parseRate(text: string): string | null {
   return String(value).replace('.', ',');
 }
 
-interface SelectFieldProps {
+export interface SelectFieldProps {
   label: string;
   options: readonly SelectOption[];
   value: string;
@@ -52,6 +52,11 @@ interface SelectFieldProps {
   error?: string | undefined;
   id?: string | undefined;
   className?: string | undefined;
+  /**
+   * 'auto': altta yer yoksa yukarı açar (varsayılan).
+   * 'down': her zaman aşağı açar; liste kalan yüksekliğe göre kısalır (e-ticaret ekranları).
+   */
+  placement?: 'auto' | 'down' | undefined;
 }
 
 /** Türkçe harf duyarlı, büyük/küçük harf farkı gözetmeyen karşılaştırma. */
@@ -75,6 +80,7 @@ export function SelectField({
   error,
   id,
   className = '',
+  placement = 'auto',
 }: SelectFieldProps) {
   const autoId = useId();
   const triggerId = id ?? autoId;
@@ -92,6 +98,8 @@ export function SelectField({
   const [newLabel, setNewLabel] = useState('');
   const [newRate, setNewRate] = useState('');
   const [active, setActive] = useState(0);
+  // Aşağı açılan listede kalan yükseklik: panel ekranın dışına taşmasın, liste kısalsın.
+  const [listMax, setListMax] = useState<number | undefined>(undefined);
   // Panelin çizileceği kap (tema renkleri data-theme kapsayıcısında tanımlıdır); açılırken belirlenir.
   const [portalTarget, setPortalTarget] = useState<Element | null>(null);
 
@@ -115,7 +123,11 @@ export function SelectField({
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const below = window.innerHeight - rect.bottom;
-    const up = below < 320 && rect.top > below;
+    const up = placement === 'down' ? false : below < 320 && rect.top > below;
+    // 'down' yerleşiminde liste, ekranın altına kadar olan boşluğa sığacak şekilde kısalır.
+    setListMax(
+      up ? undefined : Math.min(240, Math.max(160, window.innerHeight - rect.bottom - 24)),
+    );
     // Dar tetiklerde (ör. barkod türü) seçenek yazıları kesilmesin: en az 14rem, ekran içinde kal.
     const margin = 8;
     const width = Math.min(Math.max(rect.width, 224), window.innerWidth - margin * 2);
@@ -125,7 +137,7 @@ export function SelectField({
         ? { left, width, bottom: window.innerHeight - rect.top + 8 }
         : { left, width, top: rect.bottom + 8 },
     );
-  }, []);
+  }, [placement]);
 
   const openList = () => {
     place();
@@ -331,6 +343,7 @@ export function SelectField({
                   aria-label={label}
                   tabIndex={-1}
                   aria-activedescendant={visible[active] ? optionId(active) : undefined}
+                  style={!phone && listMax ? { maxHeight: listMax } : undefined}
                   className={`${phone ? 'max-h-[48dvh] min-h-0 flex-1' : 'max-h-60'} overflow-y-auto p-1.5`}
                 >
                   {visible.length === 0 ? (

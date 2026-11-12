@@ -29,6 +29,9 @@ export function requestPermission(
       'vergi-daireleri': 'settings',
       'cari-stok': 'settings',
       bildirimler: 'notifications',
+      site: 'settings',
+      'odeme-sekilleri': 'settings',
+      'resmi-tatiller': 'settings',
     } as const
   )[section as 'stok'];
   if (!resource) return null;

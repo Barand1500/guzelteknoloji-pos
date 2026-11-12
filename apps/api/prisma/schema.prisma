@@ -507,7 +507,15 @@ model Isletme {
   cariTipleri CariTipi[]
   fiyatListesiAyarlari FiyatListesiAyari[]
   bildirimler Bildirim[]
+  siteSayfalari SiteSayfasi[]
+  siteMenuOgeleri SiteMenuOgesi[]
+  siteGorselleri SiteGorseli[]
+  siteSliderlari SiteSlideri[]
+  siteWidgetlari SiteWidgeti[]
+  siteSablonDegiskenleri SiteSablonDegiskeni[]
   seoYonlendirmeleri SeoYonlendirmesi[]
+  odemeSekilleri OdemeSekli[]
+  ozelTatiller OzelTatil[]
   @@map("isletmeler")
 }
 
@@ -938,4 +946,147 @@ model BildirimMusterisi {
   @@id([bildirimId, musteriId])
   @@index([musteriId], map: "bildirim_musterileri_musteri_indeks")
   @@map("bildirim_musterileri")
+}
+
+// ── E-ticaret ayarları › Site içeriği ───────────────────────────────────────
+model SiteSayfasi {
+  id        Int      @id @default(autoincrement())
+  isletmeId Int      @map("isletme_id")
+  ad        String   @db.VarChar(120)
+  slug      String   @db.VarChar(120)
+  icerik    String   @db.LongText
+  yasalTur  String   @default("yok") @map("yasal_tur") @db.VarChar(20)
+  yayinda   Boolean  @default(true)
+  sira      Int      @default(0)
+  olusturmaZamani  DateTime @default(now()) @map("olusturma_zamani")
+  guncellemeZamani DateTime @updatedAt @map("guncelleme_zamani")
+  isletme   Isletme  @relation(fields: [isletmeId], references: [id], onDelete: Cascade)
+
+  @@unique([isletmeId, slug], map: "site_sayfalari_slug_tekil")
+  @@index([isletmeId, sira], map: "site_sayfalari_isletme_sira_indeks")
+  @@map("site_sayfalari")
+}
+
+model SiteMenuOgesi {
+  id        Int      @id @default(autoincrement())
+  isletmeId Int      @map("isletme_id")
+  grup      String   @db.VarChar(10)
+  ad        String   @db.VarChar(120)
+  baglanti  String   @db.VarChar(300)
+  yeniSekme Boolean  @default(false) @map("yeni_sekme")
+  aktif     Boolean  @default(true)
+  sira      Int      @default(0)
+  isletme   Isletme  @relation(fields: [isletmeId], references: [id], onDelete: Cascade)
+
+  @@index([isletmeId, grup, sira], map: "site_menu_isletme_grup_sira_indeks")
+  @@map("site_menu_ogeleri")
+}
+
+model SiteGorseli {
+  id        Int      @id @default(autoincrement())
+  isletmeId Int      @map("isletme_id")
+  tur       String   @db.VarChar(20)
+  dosyaAdi  String   @map("dosya_adi") @db.VarChar(120)
+  hash      String   @db.Char(64)
+  mime      String   @db.VarChar(40)
+  boyut     Int
+  olusturmaZamani DateTime @default(now()) @map("olusturma_zamani")
+  isletme   Isletme  @relation(fields: [isletmeId], references: [id], onDelete: Cascade)
+  sliderlar SiteSlideri[]
+  widgetlar SiteWidgeti[]
+
+  @@index([isletmeId], map: "site_gorselleri_isletme_indeks")
+  @@map("site_gorselleri")
+}
+
+model SiteSlideri {
+  id          Int      @id @default(autoincrement())
+  isletmeId   Int      @map("isletme_id")
+  baslik      String   @db.VarChar(120)
+  aciklama    String   @db.Text
+  baglanti    String   @default("") @db.VarChar(300)
+  aktif       Boolean  @default(true)
+  sira        Int      @default(0)
+  gorselId    Int?     @map("gorsel_id")
+  isletme     Isletme  @relation(fields: [isletmeId], references: [id], onDelete: Cascade)
+  gorsel      SiteGorseli? @relation(fields: [gorselId], references: [id], onDelete: SetNull)
+
+  @@index([isletmeId, sira], map: "site_sliderlari_isletme_sira_indeks")
+  @@map("site_sliderlari")
+}
+
+model SiteWidgeti {
+  id        Int      @id @default(autoincrement())
+  isletmeId Int      @map("isletme_id")
+  ad        String   @db.VarChar(120)
+  tur       String   @db.VarChar(20)
+  baslik    String   @default("") @db.VarChar(120)
+  gorunur   Boolean  @default(true)
+  sira      Int      @default(0)
+  gorselId  Int?     @map("gorsel_id")
+  ayarlar   Json
+  isletme   Isletme  @relation(fields: [isletmeId], references: [id], onDelete: Cascade)
+  gorsel    SiteGorseli? @relation(fields: [gorselId], references: [id], onDelete: SetNull)
+
+  @@index([isletmeId, sira], map: "site_widgetlari_isletme_sira_indeks")
+  @@map("site_widgetlari")
+}
+
+model SiteSablonDegiskeni {
+  id         Int      @id @default(autoincrement())
+  isletmeId  Int      @map("isletme_id")
+  ad         String   @db.VarChar(120)
+  tur        String   @db.VarChar(10)
+  modul      String   @db.VarChar(60)
+  aciklama   String   @default("") @db.VarChar(1000)
+  sira       Int      @default(0)
+  isletme    Isletme  @relation(fields: [isletmeId], references: [id], onDelete: Cascade)
+  alanlar    SiteSablonDegiskenAlani[]
+
+  @@index([isletmeId, sira], map: "site_sablon_isletme_sira_indeks")
+  @@map("site_sablon_degiskenleri")
+}
+
+model SiteSablonDegiskenAlani {
+  id           Int      @id @default(autoincrement())
+  degiskenId   Int      @map("degisken_id")
+  dbSutun      String   @default("") @map("db_sutun") @db.VarChar(120)
+  degisken     String   @default("") @db.VarChar(120)
+  sira         Int      @default(0)
+  sablon       SiteSablonDegiskeni @relation(fields: [degiskenId], references: [id], onDelete: Cascade)
+
+  @@index([degiskenId, sira], map: "site_sablon_alan_degisken_sira_indeks")
+  @@map("site_sablon_degisken_alanlari")
+}
+
+/// Tanımlamalar › Ödeme Şekilleri: kasa/ödeme ekranında görünen sıralı yöntemler.
+model OdemeSekli {
+  id              Int      @id @default(autoincrement())
+  isletmeId       Int      @map("isletme_id")
+  ad              String   @db.VarChar(120)
+  simge           String?  @db.VarChar(20)
+  gorselAdi       String?  @map("gorsel_adi") @db.VarChar(120)
+  varsayilan      Boolean  @default(false)
+  fiyatListesi    String   @default("") @map("fiyat_listesi") @db.VarChar(120)
+  kargoYok        Boolean  @default(false) @map("kargo_yok")
+  duzenlemeyeAcik Boolean  @default(false) @map("duzenlemeye_acik")
+  aktif           Boolean  @default(true)
+  sira            Int      @default(0)
+  isletme         Isletme  @relation(fields: [isletmeId], references: [id], onDelete: Cascade)
+
+  @@index([isletmeId, sira], map: "odeme_sekilleri_isletme_sira_indeks")
+  @@map("odeme_sekilleri")
+}
+
+/// Tanımlamalar › Resmi Tatil Günleri: işletmenin elle eklediği özel tatiller.
+model OzelTatil {
+  id        Int      @id @default(autoincrement())
+  isletmeId Int      @map("isletme_id")
+  ad        String   @db.VarChar(120)
+  baslangic DateTime @db.Date
+  bitis     DateTime @db.Date
+  isletme   Isletme  @relation(fields: [isletmeId], references: [id], onDelete: Cascade)
+
+  @@index([isletmeId, baslangic], map: "ozel_tatiller_isletme_tarih_indeks")
+  @@map("ozel_tatiller")
 }

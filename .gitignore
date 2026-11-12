@@ -34,6 +34,9 @@ test-results/
 npm-debug.log*
 .pm2/
 
+# Ajan/araç çalışma dosyaları (artefakt kopyaları lint ve aramaya takılmasın)
+.zwork/
+
 # ── Paketler / arşivler (kod Git ile taşınır, zip ile değil) ─
 *.zip
 *.rar

@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { WORKSPACE_RESOURCES, type WorkspaceContext } from '@gt/shared';
 import { anonymousRoutes, jsonResponse, mockFetch, renderApp } from '../../test/utils';
 
@@ -24,19 +24,20 @@ const login = {
   'GET /api/hesap': () => jsonResponse(200, owner),
 };
 
+beforeEach(() => sessionStorage.setItem('gt-dev-access', '1'));
+
 describe('E-ticaret ayar ekranları', () => {
   it('Ayarlar’dan açılır; on bir ekranın bağlantısı ve dürüst uyarı görünür', async () => {
-    mockFetch(login);
+    mockFetch(anonymousRoutes);
     renderApp('/uygulama/ayarlar/eticaret');
     const nav = await screen.findByRole('navigation', { name: 'E-Ticaret ayarları' });
     expect(within(nav).getAllByRole('link')).toHaveLength(11);
-    expect(screen.getByText(/Backend bağlantısı bekleniyor/)).toBeInTheDocument();
     expect(screen.getAllByText('Sistem Ayarları').length).toBeGreaterThan(0);
   });
 
   it('sayfa listesi referans satırlarını gösterir; ekleme modalı açılır ve kayıt kapalıdır', async () => {
     const user = userEvent.setup();
-    mockFetch(login);
+    mockFetch(anonymousRoutes);
     renderApp('/uygulama/ayarlar/eticaret/sayfalar');
     expect((await screen.findAllByText('Üyelik Sözleşmesi')).length).toBeGreaterThan(0);
     expect(screen.getByText('ETBİS Kayıt Belgesi')).toBeInTheDocument();
@@ -45,7 +46,7 @@ describe('E-ticaret ayar ekranları', () => {
     expect(within(dialog).getByRole('textbox', { name: 'Sayfa Adı' })).toBeInTheDocument();
     expect(within(dialog).getByRole('radio', { name: 'Bağlantı yok' })).toBeChecked();
     expect(within(dialog).getByRole('radio', { name: 'Mesafeli Satış Sözleşmesi' })).toBeVisible();
-    expect(within(dialog).getByRole('button', { name: 'Kaydet' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Kaydet' })).toBeEnabled();
     expect(within(dialog).getByRole('button', { name: 'Kalın' })).toBeInTheDocument();
   });
 
@@ -71,7 +72,7 @@ describe('E-ticaret ayar ekranları', () => {
   });
 
   it('sistem ekranı yalnızca bildirim, kod ve dosya bölümlerini taşır', async () => {
-    mockFetch(login);
+    mockFetch(anonymousRoutes);
     renderApp('/uygulama/ayarlar/eticaret/sistem');
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Sistem Bildirimleri' }),
@@ -87,7 +88,7 @@ describe('E-ticaret ayar ekranları', () => {
 
   it('şablon değişkenleri referans satırlarını listeler; modal alanları vardır', async () => {
     const user = userEvent.setup();
-    mockFetch(login);
+    mockFetch(anonymousRoutes);
     renderApp('/uygulama/ayarlar/eticaret/sablon-degiskenleri');
     expect(await screen.findByText('Kullanıcı Ekleme')).toBeInTheDocument();
     expect(screen.getByText('Uygulama - Yeni Kayıt')).toBeInTheDocument();
@@ -102,7 +103,7 @@ describe('E-ticaret ayar ekranları', () => {
 
   it('menü yönetimi arama, gruplar ve ekleme penceresini gösterir', async () => {
     const user = userEvent.setup();
-    mockFetch(login);
+    mockFetch(anonymousRoutes);
     renderApp('/uygulama/ayarlar/eticaret/menu');
     expect((await screen.findAllByText('Ana Sayfa')).length).toBeGreaterThan(0);
     expect(screen.getByRole('searchbox', { name: 'Menüde ara' })).toBeInTheDocument();
@@ -110,18 +111,18 @@ describe('E-ticaret ayar ekranları', () => {
     await user.click(screen.getByRole('button', { name: 'Ekle' }));
     const dialog = await screen.findByRole('dialog', { name: 'Menü Öğesi Ekle' });
     expect(within(dialog).getByRole('textbox', { name: 'Adı' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Kaydet' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Kaydet' })).toBeEnabled();
   });
 
   it('widget listesi referanstaki gibi boştur', async () => {
-    mockFetch(login);
+    mockFetch(anonymousRoutes);
     renderApp('/uygulama/ayarlar/eticaret/widgetlar');
     expect(await screen.findByText('Henüz widget yok.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ekle' })).toBeEnabled();
   });
 
   it('slider listesi üç örneği, aktif anahtarını ve sıralamayı gösterir', async () => {
-    mockFetch(login);
+    mockFetch(anonymousRoutes);
     renderApp('/uygulama/ayarlar/eticaret/sliderlar');
     expect(await screen.findByText('El Terminalleri')).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'El Terminalleri aktif' })).toBeChecked();
@@ -129,7 +130,7 @@ describe('E-ticaret ayar ekranları', () => {
   });
 
   it('görünüm ekranı referans başlangıç seçimlerini gösterir', async () => {
-    mockFetch(login);
+    mockFetch(anonymousRoutes);
     renderApp('/uygulama/ayarlar/eticaret/gorunum');
     expect(await screen.findByRole('radio', { name: 'Yatay Dikdörtgen' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Kare' })).not.toBeChecked();
@@ -137,6 +138,6 @@ describe('E-ticaret ayar ekranları', () => {
     expect(screen.getByRole('radio', { name: 'KIRP' })).not.toBeChecked();
     expect(screen.getByRole('switch', { name: 'Kar Marjı' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'KDV Dahil Sat' })).not.toBeChecked();
-    expect(screen.getByRole('button', { name: 'Değişiklikleri Kaydet' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Kaydet' })).toBeEnabled();
   });
 });
