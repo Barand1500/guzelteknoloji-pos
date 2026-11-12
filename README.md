@@ -98,6 +98,7 @@ Ardından tarayıcıda **http://localhost:5173/login** adresini açın.
 | Stok API'si · katalog API'si | [docs/stok-api.md](docs/stok-api.md) · [docs/katalog-api.md](docs/katalog-api.md) |
 | Siparişler, iadeler ve anasayfa API'si | [docs/siparis-api.md](docs/siparis-api.md) |
 | Müşteriler API'si | [docs/musteri-api.md](docs/musteri-api.md) |
+| Tanımlamalar (kargo, para birimleri) | [docs/tanimlamalar-veritabani.md](docs/tanimlamalar-veritabani.md) |
 | Veritabanı güncellemesi (ürün adlandırma, çoklu vergi) | [docs/urun-veritabani-guncellemesi.md](docs/urun-veritabani-guncellemesi.md) |
 | Kimlik politikası | [docs/auth-policy.md](docs/auth-policy.md) |
 
