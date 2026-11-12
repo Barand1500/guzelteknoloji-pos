@@ -7,6 +7,7 @@ import { useSession } from '../auth/hooks/session-context';
 import { hasDevAccess, revokeDevAccess } from '../dev-login/devAccess';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useTheme } from '../theme/ThemeProvider';
+import { FavoritesBar } from './FavoritesBar';
 import { Greeting } from './Greeting';
 import { SectionMenu } from './SectionMenu';
 import { firstNameOf } from './greeting-text';
@@ -15,7 +16,7 @@ const iconButton =
   'inline-flex size-11 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink';
 
 /**
- * İnce üst çubuk: marka, sayfa başlığı; sağda sırayla gece/gündüz anahtarı, selamlama ("Günaydın
+ * İnce üst çubuk: marka, sayfa başlığı; sağda sırayla (geniş ekranda) üç favori yuvası, gece/gündüz anahtarı, selamlama ("Günaydın
  * Baran") ve çıkış. Telefonda yer dar olduğu için selamlama başlığın altına küçük yazılır.
  */
 export function TopBar() {
@@ -24,6 +25,7 @@ export function TopBar() {
   const { session, logout } = useSession();
   const { mode, toggle } = useTheme();
   const wide = useMediaQuery('(min-width: 40rem)');
+  const large = useMediaQuery('(min-width: 64rem)');
   // Geçici test girişinde (kimlik yok) "Test Kullanıcısı" selamlanır.
   const name =
     session.status === 'authenticated'
@@ -46,6 +48,8 @@ export function TopBar() {
       <div className="min-w-0 flex-1">
         {wide ? null : <Greeting name={name} className="text-xs" />}
       </div>
+      {/* Favori sayfalar: yalnızca geniş ekranda, gece/gündüz düğmesinin yanında */}
+      {large ? <FavoritesBar /> : null}
       <button
         type="button"
         onClick={toggle}
