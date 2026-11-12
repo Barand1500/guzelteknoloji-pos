@@ -506,6 +506,7 @@ model Isletme {
   vergiDaireleri VergiDairesi[]
   cariTipleri CariTipi[]
   fiyatListesiAyarlari FiyatListesiAyari[]
+  bildirimler Bildirim[]
   seoYonlendirmeleri SeoYonlendirmesi[]
   @@map("isletmeler")
 }
@@ -708,6 +709,7 @@ model Musteri {
   hareketler       MusteriHareketi[]
   siparisler       Siparis[]
   iadeTalepleri    IadeTalebi[]
+  bildirimAlicilari BildirimMusterisi[]
 
   @@index([businessId, ad], map: "musteriler_isletme_ad_indeks")
   @@map("musteriler")
@@ -906,4 +908,34 @@ model FiyatListesiAyari {
 
   @@index([isletmeId], map: "fiyat_listesi_ayarlari_isletme_indeks")
   @@map("fiyat_listesi_ayarlari")
+}
+
+// ── Bildirimler › Mobil Bildirimler ─────────────────────────────────────────
+model Bildirim {
+  id               Int      @id @default(autoincrement())
+  isletmeId        Int      @map("isletme_id")
+  baslik           String   @db.VarChar(60)
+  metin            String   @db.VarChar(240)
+  gonderimZamani   DateTime @map("gonderim_zamani")
+  durum            String   @default("scheduled") @db.VarChar(12)
+  otomatik         Boolean  @default(false)
+  tumMusteriler    Boolean  @default(true) @map("tum_musteriler")
+  olusturmaZamani  DateTime @default(now()) @map("olusturma_zamani")
+  guncellemeZamani DateTime @updatedAt @map("guncelleme_zamani")
+  isletme          Isletme  @relation(fields: [isletmeId], references: [id], onDelete: Cascade)
+  alicilar         BildirimMusterisi[]
+
+  @@index([isletmeId, gonderimZamani], map: "bildirimler_isletme_zaman_indeks")
+  @@map("bildirimler")
+}
+
+model BildirimMusterisi {
+  bildirimId Int      @map("bildirim_id")
+  musteriId  Int      @map("musteri_id")
+  bildirim   Bildirim @relation(fields: [bildirimId], references: [id], onDelete: Cascade)
+  musteri    Musteri  @relation(fields: [musteriId], references: [id], onDelete: Cascade)
+
+  @@id([bildirimId, musteriId])
+  @@index([musteriId], map: "bildirim_musterileri_musteri_indeks")
+  @@map("bildirim_musterileri")
 }

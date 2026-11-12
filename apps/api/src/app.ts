@@ -41,6 +41,7 @@ import {
   createTaxOfficeRouter,
   createTaxTypeRouter,
 } from './modules/definitions/tax.routes';
+import { createNotificationRouter } from './modules/notifications/notification.routes';
 import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
 import { WorkspaceChallenge, whatsappWebhook } from './modules/workspace/workspace.integrations';
@@ -121,6 +122,7 @@ export function createApp(deps: AppDeps): Express {
   app.use('/api/markalar', express.json({ limit: '3mb' }));
   app.use('/api/kargo', express.json({ limit: '256kb' }));
   app.use('/api/para-birimleri', express.json({ limit: '64kb' }));
+  app.use('/api/bildirimler', express.json({ limit: '64kb' }));
   app.use(['/api/kategoriler', '/api/katalog/kategoriler'], express.json({ limit: '3mb' }));
   app.use(['/api/firsatlar', '/api/ozellikler'], express.json({ limit: '3mb' }));
   app.use(express.json({ limit: '10kb' }));
@@ -182,6 +184,7 @@ export function createApp(deps: AppDeps): Express {
     app.use('/api/vergiler', createTaxTypeRouter(deps.catalogDb, env));
     app.use('/api/vergi-daireleri', createTaxOfficeRouter(deps.catalogDb, env));
     app.use('/api/cari-stok', createStockDefsRouter(deps.catalogDb, env));
+    app.use('/api/bildirimler', createNotificationRouter(deps.catalogDb, env));
     app.use(
       '/api/seo',
       express.json({ limit: '64kb' }),

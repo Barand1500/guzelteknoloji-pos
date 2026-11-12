@@ -28,6 +28,7 @@ export function requestPermission(
       vergiler: 'settings',
       'vergi-daireleri': 'settings',
       'cari-stok': 'settings',
+      bildirimler: 'notifications',
     } as const
   )[section as 'stok'];
   if (!resource) return null;

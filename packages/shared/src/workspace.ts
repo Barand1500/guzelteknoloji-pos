@@ -5,6 +5,7 @@ export const WORKSPACE_RESOURCES = [
   { key: 'attributes', label: 'Özellikler' },
   { key: 'deals', label: 'Fırsatlar' },
   { key: 'campaigns', label: 'Kampanyalar' },
+  { key: 'notifications', label: 'Bildirimler' },
   { key: 'users', label: 'Kullanıcılar' },
   { key: 'roles', label: 'Roller' },
   { key: 'settings', label: 'Ayarlar' },

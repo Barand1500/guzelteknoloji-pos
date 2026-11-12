@@ -7,4 +7,5 @@ export * from './definitions';
 export * from './stock-defs';
 export * from './taxes';
 export * from './seo';
+export * from './notifications';
 export * from './workspace';
