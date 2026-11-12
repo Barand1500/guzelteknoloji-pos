@@ -8,6 +8,7 @@ import {
   Truck,
   Home,
   Images,
+  Layers,
   LayoutTemplate,
   Package,
   Repeat2,
@@ -242,6 +243,13 @@ export const SECTIONS: readonly Section[] = [
       Receipt,
       'Oranlar ve vergi daireleri',
     );
+    const cariStok = p(
+      'cari-stok',
+      'Cari ve Stok Tanımları',
+      `${APP_BASE}/tanimlamalar/cari-stok`,
+      Layers,
+      'Tipler, fiyat listeleri, birimler',
+    );
     return {
       id: 'tanimlamalar',
       label: 'Tanımlamalar',
@@ -250,7 +258,7 @@ export const SECTIONS: readonly Section[] = [
       tagline: 'Kargo, ödeme, vergi',
       home: kargo.path,
       addButton: true,
-      pages: [kargo, para, vergi],
+      pages: [kargo, para, vergi, cariStok],
       dock: { left: [], right: [] },
       paths: [`${APP_BASE}/tanimlamalar`],
     } satisfies Section;

@@ -89,67 +89,86 @@ function Calculator({ types }: { types: TaxType[] }) {
   return (
     <section
       aria-label="Vergi hesaplayıcı"
-      className="rounded-[2rem] border border-line bg-gradient-to-br from-brand-50 via-surface-raised to-surface-raised p-4 shadow-soft sm:p-5"
+      className="grid gap-4 rounded-[2rem] border border-line bg-gradient-to-br from-brand-50 via-surface-raised to-surface-raised p-4 shadow-soft sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:items-center lg:gap-6"
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
-        <span className="text-xs font-extrabold tracking-wider text-ink-muted uppercase">Dene</span>
-        <span className="flex items-baseline gap-1.5">
-          <input
-            inputMode="numeric"
-            aria-label="Tutar"
-            value={amount.toLocaleString('tr-TR')}
-            onFocus={(e) => e.currentTarget.select()}
-            onChange={(e) => setAmount(Math.min(Number(e.target.value.replace(/\D/g, '')) || 0, 99999999))}
-            className="w-36 border-0 border-b-[3px] border-brand-500/50 bg-transparent px-1 text-center text-2xl font-extrabold text-brand-ink outline-none transition-colors hover:border-brand-500 focus:border-brand-700"
-          />
-          <b className="text-xl text-brand-ink">₺</b>
-        </span>
-        <span role="radiogroup" aria-label="Tutar türü" className="inline-flex rounded-full bg-surface-muted p-1 text-sm">
-          {(
-            [
-              ['net', 'Vergi hariç'],
-              ['gross', 'Vergi dahil'],
-            ] as const
-          ).map(([v, text]) => (
+      {/* Soldaki: tutar, tür ve oran seçimi */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
+          <span className="text-xs font-extrabold tracking-wider text-ink-muted uppercase">Dene</span>
+          <span className="flex items-baseline gap-1.5">
+            <input
+              inputMode="numeric"
+              aria-label="Tutar"
+              value={amount.toLocaleString('tr-TR')}
+              onFocus={(e) => e.currentTarget.select()}
+              onChange={(e) => setAmount(Math.min(Number(e.target.value.replace(/\D/g, '')) || 0, 99999999))}
+              className="w-36 border-0 border-b-[3px] border-brand-500/50 bg-transparent px-1 text-center text-2xl font-extrabold text-brand-ink outline-none transition-colors hover:border-brand-500 focus:border-brand-700"
+            />
+            <b className="text-xl text-brand-ink">₺</b>
+          </span>
+          <span role="radiogroup" aria-label="Tutar türü" className="inline-flex rounded-full bg-surface-muted p-1 text-sm">
+            {(
+              [
+                ['net', 'Vergi hariç'],
+                ['gross', 'Vergi dahil'],
+              ] as const
+            ).map(([v, text]) => (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={mode === v}
+                onClick={() => setMode(v)}
+                className={`min-h-9 whitespace-nowrap rounded-full px-3.5 font-extrabold transition-all ${mode === v ? 'bg-surface-raised text-brand-ink shadow-soft' : 'text-ink-muted'}`}
+              >
+                {text}
+              </button>
+            ))}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Oran">
+          {pairs.map((p) => (
             <button
-              key={v}
+              key={p.key}
               type="button"
               role="radio"
-              aria-checked={mode === v}
-              onClick={() => setMode(v)}
-              className={`min-h-9 whitespace-nowrap rounded-full px-3.5 font-extrabold transition-all ${mode === v ? 'bg-surface-raised text-brand-ink shadow-soft' : 'text-ink-muted'}`}
+              aria-checked={p.key === chosen.key}
+              onClick={() => setPick(p.key)}
+              className={`min-h-9 rounded-full border px-3.5 text-sm font-bold transition-colors ${p.key === chosen.key ? 'border-brand-600 bg-brand-700 text-white' : 'border-field-border bg-surface text-ink-muted hover:border-brand-500'}`}
             >
-              {text}
+              {p.short} {formatPct(p.rate)}
             </button>
           ))}
-        </span>
+        </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Oran">
-        {pairs.map((p) => (
-          <button
-            key={p.key}
-            type="button"
-            role="radio"
-            aria-checked={p.key === chosen.key}
-            onClick={() => setPick(p.key)}
-            className={`min-h-9 rounded-full border px-3.5 text-sm font-bold transition-colors ${p.key === chosen.key ? 'border-brand-600 bg-brand-700 text-white' : 'border-field-border bg-surface text-ink-muted hover:border-brand-500'}`}
-          >
-            {p.short} {formatPct(p.rate)}
-          </button>
+
+      {/* Sağdaki: üç büyük sonuç kutusu (hariç + vergi = dahil); telefonda alt alta */}
+      <div
+        aria-live="polite"
+        className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-3"
+      >
+        {(
+          [
+            ['Vergi hariç', r.net, `bg-surface-raised ${mode === 'net' ? 'ring-2 ring-brand-500/30' : ''}`, 'opacity-70'],
+            [`${chosen.short} ${formatPct(chosen.rate)}`, r.vat, 'bg-accent-soft text-brand-800', 'opacity-70'],
+            ['Vergi dahil', r.gross, `bg-brand-700 text-white ${mode === 'gross' ? 'ring-2 ring-brand-500/40' : ''}`, 'text-white/80'],
+          ] as const
+        ).map(([label, value, tone, labelTone], i) => (
+          <span key={label} className="contents">
+            {i > 0 ? (
+              <span aria-hidden="true" className="hidden text-xl font-extrabold text-ink-muted sm:block">
+                {i === 1 ? '+' : '='}
+              </span>
+            ) : null}
+            <span
+              className={`flex min-w-0 items-center justify-between gap-3 rounded-2xl px-4 py-3 shadow-soft sm:block sm:p-3 ${tone}`}
+            >
+              <span className={`block text-xs font-bold ${labelTone}`}>{label}</span>
+              <span className="block text-lg font-extrabold tabular-nums sm:truncate sm:text-xl">{formatMoney(value)}</span>
+            </span>
+          </span>
         ))}
       </div>
-      <p aria-live="polite" className="mt-3 text-base leading-snug">
-        {mode === 'net' ? (
-          <>
-            {formatMoney(r.net)} + {chosen.short} <b>{formatMoney(r.vat)}</b> = <b className="text-lg">{formatMoney(r.gross)}</b>
-          </>
-        ) : (
-          <>
-            {formatMoney(r.gross)} içinde {chosen.short} <b>{formatMoney(r.vat)}</b> · hariç{' '}
-            <b className="text-lg">{formatMoney(r.net)}</b>
-          </>
-        )}
-      </p>
     </section>
   );
 }
