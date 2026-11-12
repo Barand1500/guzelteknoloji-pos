@@ -68,6 +68,7 @@ function Fields({
           className={`${cellInput} min-h-20 resize-y`}
           maxLength={1000}
           rows={2}
+          placeholder="Description"
           value={edit.description}
           onChange={(e) => edit.onDescription(e.target.value)}
         />
@@ -262,6 +263,7 @@ export function SeoStackRow({ row, actions }: { row: SeoRowDto; actions: RowActi
         className={`${cellInput} min-h-20 resize-y`}
         maxLength={1000}
         rows={2}
+        placeholder="Description"
         value={edit.description}
         onChange={(e) => edit.onDescription(e.target.value)}
       />
@@ -342,6 +344,7 @@ function RedirectStackBlock({ redirect, actions }: { redirect: SeoRedirectDto; a
         className={`${cellInput} min-h-20 resize-y`}
         maxLength={1000}
         rows={2}
+        placeholder="Description"
         value={edit.description}
         onChange={(e) => edit.onDescription(e.target.value)}
       />
