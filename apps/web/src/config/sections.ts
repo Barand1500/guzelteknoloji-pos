@@ -1,5 +1,6 @@
 import {
   BellRing,
+  CalendarDays,
   FolderTree,
   Coins,
   Megaphone,
@@ -258,6 +259,13 @@ export const SECTIONS: readonly Section[] = [
       Wallet,
       'Sıra, simge, kurallar',
     );
+    const tatil = p(
+      'resmi-tatiller',
+      'Resmi Tatil Günleri',
+      `${APP_BASE}/tanimlamalar/resmi-tatiller`,
+      CalendarDays,
+      'Takvim, bayramlar, köprüler',
+    );
     return {
       id: 'tanimlamalar',
       label: 'Tanımlamalar',
@@ -266,7 +274,7 @@ export const SECTIONS: readonly Section[] = [
       tagline: 'Kargo, ödeme, vergi',
       home: kargo.path,
       addButton: true,
-      pages: [kargo, para, vergi, cariStok, odeme],
+      pages: [kargo, para, vergi, cariStok, odeme, tatil],
       dock: { left: [], right: [] },
       paths: [`${APP_BASE}/tanimlamalar`],
     } satisfies Section;
