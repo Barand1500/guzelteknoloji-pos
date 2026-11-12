@@ -296,7 +296,27 @@ export const SECTIONS: readonly Section[] = [
       `${APP_BASE}/profil`,
     ],
   },
-  soon('bildirimler', 'Bildirimler', BellRing, 45, 'Anlık bildirimler'),
+  (() => {
+    const mobil = p(
+      'mobil-bildirimler',
+      'Mobil Bildirimler',
+      `${APP_BASE}/bildirimler/mobil`,
+      BellRing,
+      'Müşterilere anlık bildirim',
+    );
+    return {
+      id: 'bildirimler',
+      label: 'Bildirimler',
+      icon: BellRing,
+      hue: 45,
+      tagline: 'Anlık bildirimler',
+      home: mobil.path,
+      addButton: true,
+      pages: [mobil],
+      dock: { left: [], right: [] },
+      paths: [`${APP_BASE}/bildirimler`],
+    } satisfies Section;
+  })(),
   soon('seo', 'Seo', Search, 140, 'Arama motoru ayarları'),
 ];
 

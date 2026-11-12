@@ -11,6 +11,7 @@ import { ProductsPage } from '../pages/app/ProductsPage';
 import { CategoriesPage } from '../pages/app/CategoriesPage';
 import { CurrenciesPage } from '../features/currencies/components/CurrenciesPage';
 import { HolidaysPage } from '../features/holidays/components/HolidaysPage';
+import { NotificationsPage } from '../features/notifications/components/NotificationsPage';
 import { PaymentsPage } from '../features/payments/components/PaymentsPage';
 import { ShippingPage } from '../features/shipping/components/ShippingPage';
 import { StockDefsPage } from '../features/stockdefs/components/StockDefsPage';
@@ -62,10 +63,14 @@ export function App() {
             <Route path="kategoriler" element={<CategoriesPage />} />
             <Route path="markalar" element={<BrandsPage />} />
             <Route path="ozellikler" element={<AttributesPage />} />
-            {['bildirimler', 'seo'].map((path) => (
+            {['seo'].map((path) => (
               <Route key={path} path={path} element={<ComingSoonPage />} />
             ))}
             <Route path="anasayfa" element={<HomePage />} />
+            <Route path="bildirimler">
+              <Route index element={<Navigate to="mobil" replace />} />
+              <Route path="mobil" element={<NotificationsPage />} />
+            </Route>
             <Route path="tanimlamalar">
               <Route index element={<Navigate to="kargo" replace />} />
               <Route path="kargo" element={<ShippingPage />} />
