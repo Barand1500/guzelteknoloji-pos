@@ -23,6 +23,8 @@ export function requestPermission(
       ozellikler: 'attributes',
       firsatlar: 'deals',
       kampanyalar: 'campaigns',
+      'para-birimleri': 'settings',
+      kargo: 'settings',
     } as const
   )[section as 'stok'];
   if (!resource) return null;

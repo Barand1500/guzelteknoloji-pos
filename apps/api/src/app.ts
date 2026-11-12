@@ -31,6 +31,10 @@ import { PrismaOrderStore } from './modules/orders/order.store';
 import { createCustomerRouter } from './modules/customers/customer.routes';
 import { PrismaCustomerStore } from './modules/customers/customer.store';
 import { createCampaignRouter } from './modules/campaigns/campaign.routes';
+import {
+  createCurrencyRouter,
+  createShippingRouter,
+} from './modules/definitions/definition.routes';
 import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
 import { WorkspaceChallenge, whatsappWebhook } from './modules/workspace/workspace.integrations';
@@ -109,6 +113,8 @@ export function createApp(deps: AppDeps): Express {
   app.use('/api/stok/gorseller/yukle', express.json({ limit: '7mb' }));
   app.use('/api/stok', express.json({ limit: '512kb' }));
   app.use('/api/markalar', express.json({ limit: '3mb' }));
+  app.use('/api/kargo', express.json({ limit: '256kb' }));
+  app.use('/api/para-birimleri', express.json({ limit: '64kb' }));
   app.use(['/api/kategoriler', '/api/katalog/kategoriler'], express.json({ limit: '3mb' }));
   app.use(['/api/firsatlar', '/api/ozellikler'], express.json({ limit: '3mb' }));
   app.use(express.json({ limit: '10kb' }));
@@ -165,6 +171,8 @@ export function createApp(deps: AppDeps): Express {
     app.use('/api/firsatlar', createDealRouter(env, service, deps.catalogDb));
     app.use('/api/ozellikler', createAttributeRouter(env, service, deps.catalogDb));
     app.use('/api/kampanyalar', createCampaignRouter(deps.catalogDb));
+    app.use('/api/para-birimleri', createCurrencyRouter(deps.catalogDb, env));
+    app.use('/api/kargo', createShippingRouter(deps.catalogDb, env));
     const orderStore = new PrismaOrderStore(deps.catalogDb);
     const orderLimit = createRateLimiter({
       enabled: env.rateLimitEnabled,
