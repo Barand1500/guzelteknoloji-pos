@@ -10,8 +10,10 @@ import { PRODUCTS_PATH } from '../../../config/navigation';
 import { dataError } from '../../../lib/catalog-data';
 import { usePublishAddAction } from '../../app-shell/save-action';
 import type { StockDefsStore } from '../hooks/useStockDefs';
+import { RangeCalendar } from './RangeCalendar';
 import {
   formatDay,
+  periodNote,
   periodProgress,
   periodState,
   type PriceList,
@@ -54,8 +56,8 @@ function PriceListSheet({
     if (!name.trim()) next.name = 'Ad gerekli.';
     if (kind === 'special') {
       if (!start) next.start = 'Başlangıç tarihi gerekli.';
-      if (!end) next.end = 'Bitiş tarihi gerekli.';
-      else if (start && end < start) next.end = 'Bitiş, başlangıçtan önce olamaz.';
+      else if (!end) next.end = 'Bitiş tarihini de seçin.';
+      else if (end < start) next.end = 'Bitiş, başlangıçtan önce olamaz.';
     }
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -99,20 +101,15 @@ function PriceListSheet({
           onChange={(v) => setKind(v as PriceListKind)}
         />
         {kind === 'special' ? (
-          <div className="grid animate-fade-in gap-4 sm:grid-cols-2">
-            <TextField
-              label="Başlangıç Tarihi"
-              type="date"
-              value={start}
-              error={errors.start}
-              onChange={(e) => setStart(e.target.value)}
-            />
-            <TextField
-              label="Bitiş Tarihi"
-              type="date"
-              value={end}
-              error={errors.end}
-              onChange={(e) => setEnd(e.target.value)}
+          <div className="animate-fade-in">
+            <RangeCalendar
+              start={start}
+              end={end}
+              error={errors.start ?? errors.end}
+              onChange={(a, b) => {
+                setStart(a);
+                setEnd(b);
+              }}
             />
           </div>
         ) : null}
@@ -213,10 +210,13 @@ export function PriceListsTab({ store }: { store: StockDefsStore }) {
                       style={{ width: `${progress ?? 0}%` }}
                     />
                   </div>
+                  <p className={`mt-1 text-right text-xs font-bold ${state === 'ended' ? 'text-danger' : 'text-ink-muted'}`}>
+                    {periodNote(l, today)}
+                  </p>
                 </div>
               ) : null}
               <Link
-                to={PRODUCTS_PATH}
+                to={`${PRODUCTS_PATH}?liste=${encodeURIComponent(l.name)}`}
                 className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-full bg-brand-50 px-4 text-sm font-bold text-brand-ink hover:bg-brand-100/60"
               >
                 Ürünleri gör

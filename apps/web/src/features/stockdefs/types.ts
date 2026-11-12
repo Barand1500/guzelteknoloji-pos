@@ -82,3 +82,24 @@ export function periodProgress(list: PriceList, today: string): number | null {
 
 export const formatDay = (iso: string) =>
   new Date(iso + 'T00:00:00').toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+const dayDiff = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+
+/** Özel listenin küçük notu: "17 gün kaldı", "5 gün sonra başlıyor", "3 gün önce bitti". Genel listede null. */
+export function periodNote(list: PriceList, today: string): string | null {
+  const state = periodState(list, today);
+  if (state === 'always') return null;
+  if (state === 'upcoming' && list.start) {
+    const d = dayDiff(today, list.start);
+    return d === 1 ? 'Yarın başlıyor' : `${d} gün sonra başlıyor`;
+  }
+  if (state === 'ended' && list.end) {
+    const d = dayDiff(list.end, today);
+    return d === 1 ? 'Dün bitti' : `${d} gün önce bitti`;
+  }
+  if (state === 'running' && list.end) {
+    const d = dayDiff(today, list.end);
+    return d === 0 ? 'Bugün son gün' : d === 1 ? 'Yarın son gün' : `${d} gün kaldı`;
+  }
+  return null;
+}

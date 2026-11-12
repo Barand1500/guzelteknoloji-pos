@@ -1,7 +1,7 @@
 import { CatalogImage } from '../../../components/ui/CatalogImage';
 import { FileSpreadsheet, Images, ListChecks, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Button } from '../../../components/ui/Button';
 import { Alert } from '../../../components/ui/Alert';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
@@ -81,6 +81,7 @@ export function ProductsView() {
   const [selectionBusy, setSelectionBusy] = useState(false);
   const selectionRevision = useRef(0);
   const [priceView, setPriceView] = useState<PriceView>('');
+  const [searchParams] = useSearchParams();
   const [priceDirection, setPriceDirection] = useState('satis');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
@@ -122,10 +123,15 @@ export function ProductsView() {
     () => [...priceLists.map((l) => ({ value: l.id, label: l.name }))],
     [priceLists],
   );
+  // Adreste ?liste=AD varsa (Fiyat Listeleri sayfasındaki "Ürünleri gör") o liste açılır.
+  const wanted = (searchParams.get('liste') ?? '').toLocaleLowerCase('tr');
+  const wantedList = wanted
+    ? viewOptions.find((o) => o.label.toLocaleLowerCase('tr') === wanted)?.value
+    : undefined;
   // Seçili görünüm artık yoksa (liste silindi) ilk listeye dönülür.
   const activeList = viewOptions.some((o) => o.value === priceView)
     ? priceView
-    : (viewOptions[0]?.value ?? COST_VIEW);
+    : (wantedList ?? viewOptions[0]?.value ?? COST_VIEW);
   const activeView = priceDirection === 'alis' ? `cost:${activeList}` : activeList;
   const filterCount = activeFilterCount(filters);
   const visible = products;

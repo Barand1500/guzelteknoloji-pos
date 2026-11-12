@@ -1,4 +1,4 @@
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../../../components/ui/Button';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
@@ -118,21 +118,29 @@ export function UnitsTab({ store }: { store: StockDefsStore }) {
           <li className="px-4 py-10 text-center text-ink-muted">Henüz ölçü birimi yok. Yukarıdan seçebilirsiniz.</li>
         ) : (
           units.map((u, i) => (
-            <li key={u.id} className={`flex min-h-14 items-center gap-3 px-4 ${i > 0 ? 'border-t border-line' : ''}`}>
-              <span className="min-w-0 flex-1 truncate font-bold">{u.name}</span>
+            // Çift tık kısayoldur; ad düğmesi klavyeyle (Enter) aynı işi yapar.
+             
+            <li
+              key={u.id}
+              onDoubleClick={() => setSheet({ unit: u })}
+              className={`flex min-h-14 items-center gap-3 px-4 ${i > 0 ? 'border-t border-line' : ''}`}
+            >
+              <button
+                type="button"
+                title="Düzenlemek için çift tıklayın"
+                aria-label={`${u.name} düzenle`}
+                onClick={(e) => {
+                  if (e.detail === 0) setSheet({ unit: u });
+                }}
+                className="min-w-0 flex-1 truncate text-left font-bold"
+              >
+                {u.name}
+              </button>
               {u.shortName !== u.name ? (
                 <span className="shrink-0 rounded-lg bg-brand-50 px-2.5 py-1 text-sm font-extrabold text-brand-ink">
                   {u.shortName}
                 </span>
               ) : null}
-              <button
-                type="button"
-                aria-label={`${u.name} düzenle`}
-                onClick={() => setSheet({ unit: u })}
-                className="flex size-10 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted hover:text-ink"
-              >
-                <Pencil className="size-4" aria-hidden="true" />
-              </button>
               <button
                 type="button"
                 aria-label={`${u.name} sil`}

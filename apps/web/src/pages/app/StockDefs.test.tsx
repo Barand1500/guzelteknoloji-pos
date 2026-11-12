@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { periodProgress, periodState, type PriceList } from '../../features/stockdefs/types';
+import { periodNote, periodProgress, periodState, type PriceList } from '../../features/stockdefs/types';
 import { anonymousRoutes, mockFetch, renderApp } from '../../test/utils';
 
 async function open(sekme = '', region = 'Cari Tipleri') {
@@ -55,9 +55,9 @@ describe('Cari ve Stok Tanımları', () => {
     await user.type(within(dialog).getByLabelText('Adı'), 'bayram');
     await user.click(within(dialog).getByRole('radio', { name: /Özel/ }));
     await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
-    expect(within(dialog).getByRole('button', { name: /Başlangıç tarihi gerekli/ })).toBeInTheDocument();
-    await user.type(within(dialog).getByLabelText('Başlangıç Tarihi'), '2026-12-01');
-    await user.type(within(dialog).getByLabelText('Bitiş Tarihi'), '2026-12-10');
+    expect(within(dialog).getByText('Başlangıç tarihi gerekli.')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Yıl sonuna kadar' }));
+    expect(within(dialog).getByText(/· \d+ gün$/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
     expect(await screen.findByText('BAYRAM')).toBeInTheDocument();
   });
@@ -76,6 +76,19 @@ describe('Cari ve Stok Tanımları', () => {
     expect(await within(screen.getByRole('list', { name: 'Ölçü birimleri' })).findByText('BİDON')).toBeInTheDocument();
   });
 
+  it('ölçü birimi çift tıklayınca düzenlenir (düzenle düğmesi yok)', async () => {
+    const user = await open('?sekme=birim', 'Ölçü Birimleri');
+    const list = await screen.findByRole('list', { name: 'Ölçü birimleri' });
+    expect(screen.queryByRole('button', { name: 'KOLİ düzenle' })).toBeInTheDocument();
+    await user.dblClick(within(list).getAllByRole('listitem')[1]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Ölçü Birimini Düzenle' });
+    const name = within(dialog).getByLabelText('Adı');
+    await user.clear(name);
+    await user.type(name, 'sandık');
+    await user.click(within(dialog).getByRole('button', { name: 'Kaydet' }));
+    expect(await within(screen.getByRole('list', { name: 'Ölçü birimleri' })).findByText('SANDIK')).toBeInTheDocument();
+  });
+
   it('yardımcılar: dönem durumu ve ilerleme', () => {
     const l: PriceList = { id: 'x', name: 'X', kind: 'special', start: '2026-11-01', end: '2026-11-21', isDefault: false };
     expect(periodState(l, '2026-10-30')).toBe('upcoming');
@@ -83,5 +96,9 @@ describe('Cari ve Stok Tanımları', () => {
     expect(periodState(l, '2026-12-01')).toBe('ended');
     expect(periodState({ ...l, kind: 'general' }, '2030-01-01')).toBe('always');
     expect(periodProgress(l, '2026-11-11')).toBe(50);
+    expect(periodNote(l, '2026-11-11')).toBe('10 gün kaldı');
+    expect(periodNote(l, '2026-10-30')).toBe('2 gün sonra başlıyor');
+    expect(periodNote(l, '2026-11-24')).toBe('3 gün önce bitti');
+    expect(periodNote(l, '2026-11-21')).toBe('Bugün son gün');
   });
 });
