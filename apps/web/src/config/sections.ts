@@ -4,6 +4,7 @@ import {
   Coins,
   Megaphone,
   Percent,
+  Receipt,
   Truck,
   Home,
   Images,
@@ -234,6 +235,13 @@ export const SECTIONS: readonly Section[] = [
       Coins,
       'Kur ve semboller',
     );
+    const vergi = p(
+      'vergiler',
+      'Vergiler',
+      `${APP_BASE}/tanimlamalar/vergiler`,
+      Receipt,
+      'Oranlar ve vergi daireleri',
+    );
     return {
       id: 'tanimlamalar',
       label: 'Tanımlamalar',
@@ -242,7 +250,7 @@ export const SECTIONS: readonly Section[] = [
       tagline: 'Kargo, ödeme, vergi',
       home: kargo.path,
       addButton: true,
-      pages: [kargo, para],
+      pages: [kargo, para, vergi],
       dock: { left: [], right: [] },
       paths: [`${APP_BASE}/tanimlamalar`],
     } satisfies Section;
