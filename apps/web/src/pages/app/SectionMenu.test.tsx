@@ -56,7 +56,7 @@ describe('Üst menü (bölüm gezgini)', () => {
     expect(within(dock).queryByRole('link', { name: /Kategoriler/ })).not.toBeInTheDocument();
   });
 
-  it('yapılmamış bölüm "Yakında" sayfasına gider ve alt çubuk görünmez', async () => {
+  it('tamamlanmış bölüm gerçek sayfayı açar ve alt çubuk görünür kalır', async () => {
     const user = await open('/uygulama/urunler');
     await user.click(screen.getByRole('button', { name: 'Ana menü' }));
     await user.click(await screen.findByRole('tab', { name: /Seo/ }));
@@ -66,7 +66,7 @@ describe('Üst menü (bölüm gezgini)', () => {
       }),
     );
     expect(await screen.findByRole('heading', { name: 'Seo' })).toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Ana gezinme' })).not.toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Ana gezinme' })).toBeInTheDocument();
   });
 
   it('arama tüm bölümlerin sayfalarında çalışır', async () => {

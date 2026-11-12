@@ -300,7 +300,7 @@ export const SECTIONS: readonly Section[] = [
     const mobil = p(
       'mobil-bildirimler',
       'Mobil Bildirimler',
-      ${APP_BASE}/bildirimler/mobil,
+      `${APP_BASE}/bildirimler/mobil`,
       BellRing,
       'Müşterilere anlık bildirim',
     );
@@ -314,7 +314,7 @@ export const SECTIONS: readonly Section[] = [
       addButton: true,
       pages: [mobil],
       dock: { left: [], right: [] },
-      paths: [${APP_BASE}/bildirimler],
+      paths: [`${APP_BASE}/bildirimler`],
     } satisfies Section;
   })(),
   {
@@ -323,10 +323,10 @@ export const SECTIONS: readonly Section[] = [
     icon: Search,
     hue: 140,
     tagline: 'Arama motoru ayarları',
-    home: ${APP_BASE}/seo,
-    pages: [p('seo', 'Seo', ${APP_BASE}/seo, Search, 'Arama motoru ayarları')],
+    home: `${APP_BASE}/seo`,
+    pages: [p('seo', 'Seo', `${APP_BASE}/seo`, Search, 'Arama motoru ayarları')],
     dock: { left: [], right: [] },
-    paths: [${APP_BASE}/seo],
+    paths: [`${APP_BASE}/seo`],
   } satisfies Section,
 ];
 

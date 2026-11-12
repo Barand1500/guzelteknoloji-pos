@@ -18,7 +18,6 @@ import { StockDefsPage } from '../features/stockdefs/components/StockDefsPage';
 import { TaxesPage } from '../features/taxes/components/TaxesPage';
 import { CampaignPage } from '../features/campaigns/components/CampaignPage';
 import { EcommerceSettingsPage } from '../features/ecommerce-settings/EcommerceSettingsPage';
-import { ComingSoonPage } from '../pages/app/ComingSoonPage';
 import { HomePage } from '../pages/app/HomePage';
 import { OrdersPage, ReturnsPage } from '../pages/app/OrdersPage';
 import { CustomerLayout } from '../features/customers/components/CustomerLayout';
@@ -64,8 +63,6 @@ export function App() {
             <Route path="kategoriler" element={<CategoriesPage />} />
             <Route path="markalar" element={<BrandsPage />} />
             <Route path="ozellikler" element={<AttributesPage />} />
-              <Route key={path} path={path} element={<ComingSoonPage />} />
-            ))}
             <Route path="seo" element={<SeoPage />} />
             <Route path="anasayfa" element={<HomePage />} />
             <Route path="bildirimler">

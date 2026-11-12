@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { FolderTree, Package, ScrollText, Search, Sparkles, Tags, type LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { Alert } from '../../../components/ui/Alert';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
@@ -41,6 +41,11 @@ export function SeoPage() {
   const [page, setPage] = useState(1);
   const [sizeText, setSizeText] = useState('10');
   const size = Math.max(1, Number(sizeText) || 10);
+  // Sekme değişince arama eski sekmenin süzgeciyle yeni listeyi boş göstermesin.
+  useEffect(() => {
+    setQuery('');
+    setPage(1);
+  }, [tab.id]);
   const store = useSeo(tab.id, query, page, size);
 
   if (store.error && !store.data) return <Alert tone="error">{store.error}</Alert>;
