@@ -31,10 +31,16 @@ import { PrismaOrderStore } from './modules/orders/order.store';
 import { createCustomerRouter } from './modules/customers/customer.routes';
 import { PrismaCustomerStore } from './modules/customers/customer.store';
 import { createCampaignRouter } from './modules/campaigns/campaign.routes';
+import { createSeoRouter } from './modules/seo/seo.routes';
 import {
   createCurrencyRouter,
   createShippingRouter,
 } from './modules/definitions/definition.routes';
+import {
+  createStockDefsRouter,
+  createTaxOfficeRouter,
+  createTaxTypeRouter,
+} from './modules/definitions/tax.routes';
 import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
 import { WorkspaceChallenge, whatsappWebhook } from './modules/workspace/workspace.integrations';
@@ -173,6 +179,14 @@ export function createApp(deps: AppDeps): Express {
     app.use('/api/kampanyalar', createCampaignRouter(deps.catalogDb));
     app.use('/api/para-birimleri', createCurrencyRouter(deps.catalogDb, env));
     app.use('/api/kargo', createShippingRouter(deps.catalogDb, env));
+    app.use('/api/vergiler', createTaxTypeRouter(deps.catalogDb, env));
+    app.use('/api/vergi-daireleri', createTaxOfficeRouter(deps.catalogDb, env));
+    app.use('/api/cari-stok', createStockDefsRouter(deps.catalogDb, env));
+    app.use(
+      '/api/seo',
+      express.json({ limit: '64kb' }),
+      createSeoRouter(env, deps.catalogDb),
+    );
     const orderStore = new PrismaOrderStore(deps.catalogDb);
     const orderLimit = createRateLimiter({
       enabled: env.rateLimitEnabled,

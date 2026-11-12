@@ -54,7 +54,7 @@ export interface AuthRepository {
 const userSelect = {
   kimlik: true,
   eposta: true,
-  epostaDogrulamaZamani: true,
+  epostaDogrulamaTarihi: true,
   gorunenAd: true,
   profilResmiAdresi: true,
   durum: true,
@@ -66,7 +66,7 @@ type KullaniciKaydi = Prisma.KullaniciGetPayload<{
 const toUser = (row: KullaniciKaydi): UserRecord => ({
   id: String(row.kimlik),
   email: row.eposta,
-  emailVerifiedAt: row.epostaDogrulamaZamani,
+  emailVerifiedAt: row.epostaDogrulamaTarihi,
   displayName: row.gorunenAd,
   avatarUrl: row.profilResmiAdresi,
   status: row.durum === 'AKTIF' ? 'ACTIVE' : 'DISABLED',
@@ -76,12 +76,12 @@ const toSession = (row: {
   kimlik: number;
   kullaniciKimligi: number;
   gecerlilikBitisTarihi: Date;
-  sonGorulmeZamani: Date;
+  sonGorulmeTarihi: Date;
 }): SessionRecord => ({
   id: String(row.kimlik),
   userId: String(row.kullaniciKimligi),
   expiresAt: row.gecerlilikBitisTarihi,
-  lastSeenAt: row.sonGorulmeZamani,
+  lastSeenAt: row.sonGorulmeTarihi,
 });
 export class PrismaAuthRepository implements AuthRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -121,7 +121,7 @@ export class PrismaAuthRepository implements AuthRepository {
       .create({
         data: {
           eposta: data.email,
-          epostaDogrulamaZamani: data.emailVerifiedAt,
+          epostaDogrulamaTarihi: data.emailVerifiedAt,
           gorunenAd: data.displayName,
           profilResmiAdresi: data.avatarUrl,
           girisKimlikleri: {
@@ -129,7 +129,7 @@ export class PrismaAuthRepository implements AuthRepository {
               saglayici: data.provider,
               saglayiciKullaniciKimligi: data.providerUserId,
               eposta: data.email,
-              sonKullanimZamani: new Date(),
+              sonKullanimTarihi: new Date(),
             },
           },
         },
@@ -144,7 +144,7 @@ export class PrismaAuthRepository implements AuthRepository {
         saglayici: data.provider,
         saglayiciKullaniciKimligi: data.providerUserId,
         eposta: data.email,
-        sonKullanimZamani: new Date(),
+        sonKullanimTarihi: new Date(),
       },
     });
   }
@@ -156,7 +156,7 @@ export class PrismaAuthRepository implements AuthRepository {
           saglayiciKullaniciKimligi: providerUserId,
         },
       },
-      data: { sonKullanimZamani: at },
+      data: { sonKullanimTarihi: at },
     });
   }
   createSession(data: Parameters<AuthRepository['createSession']>[0]) {
@@ -175,7 +175,7 @@ export class PrismaAuthRepository implements AuthRepository {
         where: { kimlik: Number(data.userId) },
         data: {
           sonGirisYontemi: data.loginMethod === 'EMAIL' ? 'EPOSTA' : data.loginMethod,
-          sonGirisZamani: new Date(),
+          sonGirisTarihi: new Date(),
         },
       });
       return toSession(row);
@@ -185,7 +185,7 @@ export class PrismaAuthRepository implements AuthRepository {
     const row = await this.db.oturum.findFirst({
       where: {
         oturumAnahtariHash: tokenHash,
-        iptalZamani: null,
+        iptalTarihi: null,
         gecerlilikBitisTarihi: { gt: now },
       },
       include: { kullanici: { select: userSelect } },
@@ -195,27 +195,27 @@ export class PrismaAuthRepository implements AuthRepository {
   async touchSession(sessionId: string, at: Date) {
     await this.db.oturum.update({
       where: { kimlik: Number(sessionId) },
-      data: { sonGorulmeZamani: at },
+      data: { sonGorulmeTarihi: at },
     });
   }
   async revokeSessionByTokenHash(tokenHash: string, at: Date) {
     await this.db.oturum.updateMany({
-      where: { oturumAnahtariHash: tokenHash, iptalZamani: null },
-      data: { iptalZamani: at },
+      where: { oturumAnahtariHash: tokenHash, iptalTarihi: null },
+      data: { iptalTarihi: at },
     });
   }
   createVerifiedUser(data: Parameters<AuthRepository['createVerifiedUser']>[0]) {
     return this.db.kullanici
       .create({
-        data: { eposta: data.email, epostaDogrulamaZamani: data.emailVerifiedAt },
+        data: { eposta: data.email, epostaDogrulamaTarihi: data.emailVerifiedAt },
         select: userSelect,
       })
       .then(toUser);
   }
   async markEmailVerified(userId: string, at: Date) {
     await this.db.kullanici.updateMany({
-      where: { kimlik: Number(userId), epostaDogrulamaZamani: null },
-      data: { epostaDogrulamaZamani: at },
+      where: { kimlik: Number(userId), epostaDogrulamaTarihi: null },
+      data: { epostaDogrulamaTarihi: at },
     });
   }
   upsertPasswordUser(data: Parameters<AuthRepository['upsertPasswordUser']>[0]) {
@@ -229,18 +229,18 @@ export class PrismaAuthRepository implements AuthRepository {
           eposta: data.email,
           gorunenAd: data.displayName,
           sifreHash: data.passwordHash,
-          sifreOlusturmaZamani: now,
-          sifreGuncellemeZamani: now,
+          sifreOlusturmaTarihi: now,
+          sifreGuncellemeTarihi: now,
         },
         update: {
           sifreHash: data.passwordHash,
-          sifreGuncellemeZamani: now,
+          sifreGuncellemeTarihi: now,
         },
         select: userSelect,
       });
       await tx.kullanici.updateMany({
-        where: { kimlik: row.kimlik, sifreOlusturmaZamani: null },
-        data: { sifreOlusturmaZamani: now },
+        where: { kimlik: row.kimlik, sifreOlusturmaTarihi: null },
+        data: { sifreOlusturmaTarihi: now },
       });
       return toUser(row);
     });

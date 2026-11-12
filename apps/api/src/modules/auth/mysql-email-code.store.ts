@@ -57,15 +57,15 @@ export class MysqlEmailCodeStore implements EmailCodeStore {
     return this.withLock(emailHash, async (tx) => {
       // Bir saatten eski kayıtlar artık kota için de gerekmez (herkes için temizlenir).
       await tx.epostaGirisKodu.deleteMany({
-        where: { olusturmaZamani: { lt: new Date(now - HOUR_MS) } },
+        where: { olusturmaTarihi: { lt: new Date(now - HOUR_MS) } },
       });
       const recent = await tx.epostaGirisKodu.findMany({
         where: { epostaHash: emailHash },
-        orderBy: { olusturmaZamani: 'desc' },
+        orderBy: { olusturmaTarihi: 'desc' },
       });
       const latest = recent[0];
       if (latest) {
-        const resendAt = latest.olusturmaZamani.getTime() + policy.resendSeconds * 1000;
+        const resendAt = latest.olusturmaTarihi.getTime() + policy.resendSeconds * 1000;
         if (resendAt > now)
           return {
             status: 'waiting',
@@ -88,7 +88,7 @@ export class MysqlEmailCodeStore implements EmailCodeStore {
           epostaHash: emailHash,
           kodHash: codeHash,
           gecerlilikBitisTarihi: new Date(now + policy.ttlSeconds * 1000),
-          olusturmaZamani: new Date(now),
+          olusturmaTarihi: new Date(now),
         },
       });
       return { status: 'created', id: String(created.kimlik) } as const;
@@ -111,7 +111,7 @@ export class MysqlEmailCodeStore implements EmailCodeStore {
     return this.withLock(emailHash, async (tx) => {
       const current = await tx.epostaGirisKodu.findFirst({
         where: { epostaHash: emailHash, gecerlilikBitisTarihi: { gt: new Date(now) } },
-        orderBy: { olusturmaZamani: 'desc' },
+        orderBy: { olusturmaTarihi: 'desc' },
       });
       if (!current) return false;
       if (current.denemeSayisi >= maxAttempts) {

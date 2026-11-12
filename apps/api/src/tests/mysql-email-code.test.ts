@@ -8,7 +8,7 @@ interface Row {
   kodHash: string;
   gecerlilikBitisTarihi: Date;
   denemeSayisi: number;
-  olusturmaZamani: Date;
+  olusturmaTarihi: Date;
 }
 
 /** Yalnızca deponun kullandığı Prisma çağrılarını bellekte taklit eder (gerçek MySQL gerekmez). */
@@ -32,7 +32,7 @@ function fakePrisma() {
     findMany: async ({ where }: { where: Record<string, unknown> }) =>
       rows
         .filter((r) => match(r, where))
-        .sort((a, b) => b.olusturmaZamani.getTime() - a.olusturmaZamani.getTime()),
+        .sort((a, b) => b.olusturmaTarihi.getTime() - a.olusturmaTarihi.getTime()),
     findFirst: async ({ where }: { where: Record<string, unknown> }) =>
       (await model.findMany({ where }))[0] ?? null,
     updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Partial<Row> }) => {

@@ -2,7 +2,7 @@ import type { WorkspaceLog } from '@gt/shared';
 
 // Audit records retain their original data; the detail view only shows business fields.
 const hiddenField =
-  /(?:^|\.)(?:[^.]*kimli(?:k|gi|ği)|[^.]*Id|id|sıra|sira|oluşturma zamanı|güncelleme zamanı|olusturmaZamani|guncellemeZamani|createdAt|updatedAt|[^.]*Hash|[^.]*Dosyasi|[^.]*Verisi)(?:$|\[)/i;
+  /(?:^|\.)(?:[^.]*kimli(?:k|gi|ği)|[^.]*Id|id|sıra|sira|oluşturma tarihi|güncelleme tarihi|olusturmaTarihi|guncellemeTarihi|createdAt|updatedAt|[^.]*Hash|[^.]*Dosyasi|[^.]*Verisi)(?:$|\[)/i;
 
 export function visibleLogChanges(changes: WorkspaceLog['changes']) {
   return changes

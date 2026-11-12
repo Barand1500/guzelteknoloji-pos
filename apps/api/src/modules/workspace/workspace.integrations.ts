@@ -253,7 +253,7 @@ export function whatsappWebhook(db: PrismaClient, env: Env) {
         changes.some((change) => change.value.metadata.phone_number_id !== values.phoneNumberId)
       )
         throw new HttpError(403, 'FORBIDDEN', 'Webhook telefon numarası bu işletmeye ait değil.');
-      await db.islemKaydi.create({
+      await db.islemLogu.create({
         data: {
           businessId,
           userName: 'Meta WhatsApp',

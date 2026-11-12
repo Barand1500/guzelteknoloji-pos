@@ -76,3 +76,43 @@ Uygulamadan önce MySQL yedeği alınmalıdır. Mevcut tablolarda değişiklik y
 - Kargo API adresi yalnızca saklanır, sunucu tarafından çağrılmaz.
 - Para birimi kuru için sabit TCMB adresi kullanılır; dış URL çağrısı yapılmaz.
 - Hatalar kullanıcıya açık mesajla döner; sahte başarı üretilmez.
+
+## Vergiler ve Cari/Stok Tanımları (migration: `20261112160000_vergiler_cari_stok`)
+
+| Tablo | Amaç | Önemli alanlar |
+| --- | --- | --- |
+| `vergi_turleri` | KDV, ÖTV gibi vergi türleri | `isletme_id`, `ad`, `kisa_ad`, `sira` |
+| `vergi_oranlari` | Türün yüzdeleri | `tur_id`, `oran` (6,2), `sira`; `(tur_id, oran)` tekil |
+| `vergi_daireleri` | Vergi daireleri | `isletme_id`, `ad`, `yerlesik` |
+| `cari_tipleri` | Son Kullanıcı/Bayi gibi cari tipleri | `isletme_id`, `ad`, `sira` |
+| `fiyat_listesi_ayarlari` | Fiyat listesi ek bilgileri | `isletme_id`, `secenek_id` (tekil), `tur` (`general`/`special`), `baslangic`, `bitis`, `varsayilan` |
+
+- **Stok tipleri, ölçü birimleri ve fiyat listeleri mevcut `stok_secenekleri` tablosunu kullanır** (`liste_turu`: `stockTypes`, `units`, `priceLists`). Böylece stok kartı ekranındaki seçeneklerle tek kaynak olur; burada eklenen birim/tipler ürün formunda da görünür.
+- Fiyat listesinin tür/tarih/varsayılan bilgisi `fiyat_listesi_ayarlari` tablosunda tutulur; liste adı `stok_secenekleri.secenek_adi` alanındadır.
+- İşletme başına **tek varsayılan fiyat listesi** vardır; varsayılan liste silinemez, "varsayılan yap" işlemi diğerlerini kapatır.
+- Kullanımdaki kayıtlar silinemez: üründe kullanılan birim/ürün tipi ve ürün fiyatlarında kullanılan fiyat listesi reddedilir.
+- `Belirtilmemiş` vergi dairesi sistem kaydıdır (`yerlesik`), değiştirilemez ve silinemez.
+
+### API uçları
+
+Yetki: **Ayarlar** kaynağı (GET `read`, yazma `save`, `/sil` `delete`).
+
+| Yöntem | Yol | Gövde |
+| --- | --- | --- |
+| GET/POST | `/api/vergiler` | `{ name, shortName }` |
+| POST | `/api/vergiler/:id` | `{ name, shortName }` |
+| POST | `/api/vergiler/:id/sil` | — |
+| POST | `/api/vergiler/:id/oranlar` | `{ rate }` → `TaxType` |
+| POST | `/api/vergiler/:id/oranlar/sil` | `{ rate }` → `TaxType` |
+| GET/POST | `/api/vergi-daireleri` | `{ name }` |
+| POST | `/api/vergi-daireleri/:id` | `{ name }` |
+| POST | `/api/vergi-daireleri/:id/sil` | — |
+| GET/POST | `/api/cari-stok/:liste` | `{ name, shortName }` (`cari-tipleri`, `stok-tipleri`, `olcu-birimleri`) |
+| POST | `/api/cari-stok/:liste/:id` | `{ name, shortName }` |
+| POST | `/api/cari-stok/:liste/:id/sil` | — |
+| GET/POST | `/api/cari-stok/fiyat-listeleri` | `{ name, kind, start, end }` |
+| POST | `/api/cari-stok/fiyat-listeleri/:id` | `{ name, kind, start, end }` |
+| POST | `/api/cari-stok/fiyat-listeleri/:id/sil` | — |
+| POST | `/api/cari-stok/fiyat-listeleri/:id/varsayilan` | — |
+
+Uygulamak için iki migration birlikte çalıştırılır: `npm run db:deploy` (önce yedek alın).

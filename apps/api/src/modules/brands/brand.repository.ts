@@ -144,7 +144,7 @@ export class PrismaBrandRepository {
     const rows = await this.db.marka.findMany({
       where: { kullaniciKimligi: Number(userId) },
       select: brandSelect,
-      orderBy: [{ sira: 'asc' }, { olusturmaZamani: 'asc' }, { kimlik: 'asc' }],
+      orderBy: [{ sira: 'asc' }, { olusturmaTarihi: 'asc' }, { kimlik: 'asc' }],
     });
     return rows.map(dto);
   }
@@ -285,7 +285,7 @@ export class PrismaBrandRepository {
         marka: { select: { kimlik: true } },
         birimler: { select: { barkodlar: { select: { barkod: true } } } },
       },
-      orderBy: [{ olusturmaZamani: 'desc' }, { kimlik: 'asc' }],
+      orderBy: [{ olusturmaTarihi: 'desc' }, { kimlik: 'asc' }],
     });
     return rows.map((row) => ({
       id: String(row.kimlik),

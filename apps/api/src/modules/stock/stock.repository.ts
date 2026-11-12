@@ -291,7 +291,7 @@ export class PrismaStockRepository implements StockRepository {
     await this.ensureDefaults(userId);
     const rows = await this.db.stokSecenegi.findMany({
       where: { kullaniciKimligi: Number(userId), durum: true },
-      orderBy: [{ sira: 'asc' }, { olusturmaZamani: 'asc' }, { kimlik: 'asc' }],
+      orderBy: [{ sira: 'asc' }, { olusturmaTarihi: 'asc' }, { kimlik: 'asc' }],
     });
     const result = {} as StockLookups;
     for (const key of Object.keys(DEFAULT_STOCK_LOOKUPS) as (keyof StockLookups)[]) {
@@ -306,7 +306,7 @@ export class PrismaStockRepository implements StockRepository {
     const brands = await this.db.marka.findMany({
       where: { kullaniciKimligi: Number(userId), durum: true },
       select: { kimlik: true, markaAdi: true },
-      orderBy: [{ sira: 'asc' }, { olusturmaZamani: 'asc' }, { kimlik: 'asc' }],
+      orderBy: [{ sira: 'asc' }, { olusturmaTarihi: 'asc' }, { kimlik: 'asc' }],
     });
     result.brands = brands.map((brand) => ({ value: String(brand.kimlik), label: brand.markaAdi }));
     return result;
@@ -867,7 +867,7 @@ export class PrismaStockRepository implements StockRepository {
           ORDER BY k.olusturma_zamani DESC, k.id DESC LIMIT ${query.boyut} OFFSET ${(page - 1) * query.boyut}`);
         const rows = await tx.stokKarti.findMany({
           where: { kullaniciKimligi: Number(userId), kimlik: { in: ids.map((row) => row.id) } },
-          orderBy: [{ olusturmaZamani: 'desc' }, { kimlik: 'desc' }],
+          orderBy: [{ olusturmaTarihi: 'desc' }, { kimlik: 'desc' }],
           include: {
             firsatlar: true,
             _count: { select: { varyantlar: true } },

@@ -123,8 +123,8 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
           where: { kimlik: user.kimlik },
           data: {
             sifreHash: await hasher.hash(input.password),
-            sifreOlusturmaZamani: user.sifreOlusturmaZamani ?? new Date(),
-            sifreGuncellemeZamani: new Date(),
+            sifreOlusturmaTarihi: user.sifreOlusturmaTarihi ?? new Date(),
+            sifreGuncellemeTarihi: new Date(),
           },
         });
         // Diğer cihazların oturumlarını kapat; mevcut oturum değişmeden kalır.
@@ -134,7 +134,7 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
             kullaniciKimligi: user.kimlik,
             ...(currentId ? { kimlik: { not: currentId } } : {}),
           },
-          data: { iptalZamani: new Date() },
+          data: { iptalTarihi: new Date() },
         });
       });
       note(res, 'Şifre', 'Mevcut', 'Değiştirildi');
@@ -550,13 +550,13 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
       ...(q.user ? { userName: { contains: q.user } } : {}),
       ...(q.section ? { section: q.section } : {}),
       ...(q.action ? { action: q.action } : {}),
-      ...(from || to ? { createdAt: { gte: from, lte: to } } : {}),
+      ...(from || to ? { olusturmaTarihi: { gte: from, lte: to } } : {}),
     };
     const [total, rows] = await Promise.all([
-      db.islemKaydi.count({ where }),
-      db.islemKaydi.findMany({
+      db.islemLogu.count({ where }),
+      db.islemLogu.findMany({
         where,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        orderBy: [{ olusturmaTarihi: 'desc' }, { id: 'desc' }],
         skip: (q.page - 1) * 30,
         take: 30,
         include: { changes: true },
@@ -570,7 +570,7 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
         section: r.section,
         action: r.action,
         target: r.target,
-        time: r.createdAt.toISOString(),
+        time: r.olusturmaTarihi.toISOString(),
         status: r.status,
         changes: r.changes.map((c) => ({ field: c.field, before: c.before, after: c.after })),
       })),

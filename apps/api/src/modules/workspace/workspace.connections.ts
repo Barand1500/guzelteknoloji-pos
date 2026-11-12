@@ -280,7 +280,7 @@ export async function googleCallback(
     return res.redirect(destination + '?google=gecersiz');
   if (req.query.error || typeof req.query.code !== 'string')
     return res.redirect(destination + '?google=iptal');
-  const entry = await db.islemKaydi.create({
+  const entry = await db.islemLogu.create({
     data: {
       businessId: ctx.business.id,
       userId: ctx.user.id,
@@ -322,11 +322,11 @@ export async function googleCallback(
         settings.isSecret(key) ? settings.encrypt(value) : value,
       ]));
       await settings.merge(tx, ctx.business.id, 'google', updates);
-      await tx.islemKaydi.update({ where: { id: entry.id }, data: { status: 'Başarılı' } });
+      await tx.islemLogu.update({ where: { id: entry.id }, data: { status: 'Başarılı' } });
     });
     return res.redirect(destination + '?google=baglandi');
   } catch {
-    await db.islemKaydi.update({ where: { id: entry.id }, data: { status: 'Reddedildi' } });
+    await db.islemLogu.update({ where: { id: entry.id }, data: { status: 'Reddedildi' } });
     return res.redirect(destination + '?google=hata');
   }
 }

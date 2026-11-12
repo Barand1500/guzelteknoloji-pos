@@ -203,8 +203,8 @@ try {
     const firstPassword = await prisma.kullanici.findUniqueOrThrow({
       where: { kimlik: Number(verified.id) },
     });
-    assert(firstPassword.sifreOlusturmaZamani);
-    assert(firstPassword.sifreGuncellemeZamani);
+    assert(firstPassword.sifreOlusturmaTarihi);
+    assert(firstPassword.sifreGuncellemeTarihi);
     await repo.upsertPasswordUser({
       email: 'new@example.com',
       passwordHash: 'second',
@@ -215,17 +215,17 @@ try {
       where: { kimlik: Number(verified.id) },
     });
     assert.equal(
-      secondPassword.sifreOlusturmaZamani?.getTime(),
-      firstPassword.sifreOlusturmaZamani.getTime(),
+      secondPassword.sifreOlusturmaTarihi?.getTime(),
+      firstPassword.sifreOlusturmaTarihi.getTime(),
     );
-    assert(secondPassword.sifreGuncellemeZamani! >= firstPassword.sifreGuncellemeZamani);
+    assert(secondPassword.sifreGuncellemeTarihi! >= firstPassword.sifreGuncellemeTarihi);
     const publicUser = await repo.findUserById(verified.id);
     assert(publicUser);
     for (const field of [
       'sifreHash',
       'passwordHash',
-      'sifreOlusturmaZamani',
-      'sifreGuncellemeZamani',
+      'sifreOlusturmaTarihi',
+      'sifreGuncellemeTarihi',
     ])
       assert.equal(Object.hasOwn(publicUser, field), false);
     const passwordUser = await repo.upsertPasswordUser({
@@ -256,8 +256,8 @@ try {
       where: { kimlik: Number(oauth.id) },
     });
     assert.equal(oauthRow.sifreHash, null);
-    assert.equal(oauthRow.sifreOlusturmaZamani, null);
-    assert.equal(oauthRow.sifreGuncellemeZamani, null);
+    assert.equal(oauthRow.sifreOlusturmaTarihi, null);
+    assert.equal(oauthRow.sifreGuncellemeTarihi, null);
     const session = await repo.createSession({
       userId: verified.id,
       tokenHash: 'e'.repeat(64),

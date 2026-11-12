@@ -25,6 +25,7 @@ import { CustomerLayout } from '../features/customers/components/CustomerLayout'
 import { CustomersView } from '../features/customers/components/CustomersView';
 import { CustomerDetailView } from '../features/customers/components/CustomerDetailView';
 import { BrandsPage } from '../pages/app/BrandsPage';
+import { SeoPage } from '../pages/app/SeoPage';
 import { StockCardCreatePage } from '../pages/app/StockCardCreatePage';
 import { EMAIL_LOGIN_PATH, LOGIN_PATH, LoginPage } from '../pages/auth/LoginPage';
 import {
@@ -63,9 +64,9 @@ export function App() {
             <Route path="kategoriler" element={<CategoriesPage />} />
             <Route path="markalar" element={<BrandsPage />} />
             <Route path="ozellikler" element={<AttributesPage />} />
-            {['seo'].map((path) => (
               <Route key={path} path={path} element={<ComingSoonPage />} />
             ))}
+            <Route path="seo" element={<SeoPage />} />
             <Route path="anasayfa" element={<HomePage />} />
             <Route path="bildirimler">
               <Route index element={<Navigate to="mobil" replace />} />

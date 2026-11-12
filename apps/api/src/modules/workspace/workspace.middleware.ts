@@ -25,6 +25,9 @@ export function requestPermission(
       kampanyalar: 'campaigns',
       'para-birimleri': 'settings',
       kargo: 'settings',
+      vergiler: 'settings',
+      'vergi-daireleri': 'settings',
+      'cari-stok': 'settings',
     } as const
   )[section as 'stok'];
   if (!resource) return null;
@@ -109,7 +112,7 @@ export function workspaceMiddleware(
           .filter((p) => /^[1-9]\d{0,9}$/.test(p) && Number(p) <= 2147483647)
           .join('/')
           .slice(0, 200) || null;
-      const entry = await db.islemKaydi.create({
+      const entry = await db.islemLogu.create({
         data: {
           businessId: ctx.business.id,
           userId: ctx.user.id,
@@ -211,7 +214,7 @@ export function workspaceMiddleware(
           const keys = success
             ? new Set([...Object.keys(before), ...Object.keys(after)])
             : new Set<string>();
-          await db.islemKaydi.update({
+          await db.islemLogu.update({
             where: { id: entry.id },
             data: {
               status: aborted ? 'Tamamlanmadı' : success ? 'Başarılı' : 'Reddedildi',
@@ -361,7 +364,7 @@ async function snapshot(
     if (typeof value === 'object')
       for (const [key, v] of Object.entries(value)) {
         if (
-          /hash|ozet|secret|token|password|sifre|logoVerisi|kayitIstegi|olusturmaZamani|guncellemeZamani|kullaniciKimligi/i.test(
+          /hash|ozet|secret|token|password|sifre|logoVerisi|kayitIstegi|olusturmaTarihi|guncellemeTarihi|kullaniciKimligi/i.test(
             key,
           )
         )

@@ -50,7 +50,7 @@ function database(values: Record<string, string>, section = 'whatsapp') {
   const create = vi.fn().mockResolvedValue({});
   return {
     isletmeAyari: { findUnique },
-    islemKaydi: { create },
+    islemLogu: { create },
     isletmeUyesi: { findUnique: vi.fn().mockResolvedValue({ businessId: 1, durum: true }) },
   };
 }
@@ -320,8 +320,8 @@ describe('işletme entegrasyonları', () => {
           .send(body)
       ).status,
     ).toBe(200);
-    expect(JSON.stringify(db.islemKaydi.create.mock.calls)).not.toContain('private conversation');
-    expect(db.islemKaydi.create).toHaveBeenCalledWith(
+    expect(JSON.stringify(db.islemLogu.create.mock.calls)).not.toContain('private conversation');
+    expect(db.islemLogu.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ businessId: 1 }) }),
     );
   });
