@@ -210,12 +210,9 @@ export class StockImport {
         for (const [i, key] of keys.entries()) {
           const field = raw[['price1', 'price2', 'price3'][i] as 'price1' | 'price2' | 'price3'];
           if (field === '' && row.id) continue;
-          if (!d.units[key])
-            d.units[key] = first.map((u) => ({
-              ...structuredClone(u),
-              purchase: { ...u.purchase, amount: '', extras: [] },
-              sale: { ...u.sale, amount: '', extras: [] },
-            }));
+          // Liste kullanıcı tarafından silinmişse (ör. PERAKENDE kaldırıldı) o sütun atlanır;
+          // kendiliğinden liste oluşturmak kaydı sunucuda reddettiriyordu.
+          if (!d.units[key]) continue;
           const unit = d.units[key]![mainIndex]!;
           unit.sale.amount = numberText(field || raw.price1);
           unit.sale.vatIncluded = false;

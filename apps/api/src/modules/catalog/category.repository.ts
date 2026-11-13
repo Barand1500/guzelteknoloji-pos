@@ -229,6 +229,21 @@ export class CategoryRepository {
     const file = await this.write(user, async (tx) => {
       const source = await this.find(tx, user, sourceId);
       const target = await this.find(tx, user, targetId);
+      // Hedef, kaynağın kendi alt dalındaysa birleştirme ağacı döngüye sokar (torun/torunun çocuğu).
+      let cursor = target.ustId;
+      while (cursor !== null) {
+        if (cursor === sourceId)
+          throw new HttpError(
+            400,
+            'VALIDATION_ERROR',
+            'Bir kategori kendi alt dalındaki kategoriyle birleştirilemez.',
+          );
+        const parentRow = await tx.kategori.findFirst({
+          where: { id: cursor, kullaniciId: user },
+          select: { ustId: true },
+        });
+        cursor = parentRow?.ustId ?? null;
+      }
       const children = await tx.kategori.findMany({
         where: { kullaniciId: user, ustId: sourceId },
         orderBy: { sira: 'asc' },

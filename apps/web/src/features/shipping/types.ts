@@ -55,7 +55,11 @@ export const emptyCarrierDraft = (): CarrierDraft => ({ name: '', shortName: '',
 export const VAT_OPTIONS = [0, 1, 10, 20] as const;
 
 export const emptyTiers = (): Tier[] => [{ to: null, price: 0, perUnit: false }];
-export const emptyPrices = (): PriceTable => ({ vat: 20, desi: emptyTiers(), weight: emptyTiers() });
+export const emptyPrices = (): PriceTable => ({
+  vat: 20,
+  desi: emptyTiers(),
+  weight: emptyTiers(),
+});
 
 /** i. basamağın başlangıcı. */
 export const fromOf = (tiers: Tier[], i: number): number =>
@@ -63,6 +67,8 @@ export const fromOf = (tiers: Tier[], i: number): number =>
 
 /** Verilen desi/kg için KDV hariç ücret (basamak yoksa null). */
 export function priceFor(tiers: Tier[], value: number): number | null {
+  // Hiç fiyat girilmemiş tablo (varsayılan tek basamak, 0 TL) "ücretsiz" değil "tanımsız" sayılır.
+  if (tiers.length === 1 && tiers[0]?.to === null && (tiers[0]?.price ?? 0) === 0) return null;
   if (tiers.length === 0 || value < 0) return null;
   const i = tiers.findIndex((t) => t.to === null || value <= t.to);
   const tier = tiers[i];
@@ -75,7 +81,8 @@ export function priceFor(tiers: Tier[], value: number): number | null {
   return tier.price;
 }
 
-export const withVat = (price: number, vat: number) => Math.round(price * (1 + vat / 100) * 100) / 100;
+export const withVat = (price: number, vat: number) =>
+  Math.round(price * (1 + vat / 100) * 100) / 100;
 
 /** Basamak değişince sonrakilerin bitişi çakışmasın diye yeniden düzenler. */
 export function normalizeTiers(tiers: Tier[]): Tier[] {
@@ -93,7 +100,14 @@ export function normalizeTiers(tiers: Tier[]): Tier[] {
 }
 
 /** Konum: düz liste; `level` 0 = Ülke … 5 = Sokak. */
-export const LOCATION_PLURAL = ['Ülkeler', 'İller', 'İlçeler', 'Semtler', 'Mahalleler', 'Sokaklar'] as const;
+export const LOCATION_PLURAL = [
+  'Ülkeler',
+  'İller',
+  'İlçeler',
+  'Semtler',
+  'Mahalleler',
+  'Sokaklar',
+] as const;
 export const LOCATION_LEVELS = ['Ülke', 'İl', 'İlçe', 'Semt', 'Mahalle', 'Sokak'] as const;
 export interface LocationNode {
   id: string;
