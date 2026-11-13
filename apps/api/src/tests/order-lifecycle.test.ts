@@ -54,11 +54,12 @@ function fixture() {
   const db = {
     $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx),
   } as unknown as PrismaClient;
-  return { row, tx, service: new OrderLifecycle(db) };
+  const notify = vi.fn(async () => {});
+  return { row, tx, notify, service: new OrderLifecycle(db, notify) };
 }
 describe('Sipariş tahsilat ve iade korumaları', () => {
   it('tahsilat tutarını siparişten alır ve cari alacağı aynı transaction içinde kaydeder', async () => {
-    const { service, tx } = fixture();
+    const { service, tx, notify } = fixture();
     await service.collect(ctx, 10, {
       requestId,
       reference: 'Banka dekont 123',
@@ -78,6 +79,12 @@ describe('Sipariş tahsilat ve iade korumaları', () => {
     expect(tx.siparis.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 10, businessId: 3 } }),
     );
+    expect(notify).toHaveBeenCalledWith(tx, {
+      businessId: 3,
+      orderId: 10,
+      event: 'payment.collected',
+      key: 'order:10:collected',
+    });
   });
   it('tahsil edilmiş veya başka işletmeye ait siparişte tekrar para kaydı oluşturmaz', async () => {
     const { service, tx, row } = fixture();

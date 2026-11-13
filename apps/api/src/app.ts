@@ -29,6 +29,7 @@ import { createAttributeRouter } from './modules/catalog/attribute.routes';
 import { createOrderRouter, createHomeRouter } from './modules/orders/order.routes';
 import { PrismaOrderStore } from './modules/orders/order.store';
 import { createOrderLifecycleRouter } from './modules/orders/order-lifecycle.routes';
+import { enqueueOrderMessages } from './modules/orders/order-messages';
 import { createCustomerRouter } from './modules/customers/customer.routes';
 import { PrismaCustomerStore } from './modules/customers/customer.store';
 import { createCampaignRouter } from './modules/campaigns/campaign.routes';
@@ -123,6 +124,7 @@ export function createApp(deps: AppDeps): Express {
   app.use(requestLogger(logger));
   if (deps.catalogDb) app.use('/api/webhooks/whatsapp', whatsappWebhook(deps.catalogDb, env));
   app.use('/api/hesap/belgeler', express.json({ limit: '3mb' }));
+  app.use('/api/hesap/ayarlar/site_eposta_sablonlari', express.json({ limit: '2mb' }));
   app.use('/api/hesap/ayarlar', express.json({ limit: '256kb' }));
   app.use('/api/stok/gorseller/yukle', express.json({ limit: '7mb' }));
   app.use('/api/stok', express.json({ limit: '512kb' }));
@@ -202,13 +204,13 @@ export function createApp(deps: AppDeps): Express {
     app.use('/api/odeme-sekilleri', createPaymentRouter(deps.catalogDb, env));
     app.use('/api/resmi-tatiller', createHolidayRouter(deps.catalogDb, env));
     app.use('/api/seo', express.json({ limit: '64kb' }), createSeoRouter(env, deps.catalogDb));
-    const orderStore = new PrismaOrderStore(deps.catalogDb);
+    const orderStore = new PrismaOrderStore(deps.catalogDb, enqueueOrderMessages);
     const orderLimit = createRateLimiter({
       enabled: env.rateLimitEnabled,
       windowMs: 60000,
       limit: 180,
     });
-    app.use('/api/siparisler', orderLimit, createOrderLifecycleRouter(deps.catalogDb), createOrderRouter(orderStore));
+    app.use('/api/siparisler', orderLimit, createOrderLifecycleRouter(deps.catalogDb, enqueueOrderMessages), createOrderRouter(orderStore));
     app.use('/api/anasayfa', orderLimit, createHomeRouter(orderStore));
     const customerStore = new PrismaCustomerStore(deps.catalogDb);
     const customerLimit = createRateLimiter({

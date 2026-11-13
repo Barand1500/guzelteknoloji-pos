@@ -82,13 +82,19 @@ function fixture() {
   const db = {
     $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx),
   } as unknown as PrismaClient;
-  return { service: new OrderLifecycle(db), tx };
+  const notify = vi.fn(async () => {});
+  return { service: new OrderLifecycle(db, notify), tx, notify };
 }
 describe('Gerçek fiyatla atomik sipariş oluşturma', () => {
   it('ürün iskontosu, kampanya ve kargoyu kaydeder; tekrar istekte aynı siparişi döndürür', async () => {
-    const { service, tx } = fixture();
+    const { service, tx, notify } = fixture();
     const first = await service.create(ctx, input);
     expect(await service.create(ctx, input)).toEqual(first);
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ businessId: 3, event: 'order.created' }),
+    );
     expect(tx.stokKarti.updateMany).toHaveBeenCalledTimes(1);
     expect(tx.stokKarti.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({

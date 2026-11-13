@@ -12,6 +12,7 @@ import { HttpError } from '../../lib/http-error';
 import { quoteCampaignCartTx } from '../campaigns/campaign-quote';
 import { allocateMoney, returnedAmount } from './order-money';
 import type { OrderStatus, ReturnStatus } from './order.types';
+import type { OrderMessageHandler } from './order-message-event';
 
 type Context = { businessId: number; ownerId: number; actorId: number };
 type Tx = Prisma.TransactionClient;
@@ -28,7 +29,10 @@ const includeOrder = {
 /** İşletme kilidi: oluşturma, tahsilat, iptal ve iadeler aynı sıradan geçer.
  * Stok ayrıca koşullu güncellenir; diğer ürün düzenlemeleriyle yarışta eksiye düşmez. */
 export class OrderLifecycle {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly notify: OrderMessageHandler = async () => {},
+  ) {}
 
   private async transaction<T>(businessId: number, action: (tx: Tx) => Promise<T>): Promise<T> {
     return this.db.$transaction(
@@ -168,6 +172,12 @@ export class OrderLifecycle {
           borc: quote.total,
         },
       });
+      await this.notify(tx, {
+        businessId: ctx.businessId,
+        orderId: row.id,
+        event: 'order.created',
+        key: `order:${row.id}:created`,
+      });
       return { id: String(row.id), no: row.siparisNo };
     });
   }
@@ -221,6 +231,12 @@ export class OrderLifecycle {
           },
         });
       await tx.siparis.update({ where: { id }, data: { odendi: true } });
+      await this.notify(tx, {
+        businessId: ctx.businessId,
+        orderId: id,
+        event: 'payment.collected',
+        key: `order:${id}:collected`,
+      });
     });
   }
 
@@ -279,6 +295,13 @@ export class OrderLifecycle {
           iadeTutari: lines.reduce((n, l) => n.plus(l.tutar), new D(0)),
           satirlar: { create: lines },
         },
+      });
+      await this.notify(tx, {
+        businessId: ctx.businessId,
+        orderId: id,
+        returnId: created.id,
+        event: 'return.created',
+        key: `return:${created.id}:created`,
       });
       return { id: String(created.id) };
     });
@@ -373,6 +396,13 @@ export class OrderLifecycle {
           tamamlanmaTarihi: new Date(),
         },
       });
+      await this.notify(tx, {
+        businessId: ctx.businessId,
+        orderId: row.id,
+        returnId: id,
+        event: 'return.completed',
+        key: `return:${id}:completed`,
+      });
     });
   }
 
@@ -414,6 +444,13 @@ export class OrderLifecycle {
           });
       }
       await tx.siparis.update({ where: { id }, data: { durum: status } });
+      if (status !== 'pending')
+        await this.notify(tx, {
+          businessId,
+          orderId: id,
+          event: `order.${status}`,
+          key: `order:${id}:${status}`,
+        });
       return true;
     });
   }
@@ -432,6 +469,14 @@ export class OrderLifecycle {
       };
       if (!transitions[row.durum]?.includes(status)) throw conflict('Bu iade durumuna geçilemez.');
       await tx.iadeTalebi.update({ where: { id }, data: { durum: status } });
+      if (row.siparisId && (status === 'approved' || status === 'rejected'))
+        await this.notify(tx, {
+          businessId,
+          orderId: row.siparisId,
+          returnId: id,
+          event: `${row.tur === 'exchange' ? 'exchange' : 'return'}.${status}`,
+          key: `return:${id}:${status}`,
+        });
       return true;
     });
   }

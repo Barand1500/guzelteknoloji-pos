@@ -516,6 +516,7 @@ model Isletme {
   seoYonlendirmeleri SeoYonlendirmesi[]
   odemeSekilleri OdemeSekli[]
   ozelTatiller OzelTatil[]
+  sablonGonderimleri SablonGonderimi[]
   @@map("isletmeler")
 }
 
@@ -555,6 +556,26 @@ model RolYetkisi {
   role IsletmeRolu @relation(fields: [roleId], references: [id], onDelete: Cascade)
   @@id([roleId, resource])
   @@map("rol_yetkileri")
+}
+
+model SablonGonderimi {
+  id Int @id @default(autoincrement())
+  isletmeId Int @map("isletme_id")
+  olayAnahtari String @map("olay_anahtari") @db.VarChar(100)
+  olay String @db.VarChar(40)
+  kanal String @db.VarChar(10)
+  alici String @db.VarChar(254)
+  konu String @db.VarChar(500)
+  icerik String @db.MediumText
+  durum String @default("pending") @db.VarChar(20)
+  hataKodu String? @map("hata_kodu") @db.VarChar(80)
+  olusturmaTarihi DateTime @default(now()) @map("olusturma_tarihi")
+  guncellemeTarihi DateTime @updatedAt @map("guncelleme_tarihi")
+  gonderimTarihi DateTime? @map("gonderim_tarihi")
+  isletme Isletme @relation(fields: [isletmeId], references: [id], onDelete: Cascade, map: "sablon_gonderimleri_isletme_baglantisi")
+  @@unique([isletmeId, olayAnahtari, kanal], map: "sablon_gonderimleri_olay_tekil")
+  @@index([durum, id], map: "sablon_gonderimleri_kuyruk_indeks")
+  @@map("sablon_gonderimleri")
 }
 
 model IsletmeAyari {

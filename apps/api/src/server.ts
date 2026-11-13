@@ -10,6 +10,8 @@ import { createGoogleOidcClient } from './modules/auth/google.client';
 import { PrismaStockRepository } from './modules/stock/stock.repository';
 import { PrismaBrandRepository } from './modules/brands/brand.repository';
 import { MysqlEmailCodeStore } from './modules/auth/mysql-email-code.store';
+import { startMessageWorker } from './modules/orders/message-worker';
+import { createMessageDelivery } from './modules/orders/message-delivery';
 
 let env;
 try {
@@ -64,11 +66,12 @@ const app = createApp({
 const server = app.listen(env.PORT, () => {
   logger.info(`API http://localhost:${env.PORT} adresinde çalışıyor`);
 });
+const messageWorker = startMessageWorker(prisma, createMessageDelivery(prisma, env), logger);
 
 const shutdown = (signal: string) => {
   logger.info(`${signal} alındı, kapanıyor`);
   server.close(() => {
-    void prisma.$disconnect().finally(() => process.exit(0));
+    void messageWorker.stop().finally(() => prisma.$disconnect()).finally(() => process.exit(0));
   });
 };
 process.on('SIGTERM', () => shutdown('SIGTERM'));

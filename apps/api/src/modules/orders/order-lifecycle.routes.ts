@@ -6,11 +6,12 @@ import { requirePermission, type AccessContext } from '../workspace/workspace.ac
 import { OrderLifecycle } from './order-lifecycle';
 import { createOrderSchema } from '@gt/shared';
 import { quoteCampaignCartTx } from '../campaigns/campaign-quote';
+import type { OrderMessageHandler } from './order-message-event';
 
 const id = z.coerce.number().int().positive().max(2147483647);
-export function createOrderLifecycleRouter(db: PrismaClient) {
+export function createOrderLifecycleRouter(db: PrismaClient, notify?: OrderMessageHandler) {
   const router = Router();
-  const service = new OrderLifecycle(db);
+  const service = new OrderLifecycle(db, notify);
   router.use((req, res, next) => {
     const ctx = res.locals.workspace as AccessContext | undefined;
     if (!ctx) throw new HttpError(401, 'UNAUTHENTICATED', 'Hesabınıza giriş yapın.');

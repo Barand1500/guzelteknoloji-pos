@@ -1,5 +1,10 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import { SETTINGS_PAGES, type SettingsPage } from '@gt/shared';
+import {
+  SETTINGS_PAGES,
+  messageTemplatesSchema,
+  EMAIL_TEMPLATE_LIMIT,
+  type SettingsPage,
+} from '@gt/shared';
 import { z } from 'zod';
 import type { Prisma } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
@@ -153,19 +158,51 @@ export class WorkspaceSettings {
   async save(businessId: number, section: SettingsPage, body: unknown) {
     const input = z
       .strictObject({
-        values: z.record(z.string(), z.string().max(20000)),
+        values: z.record(
+          z.string(),
+          z.string().max(section === 'site_eposta_sablonlari' ? EMAIL_TEMPLATE_LIMIT : 20000),
+        ),
         clear: z.array(z.string()).default([]),
       })
       .parse(body);
     const page = SETTINGS_PAGES.find((p) => p.key === section)!;
-    if (section === 'site_menu' && Object.values(input.values).some((value) => value.trim().length > 120))
+    if (
+      (section === 'site_eposta_sablonlari' || section === 'site_sms_sablonlari') &&
+      input.values.sablonlar
+    ) {
+      let value: unknown;
+      try {
+        value = JSON.parse(input.values.sablonlar);
+      } catch {
+        throw new HttpError(400, 'VALIDATION_ERROR', 'Şablon listesi okunamadı.');
+      }
+      const result = messageTemplatesSchema(
+        section === 'site_eposta_sablonlari' ? 'email' : 'sms',
+      ).safeParse(value);
+      if (!result.success)
+        throw new HttpError(
+          400,
+          'VALIDATION_ERROR',
+          result.error.issues[0]?.message ?? 'Şablonları kontrol edin.',
+        );
+    }
+    if (
+      section === 'site_menu' &&
+      Object.values(input.values).some((value) => value.trim().length > 120)
+    )
       throw new HttpError(400, 'VALIDATION_ERROR', 'Menü blok adı en fazla 120 karakter olmalı.');
     if (section === 'general') {
       const values = input.values;
       if (values.calismaSekli && !['B2C', 'B2B', 'Katalog'].includes(values.calismaSekli))
         throw new HttpError(400, 'VALIDATION_ERROR', 'Çalışma şekli B2C, B2B veya Katalog olmalı.');
       for (const key of ['website', 'webAdresi', 'binListesiUrl']) {
-        if (values[key] && !z.url().refine((s) => /^https?:\/\//i.test(s)).safeParse(values[key]).success)
+        if (
+          values[key] &&
+          !z
+            .url()
+            .refine((s) => /^https?:\/\//i.test(s))
+            .safeParse(values[key]).success
+        )
           throw new HttpError(400, 'VALIDATION_ERROR', 'Geçerli bir HTTP/HTTPS adresi girin.');
       }
       if (values.acilisTarihi && !z.iso.date().safeParse(values.acilisTarihi).success)
@@ -215,7 +252,11 @@ export class WorkspaceSettings {
       if (merged.enabled === 'true') {
         const result = merchantProductUrlTemplateSchema.safeParse(merged.productUrlTemplate);
         if (!result.success)
-          throw new HttpError(400, 'VALIDATION_ERROR', result.error.issues[0]?.message ?? 'Ürün URL şablonunu kontrol edin.');
+          throw new HttpError(
+            400,
+            'VALIDATION_ERROR',
+            result.error.issues[0]?.message ?? 'Ürün URL şablonunu kontrol edin.',
+          );
       }
     }
     if (section === 'sms') {

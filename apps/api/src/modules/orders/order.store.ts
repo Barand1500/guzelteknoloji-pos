@@ -1,6 +1,7 @@
 import type { Prisma } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
 import { OrderLifecycle } from './order-lifecycle';
+import type { OrderMessageHandler } from './order-message-event';
 import {
   ORDER_SOURCES,
   ORDER_STATUSES,
@@ -87,7 +88,10 @@ function toReturn(row: ReturnRow): ReturnRecord {
 }
 
 export class PrismaOrderStore implements OrderStore {
-  constructor(private db: PrismaClient) {}
+  constructor(
+    private db: PrismaClient,
+    private notify?: OrderMessageHandler,
+  ) {}
 
   async listOrders(businessId: number): Promise<OrderRecord[]> {
     const rows = await this.db.siparis.findMany({
@@ -99,7 +103,7 @@ export class PrismaOrderStore implements OrderStore {
   }
 
   async updateOrderStatus(businessId: number, id: number, status: OrderStatus): Promise<boolean> {
-    return new OrderLifecycle(this.db).changeOrderStatus(businessId, id, status);
+    return new OrderLifecycle(this.db, this.notify).changeOrderStatus(businessId, id, status);
   }
 
   async listReturns(businessId: number): Promise<ReturnRecord[]> {
@@ -111,7 +115,7 @@ export class PrismaOrderStore implements OrderStore {
   }
 
   async updateReturnStatus(businessId: number, id: number, status: ReturnStatus): Promise<boolean> {
-    return new OrderLifecycle(this.db).changeReturnStatus(businessId, id, status);
+    return new OrderLifecycle(this.db, this.notify).changeReturnStatus(businessId, id, status);
   }
 
   countProducts(ownerId: number): Promise<number> {

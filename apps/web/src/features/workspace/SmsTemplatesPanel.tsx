@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDownUp, ChevronDown, Download, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+  EMAIL_TEMPLATE_LIMIT,
+  SMS_TEMPLATE_LIMIT,
+  MESSAGE_EVENTS,
+  MESSAGE_VARIABLES,
+  messageTemplatesSchema,
+  templateVariables,
+  type TemplateVariableDto,
+} from '@gt/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { ConfirmSheet } from '../../components/ui/ConfirmSheet';
@@ -13,12 +22,15 @@ import { apiRequest } from '../../lib/http';
 import { dataError } from '../../lib/catalog-data';
 import { downloadCsv } from '../ecommerce-settings/export';
 import { useWorkspace } from './workspace-context';
+import { siteService } from '../ecommerce-settings/services/site.service';
+import { MessageDeliveryHistory } from './MessageDeliveryHistory';
 
 interface SmsTemplate {
   id: string;
   name: string;
   text: string;
   subject?: string;
+  event?: string;
   [key: string]: unknown;
 }
 const names = [
@@ -48,7 +60,7 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
     ? ['Uygulama-Üyeliksiz Sipariş E-Posta Doğrulama', 'E-Posta Doğrulama', ...names]
     : names;
   const { demo, can } = useWorkspace();
-  const editable = !demo && can('settings', 'save');
+  const editable = can('settings', 'save');
   const [items, setItems] = useState<SmsTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [ready, setReady] = useState(false);
@@ -64,6 +76,81 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
   const [selection, setSelection] = useState('');
   const [remove, setRemove] = useState<SmsTemplate | null>(null);
   const [retry, setRetry] = useState(0);
+  const [variables, setVariables] = useState<TemplateVariableDto[] | null>(null);
+  const [variablesError, setVariablesError] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const editorOpen = form !== null;
+  useEffect(() => {
+    if (!editorOpen || demo || variables !== null) return;
+    let active = true;
+    void siteService
+      .variables()
+      .then((rows) => {
+        if (active) {
+          setVariables(rows);
+          setVariablesError(null);
+        }
+      })
+      .catch(() => {
+        if (active)
+          setVariablesError(
+            'Kayıtlı değişkenler yüklenemedi. Yerleşik değişkenleri kullanabilirsiniz.',
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [editorOpen, demo, variables]);
+  const fields = useMemo(
+    () =>
+      (variables ?? [])
+        .filter(
+          (row) =>
+            row.type === (email ? 'E-Posta' : 'Sms') &&
+            ['Siparişler', 'Sistem'].includes(row.module),
+        )
+        .flatMap((row) => row.fields),
+    [variables, email],
+  );
+  const selectedEvent = form?.event;
+  const availableBuiltins = useMemo(
+    () =>
+      MESSAGE_VARIABLES.filter(
+        (variable) =>
+          variable.key !== 'iadetutari' ||
+          !selectedEvent ||
+          selectedEvent.startsWith('return.') ||
+          selectedEvent.startsWith('exchange.'),
+      ),
+    [selectedEvent],
+  );
+  const dummyValues = useMemo(
+    () => Object.fromEntries(availableBuiltins.map((variable) => [variable.key, 'örnek'])),
+    [availableBuiltins],
+  );
+  const supportedVariables = useMemo(
+    () => templateVariables(dummyValues, fields),
+    [fields, dummyValues],
+  );
+  const chips = useMemo(() => {
+    const labels = new Map<string, string>(
+      availableBuiltins.map((variable) => [variable.key, variable.label]),
+    );
+    for (const field of fields) {
+      const code = field.code.replace(/^#|#$/g, '');
+      if (Object.hasOwn(supportedVariables, code) && !labels.has(code)) labels.set(code, code);
+    }
+    return [...labels].map(([code, label]) => ({ code, label }));
+  }, [fields, supportedVariables, availableBuiltins]);
+  const unsupportedFields = fields.filter(
+    (field) =>
+      !Object.hasOwn(templateVariables(dummyValues, [field]), field.code.replace(/^#|#$/g, '')),
+  );
+  const unresolved = form?.event
+    ? [...new Set(`${form.subject ?? ''} ${form.text}`.match(/#[\p{L}\p{N}_-]+#/gu) ?? [])].filter(
+        (token) => !Object.hasOwn(supportedVariables, token.slice(1, -1)),
+      )
+    : [];
 
   useEffect(() => {
     let active = true;
@@ -114,7 +201,7 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
     return () => {
       active = false;
     };
-  }, [demo, retry, endpoint]);
+  }, [demo, retry, endpoint, email]);
 
   const filtered = useMemo(
     () =>
@@ -135,10 +222,21 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
   const persist = useCallback(
     async (next: SmsTemplate[]) => {
       if (!editable || busy || !ready) return false;
+      const validation = messageTemplatesSchema(channel).safeParse(next);
+      if (!validation.success) {
+        setError(validation.error.issues[0]?.message ?? 'Şablon bilgilerini kontrol edin.');
+        return false;
+      }
       const value = JSON.stringify(next);
-      if (value.length > 20000) {
+      if (value.length > (email ? EMAIL_TEMPLATE_LIMIT : SMS_TEMPLATE_LIMIT)) {
         setError('Şablonların toplam metni çok uzun. İçerikleri kısaltın.');
         return false;
+      }
+      if (demo) {
+        setItems(next);
+        setError(null);
+        setNotice('Şablonlar deneme listesinde güncellendi; sunucuya kaydedilmedi.');
+        return true;
       }
       setBusy(true);
       setError(null);
@@ -155,7 +253,7 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
         setBusy(false);
       }
     },
-    [editable, busy, ready, endpoint],
+    [editable, busy, ready, endpoint, demo, channel, email],
   );
   const openEditor = (item?: SmsTemplate) => {
     setError(null);
@@ -165,6 +263,12 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
   };
   const save = async () => {
     if (!form) return;
+    if (unresolved.length) {
+      setError(
+        `Desteklenmeyen değişkenler: ${unresolved.join(', ')}. Otomatik gönderim için desteklenen değişkenleri kullanın.`,
+      );
+      return;
+    }
     const clean = { ...form, name: form.name.trim(), text: form.text.trim() };
     if (email) clean.subject = clean.subject?.trim() ?? '';
     if (!clean.name || !clean.text || (email && !clean.subject?.trim())) {
@@ -182,7 +286,21 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
   };
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      {demo && (
+        <Alert>
+          Test modu: Şablonları ekleyip düzenleyebilirsiniz. Değişiklikler yalnızca bu ekranda
+          kalır, sunucuya kaydedilmez.
+        </Alert>
+      )}
       <div className="flex flex-wrap items-center justify-end gap-3">
+        <Button
+          variant="outline"
+          fullWidth={false}
+          flow={false}
+          onClick={() => setHistoryOpen((open) => !open)}
+        >
+          Gönderim Geçmişi
+        </Button>
         <div className="flex items-center gap-2">
           <div className="relative">
             <Button
@@ -239,6 +357,9 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
           </Button>
         </div>
       </div>
+      {historyOpen && (
+        <MessageDeliveryHistory key={`${channel}-${demo}`} channel={channel} demo={demo} />
+      )}
       <SearchField
         label="Şablon ara"
         value={query}
@@ -351,6 +472,7 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
       {form && (
         <Sheet
           open
+          size={email ? 'lg' : 'md'}
           title={items.some((i) => i.id === form.id) ? 'Şablon Düzenle' : 'Şablon Ekle'}
           permission="save"
           onClose={() => {
@@ -387,11 +509,55 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
                   onChange={(e) => setForm((f) => (f ? { ...f, name: e.target.value } : f))}
                 />
               )}
+              <SelectField
+                label="Gönderim Olayı"
+                value={form.event ?? ''}
+                options={[{ value: '', label: 'Otomatik gönderim kapalı' }, ...MESSAGE_EVENTS]}
+                onChange={(event) =>
+                  setForm((current) => (current ? { ...current, event } : current))
+                }
+              />
+              <p className="text-sm text-ink-muted">
+                Yalnızca seçilen olay gerçekleştiğinde otomatik gönderilir. Olay seçilmezse otomatik
+                gönderim yapılmaz.
+              </p>
               <div>
                 <p className="text-sm font-bold">Kullanılabilir Değişkenler:</p>
-                <p className="mt-1 text-sm text-ink-muted">
-                  Bu şablon için değişken tanımlanmamış.
-                </p>
+                {form.event ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {chips.map(({ code, label }) => (
+                      <button
+                        key={code}
+                        type="button"
+                        className="rounded-full border border-line px-3 py-2 text-sm hover:bg-surface-muted"
+                        onClick={() =>
+                          setForm((current) =>
+                            current ? { ...current, text: current.text + `#${code}#` } : current,
+                          )
+                        }
+                      >
+                        {label} #{code}#
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-sm text-ink-muted">
+                    Değişkenleri görmek için gönderim olayı seçin.
+                  </p>
+                )}
+                {variablesError && <p className="mt-2 text-sm text-ink-muted">{variablesError}</p>}
+                {unsupportedFields.length > 0 && (
+                  <p className="mt-2 text-sm text-ink-muted">
+                    Bazı kayıtlı değişkenlerin sütunları desteklenmiyor:{' '}
+                    {unsupportedFields.map((field) => field.code).join(', ')}. Yalnızca desteklenen
+                    sipariş ve sistem alanları kullanılabilir.
+                  </p>
+                )}
+                {unresolved.length > 0 && (
+                  <p role="status" className="mt-2 text-sm text-danger">
+                    Çözümlenemeyen değişkenler: {unresolved.join(', ')}
+                  </p>
+                )}
               </div>
               {email && (
                 <TextField
@@ -406,8 +572,8 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
               <TextAreaField
                 label="İçerik"
                 required
-                rows={5}
-                maxLength={4000}
+                rows={email ? 12 : 5}
+                maxLength={email ? 64000 : 4000}
                 value={form.text}
                 onChange={(e) => setForm((f) => (f ? { ...f, text: e.target.value } : f))}
               />
@@ -429,6 +595,7 @@ export function SmsTemplatesPanel({ channel = 'sms' }: { channel?: 'sms' | 'emai
                 fullWidth={false}
                 loading={busy}
                 disabled={
+                  unresolved.length > 0 ||
                   !selection ||
                   !form.name.trim() ||
                   !form.text.trim() ||

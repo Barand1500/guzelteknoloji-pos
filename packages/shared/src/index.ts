@@ -14,3 +14,4 @@ export * from './notifications';
 export * from './workspace';
 export * from './campaign';
 export * from './order-lifecycle';
+export * from './message-templates';
