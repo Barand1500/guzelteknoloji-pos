@@ -68,4 +68,4 @@ ALTER TABLE `vergi_oranlari` ADD CONSTRAINT `vergi_oranlari_tur_id_fkey` FOREIGN
 ALTER TABLE `vergi_daireleri` ADD CONSTRAINT `vergi_daireleri_isletme_id_fkey` FOREIGN KEY (`isletme_id`) REFERENCES `isletmeler`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE `cari_tipleri` ADD CONSTRAINT `cari_tipleri_isletme_id_fkey` FOREIGN KEY (`isletme_id`) REFERENCES `isletmeler`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE `fiyat_listesi_ayarlari` ADD CONSTRAINT `fiyat_listesi_ayarlari_isletme_id_fkey` FOREIGN KEY (`isletme_id`) REFERENCES `isletmeler`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE `fiyat_listesi_ayarlari` ADD CONSTRAINT `fiyat_listesi_ayarlari_secenek_id_fkey` FOREIGN KEY (`secenek_id`) REFERENCES `stok_secenekleri`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `fiyat_listesi_ayarlari` ADD CONSTRAINT `fiyat_listesi_ayarlari_secenek_id_fkey` FOREIGN KEY (`secenek_id`) REFERENCES `urun_secenekleri`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

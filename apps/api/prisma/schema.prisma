@@ -960,7 +960,7 @@ model CariTipi {
   @@map("cari_tipleri")
 }
 
-/// Fiyat listesi ek bilgileri; liste adı mevcut `stok_secenekleri` (liste_turu = priceLists) satırıdır.
+/// Fiyat listesi ek bilgileri; liste adı mevcut `urun_secenekleri` (liste_turu = priceLists) satırıdır.
 model FiyatListesiAyari {
   id         Int      @id @default(autoincrement())
   isletmeId  Int      @map("isletme_id")
