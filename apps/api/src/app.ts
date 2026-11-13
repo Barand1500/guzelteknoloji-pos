@@ -28,6 +28,7 @@ import { createDealRouter } from './modules/catalog/deal.routes';
 import { createAttributeRouter } from './modules/catalog/attribute.routes';
 import { createOrderRouter, createHomeRouter } from './modules/orders/order.routes';
 import { PrismaOrderStore } from './modules/orders/order.store';
+import { createOrderLifecycleRouter } from './modules/orders/order-lifecycle.routes';
 import { createCustomerRouter } from './modules/customers/customer.routes';
 import { PrismaCustomerStore } from './modules/customers/customer.store';
 import { createCampaignRouter } from './modules/campaigns/campaign.routes';
@@ -45,6 +46,8 @@ import { createPaymentRouter } from './modules/definitions/payment.routes';
 import { createHolidayRouter } from './modules/definitions/holiday.routes';
 import { createNotificationRouter } from './modules/notifications/notification.routes';
 import { createSiteRouter } from './modules/site/site.routes';
+import { createMerchantFeedRouter } from './modules/site/site.feed';
+import { createCommerceChoicesRouter } from './modules/definitions/commerce-choices.routes';
 import { workspaceMiddleware } from './modules/workspace/workspace.middleware';
 import { createWorkspaceRouter } from './modules/workspace/workspace.routes';
 import { WorkspaceChallenge, whatsappWebhook } from './modules/workspace/workspace.integrations';
@@ -152,6 +155,7 @@ export function createApp(deps: AppDeps): Express {
     return checkOrigin(req, res, next);
   });
   app.use('/api/health', createHealthRouter(deps.checkDatabase));
+  if (deps.catalogDb) app.use('/api/site-feed', createMerchantFeedRouter(deps.catalogDb, env));
   if (deps.catalogDb) {
     app.use(workspaceMiddleware(deps.catalogDb, env, service, logger));
     app.use('/api/hesap', createWorkspaceRouter(deps.catalogDb, env, deps.hasher));
@@ -182,8 +186,10 @@ export function createApp(deps: AppDeps): Express {
       createCatalogRouter(env, service, deps.catalogDb),
     );
   if (deps.catalogDb) {
+    app.use('/api', createCommerceChoicesRouter(deps.catalogDb, env));
     app.use('/api/firsatlar', createDealRouter(env, service, deps.catalogDb));
     app.use('/api/ozellikler', createAttributeRouter(env, service, deps.catalogDb));
+    app.use('/api/kampanyalar/hesapla', createRateLimiter({ enabled: env.rateLimitEnabled, windowMs: 60000, limit: 30 }));
     app.use('/api/kampanyalar', createCampaignRouter(deps.catalogDb));
     app.use('/api/para-birimleri', createCurrencyRouter(deps.catalogDb, env));
     app.use('/api/kargo', createShippingRouter(deps.catalogDb, env));
@@ -201,7 +207,7 @@ export function createApp(deps: AppDeps): Express {
       windowMs: 60000,
       limit: 180,
     });
-    app.use('/api/siparisler', orderLimit, createOrderRouter(orderStore));
+    app.use('/api/siparisler', orderLimit, createOrderLifecycleRouter(deps.catalogDb), createOrderRouter(orderStore));
     app.use('/api/anasayfa', orderLimit, createHomeRouter(orderStore));
     const customerStore = new PrismaCustomerStore(deps.catalogDb);
     const customerLimit = createRateLimiter({

@@ -295,17 +295,19 @@ export class PrismaCustomerStore implements CustomerStore {
         select: { id: true },
       });
       if (!customer) return null;
-      if (draft.isDefault)
-        await tx.musteriAdresi.updateMany({
-          where: { musteriId: id },
-          data: { varsayilan: false },
-        });
       if (addressId) {
         const existing = await tx.musteriAdresi.findFirst({
           where: { id: addressId, musteriId: id },
           select: { id: true },
         });
         if (!existing) return null;
+      }
+      if (draft.isDefault)
+        await tx.musteriAdresi.updateMany({
+          where: { musteriId: id },
+          data: { varsayilan: false },
+        });
+      if (addressId) {
         const row = await tx.musteriAdresi.update({
           where: { id: addressId },
           data: { baslik: draft.title, adres: draft.address, varsayilan: draft.isDefault },

@@ -65,7 +65,8 @@ export class NotificationRepository {
         baslik: input.title,
         metin: input.text,
         gonderimZamani: at,
-        durum: input.sendAt ? 'scheduled' : 'sent',
+        // Teslim servisi başarıyı doğrulamadan "sent" yazılmaz.
+        durum: 'scheduled',
         otomatik: false,
         tumMusteriler: all,
         alicilar: all

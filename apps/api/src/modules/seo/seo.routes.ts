@@ -55,7 +55,7 @@ export function createSeoRouter(env: Env, db: PrismaClient) {
     const tur = parse(seoKindSchema, req.params.tur);
     const query = parse(listQuerySchema, req.query);
     res.json(
-      await repo.list(ctx.user.id, ctx.business.id, tur, query.ara, query.sayfa, query.adet),
+      await repo.list(ctx.ownerId, ctx.business.id, tur, query.ara, query.sayfa, query.adet),
     );
   });
 
@@ -63,7 +63,7 @@ export function createSeoRouter(env: Env, db: PrismaClient) {
     const ctx = context(res);
     requirePermission(ctx, 'settings', 'save');
     const draft = parse(seoRedirectDraftSchema, req.body);
-    await repo.addRedirect(ctx.user.id, ctx.business.id, draft);
+    await repo.addRedirect(ctx.ownerId, ctx.business.id, draft);
     res.status(201).end();
   });
 
@@ -87,7 +87,7 @@ export function createSeoRouter(env: Env, db: PrismaClient) {
     requirePermission(ctx, 'settings', 'save');
     const tur = parse(seoKindSchema, req.params.tur);
     const input = parse(seoSaveSchema, req.body);
-    await repo.save(ctx.user.id, tur, idOf(req.params.id!), input);
+    await repo.save(ctx.ownerId, ctx.business.id, tur, idOf(req.params.id!), input);
     res.status(204).end();
   });
 

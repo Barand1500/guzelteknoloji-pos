@@ -99,6 +99,12 @@ export function NotificationsPage() {
   return (
     <div className="flex min-w-0 flex-col gap-4 pb-24">
       {store.sample ? <SampleNote /> : null}
+      {!store.sample && (
+        <Alert tone="info">
+          Bildirimler burada kaydedilir ve planlanır. Mobil gönderim servisi henüz bağlı olmadığı
+          için cihazlara iletilmez.
+        </Alert>
+      )}
       {problem ? <Alert tone="error">{problem}</Alert> : null}
 
       <SearchField

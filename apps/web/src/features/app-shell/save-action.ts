@@ -59,6 +59,8 @@ export interface SaveAction {
   onSave: () => void;
   /** Kaydediliyorsa düğme dönen simge gösterir ve basılamaz. */
   saving: boolean;
+  /** false ise düğme pasiftir (eksik/geçersiz alan). */
+  disabled?: boolean;
 }
 
 let current: SaveAction | null = null;
@@ -96,15 +98,16 @@ export function usePublishSaveAction(action: SaveAction | null): void {
   });
   const active = action !== null;
   const saving = action?.saving ?? false;
+  const disabled = action?.disabled ?? false;
 
   useEffect(() => {
     if (!active) return;
-    publish({ onSave: () => latest.current?.onSave(), saving });
+    publish({ onSave: () => latest.current?.onSave(), saving, disabled });
     return () => {
       // Başka bir ekran kendi kaydını koyduysa (route geçişi) onu silmeyiz.
       publish(null);
     };
-  }, [active, saving]);
+  }, [active, saving, disabled]);
 }
 
 /**

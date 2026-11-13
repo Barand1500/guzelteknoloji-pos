@@ -1,27 +1,21 @@
-import { ApiError, apiRequest } from '../../../lib/http';
+import { apiRequest } from '../../../lib/http';
 import { useDataService } from '../../../lib/catalog-data';
 import { currencySeeds } from '../../../mocks/currencies.mock';
 import { mockRate, type Currency, type CurrencyDraft, type RateType } from '../types';
 
 export interface LoadedCurrencies {
   items: Currency[];
-  /** true: sunucu uçları henüz yok (404); ekranda örnek veri var, değişiklikler yalnızca ekranda. */
+  /** true: açıkça seçilen test oturumunun örnek verisi. */
   sample: boolean;
 }
 
 const base = '/api/para-birimleri';
 const path = (id: string) => `${base}/${encodeURIComponent(id)}`;
 
-/** Sunucu: bkz. types.ts. Uç yoksa (404) örnek veriyle çalışılır. */
+/** Sunucu: bkz. types.ts. */
 export const currencyService = {
   list: async (): Promise<LoadedCurrencies> => {
-    try {
-      return { items: await apiRequest<Currency[]>(base), sample: false };
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404)
-        return { items: currencySeeds.map((c) => ({ ...c })), sample: true };
-      throw e;
-    }
+    return { items: await apiRequest<Currency[]>(base), sample: false };
   },
   save: (draft: CurrencyDraft, id?: string) =>
     apiRequest<Currency>(id ? path(id) : base, { method: 'POST', body: draft }),
@@ -29,17 +23,12 @@ export const currencyService = {
   setActive: (id: string, active: boolean) =>
     apiRequest<void>(`${path(id)}/aktiflik`, { method: 'POST', body: { active } }),
   refresh: (id: string) => apiRequest<Currency>(`${path(id)}/guncelle`, { method: 'POST' }),
-  /** Kaydetmeden önce Merkez Bankası kurunu gösterir (uç yoksa örnek kur). */
+  /** Kaydetmeden önce Merkez Bankası kurunu gösterir. */
   preview: async (code: string, type: RateType): Promise<number | null> => {
-    try {
-      const r = await apiRequest<{ rate: number }>(
-        `${base}/kur?kod=${encodeURIComponent(code)}&tip=${type}`,
-      );
-      return r.rate;
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404) return mockRate(code, type);
-      throw e;
-    }
+    const r = await apiRequest<{ rate: number }>(
+      `${base}/kur?kod=${encodeURIComponent(code)}&tip=${type}`,
+    );
+    return r.rate;
   },
 };
 

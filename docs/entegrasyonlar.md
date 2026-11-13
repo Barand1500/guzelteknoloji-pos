@@ -31,6 +31,18 @@ Kaynaklar: [Cloudflare sunucu doğrulaması](https://developers.cloudflare.com/t
 ## Ardışık iskonto
 
 İskonto ifadeleri toplanmaz; her oran kalan tutara uygulanır. `20+20` eşdeğer `%36`, `10+10` eşdeğer `%19` olur. Enter sonrasında veya kaydetmede eşdeğer oran mevcut sayısal iskonto alanına yazılır. Geçmişte tek oran olarak kaydedilmiş değerlerin hangi ifadeden geldiği bilinmediğinden bunlar otomatik değiştirilmez.
+
+## SMS (Netgsm)
+
+Entegrasyonlar → İletişim altındaki SMS kartı yalnızca Netgsm ile çalışır.
+
+- **Alanlar:** Sağlayıcı (sabit Netgsm), API Adresi (boşsa `https://api.netgsm.com.tr/sms/rest/v2/send`), Kullanıcı / Hesap Adı, API Anahtarı / Şifre, Gönderici Başlığı, Test Telefon Numarası.
+- **Saklama:** `isletme_ayarlari` tablosunda `sms` bölümü. Şifre AES-256-GCM ile şifreli saklanır; GET yanıtında değeri dönmez, yalnızca `configured` listesinde adı görünür.
+- **Kaydetme:** yüzen adadaki Kaydet. SMS'i etkinleştirmeden önce kullanıcı adı, şifre ve gönderici başlığı zorunludur.
+- **Test:** `POST /api/hesap/ayarlar/sms/test`, gövde `{ number }` (boşsa kayıtlı test numarası kullanılır). Numara `5XXXXXXXXX` biçimine normalize edilir; baştaki `0` ve `+90` atılır.
+- **Netgsm yanıtı:** HTTP 200 gelse bile sonuç gövdedeki `code` alanındadır — `00` başarı, `20/30/40/50/70` hata. Ekranda Türkçe karşılığı gösterilir; `30` çoğunlukla sunucu IP'sinin Netgsm panelinde yetkili olmamasıdır.
+- **Zaman aşımı:** 15 saniye; servis yavaşladığında istek kilitlenmez.
+
 # Sunucu varsayılan robot doğrulaması
 
 Kök `.env` dosyasında `ROBOT_PROVIDER=cloudflare`, `TURNSTILE_SITE_KEY` ve `TURNSTILE_SECRET_KEY` tanımlanır. Google v2 için `ROBOT_PROVIDER=recaptcha`, `RECAPTCHA_SITE_KEY` ve `RECAPTCHA_SECRET_KEY` kullanılır. `none` doğrulamayı sunucuda kapatır. Etkin sağlayıcının iki anahtarı eksikse API yapılandırma hatasıyla başlamaz.

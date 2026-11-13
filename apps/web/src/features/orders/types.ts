@@ -8,6 +8,7 @@ export interface OrderLine {
   qty: number;
   /** KDV hariç birim fiyat (TL). */
   unitPrice: number;
+  lineTotal?: number;
 }
 
 /**
@@ -29,6 +30,9 @@ export interface Order {
   status: OrderStatus;
   address: string;
   lines: OrderLine[];
+  managed?: boolean;
+  shippingTotal?: number;
+  discountTotal?: number;
 }
 
 export type ReturnKind = 'return' | 'exchange';
@@ -47,6 +51,7 @@ export interface ReturnRequest {
   date: string;
   status: ReturnStatus;
   reason: string;
+  orderId?: string;
 }
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {

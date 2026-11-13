@@ -1,34 +1,27 @@
-import { ApiError, apiRequest } from '../../../lib/http';
+import { apiRequest } from '../../../lib/http';
 import { useDataService } from '../../../lib/catalog-data';
 import { customerSeeds, detailSeed } from '../../../mocks/customers.mock';
+import type { CommerceChoices } from '@gt/shared';
+import { stockDefsSeed } from '../../../mocks/stockdefs.mock';
+import { paymentSeeds } from '../../../mocks/payments.mock';
 import type { AddressDraft, Customer, CustomerAddress, CustomerDetail, CustomerDraft } from '../types';
 
 export interface LoadedCustomers {
   items: Customer[];
-  /** true: sunucu uçları henüz yok (404), ekranda örnek veri var; değişiklikler yalnızca ekranda. */
+  /** true: açıkça seçilen test oturumunun örnek verisi. */
   sample: boolean;
 }
 
 const path = (id: string) => `/api/musteriler/${encodeURIComponent(id)}`;
 
-/** Sunucu: bkz. types.ts (Customer / CustomerDetail). Uç yoksa (404) örnek veriyle çalışılır. */
+/** Sunucu: bkz. types.ts (Customer / CustomerDetail). */
 export const customerService = {
+  choices: () => apiRequest<CommerceChoices>('/api/musteriler/secenekler'),
   list: async (): Promise<LoadedCustomers> => {
-    try {
-      return { items: await apiRequest<Customer[]>('/api/musteriler'), sample: false };
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404)
-        return { items: customerSeeds.map((c) => ({ ...c })), sample: true };
-      throw e;
-    }
+    return { items: await apiRequest<Customer[]>('/api/musteriler'), sample: false };
   },
   detail: async (customer: Customer): Promise<CustomerDetail> => {
-    try {
-      return await apiRequest<CustomerDetail>(`${path(customer.id)}/detay`);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404) return detailSeed(customer);
-      throw e;
-    }
+    return await apiRequest<CustomerDetail>(`${path(customer.id)}/detay`);
   },
   create: (draft: CustomerDraft) =>
     apiRequest<Customer>('/api/musteriler', { method: 'POST', body: draft }),
@@ -53,6 +46,7 @@ export const customerService = {
 
 /** Deneme verisi (yalnızca geçici test girişi): her şey örnek, bellekte. */
 export const demoCustomerService: typeof customerService = {
+  choices: async () => ({ customerTypes: stockDefsSeed().cari, priceLists: stockDefsSeed().priceLists, payments: paymentSeeds.filter((item) => item.active).map(({ id, name }) => ({ id, name })) }),
   list: async () => ({ items: customerSeeds.map((c) => ({ ...c })), sample: true }),
   detail: async (c) => detailSeed(c),
   create: async (draft) => ({

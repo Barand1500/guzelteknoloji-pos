@@ -9,7 +9,16 @@ import {
   type FormEvent,
 } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
-import { Pencil, Plus, Trash2, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  Trash2,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 import {
   SETTINGS_PAGES,
   WORKSPACE_RESOURCES,
@@ -20,6 +29,7 @@ import {
   type SettingsResult,
 } from '@gt/shared';
 import { Button } from '../../components/ui/Button';
+import { TextAreaField } from '../../components/ui/TextAreaField';
 import { TextField } from '../../components/ui/TextField';
 import { SearchField } from '../../components/ui/SearchField';
 import { SelectField } from '../../components/ui/SelectField';
@@ -35,7 +45,7 @@ import { UnsavedChanges } from './UnsavedChanges';
 import { visibleLogChanges } from './log-display';
 import { RobotChallenge } from '../auth/components/RobotChallenge';
 import { SettingsTabs } from './SettingsTabs';
-import { SmsIntegrationCard } from './SmsIntegrationCard';
+import { usePublishSaveAction } from '../app-shell/save-action';
 
 const base = '/api/hesap';
 const post = <T,>(path: string, body: unknown = {}) =>
@@ -912,10 +922,347 @@ function EmbeddedSettings({
   return <div className="h-full min-w-0 space-y-4">{children}</div>;
 }
 
+/**
+ * SMS entegrasyonu (Netgsm). Alanlar `sms` ayar bölümüne kaydedilir; API şifresi sunucuda
+ * şifreli saklanır ve ekrana geri dönmez. "Test SMS Gönder" kayıtlı bilgilerle gerçek SMS yollar.
+ */
+function SmsSettingsCard() {
+  const integration = useContext(IntegrationDirtyContext);
+  const { can, demo } = useWorkspace();
+  const rows = useRows<FullSettings>('/ayarlar/sms', { values: {}, configured: [] });
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [baseline, setBaseline] = useState<Record<string, string> | null>(null);
+  // Aynı kartta iki ekran: sağlayıcı ayarları ve SMS şablonları (‹ › ile geçilir).
+  const [tab, setTab] = useState<'sms' | 'sablonlar'>('sms');
+  const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const synced = useRef<FullSettings | null>(null);
+  const editable = can('settings', 'save');
+
+  useEffect(() => {
+    if (rows.loading || rows.error) return;
+    if (synced.current === rows.value) return;
+    synced.current = rows.value;
+    const defaults: Record<string, string> = {
+      enabled: rows.value.values.enabled ?? 'false',
+      apiUrl: rows.value.values.apiUrl ?? '',
+      username: rows.value.values.username ?? '',
+      password: '',
+      sender: rows.value.values.sender ?? '',
+      sanalNumara: rows.value.values.sanalNumara ?? '',
+      bildirimNumara: rows.value.values.bildirimNumara ?? '',
+      testNumber: rows.value.values.testNumber ?? '',
+    };
+    setDraft(defaults);
+    setBaseline(defaults);
+  }, [rows.loading, rows.error, rows.value]);
+
+  const dirty = baseline !== null && JSON.stringify(draft) !== JSON.stringify(baseline);
+  const reportDirty = integration?.reportDirty;
+  useEffect(() => {
+    reportDirty?.('sms', dirty);
+    return () => reportDirty?.('sms', false);
+  }, [reportDirty, dirty]);
+
+  const save = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await post('/ayarlar/sms', { values: draft });
+      setBaseline({ ...draft, password: '' });
+      setDraft((current) => ({ ...current, password: '' }));
+      await rows.reload();
+      setMessage('SMS ayarları kaydedildi.');
+    } catch (e) {
+      setError(dataError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const saveRef = useRef(save);
+  useEffect(() => {
+    saveRef.current = save;
+  });
+  const registerSave = integration?.registerSave;
+  useEffect(() => {
+    if (!registerSave) return;
+    registerSave('sms', () => saveRef.current());
+    return () => registerSave('sms', null);
+  }, [registerSave]);
+
+  const test = async () => {
+    if (testing) return;
+    setTesting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      // Kayıtlı bilgilerle gönderilir (SMTP/IMAP testindeki mantık): önce Kaydet, sonra test.
+      const result = await post<{ message?: string }>('/ayarlar/sms/test', {});
+      setMessage(result.message ?? 'Test SMS gönderildi.');
+    } catch (e) {
+      setError(dataError(e));
+    } finally {
+      setTesting(false);
+    }
+  };
+  // Kayıtlı bilgiler tamamlanmadan test edilemez: kullanıcı adı, şifre, başlık ve numara kayıtlı olmalı.
+  const savedReady =
+    !!rows.value.values.username?.trim() &&
+    (!!rows.value.values.sender?.trim() || !!rows.value.values.sanalNumara?.trim()) &&
+    !!(rows.value.values.testNumber ?? '').trim() &&
+    rows.value.configured.includes('password');
+
+  const set = (key: string, value: string) =>
+    setDraft((previous) => ({ ...previous, [key]: value }));
+  const configured = rows.value.configured.includes('password');
+
+  return (
+    <section aria-label="SMS" className={`${panel} space-y-4`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label="Önceki ekran"
+              onClick={() => setTab(tab === 'sms' ? 'sablonlar' : 'sms')}
+              className="inline-flex size-8 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted hover:text-ink"
+            >
+              <ChevronLeft className="size-5" aria-hidden="true" />
+            </button>
+            <h2 className="text-xl font-extrabold">
+              {tab === 'sms' ? 'Netgsm SMS' : 'SMS Şablonları'}
+            </h2>
+            <button
+              type="button"
+              aria-label="Sonraki ekran"
+              onClick={() => setTab(tab === 'sms' ? 'sablonlar' : 'sms')}
+              className="inline-flex size-8 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted hover:text-ink"
+            >
+              <ChevronRight className="size-5" aria-hidden="true" />
+            </button>
+          </div>
+          <p className="text-sm text-ink-muted">
+            {tab === 'sms'
+              ? 'Bildirim SMS’leri için bağlantı bilgileri.'
+              : 'Hazır mesajlar; gönderirken kullanılır.'}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold">Durum</span>
+          <ToggleSwitch
+            label="SMS entegrasyonu aktif"
+            checked={draft.enabled === 'true'}
+            onChange={(value) => set('enabled', String(value))}
+          />
+          <span className="text-sm text-ink-muted">
+            {draft.enabled === 'true' ? 'Aktif' : 'Pasif'}
+          </span>
+        </div>
+      </div>
+
+      {tab === 'sablonlar' ? (
+        <SmsTemplatesPanel />
+      ) : (
+        <>
+          <LoadState {...rows} retry={rows.reload} />
+          {!rows.loading && !rows.error && baseline !== null && (
+            <>
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                <TextField
+                  label="API Adresi"
+                  value={draft.apiUrl ?? ''}
+                  disabled={!editable || busy}
+                  onChange={(e) => set('apiUrl', e.target.value)}
+                />
+                <TextField
+                  label="API Kullanıcı Adı"
+                  value={draft.username ?? ''}
+                  disabled={!editable || busy}
+                  onChange={(e) => set('username', e.target.value)}
+                />
+                <TextField
+                  label="API Parolası"
+                  type="password"
+                  autoComplete="new-password"
+                  trailing={
+                    configured ? (
+                      <span className="mr-2 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-ink">
+                        Kayıtlı
+                      </span>
+                    ) : undefined
+                  }
+                  value={draft.password ?? ''}
+                  disabled={!editable || busy}
+                  onChange={(e) => set('password', e.target.value)}
+                />
+                <TextField
+                  label="Gönderici Başlığı"
+                  value={draft.sender ?? ''}
+                  disabled={!editable || busy}
+                  onChange={(e) => set('sender', e.target.value)}
+                />
+                <TextField
+                  label="Sanal Numara"
+                  value={draft.sanalNumara ?? ''}
+                  disabled={!editable || busy}
+                  onChange={(e) => set('sanalNumara', e.target.value)}
+                />
+                <TextField
+                  label="Test Telefon Numarası"
+                  value={draft.testNumber ?? ''}
+                  disabled={!editable || busy}
+                  onChange={(e) => set('testNumber', e.target.value)}
+                />
+                <div className="sm:col-span-2 xl:col-span-3">
+                  <TextAreaField
+                    label="Bildirim Numaraları"
+                    rows={2}
+                    value={draft.bildirimNumara ?? ''}
+                    disabled={!editable || busy}
+                    onChange={(e) => set('bildirimNumara', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {error && <Alert tone="error">{error}</Alert>}
+              {message && <Alert tone="info">{message}</Alert>}
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  flow={false}
+                  type="button"
+                  variant="outline"
+                  fullWidth={false}
+                  loading={testing}
+                  disabled={!editable || demo || !savedReady}
+                  onClick={() => void test()}
+                >
+                  Test SMS Gönder
+                </Button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+interface SmsTemplate {
+  id: string;
+  name: string;
+  text: string;
+}
+
+/** SMS şablonları: hazır mesaj listesi; her değişiklik anında `site_sms_sablonlari` bölümüne yazılır. */
+function SmsTemplatesPanel() {
+  const rows = useRows<FullSettings>('/ayarlar/site_sms_sablonlari', {
+    values: {},
+    configured: [],
+  });
+  const [list, setList] = useState<SmsTemplate[] | null>(null);
+  const [name, setName] = useState('');
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (rows.loading || rows.error || list !== null) return;
+    try {
+      const parsed: unknown = JSON.parse(rows.value.values.sablonlar ?? '[]');
+      setList(
+        Array.isArray(parsed)
+          ? parsed
+              .filter(
+                (item): item is SmsTemplate =>
+                  !!item &&
+                  typeof item === 'object' &&
+                  typeof (item as SmsTemplate).name === 'string',
+              )
+              .map((item, index) => ({
+                id: String(item.id ?? `s${index}`),
+                name: item.name,
+                text: typeof item.text === 'string' ? item.text : '',
+              }))
+          : [],
+      );
+    } catch {
+      setList([]);
+    }
+  }, [rows.loading, rows.error, rows.value, list]);
+
+  const persist = async (next: SmsTemplate[]) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await post('/ayarlar/site_sms_sablonlari', {
+        values: { sablonlar: JSON.stringify(next) },
+      });
+      setList(next);
+    } catch (e) {
+      setError(dataError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const add = () => {
+    if (!name.trim() || !text.trim() || !list) return;
+    const next = [...list, { id: `t${Date.now()}`, name: name.trim(), text: text.trim() }];
+    setName('');
+    setText('');
+    void persist(next);
+  };
+
+  return (
+    <div className="space-y-4">
+      <LoadState {...rows} retry={rows.reload} />
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-end">
+        <TextField label="Şablon Adı" value={name} onChange={(e) => setName(e.target.value)} />
+        <TextField label="Mesaj" value={text} onChange={(e) => setText(e.target.value)} />
+        <Button
+          flow={false}
+          type="button"
+          fullWidth={false}
+          disabled={busy || !name.trim() || !text.trim()}
+          onClick={add}
+        >
+          Ekle
+        </Button>
+      </div>
+      {error && <Alert tone="error">{error}</Alert>}
+      {list !== null && list.length === 0 && (
+        <p className="text-sm text-ink-muted">Henüz şablon yok.</p>
+      )}
+      <ul className="divide-y divide-line rounded-2xl border border-line">
+        {(list ?? []).map((item) => (
+          <li key={item.id} className="flex items-center gap-3 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{item.name}</p>
+              <p className="truncate text-xs text-ink-muted">{item.text}</p>
+            </div>
+            <button
+              type="button"
+              aria-label={`${item.name} şablonunu sil`}
+              disabled={busy}
+              onClick={() => void persist((list ?? []).filter((x) => x.id !== item.id))}
+              className="inline-flex size-9 items-center justify-center rounded-full text-ink-muted hover:bg-danger-soft hover:text-danger"
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function IntegrationGroupPage({ group }: { group: string }) {
   const [dirty, setDirty] = useState<Record<string, boolean>>({});
   const [savingAll, setSavingAll] = useState(false);
-  const { can } = useWorkspace();
   const savers = useRef(new Map<string, () => Promise<void>>());
   const registerSave = useCallback((section: string, save: (() => Promise<void>) | null) => {
     if (save) savers.current.set(section, save);
@@ -949,7 +1296,7 @@ function IntegrationGroupPage({ group }: { group: string }) {
   }, [robotStates]);
   const sections =
     group === 'iletisim'
-      ? ['smtp', 'imap', 'whatsapp']
+      ? ['smtp', 'imap', 'whatsapp', 'sms']
       : group === 'sosyal-giris'
         ? ['google']
         : ['cloudflare', 'recaptcha'];
@@ -967,6 +1314,12 @@ function IntegrationGroupPage({ group }: { group: string }) {
       setSavingAll(false);
     }
   };
+  // Kartların kendi düğmesi yok; grup tek kaydetmeyi adaya bildirir.
+  usePublishSaveAction({
+    onSave: () => void saveAll(),
+    saving: savingAll,
+    disabled: savingAll,
+  });
   return (
     <Frame
       description={
@@ -991,28 +1344,16 @@ function IntegrationGroupPage({ group }: { group: string }) {
           <>
             <div className="grid min-w-0 gap-4 xl:grid-cols-2">
               {['smtp', 'imap'].map((section) => (
-                <SettingsPageContent key={section} section={section} embedded hideSubmit />
+                <SettingsPageContent key={section} section={section} embedded />
               ))}
             </div>
-            <SettingsPageContent section="whatsapp" embedded hideSubmit />
-            <SmsIntegrationCard />
-            <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-line bg-surface-raised p-4 sm:p-6">
-              <Button
-                flow={false}
-                type="button"
-                fullWidth={false}
-                loading={savingAll}
-                disabled={!can('settings', 'save') || dirtySections.length === 0}
-                onClick={() => void saveAll()}
-              >
-                Değişiklikleri Kaydet
-              </Button>
-              <span className="text-sm text-ink-muted">
-                {dirtySections.length === 0
-                  ? 'Kaydedilecek değişiklik yok.'
-                  : `${dirtySections.length} karttaki değişiklik kaydedilecek.`}
-              </span>
-            </div>
+            <SettingsPageContent section="whatsapp" embedded />
+            <SmsSettingsCard />
+            <p className="text-sm text-ink-muted">
+              {dirtySections.length === 0
+                ? 'Kaydedilecek değişiklik yok.'
+                : `${dirtySections.length} karttaki değişiklik yüzen adadaki Kaydet ile yazılacak.`}
+            </p>
           </>
         ) : group === 'robot-dogrulama' ? (
           <>
@@ -1081,12 +1422,9 @@ function SocialLoginStatus() {
 function SettingsPageContent({
   section,
   embedded = false,
-  hideSubmit = false,
 }: {
   section: string;
   embedded?: boolean;
-  /** Gömülü kartta kendi Kaydet düğmesini gizler (grup tek satırdan kaydeder). */
-  hideSubmit?: boolean;
 }) {
   const integration = useContext(IntegrationDirtyContext);
   const reportDirty = integration?.reportDirty;
@@ -1143,19 +1481,27 @@ function SettingsPageContent({
         : {}),
       ...(section === 'smtp'
         ? {
-            host: rows.value.values.host || 'smtp.example.com',
+            host: rows.value.values.host || 'smtp.gmail.com',
             port: rows.value.values.port || '587',
           }
         : section === 'imap'
           ? {
-              host: rows.value.values.host || 'imap.example.com',
+              host: rows.value.values.host || 'imap.gmail.com',
               port: rows.value.values.port || '993',
             }
           : {}),
     };
     setDraft(defaults);
     setBaseline(defaults);
-  }, [appearanceKey, data?.imageAppearance, rows.error, rows.loading, rows.value, section, workspaceLoading]);
+  }, [
+    appearanceKey,
+    data?.imageAppearance,
+    rows.error,
+    rows.loading,
+    rows.value,
+    section,
+    workspaceLoading,
+  ]);
   useEffect(() => {
     if (section === 'cloudflare' || section === 'recaptcha')
       integration?.reportRobotEnabled(section, rows.value.values.enabled === 'true');
@@ -1204,11 +1550,46 @@ function SettingsPageContent({
     submitRef.current = submit;
   });
   const registerSave = integration?.registerSave;
+  // Tek başına açılan ayar sayfalarında Kaydet yüzen adada; gömülü kartlar grup kaydına bağlanır.
+  usePublishSaveAction(
+    embedded
+      ? null
+      : {
+          onSave: () => void submitRef.current(),
+          saving: busy,
+          disabled: busy || !can('settings', 'save'),
+        },
+  );
   useEffect(() => {
-    if (!embedded || !hideSubmit || !registerSave) return;
+    if (!embedded || !registerSave) return;
     registerSave(section, () => submitRef.current());
     return () => registerSave(section, null);
-  }, [embedded, hideSubmit, registerSave, section]);
+  }, [embedded, registerSave, section]);
+  // SMTP/IMAP: sunucu adından sağlayıcı tahmin edilir; seçim sunucu+portu hazır doldurur.
+  const mailSection = section === 'smtp' || section === 'imap';
+  const mailHost = (draft.host ?? '').toLocaleLowerCase('en-US');
+  const mailProvider = /gmail\.com$/.test(mailHost)
+    ? 'gmail'
+    : /(outlook\.com|hotmail\.com|office365\.com)$/.test(mailHost)
+      ? 'hotmail'
+      : mailHost
+        ? 'custom'
+        : 'gmail';
+  const applyMailProvider = (value: string) => {
+    if (value === 'custom') {
+      setDraft((current) => ({ ...current, host: '' }));
+      return;
+    }
+    const preset =
+      value === 'gmail'
+        ? section === 'smtp'
+          ? { host: 'smtp.gmail.com', port: '587' }
+          : { host: 'imap.gmail.com', port: '993' }
+        : section === 'smtp'
+          ? { host: 'smtp-mail.outlook.com', port: '587' }
+          : { host: 'outlook.office365.com', port: '993' };
+    setDraft((current) => ({ ...current, ...preset }));
+  };
   if (!page)
     return (
       <Frame>
@@ -1243,29 +1624,45 @@ function SettingsPageContent({
           )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-extrabold">{page.title}</h2>
-            {page.fields.some((f) => f.key === 'enabled') && (
-              <fieldset
-                disabled={busy || !can('settings', 'save') || demo}
-                className="flex items-center gap-2 text-sm font-semibold"
-              >
-                <span>{draft.enabled === 'true' ? 'Aktif' : 'Pasif'}</span>
-                <ToggleSwitch
-                  label={
-                    section === 'whatsapp'
-                      ? 'WhatsApp Entegrasyonunu Etkinleştir'
-                      : section === 'cloudflare' || section === 'recaptcha'
-                        ? 'Doğrulamayı Etkinleştir'
-                        : `${page.title} bağlantısı`
-                  }
-                  checked={draft.enabled === 'true'}
-                  onChange={(value) => {
-                    setDraft({ ...draft, enabled: String(value) });
-                    if (section === 'cloudflare' || section === 'recaptcha')
-                      integration?.selectRobot(value ? section : null);
-                  }}
-                />
-              </fieldset>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {mailSection && (
+                <div className="w-48 shrink-0">
+                  <SelectField
+                    label="Sağlayıcı"
+                    value={mailProvider}
+                    options={[
+                      { value: 'gmail', label: 'Gmail' },
+                      { value: 'hotmail', label: 'Hotmail / Outlook' },
+                      { value: 'custom', label: 'Kurumsal' },
+                    ]}
+                    onChange={applyMailProvider}
+                  />
+                </div>
+              )}
+              {page.fields.some((f) => f.key === 'enabled') && (
+                <fieldset
+                  disabled={busy || !can('settings', 'save') || demo}
+                  className="flex items-center gap-2 text-sm font-semibold"
+                >
+                  <span>{draft.enabled === 'true' ? 'Aktif' : 'Pasif'}</span>
+                  <ToggleSwitch
+                    label={
+                      section === 'whatsapp'
+                        ? 'WhatsApp Entegrasyonunu Etkinleştir'
+                        : section === 'cloudflare' || section === 'recaptcha'
+                          ? 'Doğrulamayı Etkinleştir'
+                          : `${page.title} bağlantısı`
+                    }
+                    checked={draft.enabled === 'true'}
+                    onChange={(value) => {
+                      setDraft({ ...draft, enabled: String(value) });
+                      if (section === 'cloudflare' || section === 'recaptcha')
+                        integration?.selectRobot(value ? section : null);
+                    }}
+                  />
+                </fieldset>
+              )}
+            </div>
           </div>
           {embedded && <p className="text-sm text-ink-muted">{page.description}</p>}
           {rows.value.source && (
@@ -1438,11 +1835,6 @@ function SettingsPageContent({
           )}
           {can('settings', 'save') && (
             <div className={`flex flex-wrap gap-3 ${embedded ? 'mt-auto' : ''}`}>
-              {!hideSubmit && (
-                <Button flow={false} type="submit" fullWidth={false} loading={busy}>
-                  Kaydet
-                </Button>
-              )}
               {(section === 'smtp' || section === 'imap' || section === 'whatsapp') && (
                 <Button
                   flow={false}
@@ -1555,24 +1947,26 @@ function WhatsAppMessageForm() {
       </p>
       {result && <Alert tone="info">{result}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
-      <TextField
-        label="Alıcı Telefon Numarası"
-        type="tel"
-        autoComplete="tel"
-        hint="Örnek: +90 5XX XXX XX XX"
-        required
-        value={to}
-        onChange={(e) => setTo(e.target.value)}
-        onBlur={() => setTo(formatRecipient(to))}
-        maxLength={32}
-      />
-      <TextField
-        label="Mesaj"
-        required
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        maxLength={4096}
-      />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <TextField
+          label="Alıcı Telefon Numarası"
+          type="tel"
+          autoComplete="tel"
+          hint="Örnek: +90 5XX XXX XX XX"
+          required
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          onBlur={() => setTo(formatRecipient(to))}
+          maxLength={32}
+        />
+        <TextField
+          label="Mesaj"
+          required
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={4096}
+        />
+      </div>
       <Button flow={false} type="submit" loading={busy} fullWidth={false}>
         Mesaj Gönder
       </Button>

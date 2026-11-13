@@ -21,6 +21,7 @@ import {
 import { ReturnExportSheet } from './ReturnExportSheet';
 import { ReturnFilterSheet } from './ReturnFilterSheet';
 import { ReturnTrack } from './ReturnTrack';
+import { ReturnCompletionSheet } from './ReturnCompletionSheet';
 import { ReturnPill, SampleNote, formatDateTime } from './parts';
 
 const COLUMNS = ['Müşteri · Sipariş No', 'Tip', 'Ürün', 'Tarih', 'Durum'];
@@ -57,6 +58,7 @@ export function ReturnsView() {
   const [flowId, setFlowId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [completion, setCompletion] = useState<ReturnRequest | null>(null);
 
   const filtered = useMemo(() => filterReturns(returns, filters), [returns, filters]);
   const size = Math.min(100, Math.max(1, Number(sizeText) || 10));
@@ -69,6 +71,7 @@ export function ReturnsView() {
 
   const toggle = (id: string) => setFlowId((cur) => (cur === id ? null : id));
   const change = async (r: ReturnRequest, next: ReturnStatus) => {
+    if (!sample && next === 'completed') { setCompletion(r); return; }
     setBusyId(r.id);
     setProblem(null);
     try {
@@ -82,6 +85,7 @@ export function ReturnsView() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      {completion && <ReturnCompletionSheet key={completion.id} request={completion} onClose={() => setCompletion(null)} onSaved={refresh} />}
       {error ? (
         <Alert tone="error">
           {error}

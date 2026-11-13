@@ -1,33 +1,28 @@
-import { ApiError, apiRequest } from '../../../lib/http';
+import { apiRequest } from '../../../lib/http';
 import { useDataService } from '../../../lib/catalog-data';
 import { orderSeeds, returnSeeds } from '../../../mocks/orders.mock';
 import type { Order, OrderStatus, ReturnRequest, ReturnStatus } from '../types';
+import type { CreateOrderInput, RecordPaymentInput, CreateReturnInput, CompleteReturnInput, LifecycleDetail, OrderChoices, CampaignCartQuote } from '@gt/shared';
 
-/** Liste ve sonuçlar; `sample`: sunucu uçları henüz yoksa (404) örnek veriyle çalışılır. */
+/** Liste ve sonuçlar; `sample` yalnızca test oturumunda true olur. */
 export interface Loaded<T> {
   items: T[];
   sample: boolean;
 }
 
-async function load<T>(path: string, seeds: T[]): Promise<Loaded<T>> {
-  try {
-    return { items: await apiRequest<T[]>(path), sample: false };
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 404)
-      return { items: seeds.map((s) => ({ ...s })), sample: true };
-    throw e;
-  }
+async function load<T>(path: string): Promise<Loaded<T>> {
+  return { items: await apiRequest<T[]>(path), sample: false };
 }
 
 /** Sunucu: GET /api/siparisler, POST /api/siparisler/:id/durum, GET /api/siparisler/iade, … (bkz. types.ts). */
 export const orderService = {
-  list: () => load<Order>('/api/siparisler', orderSeeds),
+  list: () => load<Order>('/api/siparisler'),
   setStatus: (id: string, status: OrderStatus) =>
     apiRequest<void>(`/api/siparisler/${encodeURIComponent(id)}/durum`, {
       method: 'POST',
       body: { status },
     }),
-  listReturns: () => load<ReturnRequest>('/api/siparisler/iade', returnSeeds),
+  listReturns: () => load<ReturnRequest>('/api/siparisler/iade'),
   setReturnStatus: (id: string, status: ReturnStatus) =>
     apiRequest<void>(`/api/siparisler/iade/${encodeURIComponent(id)}/durum`, {
       method: 'POST',
@@ -44,3 +39,15 @@ export const demoOrderService: typeof orderService = {
 };
 
 export const useOrderService = () => useDataService(orderService, demoOrderService);
+
+/** Yalnızca gerçek oturumda kullanılan finansal işlemler; demo karşılığı yoktur. */
+export const orderLifecycleService = {
+  lookup: (requestId: string) => apiRequest<{ id: string; no: string } | null>(`/api/siparisler/istek/${encodeURIComponent(requestId)}`),
+  choices: () => apiRequest<OrderChoices>('/api/siparisler/secenekler'),
+  preview: (body: CreateOrderInput) => apiRequest<CampaignCartQuote>('/api/siparisler/onizleme', { method: 'POST', body }),
+  create: (body: CreateOrderInput) => apiRequest<{ id: string; no: string }>('/api/siparisler', { method: 'POST', body }),
+  detail: (id: string) => apiRequest<LifecycleDetail>(`/api/siparisler/${encodeURIComponent(id)}/islemler`),
+  collect: (id: string, body: RecordPaymentInput) => apiRequest<void>(`/api/siparisler/${encodeURIComponent(id)}/tahsilat`, { method: 'POST', body }),
+  requestReturn: (id: string, body: CreateReturnInput) => apiRequest<{ id: string }>(`/api/siparisler/${encodeURIComponent(id)}/iade`, { method: 'POST', body }),
+  completeReturn: (id: string, body: CompleteReturnInput) => apiRequest<void>(`/api/siparisler/iade/${encodeURIComponent(id)}/tamamla`, { method: 'POST', body }),
+};

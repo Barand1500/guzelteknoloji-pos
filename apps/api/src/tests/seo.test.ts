@@ -84,7 +84,7 @@ describe('SEO Ayarları API', () => {
     await request(server).get('/kategori?ara=bilgisayar');
     const where = count.mock.calls[0]?.[0]?.where;
     expect(where).toMatchObject({
-      kullaniciId: 42,
+      kullaniciId: 7,
       OR: expect.arrayContaining([
         { seoBasligi: { contains: 'bilgisayar' } },
         { seoAciklamasi: { contains: 'bilgisayar' } },
@@ -124,14 +124,24 @@ describe('SEO Ayarları API', () => {
     });
   });
 
-  it('sabit sayfa listesi boş döner ve kayıt yazma reddedilir', async () => {
-    const server = app({});
+  it('sabit sayfa SEO alanlarını işletmenin e-ticaret sayfalarından okur ve kaydeder', async () => {
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const server = app({
+      siteSayfasi: {
+        count: vi.fn().mockResolvedValue(1),
+        findMany: vi.fn().mockResolvedValue([{ id: 1, ad: 'Hakkımızda', slug: 'hakkimizda', seoBasligi: 'Biz Kimiz', seoAciklamasi: '' }]),
+        updateMany,
+      },
+      seoYonlendirmesi: { findMany: vi.fn().mockResolvedValue([]) },
+    });
     const list = await request(server).get('/sabit-sayfa');
     expect(list.status).toBe(200);
-    expect(list.body).toEqual({ total: 0, items: [] });
+    expect(list.body.total).toBe(1);
+    expect(list.body.items[0]).toMatchObject({ id: '1', address: '/hakkimizda', seoTitle: 'Biz Kimiz' });
 
     const save = await request(server).post('/sabit-sayfa/1').send({ seoTitle: 'A', seoDescription: 'B' });
-    expect(save.status).toBe(404);
+    expect(save.status).toBe(204);
+    expect(updateMany).toHaveBeenCalledWith({ where: { id: 1, isletmeId: 3 }, data: { seoBasligi: 'A', seoAciklamasi: 'B' } });
   });
 
   it('SEO başlık ve açıklamayı kendi kaydına yazar', async () => {
@@ -144,7 +154,7 @@ describe('SEO Ayarları API', () => {
       .send({ seoTitle: 'Elektronik', seoDescription: 'Ucuz elektronik' });
     expect(res.status).toBe(204);
     expect(updateMany).toHaveBeenCalledWith({
-      where: { id: 5, kullaniciId: 42 },
+      where: { id: 5, kullaniciId: 7 },
       data: { seoBasligi: 'Elektronik', seoAciklamasi: 'Ucuz elektronik' },
     });
   });

@@ -41,6 +41,19 @@ export function parseNager(json: unknown): OfficialDayDto[] {
 }
 
 /**
+ * Dış servis ile yerel listeyi birleştirir: aynı gün varsa dış servisin adı korunur.
+ * Nager 2026 gibi bazı yıllarda dini bayramları henüz yayınlamıyor; elde olan günler eklenir.
+ */
+export function mergeOfficial(
+  fromApi: OfficialDayDto[],
+  local: OfficialDayDto[],
+): OfficialDayDto[] {
+  const byDate = new Map(fromApi.map((day) => [day.date, day]));
+  for (const day of local) if (!byDate.has(day.date)) byDate.set(day.date, day);
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
  * Yılın resmî tatilleri. Dış servis yavaşsa/başarısızsa 2026 için yedek liste,
  * diğer yıllar için boş liste döner ve `offline` işaretlenir (ekran bunu söyler).
  */
@@ -55,7 +68,10 @@ export async function officialDays(
       headers: { accept: 'application/json' },
     });
     if (!response.ok) throw new Error(`Nager ${response.status}`);
-    const days = parseNager(await response.json());
+    const days = mergeOfficial(
+      parseNager(await response.json()),
+      year === 2026 ? FALLBACK_2026 : [],
+    );
     if (days.length === 0) throw new Error('Nager boş yanıt');
     cache.set(year, { at: Date.now(), days });
     return { official: days, offline: false };

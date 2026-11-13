@@ -59,17 +59,62 @@ describe('Profil ve işletme ekranları', () => {
     const smtp = await screen.findByRole('form', { name: 'SMTP' });
     await screen.findByRole('form', { name: 'IMAP' });
     await screen.findByRole('form', { name: 'Meta WhatsApp Cloud API' });
-    expect(within(smtp).getByLabelText('Sunucu')).toHaveValue('smtp.example.com');
+    expect(within(smtp).getByLabelText('Sunucu')).toHaveValue('smtp.gmail.com');
     expect(within(smtp).getByLabelText('Port')).toHaveValue('587');
     const imap = screen.getByRole('form', { name: 'IMAP' });
-    expect(within(imap).getByLabelText('Sunucu')).toHaveValue('imap.example.com');
+    expect(within(imap).getByLabelText('Sunucu')).toHaveValue('imap.gmail.com');
     expect(within(imap).getByLabelText('Port')).toHaveValue('993');
     await user.clear(within(smtp).getByLabelText('Sunucu'));
     await user.type(within(smtp).getByLabelText('Sunucu'), 'smtp.example.org');
-    await user.click(screen.getByRole('button', { name: 'Değişiklikleri Kaydet' }));
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
     expect(
       fetch.mock.calls.filter(([, init]) => init?.method === 'POST').map(([url]) => url),
     ).toEqual(['/api/hesap/ayarlar/smtp']);
+  });
+
+  it('SMS kartı Netgsm alanlarını yükler, kaydeder ve test SMS gönderir', async () => {
+    const user = userEvent.setup();
+    const fetch = mockFetch({
+      ...login,
+      'GET /api/hesap/ayarlar/smtp': () => jsonResponse(200, { values: {}, configured: [] }),
+      'GET /api/hesap/ayarlar/imap': () => jsonResponse(200, { values: {}, configured: [] }),
+      'GET /api/hesap/ayarlar/whatsapp': () => jsonResponse(200, { values: {}, configured: [] }),
+      'GET /api/hesap/ayarlar/sms': () =>
+        jsonResponse(200, {
+          values: {
+            enabled: 'true',
+            username: '8508859160',
+            sender: 'GUZELTEKNO',
+            testNumber: '5321234567',
+          },
+          configured: ['password'],
+        }),
+      'POST /api/hesap/ayarlar/sms': () => jsonResponse(200, {}),
+      'POST /api/hesap/ayarlar/sms/test': () =>
+        jsonResponse(200, { message: 'Test SMS 5321234567 numarasına gönderildi.' }),
+    });
+    renderApp('/uygulama/ayarlar/iletisim');
+    const sms = await screen.findByRole('region', { name: 'SMS' });
+    expect(await within(sms).findByLabelText('API Kullanıcı Adı')).toHaveValue('8508859160');
+    expect(within(sms).getByText('Netgsm SMS')).toBeInTheDocument();
+    expect(screen.queryByText(/Varsayılan departman/i)).not.toBeInTheDocument();
+    expect(within(sms).getByText('Kayıtlı')).toBeInTheDocument();
+
+    await user.clear(within(sms).getByLabelText('Gönderici Başlığı'));
+    await user.type(within(sms).getByLabelText('Gönderici Başlığı'), 'YENIBASLIK');
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await waitFor(() =>
+      expect(
+        fetch.mock.calls.some(
+          ([url, init]) => String(url).endsWith('/ayarlar/sms') && init?.method === 'POST',
+        ),
+      ).toBe(true),
+    );
+
+    await user.click(within(sms).getByRole('button', { name: 'Test SMS Gönder' }));
+    expect(
+      await within(sms).findByText(/Test SMS 5321234567 numarasına gönderildi/),
+    ).toBeInTheDocument();
   });
   it('birden fazla iletişim kartı kirliyken tek ayrılma uyarısı gösterir', async () => {
     const user = userEvent.setup();
@@ -85,16 +130,31 @@ describe('Profil ve işletme ekranları', () => {
     renderApp('/uygulama/ayarlar/iletisim');
     await user.type(
       within(await screen.findByRole('form', { name: 'SMTP' })).getByLabelText('Sunucu'),
-      'smtp.example.com',
+      'smtp.gmail.com',
     );
     await user.type(
       within(await screen.findByRole('form', { name: 'IMAP' })).getByLabelText('Sunucu'),
-      'imap.example.com',
+      'imap.gmail.com',
     );
     await user.click(screen.getByRole('link', { name: 'Doğrulama' }));
     expect(
       await screen.findAllByRole('dialog', { name: 'Kaydedilmemiş Değişiklikler' }),
     ).toHaveLength(1);
+  });
+
+  it('SMTP sağlayıcısı seçilince sunucu ve port hazır gelir', async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      ...login,
+      'GET /api/hesap/ayarlar/smtp': () => jsonResponse(200, { values: {}, configured: [] }),
+    });
+    renderApp('/uygulama/ayarlar/smtp');
+    const form = await screen.findByRole('form', { name: 'SMTP' });
+    expect(within(form).getByLabelText('Sunucu')).toHaveValue('smtp.gmail.com');
+    await user.click(within(form).getByRole('combobox', { name: 'Sağlayıcı' }));
+    await user.click(await screen.findByRole('option', { name: 'Hotmail / Outlook' }));
+    expect(within(form).getByLabelText('Sunucu')).toHaveValue('smtp-mail.outlook.com');
+    expect(within(form).getByLabelText('Port')).toHaveValue('587');
   });
   it('sosyal girişte Google bağlantısı ile Apple sunucu durumunu aynı sayfada gösterir', async () => {
     mockFetch({
@@ -126,7 +186,12 @@ describe('Profil ve işletme ekranları', () => {
       ...(section === 'google'
         ? {
             'GET /api/hesap/sosyal-giris': () =>
-              jsonResponse(200, { google: false, apple: false, appleRedirect: '', googleRedirect: '' }),
+              jsonResponse(200, {
+                google: false,
+                apple: false,
+                appleRedirect: '',
+                googleRedirect: '',
+              }),
           }
         : {}),
     });
@@ -307,7 +372,7 @@ describe('Profil ve işletme ekranları', () => {
       ...login,
       'GET /api/hesap/ayarlar/smtp': () =>
         jsonResponse(200, {
-          values: { host: 'smtp.example.com', port: '465', secure: 'true', username: 'mail' },
+          values: { host: 'smtp.gmail.com', port: '465', secure: 'true', username: 'mail' },
           configured: ['password'],
         }),
       'POST /api/hesap/ayarlar/smtp': () =>
@@ -317,7 +382,7 @@ describe('Profil ve işletme ekranları', () => {
     });
     renderApp('/uygulama/ayarlar/smtp');
     const host = await screen.findByLabelText('Sunucu');
-    expect(host).toHaveValue('smtp.example.com');
+    expect(host).toHaveValue('smtp.gmail.com');
     expect(screen.getByLabelText('Şifre')).toHaveValue('••••••••');
     await user.type(screen.getByLabelText('Şifre'), 'new-secret');
     await user.click(screen.getByRole('button', { name: 'Kaydet' }));
@@ -466,8 +531,7 @@ describe('Ayarlarda kaydedilmemiş değişiklik uyarısı', () => {
     const user = userEvent.setup();
     mockFetch({
       ...login,
-      'GET /api/hesap': () =>
-        jsonResponse(200, { ...owner, imageAppearance: { brands: 'false' } }),
+      'GET /api/hesap': () => jsonResponse(200, { ...owner, imageAppearance: { brands: 'false' } }),
       'GET /api/hesap/ayarlar/images': () => jsonResponse(200, { values: {}, configured: [] }),
       'GET /api/hesap/ayarlar/general': () => jsonResponse(200, { values: {}, configured: [] }),
     });

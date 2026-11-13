@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { notificationDraftSchema } from '@gt/shared';
+import type { PrismaClient } from '../lib/prisma';
+import { NotificationRepository } from '../modules/notifications/notification.repository';
 
 const base = {
   title: 'Yılsonu kampanyası',
@@ -7,6 +9,16 @@ const base = {
   customerIds: [],
   sendAt: null,
 };
+
+it('teslim servisi çalışmadan bildirimi gönderildi olarak işaretlemez', async () => {
+  const db = {
+    bildirim: {
+      create: async ({ data }: { data: Record<string, unknown> }) => ({ ...data, id: 1, _count: { alicilar: 0 } }),
+    },
+  };
+  const repo = new NotificationRepository(db as unknown as PrismaClient);
+  expect((await repo.create(7, base)).status).toBe('scheduled');
+});
 
 describe('Mobil bildirim şeması', () => {
   it('hemen gönderim ve planlama biçimlerini kabul eder', () => {

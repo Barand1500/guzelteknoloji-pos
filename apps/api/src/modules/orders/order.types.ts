@@ -29,6 +29,7 @@ export interface OrderLineRecord {
   unitPrice: number;
   /** Satış anındaki birim maliyet; bilinmiyorsa null (kâr hesabında 0 sayılır). */
   unitCost: number | null;
+  lineTotal?: number;
 }
 
 export interface OrderRecord {
@@ -44,6 +45,9 @@ export interface OrderRecord {
   status: OrderStatus;
   address: string;
   lines: OrderLineRecord[];
+  managed?: boolean;
+  shippingTotal?: number;
+  discountTotal?: number;
 }
 
 export interface ReturnRecord {
@@ -55,6 +59,7 @@ export interface ReturnRecord {
   date: Date;
   status: ReturnStatus;
   reason: string;
+  orderId?: number;
 }
 
 export interface RankedProductDto {

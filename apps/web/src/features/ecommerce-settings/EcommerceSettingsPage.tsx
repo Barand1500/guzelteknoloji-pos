@@ -12,6 +12,7 @@ import { HeaderTextScreen } from './components/HeaderTextScreen';
 import { DefaultsScreen } from './components/DefaultsScreen';
 import { VariablesScreen } from './components/VariablesScreen';
 import { ErpScreen, XmlScreen } from './components/IntegrationScreens';
+import { ContactScreen } from './components/ContactScreen';
 
 /** E-ticaret ayarlarının giriş sayfası kaldırıldı; kök adres Sistem'e yönlenir. */
 
@@ -57,6 +58,8 @@ export function EcommerceSettingsPage() {
         return <DefaultsScreen />;
       case 'sablon-degiskenleri':
         return <VariablesScreen />;
+      case 'iletisim-bilgileri':
+        return <ContactScreen />;
       case 'erp':
         return <ErpScreen />;
       case 'google-meta-xml':

@@ -1,5 +1,6 @@
 import { ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { NameItemDto, PriceListDto } from '@gt/shared';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import { MultiSelectField } from '../../../components/ui/MultiSelectField';
@@ -8,14 +9,14 @@ import { SelectField } from '../../../components/ui/SelectField';
 import { Sheet } from '../../../components/ui/Sheet';
 import { TextField } from '../../../components/ui/TextField';
 import { dataError } from '../../../lib/catalog-data';
+import { apiRequest } from '../../../lib/http';
+import { siteService } from '../../ecommerce-settings/services/site.service';
 import {
-  CUSTOMER_TYPES,
-  PAYMENT_OPTIONS,
-  PRICE_LISTS,
   emptyCustomerDraft,
   type Customer,
   type CustomerDraft,
 } from '../types';
+import { useCustomerChoices } from '../hooks/useCustomerChoices';
 
 interface CustomerFormSheetProps {
   /** Düzenlenen müşteri; yoksa yeni müşteri eklenir. */
@@ -34,6 +35,7 @@ const digits = (s: string) => s.replace(/[^0-9]/g, '');
  * kullanıldığı için "Gelişmiş" altında katlıdır.
  */
 export function CustomerFormSheet({ customer, onSave, onClose }: CustomerFormSheetProps) {
+  const choices = useCustomerChoices();
   const [draft, setDraft] = useState<CustomerDraft>(() =>
     customer
       ? {
@@ -56,8 +58,55 @@ export function CustomerFormSheet({ customer, onSave, onClose }: CustomerFormShe
   const [advanced, setAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const touched = useRef(new Set<keyof CustomerDraft>());
+
+  useEffect(() => {
+    if (customer) return;
+    let active = true;
+    void Promise.all([
+      siteService.loadSettings('site_defaults'),
+      apiRequest<PriceListDto[]>('/api/cari-stok/fiyat-listeleri').catch(() => []),
+      apiRequest<NameItemDto[]>('/api/cari-stok/cari-tipleri').catch(() => []),
+    ])
+      .then(([settings, priceLists, customerTypes]) => {
+        if (!active) return;
+        const values = settings.values;
+        const configuredPrice = values.fiyatTanimi?.trim();
+        const price = priceLists.find(
+          (item) => item.id === configuredPrice || item.name === configuredPrice,
+        );
+        const configuredType = values.cariTipi?.trim();
+        const type = customerTypes.find(
+          (item) => item.id === configuredType || item.name === configuredType,
+        );
+        setDraft((current) => ({
+          ...current,
+          ...(!touched.current.has('priceList') && price ? { priceList: price.name } : {}),
+          ...(!touched.current.has('priceList') && configuredPrice && !price
+            ? { priceList: configuredPrice }
+            : {}),
+          ...(!touched.current.has('customerType') && type ? { customerType: type.name } : {}),
+          ...(!touched.current.has('customerType') && configuredType && !type
+            ? { customerType: configuredType }
+            : {}),
+          ...(!touched.current.has('kind') &&
+          ['gercek', 'real'].includes(values.musteriTipi?.toLocaleLowerCase('tr') ?? '')
+            ? { kind: 'real' as const }
+            : {}),
+          ...(!touched.current.has('kind') &&
+          ['tuzel', 'corporate'].includes(values.musteriTipi?.toLocaleLowerCase('tr') ?? '')
+            ? { kind: 'corporate' as const }
+            : {}),
+        }));
+      })
+      .catch(() => undefined); // Varsayılan ayarlar isteğe bağlıdır; yeni müşteri formu yine açılabilir.
+    return () => {
+      active = false;
+    };
+  }, [customer]);
 
   const set = <K extends keyof CustomerDraft>(key: K, value: CustomerDraft[K]) => {
+    touched.current.add(key);
     setDraft((d) => ({ ...d, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
   };
@@ -95,6 +144,7 @@ export function CustomerFormSheet({ customer, onSave, onClose }: CustomerFormShe
     >
       <div className="flex flex-col gap-5">
         {saveError ? <Alert tone="error">{saveError}</Alert> : null}
+        {choices.error ? <Alert tone="error">{choices.error}</Alert> : null}
 
         <Segmented
           label="Kişi tipi"
@@ -138,7 +188,10 @@ export function CustomerFormSheet({ customer, onSave, onClose }: CustomerFormShe
           />
           <SelectField
             label="Fiyat listesi"
-            options={PRICE_LISTS.map((p) => ({ value: p, label: p }))}
+            options={Array.from(new Set([...choices.priceLists, draft.priceList])).map((p) => ({
+              value: p,
+              label: p,
+            }))}
             value={draft.priceList}
             onChange={(v) => set('priceList', v)}
           />
@@ -153,7 +206,7 @@ export function CustomerFormSheet({ customer, onSave, onClose }: CustomerFormShe
         <div className="flex flex-col gap-1.5">
           <MultiSelectField
             label="Ödeme şekilleri"
-            options={PAYMENT_OPTIONS.map((p) => ({ id: p, name: p }))}
+            options={Array.from(new Set([...choices.payments, ...draft.payments])).map((p) => ({ id: p, name: p }))}
             value={draft.payments}
             onChange={(v) => set('payments', v)}
           />
@@ -178,7 +231,10 @@ export function CustomerFormSheet({ customer, onSave, onClose }: CustomerFormShe
           <div className="grid animate-fade-in gap-4 md:grid-cols-2">
             <SelectField
               label="Cari tipi"
-              options={CUSTOMER_TYPES.map((t) => ({ value: t, label: t }))}
+              options={Array.from(new Set([...choices.customerTypes, draft.customerType])).map((t) => ({
+                value: t,
+                label: t,
+              }))}
               value={draft.customerType}
               onChange={(v) => set('customerType', v)}
             />

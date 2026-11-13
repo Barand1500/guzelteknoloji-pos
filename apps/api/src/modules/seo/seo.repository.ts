@@ -56,8 +56,19 @@ export class SeoRepository {
     page: number,
     per: number,
   ): Promise<SeoListDto> {
-    if (kind === 'sabit-sayfa') return { total: 0, items: [] };
     const text = ara?.trim();
+    if (kind === 'sabit-sayfa') {
+      const where: Prisma.SiteSayfasiWhereInput = {
+        isletmeId: businessId,
+        ...(text ? { OR: [{ ad: { contains: text } }, ...textOr(text)] } : {}),
+      };
+      const [total, pages, redirects] = await Promise.all([
+        this.db.siteSayfasi.count({ where }),
+        this.db.siteSayfasi.findMany({ where, orderBy: [{ sira: 'asc' }, { id: 'asc' }], skip: (page - 1) * per, take: per }),
+        this.db.seoYonlendirmesi.findMany({ where: { businessId, tur: kind }, orderBy: [{ id: 'asc' }] }),
+      ]);
+      return { total, items: await Promise.all(pages.map((row) => this.toRow(kind, row, redirects))) };
+    }
     const [total, redirects] = await Promise.all([
       this.count(kind, userId, text),
       this.db.seoYonlendirmesi.findMany({ where: { businessId, tur: kind }, orderBy: [{ id: 'asc' }] }),
@@ -134,6 +145,7 @@ export class SeoRepository {
 
   /** Kategori adresi üst zinciriyle kurulur; diğer türler kendi adres kalıbını kullanır. */
   private async address(kind: SeoKind, row: Record<string, unknown>): Promise<string> {
+    if (kind === 'sabit-sayfa') return `/${String(row.slug)}`;
     const name = String(row.ad ?? row.markaAdi ?? row.stokAdi ?? '');
     const slug = slugify(name);
     if (kind === 'marka') return `/marka/${slug}`;
@@ -155,12 +167,12 @@ export class SeoRepository {
     return `/${parts.join('/')}`;
   }
 
-  async save(userId: number, kind: SeoKind, id: number, input: SeoSaveInput): Promise<void> {
-    if (kind === 'sabit-sayfa')
-      throw new HttpError(404, 'NOT_FOUND', 'Sabit sayfa kayıtları henüz eklenmedi.');
+  async save(userId: number, businessId: number, kind: SeoKind, id: number, input: SeoSaveInput): Promise<void> {
     const data = { seoBasligi: input.seoTitle, seoAciklamasi: input.seoDescription };
     const result =
-      kind === 'kategori'
+      kind === 'sabit-sayfa'
+        ? await this.db.siteSayfasi.updateMany({ where: { id, isletmeId: businessId }, data })
+        : kind === 'kategori'
         ? await this.db.kategori.updateMany({ where: { id, kullaniciId: userId }, data })
         : kind === 'marka'
           ? await this.db.marka.updateMany({ where: { kimlik: id, kullaniciKimligi: userId }, data })
@@ -171,9 +183,7 @@ export class SeoRepository {
   }
 
   async addRedirect(userId: number, businessId: number, draft: SeoRedirectDraftInput): Promise<void> {
-    if (draft.kind === 'sabit-sayfa')
-      throw new HttpError(404, 'NOT_FOUND', 'Sabit sayfa kayıtları henüz eklenmedi.');
-    if (draft.id !== null) await this.requireSource(userId, draft.kind, Number(draft.id));
+    if (draft.id !== null) await this.requireSource(userId, businessId, draft.kind, Number(draft.id));
     await this.db.seoYonlendirmesi
       .create({
         data: {
@@ -193,9 +203,11 @@ export class SeoRepository {
   }
 
   /** Yönlendirme yalnızca oturumdaki kullanıcının kendi sayfasına eklenebilir. */
-  private async requireSource(userId: number, kind: SeoKind, id: number): Promise<void> {
+  private async requireSource(userId: number, businessId: number, kind: SeoKind, id: number): Promise<void> {
     const found =
-      kind === 'kategori'
+      kind === 'sabit-sayfa'
+        ? await this.db.siteSayfasi.findFirst({ where: { id, isletmeId: businessId }, select: { id: true } })
+        : kind === 'kategori'
         ? await this.db.kategori.findFirst({ where: { id, kullaniciId: userId }, select: { id: true } })
         : kind === 'marka'
           ? await this.db.marka.findFirst({ where: { kimlik: id, kullaniciKimligi: userId }, select: { kimlik: true } })

@@ -643,10 +643,20 @@ model Siparis {
   guncellemeTarihi DateTime        @updatedAt @map("guncelleme_tarihi")
   business         Isletme         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   satirlar         SiparisSatiri[]
+  akisSurumu       Int             @default(0) @map("akis_surumu")
+  istekId          String?         @map("istek_id") @db.Char(36)
+  istekHash        String?         @map("istek_hash") @db.Char(64)
+  odemeTuru        String?         @map("odeme_turu") @db.VarChar(30)
+  indirimTutari    Decimal         @default(0) @map("indirim_tutari") @db.Decimal(18, 2)
+  kargoTutari      Decimal         @default(0) @map("kargo_tutari") @db.Decimal(18, 2)
+  kargoKdvOrani    Int             @default(20) @map("kargo_kdv_orani")
+  hareketler       SiparisOdemeHareketi[]
+  iadeler          IadeTalebi[]
   musteriId        Int?            @map("musteri_id")
   musteri          Musteri?        @relation(fields: [musteriId], references: [id], onDelete: SetNull)
 
   @@unique([businessId, siparisNo], map: "siparisler_isletme_no_tekil")
+  @@unique([businessId, istekId], map: "siparisler_isletme_istek_tekil")
   @@index([businessId, tarih], map: "siparisler_isletme_tarih_indeks")
   @@index([musteriId], map: "siparisler_musteri_indeks")
   @@map("siparisler")
@@ -665,6 +675,10 @@ model SiparisSatiri {
   birimMaliyet Decimal? @map("birim_maliyet") @db.Decimal(18, 2)
   sira         Int      @default(0) @map("sira")
   siparis      Siparis  @relation(fields: [siparisId], references: [id], onDelete: Cascade)
+  satisTutari  Decimal? @map("satis_tutari") @db.Decimal(18, 2)
+  netTutar     Decimal? @map("net_tutar") @db.Decimal(18, 2)
+  stokIslendi  Boolean  @default(false) @map("stok_islendi")
+  iadeler      IadeSatiri[]
 
   @@index([siparisId], map: "siparis_satirlari_siparis_indeks")
   @@map("siparis_satirlari")
@@ -687,10 +701,54 @@ model IadeTalebi {
   business         Isletme  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   musteriId        Int?     @map("musteri_id")
   musteri          Musteri? @relation(fields: [musteriId], references: [id], onDelete: SetNull)
+  siparisId        Int?     @map("siparis_id")
+  siparis          Siparis? @relation(fields: [siparisId], references: [id], onDelete: Restrict)
+  istekId          String?  @map("istek_id") @db.Char(36)
+  istekHash        String?  @map("istek_hash") @db.Char(64)
+  iadeTutari       Decimal? @map("iade_tutari") @db.Decimal(18, 2)
+  tamamlamaHash    String? @map("tamamlama_hash") @db.Char(64)
+  tamamlamaReferansi String? @map("tamamlama_referansi") @db.VarChar(160)
+  tamamlayanId     Int? @map("tamamlayan_id")
+  tamamlanmaTarihi DateTime? @map("tamamlanma_tarihi")
+  satirlar         IadeSatiri[]
+  hareket          SiparisOdemeHareketi?
 
+  @@unique([businessId, istekId], map: "iadeler_isletme_istek_tekil")
   @@index([businessId, tarih], map: "iade_talepleri_isletme_tarih_indeks")
   @@index([musteriId], map: "iade_talepleri_musteri_indeks")
   @@map("iade_talepleri")
+}
+
+model IadeSatiri {
+  id              Int @id @default(autoincrement())
+  iadeId          Int @map("iade_id")
+  siparisSatiriId Int @map("siparis_satiri_id")
+  adet            Decimal @db.Decimal(18, 3)
+  tutar           Decimal @db.Decimal(18, 2)
+  stogaEklendi    Boolean @default(false) @map("stoga_eklendi")
+  iade            IadeTalebi @relation(fields: [iadeId], references: [id], onDelete: Cascade)
+  siparisSatiri   SiparisSatiri @relation(fields: [siparisSatiriId], references: [id], onDelete: Restrict)
+  @@unique([iadeId, siparisSatiriId], map: "iade_satirlari_satir_tekil")
+  @@index([siparisSatiriId], map: "iade_satirlari_siparis_indeks")
+  @@map("iade_satirlari")
+}
+
+model SiparisOdemeHareketi {
+  id              Int @id @default(autoincrement())
+  siparisId       Int @map("siparis_id")
+  iadeId          Int? @unique(map: "siparis_odeme_iade_tekil") @map("iade_id")
+  istekId         String @map("istek_id") @db.Char(36)
+  istekHash       String @map("istek_hash") @db.Char(64)
+  tur             String @db.VarChar(20)
+  tutar           Decimal @db.Decimal(18, 2)
+  referans        String @db.VarChar(160)
+  kullaniciId     Int @map("kullanici_id")
+  tarih           DateTime @default(now())
+  siparis         Siparis @relation(fields: [siparisId], references: [id], onDelete: Restrict)
+  iade            IadeTalebi? @relation(fields: [iadeId], references: [id], onDelete: Restrict)
+  @@unique([siparisId, istekId], map: "siparis_odeme_istek_tekil")
+  @@index([siparisId, tarih], map: "siparis_odeme_tarih_indeks")
+  @@map("siparis_odeme_hareketleri")
 }
 
 /// İşletmenin müşterisi. Liste ve detay sekmeleri bu kayda bağlıdır; adres, giriş hesabı ve cari
@@ -955,6 +1013,8 @@ model SiteSayfasi {
   ad        String   @db.VarChar(120)
   slug      String   @db.VarChar(120)
   icerik    String   @db.LongText
+  seoBasligi String @default("") @map("seo_basligi") @db.VarChar(250)
+  seoAciklamasi String @default("") @map("seo_aciklamasi") @db.VarChar(1000)
   yasalTur  String   @default("yok") @map("yasal_tur") @db.VarChar(20)
   yayinda   Boolean  @default(true)
   sira      Int      @default(0)

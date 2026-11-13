@@ -1,25 +1,20 @@
-import { ApiError, apiRequest } from '../../../lib/http';
+import { apiRequest } from '../../../lib/http';
 import { useDataService } from '../../../lib/catalog-data';
 import { notificationSeeds } from '../../../mocks/notifications.mock';
 import type { MobileNotification, NotificationDraft } from '../types';
 
 export interface LoadedNotifications {
   items: MobileNotification[];
-  /** true: sunucu uçları henüz yok (404); ekranda örnek veri var, gönderimler yalnızca ekranda. */
+  /** true: açıkça seçilen test oturumunun örnek verisi. */
   sample: boolean;
 }
 
 const base = '/api/bildirimler/mobil';
 
-/** Sunucu: bkz. types.ts. Uç yoksa (404) örnek veriyle çalışılır. */
+/** Sunucu: bkz. types.ts. */
 export const notificationService = {
   list: async (): Promise<LoadedNotifications> => {
-    try {
-      return { items: await apiRequest<MobileNotification[]>(base), sample: false };
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404) return { items: notificationSeeds(), sample: true };
-      throw e;
-    }
+    return { items: await apiRequest<MobileNotification[]>(base), sample: false };
   },
   send: (draft: NotificationDraft) =>
     apiRequest<MobileNotification>(base, { method: 'POST', body: draft }),

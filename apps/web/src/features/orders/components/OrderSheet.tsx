@@ -1,5 +1,6 @@
 import { Check, MapPin, Wallet } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { Sheet } from '../../../components/ui/Sheet';
@@ -22,6 +23,7 @@ interface OrderSheetProps {
   order: Order;
   onStatus: (status: OrderStatus) => Promise<void>;
   onClose: () => void;
+  operations?: ReactNode;
 }
 
 /**
@@ -30,9 +32,10 @@ interface OrderSheetProps {
  * perforeli bir SİPARİŞ FİŞİ: ürün satırları noktalı çizgiyle fiyata bağlanır, altında ara toplam /
  * KDV / toplam ve köşede eğik bir "ÖDENDİ" ya da "ÖDEME BEKLİYOR" damgası. Altta durum düğmeleri.
  */
-export function OrderSheet({ order, onStatus, onClose }: OrderSheetProps) {
+export function OrderSheet({ order, onStatus, onClose, operations }: OrderSheetProps) {
   const [busy, setBusy] = useState(false);
   const [cancelAsk, setCancelAsk] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const next = NEXT_STATUS[order.status];
   const cancelled = order.status === 'cancelled';
   const done = FLOW.indexOf(order.status);
@@ -40,8 +43,11 @@ export function OrderSheet({ order, onStatus, onClose }: OrderSheetProps) {
 
   const change = async (status: OrderStatus) => {
     setBusy(true);
+    setError(null);
     try {
       await onStatus(status);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Durum değiştirilemedi.');
     } finally {
       setBusy(false);
     }
@@ -56,6 +62,7 @@ export function OrderSheet({ order, onStatus, onClose }: OrderSheetProps) {
       description={`${formatDateTime(order.date)} · ${SOURCE_LABEL[order.source]}`}
     >
       <div className="flex flex-col gap-5">
+        {error && <Alert tone="error">{error}</Alert>}
         <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
           {/* Durum kartı */}
           <section
@@ -171,7 +178,7 @@ export function OrderSheet({ order, onStatus, onClose }: OrderSheetProps) {
                     aria-hidden="true"
                     className="mb-1.5 min-w-4 flex-1 border-b-2 border-dotted border-line-strong/40"
                   />
-                  <b className="shrink-0">{formatMoney(l.qty * l.unitPrice)}</b>
+                  <b className="shrink-0">{formatMoney(l.lineTotal ?? l.qty * l.unitPrice)}</b>
                 </li>
               ))}
             </ul>
@@ -209,6 +216,7 @@ export function OrderSheet({ order, onStatus, onClose }: OrderSheetProps) {
           </section>
         </div>
 
+        {operations}
         {next || (order.status !== 'cancelled' && order.status !== 'delivered') ? (
           <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row-reverse">
             {next ? (

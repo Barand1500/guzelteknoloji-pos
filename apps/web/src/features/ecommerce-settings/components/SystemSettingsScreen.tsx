@@ -3,22 +3,18 @@ import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
 import { TextField } from '../../../components/ui/TextField';
-import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import { dataError } from '../../../lib/catalog-data';
 import { useWorkspace } from '../../workspace/workspace-context';
 import { useSiteSettings } from '../hooks/useSiteSettings';
+import { usePublishSaveAction } from '../../app-shell/save-action';
 import { fileToDataUrl, siteService } from '../services/site.service';
-import { SaveFooter, ScreenCard } from './Parts';
+import { ScreenCard } from './Parts';
 
 const defaults = {
-  bildirimEposta: '',
-  bildirimNumara: '',
   head: '',
   body: '',
   kod3: '',
   kod4: '',
-  koseYazisi: '',
-  koseGizli: 'false',
   play1: '',
   store: '',
   play2: '',
@@ -36,6 +32,8 @@ export function SystemSettingsScreen() {
     'site_system',
     defaults,
   );
+  // Kaydet düğmesi sayfada değil, yüzen adadaki disket düğmesinde (Dock).
+  usePublishSaveAction({ onSave: () => void save(), saving, disabled: loading || !ready });
   const { demo } = useWorkspace();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -45,25 +43,6 @@ export function SystemSettingsScreen() {
 
   return (
     <div className="flex flex-col gap-4">
-      <ScreenCard title="Sistem Bildirimleri">
-        <div className="space-y-5">
-          <TextAreaField
-            label="Bildirim E-Posta Adresleri"
-            rows={3}
-            value={v('bildirimEposta')}
-            onChange={(e) => setValue('bildirimEposta', e.target.value)}
-          />
-          <p className="-mt-3 text-xs text-ink-muted">Her satıra bir e-posta adresi yazın.</p>
-          <TextAreaField
-            label="Bildirim Kısa Numaraları"
-            rows={3}
-            value={v('bildirimNumara')}
-            onChange={(e) => setValue('bildirimNumara', e.target.value)}
-          />
-          <p className="-mt-3 text-xs text-ink-muted">Her satıra bir numara yazın.</p>
-        </div>
-      </ScreenCard>
-
       <ScreenCard
         title="Özel Sistem Kodları"
         description="Kodlar düz metin olarak saklanır; bu ekranda çalıştırılmaz."
@@ -74,7 +53,7 @@ export function SystemSettingsScreen() {
             script’ler ziyaretçilerin tarayıcısında çalışır; gizli anahtar yazılmaz.
           </Alert>
           <TextAreaField
-            label="Head Kodları"
+            label="Head Kodu"
             rows={4}
             className="font-mono text-xs"
             spellCheck={false}
@@ -82,7 +61,7 @@ export function SystemSettingsScreen() {
             onChange={(e) => setValue('head', e.target.value)}
           />
           <TextAreaField
-            label="Body Kodları"
+            label="Body Kodu"
             rows={4}
             className="font-mono text-xs"
             spellCheck={false}
@@ -90,16 +69,15 @@ export function SystemSettingsScreen() {
             onChange={(e) => setValue('body', e.target.value)}
           />
           <TextAreaField
-            label="Üçüncü Kod Alanı"
+            label="Etbis Kodu"
             rows={4}
             className="font-mono text-xs"
             spellCheck={false}
             value={v('kod3')}
             onChange={(e) => setValue('kod3', e.target.value)}
           />
-          {/* 3. ve 4. kod alanının referans etiketi net değil; başlıklar geçici (kullanıcıya not gösterilmez). */}
           <TextAreaField
-            label="Dördüncü Kod Alanı"
+            label="TR Güvenlik Damgası Kodu"
             rows={4}
             className="font-mono text-xs"
             spellCheck={false}
@@ -109,44 +87,25 @@ export function SystemSettingsScreen() {
         </div>
       </ScreenCard>
 
-      <ScreenCard title="Köşe Yazısı">
-        <div className="space-y-4">
-          <TextAreaField
-            label="Köşe Yazısı"
-            rows={2}
-            value={v('koseYazisi')}
-            onChange={(e) => setValue('koseYazisi', e.target.value)}
-          />
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold">Gizli</span>
-            <ToggleSwitch
-              label="Köşe yazısını gizle"
-              checked={v('koseGizli') === 'true'}
-              onChange={(checked) => setValue('koseGizli', String(checked))}
-            />
-          </div>
-        </div>
-      </ScreenCard>
-
       <ScreenCard title="Uygulama Linkleri">
         <div className="grid gap-5 sm:grid-cols-2">
-          <TextField
-            label="Google Play Linki"
-            value={v('play1')}
-            onChange={(e) => setValue('play1', e.target.value)}
-          />
           <TextField
             label="App Store Linki"
             value={v('store')}
             onChange={(e) => setValue('store', e.target.value)}
           />
           <TextField
-            label="İkinci Google Play Bağlantısı"
+            label="App Store MacOS Linki"
             value={v('play2')}
             onChange={(e) => setValue('play2', e.target.value)}
           />
           <TextField
-            label="Dördüncü Uygulama Bağlantısı"
+            label="Google Play Linki"
+            value={v('play1')}
+            onChange={(e) => setValue('play1', e.target.value)}
+          />
+          <TextField
+            label="Windows Store Linki"
             value={v('link4')}
             onChange={(e) => setValue('link4', e.target.value)}
           />
@@ -223,12 +182,7 @@ export function SystemSettingsScreen() {
       </ScreenCard>
 
       {error && <Alert tone="error">{error}</Alert>}
-      <SaveFooter
-        onSave={() => void save()}
-        saving={saving}
-        disabled={loading || !ready}
-        message={message}
-      />
+      {message && <Alert tone="info">{message}</Alert>}
     </div>
   );
 }

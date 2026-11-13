@@ -120,7 +120,7 @@ function SeoTabPanel({ tab }: { tab: SeoTab }) {
             {tab.id === 'sabit-sayfa' && !query.trim() ? (
               <>
                 <p className="font-bold">Henüz sabit sayfa eklenmemiş</p>
-                <p className="text-sm text-ink-muted">Sabit sayfalar hazır olduğunda SEO ayarları burada listelenir.</p>
+                <p className="text-sm text-ink-muted">E-ticaret ayarlarındaki Sayfalar bölümünden sayfa ekleyebilirsiniz.</p>
               </>
             ) : (
               <p className="font-bold">Aramaya uyan {tab.noun} yok</p>

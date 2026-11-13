@@ -1,7 +1,8 @@
 import { Alert } from '../../../components/ui/Alert';
 import { TextAreaField } from '../../../components/ui/TextAreaField';
 import { useSiteSettings } from '../hooks/useSiteSettings';
-import { SaveFooter, ScreenCard } from './Parts';
+import { usePublishSaveAction } from '../../app-shell/save-action';
+import { ScreenCard } from './Parts';
 
 const defaults = {
   text: "“Teknolojinin en güzel hali GÜZEL Teknoloji'de!” Akıllı alışverişin adresi — güvenli, hızlı ve uygun fiyatlı.",
@@ -13,6 +14,12 @@ export function HeaderTextScreen() {
     'site_header',
     defaults,
   );
+  // Kaydet düğmesi sayfada değil, yüzen adadaki disket düğmesinde (Dock).
+  usePublishSaveAction({
+    onSave: () => void save(),
+    saving,
+    disabled: loading || !ready || !values.text?.trim(),
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -31,12 +38,8 @@ export function HeaderTextScreen() {
           {error && <Alert tone="error">{error}</Alert>}
         </div>
       </ScreenCard>
-      <SaveFooter
-        onSave={() => void save()}
-        saving={saving}
-        disabled={loading || !ready || !values.text?.trim()}
-        message={message ?? (values.text?.trim() ? null : 'Yazı boş olamaz.')}
-      />
+      {!values.text?.trim() && <Alert tone="error">Yazı boş olamaz.</Alert>}
+      {message && <Alert tone="info">{message}</Alert>}
     </div>
   );
 }

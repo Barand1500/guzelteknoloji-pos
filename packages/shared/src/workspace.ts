@@ -1,4 +1,7 @@
 export const WORKSPACE_RESOURCES = [
+  { key: 'dashboard', label: 'Ana Sayfa' },
+  { key: 'orders', label: 'Siparişler ve İadeler' },
+  { key: 'customers', label: 'Müşteriler' },
   { key: 'products', label: 'Ürünler' },
   { key: 'brands', label: 'Markalar' },
   { key: 'categories', label: 'Kategoriler' },
@@ -96,6 +99,7 @@ export const SETTINGS_PAGES = [
       { key: 'username', label: 'Kullanıcı Adı' },
       { key: 'password', label: 'Şifre', type: 'secret' },
       { key: 'from', label: 'Gönderen E-posta' },
+      { key: 'bildirimEposta', label: 'Bildirim E-Posta Adresleri' },
     ],
   },
   {
@@ -159,22 +163,63 @@ export const SETTINGS_PAGES = [
     ],
   },
   {
+    key: 'sms',
+    title: 'SMS',
+    description: 'Netgsm üzerinden bildirim SMS’leri.',
+    fields: [
+      { key: 'enabled', label: 'SMS Entegrasyonunu Etkinleştir', type: 'boolean' },
+      { key: 'apiUrl', label: 'API Adresi' },
+      { key: 'username', label: 'API Kullanıcı Adı' },
+      { key: 'password', label: 'API Parolası', type: 'secret' },
+      { key: 'sender', label: 'Gönderici Başlığı' },
+      { key: 'sanalNumara', label: 'Sanal Numara' },
+      { key: 'bildirimNumara', label: 'Bildirim Numaraları' },
+      { key: 'testNumber', label: 'Test Telefon Numarası' },
+    ],
+  },
+  {
+    key: 'site_iletisim',
+    title: 'İletişim Bilgileri',
+    description: 'İşletme iletişim bilgileri ve sosyal bağlantılar',
+    fields: [
+      { key: 'unvan', label: 'Ünvan' },
+      { key: 'tip', label: 'Tip' },
+      { key: 'vergiNo', label: 'Vergi Numarası' },
+      { key: 'vergiDairesi', label: 'Vergi Dairesi' },
+      { key: 'adres', label: 'Adres' },
+      { key: 'eposta', label: 'E-Posta' },
+      { key: 'telefon', label: 'Telefon' },
+      { key: 'gsm', label: 'Gsm' },
+      { key: 'fax', label: 'Fax' },
+      { key: 'harita', label: 'Harita Iframe Kodu' },
+      { key: 'yolTarifi', label: 'Yol Tarifi Linki' },
+      { key: 'facebook', label: 'Facebook Linki' },
+      { key: 'x', label: 'X Linki' },
+      { key: 'instagram', label: 'Instagram Linki' },
+      { key: 'youtube', label: 'Youtube Linki' },
+      { key: 'pinterest', label: 'Pinterest Linki' },
+      { key: 'subeler', label: 'Şubeler' },
+    ],
+  },
+  {
+    key: 'site_sms_sablonlari',
+    title: 'SMS Şablonları',
+    description: 'Hazır SMS metinleri',
+    fields: [{ key: 'sablonlar', label: 'Şablonlar' }],
+  },
+  {
     key: 'site_system',
     title: 'Site Sistem Ayarları',
     description: 'Bildirimler, özel kodlar, uygulama linkleri ve istatistik',
     fields: [
-      { key: 'bildirimEposta', label: 'Bildirim E-Posta Adresleri' },
-      { key: 'bildirimNumara', label: 'Bildirim Kısa Numaraları' },
-      { key: 'head', label: 'Head Kodları' },
-      { key: 'body', label: 'Body Kodları' },
-      { key: 'kod3', label: 'Üçüncü Kod Alanı' },
-      { key: 'kod4', label: 'Dördüncü Kod Alanı' },
-      { key: 'koseYazisi', label: 'Köşe Yazısı' },
-      { key: 'koseGizli', label: 'Köşe Yazısı Gizli', type: 'boolean' },
-      { key: 'play1', label: 'Google Play Linki' },
+      { key: 'head', label: 'Head Kodu' },
+      { key: 'body', label: 'Body Kodu' },
+      { key: 'kod3', label: 'Etbis Kodu' },
+      { key: 'kod4', label: 'TR Güvenlik Damgası Kodu' },
       { key: 'store', label: 'App Store Linki' },
-      { key: 'play2', label: 'İkinci Google Play Bağlantısı' },
-      { key: 'link4', label: 'Dördüncü Uygulama Bağlantısı' },
+      { key: 'play2', label: 'App Store MacOS Linki' },
+      { key: 'play1', label: 'Google Play Linki' },
+      { key: 'link4', label: 'Windows Store Linki' },
       { key: 'istatistik', label: 'İstatistik Kodu' },
     ],
   },
@@ -257,7 +302,10 @@ export const SETTINGS_PAGES = [
     key: 'site_xml',
     title: 'Google & Meta XML',
     description: 'Ürün kataloğu feed durumu',
-    fields: [{ key: 'enabled', label: 'XML feed', type: 'boolean' }],
+    fields: [
+      { key: 'enabled', label: 'XML feed', type: 'boolean' },
+      { key: 'productUrlTemplate', label: 'Ürün URL şablonu' },
+    ],
   },
 ] as const;
 export type SettingsPage = (typeof SETTINGS_PAGES)[number]['key'];
@@ -270,4 +318,12 @@ export interface SettingsResult {
   configured: string[];
   googleConnected?: boolean;
   source?: 'database' | 'environment' | 'unconfigured';
+  feedUrl?: string;
+}
+
+/** Formlar için gerekli, yönetim alanlarını içermeyen işletme tanımlamaları. */
+export interface CommerceChoices {
+  customerTypes: { id: string; name: string }[];
+  priceLists: { id: string; name: string }[];
+  payments: { id: string; name: string }[];
 }

@@ -93,7 +93,7 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
         aria-label="Barkod ekle"
         className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-y-3 sm:flex sm:items-start"
       >
-        <div className="col-span-2 min-w-0 focus-within:z-10 sm:w-28 sm:shrink-0">
+        <div className="col-span-2 min-w-0 focus-within:z-10 sm:w-36 sm:shrink-0">
           <SelectField
             label="Barkod Türü"
             options={types}
@@ -108,20 +108,27 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
             ref={inputRef}
             inputMode="numeric"
             value={code}
-            className={`rounded-r-none! sm:rounded-none! ${barcodes.length > 0 ? 'pr-24!' : ''}`}
+            className={`rounded-r-none! sm:rounded-none! ${
+              error ? 'pr-32! sm:pr-72!' : barcodes.length > 0 ? 'pr-24!' : ''
+            }`}
             readOnly={busy}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => {
+              setCode(e.target.value);
+              // Uyarı yazmaya/silmeye başlayınca kaybolur; kullanıcı düzeltirken ekranda kalmasın.
+              if (error) setError('');
+            }}
             trailing={
               <span className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => setScanning(true)}
-                  aria-label="Kamerayla barkod oku"
-                  title="Kamerayla barkod oku"
-                  className="mr-1 inline-flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-ink"
-                >
-                  <ScanBarcode className="size-5" aria-hidden="true" />
-                </button>
+                {error ? (
+                  <span
+                    role="alert"
+                    className="mr-1 flex items-center gap-1 text-xs font-semibold text-danger"
+                  >
+                    <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="hidden whitespace-nowrap sm:inline">{error}</span>
+                    <span className="sr-only sm:hidden">{error}</span>
+                  </span>
+                ) : null}
                 {barcodes.length > 0 && (
                   <button
                     type="button"
@@ -132,6 +139,16 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
                     <Eye className="size-5" aria-hidden="true" />
                   </button>
                 )}
+                {/* Barkod (kamera) düğmesi sabit sağda; göz onun solunda açılır. */}
+                <button
+                  type="button"
+                  onClick={() => setScanning(true)}
+                  aria-label="Kamerayla barkod oku"
+                  title="Kamerayla barkod oku"
+                  className="mr-1 inline-flex size-10 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-brand-50 hover:text-brand-ink"
+                >
+                  <ScanBarcode className="size-5" aria-hidden="true" />
+                </button>
               </span>
             }
             onKeyDown={(e) => {
@@ -154,17 +171,6 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
       </div>
 
       <DuplicateNote kind="barcode" value={code} />
-      {error && (
-        <div
-          role="alert"
-          className={`flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger ${viewing ? 'hidden' : ''}`}
-        >
-          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-danger text-white">
-            <CircleAlert className="size-4" aria-hidden="true" />
-          </span>
-          {error}
-        </div>
-      )}
       {scanning ? (
         <BarcodeScanSheet
           typeValues={types.map((t) => t.value)}
@@ -185,7 +191,7 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
           description="Kod türünü ve barkodu düzenlemek için satıra çift tıklayın."
           onClose={() => setViewing(false)}
         >
-          <div className="mb-3 grid grid-cols-[2rem_6rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl bg-surface-muted px-3 py-3 text-xs font-bold uppercase tracking-wide text-ink-muted">
+          <div className="mb-3 grid grid-cols-[2rem_9rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl bg-surface-muted px-3 py-3 text-xs font-bold uppercase tracking-wide text-ink-muted">
             <span>#</span>
             <span>Tür</span>
             <span>Barkod</span>
@@ -227,7 +233,7 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
                     setEditType(b.type);
                   }
                 }}
-                className="grid min-h-16 grid-cols-[2rem_6rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl border border-line bg-surface p-3 text-sm transition-colors hover:border-line-strong"
+                className="grid min-h-16 grid-cols-[2rem_9rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl border border-line bg-surface p-3 text-sm transition-colors hover:border-line-strong"
               >
                 <span className="text-center text-xs font-bold text-ink-muted">{index + 1}</span>
                 {editingId === b.id ? (
@@ -252,46 +258,48 @@ export function BarcodeEditor({ barcodes, types, onChange }: BarcodeEditorProps)
                         }
                       }}
                     />
-                    <button
-                      type="button"
-                      aria-label="Barkodu kaydet"
-                      className="rounded-full p-2 text-brand-ink hover:bg-brand-50"
-                      onClick={() => {
-                        const normalized = editCode.trim();
-                        if (
-                          !normalized ||
-                          barcodes.some(
-                            (x) =>
-                              x.id !== b.id &&
-                              x.code.toLocaleLowerCase('en-US') ===
-                                normalized.toLocaleLowerCase('en-US'),
-                          )
-                        ) {
-                          setError('Bu barkod zaten eklenmiş veya boş.');
-                          return;
-                        }
-                        onChange(
-                          barcodes.map((x) =>
-                            x.id === b.id ? { ...x, code: normalized, type: editType } : x,
-                          ),
-                        );
-                        editOriginal.current = null;
-                        setEditingId(null);
-                        setError('');
-                      }}
-                    >
-                      <Check className="size-5" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Barkod düzenlemeyi iptal et"
-                      className="inline-flex size-9 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted"
-                      onClick={() => {
-                        cancelEdit();
-                      }}
-                    >
-                      <X className="size-5" aria-hidden="true" />
-                    </button>
+                    <div className="col-span-2 flex items-center justify-end gap-0.5">
+                      <button
+                        type="button"
+                        aria-label="Barkodu kaydet"
+                        className="inline-flex size-9 items-center justify-center rounded-full text-brand-ink hover:bg-brand-50"
+                        onClick={() => {
+                          const normalized = editCode.trim();
+                          if (
+                            !normalized ||
+                            barcodes.some(
+                              (x) =>
+                                x.id !== b.id &&
+                                x.code.toLocaleLowerCase('en-US') ===
+                                  normalized.toLocaleLowerCase('en-US'),
+                            )
+                          ) {
+                            setError('Bu barkod zaten eklenmiş veya boş.');
+                            return;
+                          }
+                          onChange(
+                            barcodes.map((x) =>
+                              x.id === b.id ? { ...x, code: normalized, type: editType } : x,
+                            ),
+                          );
+                          editOriginal.current = null;
+                          setEditingId(null);
+                          setError('');
+                        }}
+                      >
+                        <Check className="size-5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Barkod düzenlemeyi iptal et"
+                        className="inline-flex size-9 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted"
+                        onClick={() => {
+                          cancelEdit();
+                        }}
+                      >
+                        <X className="size-5" aria-hidden="true" />
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <>

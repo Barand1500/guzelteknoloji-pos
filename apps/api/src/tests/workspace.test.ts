@@ -48,11 +48,21 @@ const user = {
 const hash = { hash: async () => '', verify: async () => true };
 
 describe('İşletme yetkileri', () => {
+  it('sepet önizlemesini yazma yetkisi gerektirmeyen okuma işlemi olarak tanır', () => {
+    expect(requestPermission('/api/kampanyalar/hesapla', 'POST')).toEqual({ resource: 'campaigns', action: 'read' });
+  });
+  it('SEO uçlarını işletme ayarları yetkisine bağlar', () => {
+    expect(requestPermission('/api/seo/urun', 'GET')).toEqual({ resource: 'settings', action: 'read' });
+    expect(requestPermission('/api/seo/yonlendirme/1/sil', 'POST')).toEqual({ resource: 'settings', action: 'delete' });
+  });
   it('görüntüleme yetkisi yazma/silme vermez; sahibi kilitlemez', () => {
     expect(hasPermission(employee, 'products', 'read')).toBe(true);
     expect(hasPermission(employee, 'products', 'save')).toBe(false);
     expect(hasPermission(employee, 'products', 'delete')).toBe(false);
     expect(hasPermission(employee, 'users', 'read')).toBe(false);
+    expect(hasPermission(employee, 'orders', 'read')).toBe(false);
+    expect(hasPermission(employee, 'customers', 'save')).toBe(false);
+    expect(hasPermission(employee, 'dashboard', 'read')).toBe(false);
     for (const r of WORKSPACE_RESOURCES) expect(hasPermission(owner, r.key, 'delete')).toBe(true);
     expect(
       canGrant(employee, [{ resource: 'products', read: true, save: true, delete: false }]),
@@ -74,6 +84,26 @@ describe('İşletme yetkileri', () => {
     expect(requestPermission('/api/stok/kartlar/1/guncelle', 'POST')).toEqual({
       resource: 'products',
       action: 'save',
+    });
+    expect(requestPermission('/api/siparisler', 'GET')).toEqual({
+      resource: 'orders',
+      action: 'read',
+    });
+    expect(requestPermission('/api/siparisler/2/durum', 'POST')).toEqual({
+      resource: 'orders',
+      action: 'save',
+    });
+    expect(requestPermission('/api/siparisler/iade', 'GET')).toEqual({
+      resource: 'orders',
+      action: 'read',
+    });
+    expect(requestPermission('/api/musteriler/2/sil', 'POST')).toEqual({
+      resource: 'customers',
+      action: 'delete',
+    });
+    expect(requestPermission('/api/anasayfa', 'GET')).toEqual({
+      resource: 'dashboard',
+      action: 'read',
     });
   });
   it('çalışanın kimliğini koruyup işletmenin ortak veri sahibini sunucuda belirler', async () => {

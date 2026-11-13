@@ -5,6 +5,7 @@ import type { Prisma } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
 import type { Env } from '../../config/env';
+import { merchantProductUrlTemplateSchema } from '../site/site.feed';
 
 export type ConnectionSection = 'smtp' | 'imap' | 'google';
 /** Görsel kimliği taşıyan ayar alanları: yalnızca sayı ya da boş kabul edilir. */
@@ -191,6 +192,32 @@ export class WorkspaceSettings {
         (/[\r\n]/.test(value) || value.includes(String.fromCharCode(0)))
       )
         throw new HttpError(400, 'VALIDATION_ERROR', 'Geçersiz bağlantı bilgisi.');
+    }
+    if (section === 'site_xml') {
+      const existing = await this.values(businessId, 'site_xml');
+      const merged = { ...existing, ...input.values };
+      for (const key of input.clear) delete merged[key];
+      if (merged.enabled === 'true') {
+        const result = merchantProductUrlTemplateSchema.safeParse(merged.productUrlTemplate);
+        if (!result.success)
+          throw new HttpError(400, 'VALIDATION_ERROR', result.error.issues[0]?.message ?? 'Ürün URL şablonunu kontrol edin.');
+      }
+    }
+    if (section === 'sms') {
+      // Etkinleştirmeden önce kimlik ve başlık gerçekten kayıtlı olmalı; yoksa test de çalışmaz.
+      const stored = await this.values(businessId, 'sms', true);
+      const merged = { ...stored, ...input.values };
+      if (
+        merged.enabled === 'true' &&
+        (!merged.username?.trim() ||
+          !merged.password ||
+          (!merged.sender?.trim() && !merged.sanalNumara?.trim()))
+      )
+        throw new HttpError(
+          400,
+          'VALIDATION_ERROR',
+          'SMS’i etkinleştirmeden önce kullanıcı adı, şifre ve gönderici başlığı (ya da sanal numara) girin.',
+        );
     }
     await this.db.$transaction(async (tx) => {
       if (['cloudflare', 'recaptcha', 'whatsapp'].includes(section)) {

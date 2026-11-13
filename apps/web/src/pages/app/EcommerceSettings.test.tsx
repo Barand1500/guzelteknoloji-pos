@@ -27,11 +27,11 @@ const login = {
 beforeEach(() => sessionStorage.setItem('gt-dev-access', '1'));
 
 describe('E-ticaret ayar ekranları', () => {
-  it('Ayarlar’dan açılır; on bir ekranın bağlantısı ve dürüst uyarı görünür', async () => {
+  it('Ayarlar’dan açılır; on iki ekranın bağlantısı ve dürüst uyarı görünür', async () => {
     mockFetch(anonymousRoutes);
     renderApp('/uygulama/ayarlar/eticaret');
     const nav = await screen.findByRole('navigation', { name: 'E-Ticaret ayarları' });
-    expect(within(nav).getAllByRole('link')).toHaveLength(11);
+    expect(within(nav).getAllByRole('link')).toHaveLength(12);
     expect(screen.getAllByText('Sistem Ayarları').length).toBeGreaterThan(0);
   });
 
@@ -75,8 +75,11 @@ describe('E-ticaret ayar ekranları', () => {
     mockFetch(anonymousRoutes);
     renderApp('/uygulama/ayarlar/eticaret/sistem');
     expect(
-      await screen.findByRole('heading', { level: 2, name: 'Sistem Bildirimleri' }),
+      await screen.findByRole('heading', { level: 2, name: 'Özel Sistem Kodları' }),
     ).toBeVisible();
+    expect(
+      screen.queryByRole('heading', { level: 2, name: 'Sistem Bildirimleri' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Özel Sistem Kodları' })).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'Uygulama Linkleri' })).toBeVisible();
     expect(

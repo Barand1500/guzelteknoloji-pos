@@ -9,8 +9,6 @@ import { useCategories } from '../../categories/hooks/useCategories';
 import { flattenTree } from '../../categories/tree';
 import { WizardSteps } from '../../products/components/WizardSteps';
 import {
-  CUSTOMER_TYPE_OPTIONS,
-  PRICE_LIST_OPTIONS,
   emptyRuleDraft,
   summarize,
   type CampaignKind,
@@ -18,6 +16,7 @@ import {
   type RuleDraft,
 } from '../types';
 import { InlineNumber, Simulator } from './GeneralCard';
+import { audienceOptions, audienceSelection, audienceLabels, type CampaignAudience } from '../campaign-audience';
 
 /**
  * Özel kural sihirbazı: 1) Hangi ürünler (kategori/marka) · 2) Kimler ve ne zaman (cari tipi, fiyat
@@ -27,12 +26,14 @@ import { InlineNumber, Simulator } from './GeneralCard';
 export function RuleWizardSheet({
   kind,
   rule,
+  choices,
   onSave,
   onClose,
 }: {
   kind: CampaignKind;
   /** Düzenlenen kural; yoksa yeni eklenir. */
   rule: CampaignRule | null;
+  choices: CampaignAudience;
   onSave: (draft: RuleDraft) => Promise<void>;
   onClose: () => void;
 }) {
@@ -128,16 +129,16 @@ export function RuleWizardSheet({
             <p className="text-ink-muted">Kimler için ve sepet kaç ₺ olunca geçerli olsun?</p>
             <MultiSelectField
               label="Cari Tipleri"
-              options={CUSTOMER_TYPE_OPTIONS.map((t) => ({ id: t, name: t }))}
-              value={draft.customerTypes}
+              options={audienceOptions(choices.customerTypes, draft.customerTypes)}
+              value={audienceSelection(draft.customerTypes, choices.customerTypes)}
               onChange={(v) => set('customerTypes', v)}
               emptyText="Hepsi"
               listText
             />
             <MultiSelectField
               label="Fiyat Listeleri"
-              options={PRICE_LIST_OPTIONS.map((t) => ({ id: t, name: t }))}
-              value={draft.priceLists}
+              options={audienceOptions(choices.priceLists, draft.priceLists)}
+              value={audienceSelection(draft.priceLists, choices.priceLists)}
               onChange={(v) => set('priceLists', v)}
               emptyText="Hepsi"
               listText
@@ -202,8 +203,8 @@ export function RuleWizardSheet({
               <p className="mt-1 font-bold">{summarize(draft, kind)}</p>
               <p className="text-sm text-ink-muted">
                 {target}
-                {draft.customerTypes.length ? ` · ${draft.customerTypes.join(', ')}` : ''}
-                {draft.priceLists.length ? ` · ${draft.priceLists.join(', ')}` : ''}
+                {draft.customerTypes.length ? ` · ${audienceLabels(draft.customerTypes, choices.customerTypes).join(', ')}` : ''}
+                {draft.priceLists.length ? ` · ${audienceLabels(draft.priceLists, choices.priceLists).join(', ')}` : ''}
               </p>
             </div>
             <Simulator kind={kind} rule={draft} />

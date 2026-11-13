@@ -2,6 +2,10 @@ import { Download, Eye, ListFilter, X } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
 import { Alert } from '../../../components/ui/Alert';
+import { Button } from '../../../components/ui/Button';
+import { OrderCreateSheet } from './OrderCreateSheet';
+import { OrderOperations } from './OrderOperations';
+import { useSession } from '../../auth/hooks/session-context';
 import { PaginationBar } from '../../../components/ui/PaginationBar';
 import { SearchField } from '../../../components/ui/SearchField';
 import { CountUp, formatMoney, formatMoneyShort } from '../../home/components/parts';
@@ -65,6 +69,7 @@ function chipsOf(f: OrderFilters): { id: string; label: string; clear: Partial<O
  * Çift tıklayınca (ya da göz simgesiyle) ayrıntı penceresi açılır.
  */
 export function OrdersView() {
+  const { session } = useSession();
   const { orders, loading, error, sample, refresh, setStatus } = useOrders();
   // Tablo ve kartlar aynı anda çizilmez (görseller iki kez yüklenmesin).
   const wide = useMediaQuery('(min-width: 64rem)');
@@ -79,6 +84,7 @@ export function OrdersView() {
   const [flowId, setFlowId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const filtered = useMemo(
     () => sortOrders(filterOrders(orders, filters), sort),
@@ -129,6 +135,7 @@ export function OrdersView() {
       ) : null}
       {problem ? <Alert tone="error">{problem}</Alert> : null}
       {sample ? <SampleNote /> : null}
+      {!sample && !loading && <div className="flex justify-end"><Button permission="save" flow={false} onClick={() => setCreateOpen(true)}>Yeni Sipariş</Button></div>}
 
       <dl className="grid grid-cols-3 gap-2 sm:gap-3">
         {[
@@ -433,8 +440,10 @@ export function OrdersView() {
           order={open}
           onStatus={(s) => setStatus(open.id, s)}
           onClose={() => setOpenId(null)}
+          operations={!sample ? <OrderOperations order={open} onRefresh={refresh} /> : undefined}
         />
       ) : null}
+      {createOpen && <OrderCreateSheet scope={String(session.user?.id ?? 'demo')} onClose={() => setCreateOpen(false)} onSaved={refresh} />}
     </div>
   );
 }

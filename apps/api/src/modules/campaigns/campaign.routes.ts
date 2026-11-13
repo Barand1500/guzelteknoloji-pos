@@ -4,6 +4,8 @@ import { Prisma, type PrismaClient } from '../../generated/prisma/client';
 import { HttpError } from '../../lib/http-error';
 import type { AccessContext } from '../workspace/workspace.access';
 import { requirePermission } from '../workspace/workspace.access';
+import { resolveCampaignAudience } from './campaign-audience';
+import { quoteCampaignCart } from './campaign-quote';
 
 type CampaignKind = 'cart' | 'shipping';
 type DiscountKind = 'percent' | 'amount';
@@ -14,8 +16,6 @@ const kindBySlug: Record<string, CampaignKind> = {
 const dbKind = (kind: CampaignKind) => (kind === 'cart' ? 'SEPET_INDIRIMI' : 'UCRETSIZ_KARGO');
 const dbDiscount = (kind: DiscountKind): 'YUZDE' | 'TUTAR' =>
   kind === 'percent' ? 'YUZDE' : 'TUTAR';
-const customerTypes = ['Son Kullanıcı', 'Bayi', 'Kurumsal'] as const;
-const priceLists = ['FİYAT', 'PERAKENDE', 'TOPTAN'] as const;
 const positiveId = /^[1-9]\d{0,9}$/;
 const idList = (label: string) =>
   z
@@ -25,8 +25,8 @@ const idList = (label: string) =>
     .refine((ids) => new Set(ids).size === ids.length, `${label} içinde tekrar var.`);
 const generalSchema = z.strictObject({
   active: z.boolean(),
-  customerTypes: z.array(z.enum(customerTypes)).max(customerTypes.length),
-  priceLists: z.array(z.enum(priceLists)).max(priceLists.length),
+  customerTypes: z.array(z.string().trim().min(1).max(120)).max(500),
+  priceLists: z.array(z.string().trim().min(1).max(120)).max(500),
   minTotal: z.number().finite().int().min(0).max(1_000_000_000_000),
   discountKind: z.enum(['percent', 'amount']),
   discountValue: z.number().finite().min(0).max(1_000_000_000_000),
@@ -158,6 +158,11 @@ function campaignData(value: z.infer<typeof generalSchema>, kind: CampaignKind) 
 
 export function createCampaignRouter(db: PrismaClient) {
   const router = Router();
+  router.post('/hesapla', async (req, res) => {
+    const ctx = contextOf(res);
+    requirePermission(ctx, 'campaigns', 'read');
+    res.set('Cache-Control', 'no-store').json(await quoteCampaignCart(db, ctx.business.id, ctx.ownerId, req.body));
+  });
 
   router.get('/:tur', async (req, res, next) => {
     try {
@@ -184,6 +189,7 @@ export function createCampaignRouter(db: PrismaClient) {
       const kind = campaignKind(req.params.tur);
       const value = generalSchema.parse(req.body);
       validateValues(value, kind);
+      Object.assign(value, await resolveCampaignAudience(db, ctx.business.id, ctx.ownerId, value));
       const data = campaignData(value, kind);
       await db.kampanya.upsert({
         where: { userId_kind: { userId: ctx.ownerId, kind: dbKind(kind) } },
@@ -203,6 +209,7 @@ export function createCampaignRouter(db: PrismaClient) {
       const kind = campaignKind(req.params.tur);
       const value = ruleSchema.parse(req.body);
       validateValues(value, kind);
+      Object.assign(value, await resolveCampaignAudience(db, ctx.business.id, ctx.ownerId, value));
       await ensureScope(db, ctx.ownerId, value.categoryIds, value.brandIds);
       const created = await db.$transaction(async (tx) => {
         const campaign = await tx.kampanya.upsert({
@@ -240,6 +247,7 @@ export function createCampaignRouter(db: PrismaClient) {
         throw new HttpError(404, 'NOT_FOUND', 'Kural bulunamadı.');
       const value = ruleSchema.parse(req.body);
       validateValues(value, kind);
+      Object.assign(value, await resolveCampaignAudience(db, ctx.business.id, ctx.ownerId, value));
       await ensureScope(db, ctx.ownerId, value.categoryIds, value.brandIds);
       const updated = await db.$transaction(async (tx) => {
         const existing = await tx.kampanyaKural.findFirst({

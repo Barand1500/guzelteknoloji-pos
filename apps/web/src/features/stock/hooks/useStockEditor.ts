@@ -20,6 +20,7 @@ import {
 import { useOptionList } from './useOptionList';
 import { emptyBrandDraft, type Brand } from '../../brands/types';
 import { emptyCategoryDraft, type Category, type CategoryDraft } from '../../categories/types';
+import { applyProductDefaults, type ProductDefaults } from '../stock-defaults';
 
 /**
  * Stok kartı düzenleyicisinin TÜM durumu ve işlemleri tek yerde. Masaüstü ve telefon düzenleri
@@ -35,6 +36,8 @@ export interface StockEditorOptions {
   cardId?: string;
   /** Kayıtlı (ya da kopyalanan) kartın kategori ve fırsat seçimleri. */
   initialExtras?: StockExtras;
+  /** Only supplied for a brand-new product; edit/copy flows retain their saved values. */
+  productDefaults?: ProductDefaults;
   /** Kategori/fırsat seçenekleri; `null` ise bu kutular sunucuya bağlı değildir (kilitli). */
   extraOptions?: StockExtraOptions | null;
   /** Formdan hızlı marka/kategori ekleme; verilmezse ilgili "yeni ekle" çalışmaz. */
@@ -62,7 +65,16 @@ export function useStockEditor(
 
   const firstListId = priceLists.options[0]?.value ?? 'fiyat';
   const [initialDraft] = useState<StockCardDraft>(() => {
-    const start = options.initialDraft ?? createEmptyDraft(firstListId);
+    const start = options.initialDraft ?? applyProductDefaults(
+      createEmptyDraft(firstListId),
+      options.productDefaults ?? {},
+      {
+        stockTypes: stockTypes.options,
+        units: units.options,
+        currencies: lookups.currencies,
+        vatRates: lookups.vatRates,
+      },
+    );
     // Aktif fiyat listesinin birim satırı yoksa (eski kart) boş bir ana birim eklenir.
     const base = start.units[firstListId]
       ? start

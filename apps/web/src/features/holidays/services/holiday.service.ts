@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../lib/http';
+import { apiRequest } from '../../../lib/http';
 import { useDataService } from '../../../lib/catalog-data';
 import {
   FALLBACK_2026,
@@ -33,20 +33,12 @@ async function fromPublicApi(year: number): Promise<{ official: OfficialDay[]; o
 /** Sunucu: bkz. types.ts. */
 export const holidayService = {
   load: async (year: number): Promise<LoadedYear> => {
-    try {
-      const r = await apiRequest<{
-        official: OfficialDay[];
-        custom: CustomHoliday[];
-        offline?: boolean;
-      }>(`/api/resmi-tatiller?yil=${year}`);
-      return { ...r, sample: false, offline: r.offline ?? false };
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404) {
-        const { official, offline } = await fromPublicApi(year);
-        return { official, custom: [], sample: true, offline };
-      }
-      throw e;
-    }
+    const r = await apiRequest<{
+      official: OfficialDay[];
+      custom: CustomHoliday[];
+      offline?: boolean;
+    }>(`/api/resmi-tatiller?yil=${year}`);
+    return { ...r, sample: false, offline: r.offline ?? false };
   },
   create: (draft: CustomDraft) =>
     apiRequest<CustomHoliday>('/api/resmi-tatiller', { method: 'POST', body: draft }),

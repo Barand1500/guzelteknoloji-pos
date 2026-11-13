@@ -6,8 +6,9 @@ import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import { dataError } from '../../../lib/catalog-data';
 import { useWorkspace } from '../../workspace/workspace-context';
 import { useSiteSettings } from '../hooks/useSiteSettings';
+import { usePublishSaveAction } from '../../app-shell/save-action';
 import { fileToDataUrl, siteService } from '../services/site.service';
-import { SaveFooter, ScreenCard } from './Parts';
+import { ScreenCard } from './Parts';
 
 /** Ayarlar sunucusundaki bölüm anahtarı (bkz. `docs/eticaret-site-api.md`). */
 const SECTION = 'site_appearance';
@@ -188,6 +189,12 @@ export function AppearanceScreen() {
   const color = values.color ?? DEFAULT_COLOR;
   // Renk kodu serbest metin: geçersiz değer kaydedilirse site teması bozulur.
   const validColor = /^#[0-9a-f]{6}$/i.test(color);
+  // Kaydet düğmesi sayfada değil, yüzen adadaki disket düğmesinde (Dock).
+  usePublishSaveAction({
+    onSave: () => void save(),
+    saving,
+    disabled: loading || !ready || !validColor,
+  });
   const [images, setImages] = useState<Partial<Record<ImageKind, PickedFile>>>({});
   const [uploading, setUploading] = useState<ImageKind | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -433,12 +440,8 @@ export function AppearanceScreen() {
         </div>
       </ScreenCard>
 
-      <SaveFooter
-        onSave={() => void save()}
-        saving={saving}
-        disabled={loading || !ready || !validColor}
-        message={message ?? (validColor ? null : 'Renk kodu #RRGGBB biçiminde olmalı.')}
-      />
+      {!validColor && <Alert tone="error">Renk kodu #RRGGBB biçiminde olmalı.</Alert>}
+      {message && <Alert tone="info">{message}</Alert>}
     </div>
   );
 }

@@ -17,7 +17,7 @@ export function createCatalogRouter(env: Env, auth: AuthService, db: PrismaClien
     const token = readSessionToken(req, env);
     const session = token ? await auth.getSession(token) : null;
     if (!session) throw new HttpError(401, 'UNAUTHENTICATED', 'Hesabınıza giriş yapın.');
-    res.locals.catalogUserId = Number(session.user.id);
+    res.locals.catalogUserId = Number(res.locals.workspace?.ownerId ?? session.user.id);
     res.set('Cache-Control', 'no-store');
     next();
   });

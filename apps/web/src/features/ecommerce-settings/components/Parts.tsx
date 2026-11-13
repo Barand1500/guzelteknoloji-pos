@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { GripVertical, Pencil, Trash2 } from 'lucide-react';
-import { Button } from '../../../components/ui/Button';
 import type { SortableRowContext } from '../../../components/ui/SortableList';
 import { SettingsTabs } from '../../workspace/SettingsTabs';
 import type { EcommercePage } from '../../../config/ecommerce-settings';
@@ -45,49 +44,16 @@ export function ScreenCard({
   children: ReactNode;
 }) {
   return (
-    <section aria-label={title} className={panelClass}>
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <section aria-label={title} className={`${panelClass} overflow-hidden p-0!`}>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line bg-surface-muted/45 px-4 py-4 sm:px-6">
         <div className="min-w-0">
-          <h2 className="text-lg font-extrabold">{title}</h2>
+          <h2 className="text-lg font-extrabold tracking-tight">{title}</h2>
           {description && <p className="mt-1 text-sm text-ink-muted">{description}</p>}
         </div>
         {actions}
       </div>
-      {children}
+      <div className="p-4 sm:p-6">{children}</div>
     </section>
-  );
-}
-
-/**
- * Sayfa altındaki ORTAK kaydet çubuğu: e-ticaret ayarlarının her ekranında aynı yerde,
- * aynı etiketle ("Kaydet") durur. Form içindeki pencereler (Sheet) kendi düğmesini kullanır.
- */
-export function SaveFooter({
-  onSave,
-  saving = false,
-  disabled = false,
-  message,
-}: {
-  onSave: () => void;
-  saving?: boolean;
-  disabled?: boolean;
-  message?: string | null;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
-      <Button
-        flow={false}
-        type="button"
-        fullWidth={false}
-        onClick={onSave}
-        loading={saving}
-        loadingLabel="Kaydediliyor…"
-        disabled={disabled}
-      >
-        Kaydet
-      </Button>
-      {message ? <span className="text-xs text-ink-muted">{message}</span> : null}
-    </div>
   );
 }
 

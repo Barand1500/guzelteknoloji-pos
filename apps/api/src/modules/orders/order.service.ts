@@ -262,12 +262,16 @@ export function toOrderDto(order: OrderRecord) {
     paymentMethod: order.paymentMethod,
     status: order.status,
     address: order.address,
+    managed: order.managed ?? false,
+    shippingTotal: order.shippingTotal ?? 0,
+    discountTotal: order.discountTotal ?? 0,
     lines: order.lines.map((line) => ({
       id: String(line.id),
       name: line.name,
       code: line.code,
       qty: line.qty,
       unitPrice: round2(line.unitPrice),
+      ...(line.lineTotal !== undefined ? { lineTotal: line.lineTotal } : {}),
     })),
   };
 }
@@ -282,5 +286,6 @@ export function toReturnDto(row: ReturnRecord) {
     date: row.date.toISOString(),
     status: row.status,
     reason: row.reason,
+    ...(row.orderId ? { orderId: String(row.orderId) } : {}),
   };
 }

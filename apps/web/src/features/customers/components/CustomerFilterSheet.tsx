@@ -4,7 +4,7 @@ import { Button } from '../../../components/ui/Button';
 import { Sheet } from '../../../components/ui/Sheet';
 import { Choice, Section } from '../../orders/components/OrderFilterSheet';
 import { emptyCustomerFilters, filterCustomers, type CustomerFilters } from '../customer-filter';
-import { KIND_LABEL, PRICE_LISTS, type Customer } from '../types';
+import { KIND_LABEL, type Customer } from '../types';
 
 interface CustomerFilterSheetProps {
   rows: Customer[];
@@ -78,7 +78,7 @@ export function CustomerFilterSheet({ rows, value, onApply, onClose }: CustomerF
             <Choice on={draft.priceList === 'all'} onClick={() => set('priceList', 'all')}>
               Hepsi
             </Choice>
-            {PRICE_LISTS.map((p) => (
+            {Array.from(new Set([...rows.map((row) => row.priceList), ...(draft.priceList === 'all' ? [] : [draft.priceList])])).filter(Boolean).map((p) => (
               <Choice key={p} on={draft.priceList === p} onClick={() => set('priceList', p)}>
                 {p}
               </Choice>

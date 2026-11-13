@@ -65,7 +65,7 @@ Yetki: **Ayarlar** kaynağı (GET `read`, yazma `save`, `/sil` `delete`); tümü
 
 ## Arayüz kuralları (tüm e-ticaret ekranları)
 
-- **Kaydet:** sayfanın altında tek ortak çubuk (`SaveFooter`); etiket her yerde **Kaydet**. Pencere (Sheet) içindeki formlar kendi Kaydet düğmesini kullanır.
+- **Kaydet:** sayfada Kaydet düğmesi yoktur; **yüzen adadaki (Dock) disket düğmesi** kaydeder (stok kartı ekranındaki gibi). Pencere (Sheet) içindeki formlar kendi Kaydet düğmesini kullanır. Düğme, veri yüklenmeden veya alan geçersizken pasiftir.
 - **Güvenli kaydetme:** veri sunucudan bir kez başarıyla yüklenmeden Kaydet açılmaz; yükleme hatasında varsayılan değerlerin kaydedilip alanları ezmesi engellenir.
 - **Sıralama:** Sayfalar, Menü, Sliderlar ve Widgetlar sürükle-bırakta anında kaydedilir; ayrı "Sıralama" anahtarı yoktur. Arama sırasında sürükleme kapalıdır.
 - **Silme:** Sayfalar, Menü, Sliderlar ve Widgetlar silmeden önce onay penceresi gösterir.

@@ -3,12 +3,11 @@ import { useState } from 'react';
 import { MultiSelectField } from '../../../components/ui/MultiSelectField';
 import { formatMoneyShort, CountUp } from '../../home/components/parts';
 import {
-  CUSTOMER_TYPE_OPTIONS,
-  PRICE_LIST_OPTIONS,
   outcome,
   type CampaignKind,
   type GeneralRule,
 } from '../types';
+import { audienceOptions, audienceSelection, type CampaignAudience } from '../campaign-audience';
 
 /** Cümlenin içindeki altı çizgili sayı kutusu. Yalnızca rakam alır. */
 export function InlineNumber({
@@ -45,10 +44,12 @@ export function InlineNumber({
 export function GeneralCard({
   kind,
   rule,
+  choices,
   onChange,
 }: {
   kind: CampaignKind;
   rule: GeneralRule;
+  choices: CampaignAudience;
   onChange: (next: GeneralRule) => void;
 }) {
   const set = <K extends keyof GeneralRule>(key: K, value: GeneralRule[K]) =>
@@ -149,16 +150,16 @@ export function GeneralCard({
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <MultiSelectField
           label="Cari Tipleri"
-          options={CUSTOMER_TYPE_OPTIONS.map((t) => ({ id: t, name: t }))}
-          value={rule.customerTypes}
+          options={audienceOptions(choices.customerTypes, rule.customerTypes)}
+          value={audienceSelection(rule.customerTypes, choices.customerTypes)}
           onChange={(v) => set('customerTypes', v)}
           emptyText="Hepsi"
           listText
         />
         <MultiSelectField
           label="Fiyat Listeleri"
-          options={PRICE_LIST_OPTIONS.map((t) => ({ id: t, name: t }))}
-          value={rule.priceLists}
+          options={audienceOptions(choices.priceLists, rule.priceLists)}
+          value={audienceSelection(rule.priceLists, choices.priceLists)}
           onChange={(v) => set('priceLists', v)}
           emptyText="Hepsi"
           listText

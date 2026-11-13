@@ -28,6 +28,7 @@ import {
 import { Prisma } from '../../generated/prisma/client';
 import { createRateLimiter } from '../../middleware/rate-limit';
 import { verifyRobot, whatsappRequest } from './workspace.integrations';
+import { sendNetgsmSms } from './netgsm';
 
 const id = z.coerce.number().int().positive().max(2147483647);
 const name = z.string().trim().min(1, 'Ad girin.').max(120);
@@ -375,12 +376,15 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
         'cloudflare',
         'recaptcha',
         'whatsapp',
+        'sms',
         'site_system',
         'site_header',
         'site_defaults',
         'site_appearance',
         'site_erp',
         'site_xml',
+        'site_iletisim',
+        'site_sms_sablonlari',
       ])
       .parse(value);
   router.get('/ayarlar/:section', async (req, res) => {
@@ -407,6 +411,9 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
       : undefined;
     res.json({
       ...result,
+      ...(section === 'site_xml'
+        ? { feedUrl: new URL(`/api/site-feed/${ctx.business.id}/google.xml`, env.APP_URL).href }
+        : {}),
       ...(section === 'whatsapp'
         ? { webhookUrl: new URL(`/api/webhooks/whatsapp/${ctx.business.id}`, env.APP_URL).href }
         : {}),
@@ -450,7 +457,7 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
     const ctx = ctxOf(res);
     requirePermission(ctx, 'settings', 'save');
     const section = z
-      .enum(['smtp', 'imap', 'cloudflare', 'recaptcha', 'whatsapp'])
+      .enum(['smtp', 'imap', 'cloudflare', 'recaptcha', 'whatsapp', 'sms'])
       .parse(req.params.section);
     if (section === 'cloudflare' || section === 'recaptcha') {
       await verifyRobot(
@@ -461,6 +468,33 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
         req.ip,
       );
       return res.json({ message: 'Robot doğrulaması sunucuda başarıyla doğrulandı.' });
+    }
+    if (section === 'sms') {
+      const values = await settings.values(ctx.business.id, 'sms', true);
+      const requested = typeof req.body?.number === 'string' ? req.body.number.trim() : '';
+      const target = requested || (values.testNumber ?? '').trim();
+      if (!target)
+        throw new HttpError(400, 'VALIDATION_ERROR', 'Test için bir telefon numarası girin.');
+      // Gönderici: onaylı başlık yoksa Netgsm sanal numarası başlık olarak kullanılır.
+      const sender = values.sender?.trim() || values.sanalNumara?.trim() || '';
+      if (!values.username?.trim() || !values.password || !sender)
+        throw new HttpError(
+          400,
+          'VALIDATION_ERROR',
+          'Önce kullanıcı adı, şifre ve gönderici başlığı (ya da sanal numara) kaydedin.',
+        );
+      const sent = await sendNetgsmSms(
+        {
+          apiUrl: values.apiUrl ?? '',
+          username: values.username.trim(),
+          password: values.password,
+          sender,
+        },
+        target,
+        'Güzel Teknoloji: SMS ayarları test mesajı.',
+      );
+      note(res, 'SMS Bağlantısı', null, 'Test gönderildi');
+      return res.json({ message: `Test SMS ${sent.number} numarasına gönderildi.` });
     }
     if (section === 'whatsapp') {
       const result = await whatsappRequest(await settings.values(ctx.business.id, section, true));

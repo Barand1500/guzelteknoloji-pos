@@ -21,6 +21,8 @@ import { DuplicateCheckProvider } from '../duplicate-check';
 import { StockSavedScreen } from './StockSavedScreen';
 import { VariantEditor } from './VariantEditor';
 import { useWorkspace } from '../../workspace/workspace-context';
+import { siteService } from '../../ecommerce-settings/services/site.service';
+import type { ProductDefaults } from '../stock-defaults';
 
 interface StockCardFormProps {
   /** Verilirse bu kayıtlı kart dolu gelir ve Kaydet onu günceller (düzenleme). */
@@ -37,6 +39,7 @@ interface Loaded {
   extras?: StockExtras;
   /** `null`: kategori/fırsat kutuları sunucuya bağlı değil (kilitli). */
   extraOptions: StockExtraOptions | null;
+  productDefaults?: ProductDefaults;
 }
 
 /** Veriyi yükler; hazır olunca düzenleyiciyi gösterir (listeler yüklenmeden hook'lar kurulamaz). */
@@ -59,12 +62,25 @@ export function StockCardForm({ cardId, copyFromId }: StockCardFormProps = {}) {
       sourceId ? service.get(sourceId) : undefined,
       sourceId ? service.getExtras(sourceId) : undefined,
       service.getExtraOptions(),
+      !sourceId && !demo ? siteService.loadSettings('site_defaults').catch(() => null) : undefined,
     ])
-      .then(([lookups, card, extras, extraOptions]) => {
+      .then(([lookups, card, extras, extraOptions, defaultsResult]) => {
         if (!active) return;
         setLoaded({
           lookups,
           extraOptions,
+          ...(!sourceId && defaultsResult
+            ? {
+                productDefaults: {
+                  stockType: defaultsResult.values.stokTipi,
+                  unit: defaultsResult.values.birim,
+                  purchaseCurrency: defaultsResult.values.alisParaBirimi,
+                  saleCurrency: defaultsResult.values.satisParaBirimi || defaultsResult.values.paraBirimi,
+                  vatRate: defaultsResult.values.kdv,
+                  vatIncluded: defaultsResult.values.kdvDahil === 'true',
+                },
+              }
+            : {}),
           // Kopya yeni kayıttır: ad ve kod, asıl kartla karışmasın diye ayrıştırılır.
           ...(card
             ? {
@@ -162,6 +178,9 @@ function StockCardEditor({
     ...(loaded.extras ? { initialExtras: loaded.extras } : {}),
     ...(cardId ? { cardId } : {}),
     extraOptions: loaded.extraOptions,
+    ...(mode === 'create' && loaded.productDefaults
+      ? { productDefaults: loaded.productDefaults }
+      : {}),
     quickAdd: {
       createBrand: (draft) => brandService.create(draft),
       createCategory: (draft) => categoryService.create(draft),

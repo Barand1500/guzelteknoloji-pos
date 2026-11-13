@@ -198,7 +198,11 @@ function CustomerDetail({ id }: { id: string }) {
 
   const toggleUser = (userId: string, active: boolean) =>
     run(async () => {
-      if (!store.sample) await service.setUserLogin(customer.id, userId, active);
+      if (!store.sample) {
+        await service.setUserLogin(customer.id, userId, active);
+        // Son kullanıcı kapandığında/ilk kullanıcı açıldığında müşteri durumu da değişir.
+        store.refresh();
+      }
       setDetail((d) =>
         d ? { ...d, users: d.users.map((u) => (u.id === userId ? { ...u, active } : u)) } : d,
       );

@@ -1,6 +1,8 @@
-import { ApiError, apiRequest } from '../../../lib/http';
+import { apiRequest } from '../../../lib/http';
 import { useDataService } from '../../../lib/catalog-data';
 import { campaignSeed } from '../../../mocks/campaigns.mock';
+import type { CommerceChoices, CampaignCartInput, CampaignCartQuote } from '@gt/shared';
+import { stockDefsSeed } from '../../../mocks/stockdefs.mock';
 import {
   CAMPAIGN_SLUG,
   type CampaignData,
@@ -12,23 +14,19 @@ import {
 
 export interface LoadedCampaign {
   data: CampaignData;
-  /** true: sunucu uçları henüz yok (404); ekranda örnek veri var, değişiklikler yalnızca ekranda. */
+  /** true: açıkça seçilen test oturumunun örnek verisi. */
   sample: boolean;
 }
 
 const base = (kind: CampaignKind) => `/api/kampanyalar/${CAMPAIGN_SLUG[kind]}`;
 const rulePath = (kind: CampaignKind, id: string) => `${base(kind)}/kurallar/${encodeURIComponent(id)}`;
 
-/** Sunucu sözleşmesi: bkz. types.ts. Uç yoksa (404) örnek veriyle çalışılır. */
+/** Sunucu sözleşmesi: bkz. types.ts. */
 export const campaignService = {
+  quote: (input: CampaignCartInput) => apiRequest<CampaignCartQuote>('/api/kampanyalar/hesapla', { method: 'POST', body: input }),
+  choices: () => apiRequest<CommerceChoices>('/api/kampanyalar/secenekler'),
   load: async (kind: CampaignKind): Promise<LoadedCampaign> => {
-    try {
-      return { data: await apiRequest<CampaignData>(base(kind)), sample: false };
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404)
-        return { data: campaignSeed(kind), sample: true };
-      throw e;
-    }
+    return { data: await apiRequest<CampaignData>(base(kind)), sample: false };
   },
   saveGeneral: (kind: CampaignKind, rule: GeneralRule) =>
     apiRequest<void>(`${base(kind)}/genel`, { method: 'POST', body: rule }),
@@ -44,6 +42,8 @@ export const campaignService = {
 
 /** Deneme verisi (yalnızca geçici test girişi): her şey örnek, bellekte. */
 export const demoCampaignService: typeof campaignService = {
+  quote: async () => { throw new Error('Gerçek ürünlerle sepet hesabı için kendi hesabınızla giriş yapın.'); },
+  choices: async () => ({ customerTypes: stockDefsSeed().cari, priceLists: stockDefsSeed().priceLists, payments: [] }),
   load: async (kind) => ({ data: campaignSeed(kind), sample: true }),
   saveGeneral: async () => undefined,
   createRule: async (_kind, draft) => ({

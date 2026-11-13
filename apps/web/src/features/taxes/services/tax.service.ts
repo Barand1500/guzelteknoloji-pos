@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../lib/http';
+import { apiRequest } from '../../../lib/http';
 import { useDataService } from '../../../lib/catalog-data';
 import { taxOfficeSeeds, taxTypeSeeds } from '../../../mocks/taxes.mock';
 import type { TaxOffice, TaxType, TaxTypeDraft } from '../types';
@@ -6,7 +6,7 @@ import type { TaxOffice, TaxType, TaxTypeDraft } from '../types';
 export interface LoadedTaxes {
   types: TaxType[];
   offices: TaxOffice[];
-  /** true: sunucu uçları henüz yok (404); ekranda örnek veri var, değişiklikler yalnızca ekranda. */
+  /** true: açıkça seçilen test oturumunun örnek verisi. */
   sample: boolean;
 }
 
@@ -17,17 +17,12 @@ const sample = (): LoadedTaxes => ({
   sample: true,
 });
 
-/** Sunucu: bkz. types.ts. Uç yoksa (404) örnek veriyle çalışılır. */
+/** Sunucu: bkz. types.ts. */
 export const taxService = {
   load: async (): Promise<LoadedTaxes> => {
-    try {
-      const types = await apiRequest<TaxType[]>('/api/vergiler');
-      const offices = await apiRequest<TaxOffice[]>('/api/vergi-daireleri');
-      return { types, offices, sample: false };
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404) return sample();
-      throw e;
-    }
+    const types = await apiRequest<TaxType[]>('/api/vergiler');
+    const offices = await apiRequest<TaxOffice[]>('/api/vergi-daireleri');
+    return { types, offices, sample: false };
   },
   saveType: (draft: TaxTypeDraft, id?: string) =>
     apiRequest<TaxType>(id ? `/api/vergiler/${enc(id)}` : '/api/vergiler', {

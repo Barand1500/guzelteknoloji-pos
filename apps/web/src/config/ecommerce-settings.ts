@@ -5,6 +5,7 @@ import {
   Image,
   LayoutTemplate,
   Menu,
+  Phone,
   Palette,
   Rss,
   Settings2,
@@ -95,6 +96,13 @@ export const ECOMMERCE_PAGES: readonly EcommercePage[] = [
     icon: Braces,
   },
   {
+    key: 'iletisim-bilgileri',
+    label: 'İletişim',
+    title: 'İletişim Bilgileri',
+    description: 'İşletme iletişim bilgileri ve sosyal bağlantılar.',
+    icon: Phone,
+  },
+  {
     key: 'erp',
     label: 'ERP',
     title: 'ERP Entegrasyonu',
@@ -125,10 +133,7 @@ export function ecommercePath(key: string, segment?: string): string {
  */
 export function ecommercePageTitle(pathname: string): string | undefined {
   if (!pathname.startsWith(ECOMMERCE_BASE)) return undefined;
-  const [key] = pathname
-    .slice(ECOMMERCE_BASE.length)
-    .replace(/^\/+/, '')
-    .split('/');
+  const [key] = pathname.slice(ECOMMERCE_BASE.length).replace(/^\/+/, '').split('/');
   if (!key) return 'E-Ticaret Ayarları';
   return ecommercePage(key)?.title;
 }

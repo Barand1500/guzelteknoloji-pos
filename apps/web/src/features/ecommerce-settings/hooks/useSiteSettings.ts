@@ -17,6 +17,7 @@ export function useSiteSettings(section: string, defaults: Record<string, string
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [feedUrl, setFeedUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (demo) {
@@ -28,6 +29,7 @@ export function useSiteSettings(section: string, defaults: Record<string, string
       .then((result) => {
         if (active) {
           setValues({ ...defaults, ...result.values });
+          setFeedUrl(result.feedUrl ?? null);
           setReady(true);
           setError(null);
         }
@@ -75,6 +77,7 @@ export function useSiteSettings(section: string, defaults: Record<string, string
     saving,
     error,
     message,
+    feedUrl,
     save,
   };
 }

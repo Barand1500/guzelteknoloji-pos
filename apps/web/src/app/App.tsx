@@ -80,8 +80,8 @@ export function App() {
             </Route>
             <Route path="kampanyalar">
               <Route index element={<Navigate to="sepet-indirimi" replace />} />
-              <Route path="sepet-indirimi" element={<CampaignPage kind="cart" />} />
-              <Route path="ucretsiz-kargo" element={<CampaignPage kind="shipping" />} />
+              <Route path="sepet-indirimi" element={<CampaignPage key="cart" kind="cart" />} />
+              <Route path="ucretsiz-kargo" element={<CampaignPage key="shipping" kind="shipping" />} />
             </Route>
             <Route path="musteriler" element={<CustomerLayout />}>
               <Route index element={<CustomersView />} />

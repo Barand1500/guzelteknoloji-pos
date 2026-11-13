@@ -5,12 +5,11 @@ import { Segmented } from '../../../components/ui/Segmented';
 import { SelectField } from '../../../components/ui/SelectField';
 import { TextField } from '../../../components/ui/TextField';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
+import { Alert } from '../../../components/ui/Alert';
+import { useCustomerChoices } from '../hooks/useCustomerChoices';
 import { formatDateTime } from '../../orders/components/parts';
 import {
-  CUSTOMER_TYPES,
   KIND_LABEL,
-  PAYMENT_OPTIONS,
-  PRICE_LISTS,
   type Customer,
   type CustomerDetail,
   type CustomerDraft,
@@ -84,11 +83,13 @@ export function InfoTab({
   editing: InfoEditing;
   onUserToggle: (userId: string, active: boolean) => void;
 }) {
+  const choices = useCustomerChoices();
   const { draft, errors, set } = editing;
   const corporate = (draft?.kind ?? customer.kind) === 'corporate';
   const idLength = corporate ? 10 : 11;
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      {choices.error && <div className="col-span-full"><Alert tone="error">{choices.error}</Alert></div>}
       <div className="divide-y divide-line rounded-3xl border border-line bg-surface">
       <EditCard title="Kimlik" card="kimlik" editing={editing}>
         {(on) =>
@@ -128,7 +129,7 @@ export function InfoTab({
               />
               <SelectField
                 label="Cari tipi"
-                options={CUSTOMER_TYPES.map((t) => ({ value: t, label: t }))}
+                options={Array.from(new Set([...choices.customerTypes, draft.customerType])).map((t) => ({ value: t, label: t }))}
                 value={draft.customerType}
                 onChange={(v) => set('customerType', v)}
               />
@@ -196,13 +197,13 @@ export function InfoTab({
             <div className="grid gap-4 md:grid-cols-2">
               <SelectField
                 label="Fiyat listesi"
-                options={PRICE_LISTS.map((p) => ({ value: p, label: p }))}
+                options={Array.from(new Set([...choices.priceLists, draft.priceList])).map((p) => ({ value: p, label: p }))}
                 value={draft.priceList}
                 onChange={(v) => set('priceList', v)}
               />
               <MultiSelectField
                 label="Ödeme şekilleri"
-                options={PAYMENT_OPTIONS.map((p) => ({ id: p, name: p }))}
+                options={Array.from(new Set([...choices.payments, ...draft.payments])).map((p) => ({ id: p, name: p }))}
                 value={draft.payments}
                 onChange={(v) => set('payments', v)}
               />

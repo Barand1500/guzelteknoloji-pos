@@ -286,6 +286,7 @@ export const SECTIONS: readonly Section[] = [
     hue: 225,
     tagline: 'Genel ve yetkiler',
     home: ayarlar.path,
+    addButton: true,
     pages: [ayarlar, kullanicilar, roller, loglar],
     dock: { left: [ayarlar, kullanicilar], right: [roller, loglar] },
     paths: [

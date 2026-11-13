@@ -1,50 +1,144 @@
 import { useEffect, useState } from 'react';
-import type { CurrencyDto, NameItemDto, PriceListDto, TaxOfficeDto } from '@gt/shared';
+import type {
+  CurrencyDto,
+  NameItemDto,
+  PriceListDto,
+  StockLookups,
+  TaxOfficeDto,
+} from '@gt/shared';
 import { apiRequest } from '../../../lib/http';
 import { imageAddress } from '../../../lib/catalog-data';
 import { Alert } from '../../../components/ui/Alert';
 import { SelectField, type SelectOption } from './SiteSelect';
-import { TextAreaField } from '../../../components/ui/TextAreaField';
 import { TextField } from '../../../components/ui/TextField';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import { useSiteSettings } from '../hooks/useSiteSettings';
+import { usePublishSaveAction } from '../../app-shell/save-action';
 import { useWorkspace } from '../../workspace/workspace-context';
 import { demoCategoryService } from '../../categories/services/category.demo';
 import { demoBrandService } from '../../brands/services/brand.demo';
 import type { Category } from '../../categories/types';
 import type { Brand } from '../../brands/types';
+import { countryOptions } from '../../stock/countries';
 import { fileToDataUrl, siteService } from '../services/site.service';
 import { ImagePicker, pickImage, type PickedImage } from './ImagePicker';
-import { FieldGrid, SaveFooter, ScreenCard } from './Parts';
+import { FieldGrid, ScreenCard } from './Parts';
 
-const fallbackCurrencies = [
-  { value: 'TRY', label: '₺ Türk Lirası' },
-  { value: 'USD', label: '$ ABD Doları' },
-  { value: 'EUR', label: '€ Euro' },
-];
+const baseCurrency = [{ value: 'TRY', label: '₺ Türk Lirası' }];
 
 const defaults = {
   kategori: '',
   marka: '',
-  stokTipi: 'basit',
-  alisParaBirimi: 'USD',
-  birim: 'ADET',
-  paraBirimi: 'USD',
+  stokTipi: '',
+  alisParaBirimi: '',
+  birim: '',
+  paraBirimi: '',
   kdv: '20',
   kdvDahil: 'false',
   iadeGun: '14',
   stokYok: 'Stokta Yok',
   stokYokGorselId: '',
-  cariTipi: 'son-kullanici',
-  fiyatTanimi: 'FIYAT',
-  fiyatSecimi: '1',
-  musteriTipi: 'gercek',
+  cariTipi: '',
+  fiyatTanimi: '',
+  fiyatSecimi: '',
+  musteriTipi: '',
   vergiDairesi: '',
-  ulke: 'TR',
-  stokGosterimi: 'tam',
-  satisParaBirimi: 'TRY',
+  ulke: '',
+  stokGosterimi: '',
+  satisParaBirimi: '',
   girisYonlendirme: '',
 };
+
+/**
+ * İşletmenin kendi vergi dairesi listesi boşsa gösterilen il daireleri.
+ * İlçe daireleri Tanımlamalar → Vergi Daireleri ekranından eklenir; o liste varsa bu kullanılmaz.
+ */
+const PROVINCE_TAX_OFFICES: SelectOption[] = [
+  'Adana',
+  'Adıyaman',
+  'Afyonkarahisar',
+  'Ağrı',
+  'Amasya',
+  'Ankara',
+  'Antalya',
+  'Artvin',
+  'Aydın',
+  'Balıkesir',
+  'Bilecik',
+  'Bingöl',
+  'Bitlis',
+  'Bolu',
+  'Burdur',
+  'Bursa',
+  'Çanakkale',
+  'Çankırı',
+  'Çorum',
+  'Denizli',
+  'Diyarbakır',
+  'Edirne',
+  'Elazığ',
+  'Erzincan',
+  'Erzurum',
+  'Eskişehir',
+  'Gaziantep',
+  'Giresun',
+  'Gümüşhane',
+  'Hakkari',
+  'Hatay',
+  'Isparta',
+  'Mersin',
+  'İstanbul',
+  'İzmir',
+  'Kars',
+  'Kastamonu',
+  'Kayseri',
+  'Kırklareli',
+  'Kırşehir',
+  'Kocaeli',
+  'Konya',
+  'Kütahya',
+  'Malatya',
+  'Manisa',
+  'Kahramanmaraş',
+  'Mardin',
+  'Muğla',
+  'Muş',
+  'Nevşehir',
+  'Niğde',
+  'Ordu',
+  'Rize',
+  'Sakarya',
+  'Samsun',
+  'Siirt',
+  'Sinop',
+  'Sivas',
+  'Tekirdağ',
+  'Tokat',
+  'Trabzon',
+  'Tunceli',
+  'Şanlıurfa',
+  'Uşak',
+  'Van',
+  'Yozgat',
+  'Zonguldak',
+  'Aksaray',
+  'Bayburt',
+  'Karaman',
+  'Kırıkkale',
+  'Batman',
+  'Şırnak',
+  'Bartın',
+  'Ardahan',
+  'Iğdır',
+  'Yalova',
+  'Karabük',
+  'Kilis',
+  'Osmaniye',
+  'Düzce',
+].map((name) => ({
+  value: `${name} Vergi Dairesi`,
+  label: `${name} Vergi Dairesi`,
+}));
 
 /** Sunucudan gelen değer sabit listede yoksa görünür kalsın diye listeye eklenir. */
 function withCurrent(options: readonly SelectOption[], value: string): SelectOption[] {
@@ -102,6 +196,8 @@ export function DefaultsScreen() {
     'site_defaults',
     defaults,
   );
+  // Kaydet düğmesi sayfada değil, yüzen adadaki disket düğmesinde (Dock).
+  usePublishSaveAction({ onSave: () => void save(), saving, disabled: loading || !ready });
   const { demo } = useWorkspace();
   const [stockImage, setStockImage] = useState<PickedImage | null>(null);
   const [stockUploading, setStockUploading] = useState(false);
@@ -112,21 +208,11 @@ export function DefaultsScreen() {
   const [brandOptions_, setBrandOptions] = useState<SelectOption[]>([
     { value: '', label: 'Marka seçiniz.' },
   ]);
-  const [currencyOptions, setCurrencyOptions] = useState<SelectOption[]>(fallbackCurrencies);
-  const [unitOptions, setUnitOptions] = useState<SelectOption[]>([
-    { value: 'ADET', label: 'ADET' },
-  ]);
-  const [priceListOptions, setPriceListOptions] = useState<SelectOption[]>([
-    { value: 'FIYAT', label: 'FIYAT' },
-  ]);
-  const [stockTypeOptions, setStockTypeOptions] = useState<SelectOption[]>([
-    { value: 'basit', label: 'Basit Ürün' },
-    { value: 'varyantli', label: 'Varyantlı Ürün' },
-  ]);
-  const [customerTypeOptions, setCustomerTypeOptions] = useState<SelectOption[]>([
-    { value: 'son-kullanici', label: 'Son Kullanıcı' },
-    { value: 'bayi', label: 'Bayi' },
-  ]);
+  const [currencyOptions, setCurrencyOptions] = useState<SelectOption[]>(baseCurrency);
+  const [unitOptions, setUnitOptions] = useState<SelectOption[]>([]);
+  const [priceListOptions, setPriceListOptions] = useState<SelectOption[]>([]);
+  const [stockTypeOptions, setStockTypeOptions] = useState<SelectOption[]>([]);
+  const [customerTypeOptions, setCustomerTypeOptions] = useState<SelectOption[]>([]);
   const [taxOfficeOptions, setTaxOfficeOptions] = useState<SelectOption[]>([
     { value: '', label: 'Vergi Dairesi seçiniz.' },
   ]);
@@ -151,49 +237,49 @@ export function DefaultsScreen() {
       settle(() => apiRequest<Category[]>('/api/kategoriler')),
       settle(() => apiRequest<Brand[]>('/api/markalar')),
       settle(() => apiRequest<CurrencyDto[]>('/api/para-birimleri')),
-      settle(() => apiRequest<NameItemDto[]>('/api/cari-stok/olcu-birimleri')),
+      settle(() => apiRequest<StockLookups>('/api/stok/secenekler')),
       settle(() => apiRequest<PriceListDto[]>('/api/cari-stok/fiyat-listeleri')),
-      settle(() => apiRequest<NameItemDto[]>('/api/cari-stok/stok-tipleri')),
       settle(() => apiRequest<NameItemDto[]>('/api/cari-stok/cari-tipleri')),
       settle(() => apiRequest<TaxOfficeDto[]>('/api/vergi-daireleri')),
     ]).then(
-      ([categories, brands, currencies, units, priceLists, stockTypes, customerTypes, offices]) => {
+      ([categories, brands, currencies, stockLookups, priceLists, customerTypes, offices]) => {
         if (!active) return;
         const missing: string[] = [];
         if (categories) setCategoryOptions(categoryOptions(categories));
         else missing.push('kategori');
         if (brands) setBrandOptions(brandOptions(brands));
         else missing.push('marka');
-        if (currencies && currencies.length > 0)
-          setCurrencyOptions(
-            currencies.map((item) => ({
-              value: item.shortName,
-              label: `${item.symbol} ${item.name}`,
-            })),
-          );
-        else missing.push('para birimi');
-        if (units && units.length > 0)
-          setUnitOptions(
-            units.map((item) => ({ value: item.shortName || item.name, label: item.name })),
-          );
+        {
+          // Ürün formunun kullandığı liste (TRY/USD/EUR) + işletmenin eklediği para birimleri.
+          const base = stockLookups?.currencies ?? [];
+          const extra = (currencies ?? [])
+            .filter((item) => !base.some((option) => option.value === item.shortName))
+            .map((item) => ({ value: item.shortName, label: `${item.symbol} ${item.name}` }));
+          if (base.length + extra.length > 0) setCurrencyOptions([...base, ...extra]);
+          else missing.push('para birimi');
+        }
+        if (stockLookups?.units.length) setUnitOptions(stockLookups.units);
         else missing.push('ölçü birimi');
         if (priceLists && priceLists.length > 0)
-          setPriceListOptions(priceLists.map((item) => ({ value: item.id, label: item.name })));
+          // Müşteri kaydı fiyat listesini ad olarak saklar; ürün formu aynı adı seçenek koduna çözer.
+          setPriceListOptions(priceLists.map((item) => ({ value: item.name, label: item.name })));
         else missing.push('fiyat listesi');
-        if (stockTypes && stockTypes.length > 0)
-          setStockTypeOptions(stockTypes.map((item) => ({ value: item.id, label: item.name })));
+        if (stockLookups?.stockTypes.length) setStockTypeOptions(stockLookups.stockTypes);
         else missing.push('stok tipi');
         if (customerTypes && customerTypes.length > 0)
           setCustomerTypeOptions(
-            customerTypes.map((item) => ({ value: item.id, label: item.name })),
+            customerTypes.map((item) => ({ value: item.name, label: item.name })),
           );
         else missing.push('cari tipi');
-        if (offices && offices.length > 0)
+        if (offices) {
+          const custom = offices.filter((item) => !item.builtin);
           setTaxOfficeOptions([
             { value: '', label: 'Vergi Dairesi seçiniz.' },
-            ...offices.map((item) => ({ value: item.id, label: item.name })),
+            ...(custom.length > 0
+              ? custom.map((item) => ({ value: item.id, label: item.name }))
+              : PROVINCE_TAX_OFFICES),
           ]);
-        else missing.push('vergi dairesi');
+        } else missing.push('vergi dairesi');
         setOptionsProblem(
           missing.length > 0
             ? `Şu listeler yüklenemedi: ${missing.join(', ')}. Yetkinizi ve bağlantıyı kontrol edin.`
@@ -305,9 +391,8 @@ export function DefaultsScreen() {
               value={v('iadeGun')}
               onChange={(e) => setValue('iadeGun', e.target.value)}
             />
-            <TextAreaField
+            <TextField
               label="Stok Olmama Yazısı"
-              rows={2}
               value={v('stokYok')}
               onChange={(e) => setValue('stokYok', e.target.value)}
             />
@@ -347,20 +432,18 @@ export function DefaultsScreen() {
           <SelectField
             label="Fiyat Tanımı"
             value={v('fiyatTanimi')}
-            options={withCurrent(
-              [
-                { value: 'FIYAT', label: 'FIYAT' },
-                { value: 'PERAKENDE', label: 'PERAKENDE' },
-                { value: 'TOPTAN', label: 'TOPTAN' },
-              ],
-              v('fiyatTanimi'),
-            )}
+            options={withCurrent(priceListOptions, v('fiyatTanimi'))}
             onChange={(value) => setValue('fiyatTanimi', value)}
           />
           <SelectField
             label="Fiyat Seçimi"
             value={v('fiyatSecimi')}
-            options={withCurrent(priceListOptions, v('fiyatSecimi'))}
+            options={[
+              { value: '', label: 'Seçiniz' },
+              { value: '1', label: 'Fiyat 1' },
+              { value: '2', label: 'Fiyat 2' },
+              { value: '3', label: 'Fiyat 3' },
+            ]}
             onChange={(value) => setValue('fiyatSecimi', value)}
           />
           <SelectField
@@ -382,11 +465,7 @@ export function DefaultsScreen() {
             label="Ülke"
             value={v('ulke')}
             options={withCurrent(
-              [
-                { value: 'TR', label: 'Türkiye' },
-                { value: 'DE', label: 'Almanya' },
-                { value: 'NL', label: 'Hollanda' },
-              ],
+              [{ value: '', label: 'Ülke seçiniz.' }, ...countryOptions()],
               v('ulke'),
             )}
             onChange={(value) => setValue('ulke', value)}
@@ -424,12 +503,7 @@ export function DefaultsScreen() {
 
       {optionsProblem && <Alert tone="info">{optionsProblem}</Alert>}
       {error && <Alert tone="error">{error}</Alert>}
-      <SaveFooter
-        onSave={() => void save()}
-        saving={saving}
-        disabled={loading || !ready}
-        message={message}
-      />
+      {message && <Alert tone="info">{message}</Alert>}
     </div>
   );
 }

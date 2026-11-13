@@ -1,5 +1,6 @@
 import { Download, Pencil, Trash2, Truck, Percent } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { CommerceChoices } from '@gt/shared';
 import { Alert } from '../../../components/ui/Alert';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
 import { SearchField } from '../../../components/ui/SearchField';
@@ -20,6 +21,10 @@ import {
 } from '../types';
 import { GeneralCard } from './GeneralCard';
 import { RuleWizardSheet } from './RuleWizardSheet';
+import { useManagedData } from '../../../lib/useManagedData';
+import { useCampaignService } from '../services/campaign.service';
+import { audienceLabels, audienceSelection, type CampaignAudience } from '../campaign-audience';
+import { CartPreview } from './CartPreview';
 
 const fold = (s: string) => s.toLocaleLowerCase('tr');
 
@@ -51,6 +56,18 @@ function rulesToCsv(rules: CampaignRule[], kind: CampaignKind, names: (r: Campai
  */
 export function CampaignPage({ kind }: { kind: CampaignKind }) {
   const store = useCampaign(kind);
+  const service = useCampaignService();
+  const loadChoices = useCallback(() => service.choices(), [service]);
+  const definitions = useManagedData<CommerceChoices | null>(loadChoices, null);
+  const choices: CampaignAudience = {
+    customerTypes: definitions.data?.customerTypes ?? [],
+    priceLists: definitions.data?.priceLists ?? [],
+  };
+  const canonicalRule = <T extends GeneralRule,>(rule: T): T => ({
+    ...rule,
+    customerTypes: audienceSelection(rule.customerTypes, choices.customerTypes),
+    priceLists: audienceSelection(rule.priceLists, choices.priceLists),
+  });
   const { categories } = useCategories();
   const { brands } = useBrands();
   const [draft, setDraft] = useState<GeneralRule | null>(null);
@@ -70,7 +87,7 @@ export function CampaignPage({ kind }: { kind: CampaignKind }) {
     setSaving(true);
     setProblem(null);
     try {
-      await store.saveGeneral(draft);
+      await store.saveGeneral(canonicalRule(draft));
       setDraft(null);
     } catch (e) {
       setProblem(dataError(e));
@@ -109,7 +126,11 @@ export function CampaignPage({ kind }: { kind: CampaignKind }) {
   const exportCsv = () => {
     if (typeof URL.createObjectURL !== 'function') return;
     const url = URL.createObjectURL(
-      new Blob([rulesToCsv(rules, kind, (r) => namesOf(r))], { type: 'text/csv;charset=utf-8' }),
+      new Blob([rulesToCsv(rules.map((rule) => ({
+        ...rule,
+        customerTypes: audienceLabels(rule.customerTypes, choices.customerTypes),
+        priceLists: audienceLabels(rule.priceLists, choices.priceLists),
+      })), kind, (r) => namesOf(r))], { type: 'text/csv;charset=utf-8' }),
     );
     const a = document.createElement('a');
     a.href = url;
@@ -118,8 +139,9 @@ export function CampaignPage({ kind }: { kind: CampaignKind }) {
     URL.revokeObjectURL(url);
   };
 
+  if (definitions.error) return <Alert tone="error">{definitions.error}</Alert>;
   if (store.error && !store.data) return <Alert tone="error">{store.error}</Alert>;
-  if (!general)
+  if (!general || !definitions.data)
     return <div className="h-80 animate-pulse rounded-[2rem] bg-surface-muted" aria-busy="true" />;
 
   const Icon = cart ? Percent : Truck;
@@ -131,7 +153,8 @@ export function CampaignPage({ kind }: { kind: CampaignKind }) {
       {store.sample ? <SampleNote /> : null}
       {problem ? <Alert tone="error">{problem}</Alert> : null}
 
-      <GeneralCard kind={kind} rule={general} onChange={setDraft} />
+      <GeneralCard kind={kind} rule={general} choices={choices} onChange={setDraft} />
+      {!store.sample && <CartPreview key={JSON.stringify(store.data)} choices={choices} />}
 
 
       <section aria-label="Özel kurallar" className="flex flex-col gap-3">
@@ -182,7 +205,10 @@ export function CampaignPage({ kind }: { kind: CampaignKind }) {
           <ul aria-label="Kurallar" className="flex flex-col gap-2.5">
             {rules.map((r, i) => {
               const [cats, brandsText] = namesOf(r);
-              const chips = [...r.customerTypes, ...r.priceLists];
+              const chips = [
+                ...audienceLabels(r.customerTypes, choices.customerTypes),
+                ...audienceLabels(r.priceLists, choices.priceLists),
+              ];
               const actions = (
                 <span className="mt-1 flex gap-1 sm:mt-0">
                   <button
@@ -251,8 +277,9 @@ export function CampaignPage({ kind }: { kind: CampaignKind }) {
         <RuleWizardSheet
           kind={kind}
           rule={wizard.rule}
+          choices={choices}
           onSave={async (d) => {
-            await store.saveRule(d, wizard.rule?.id);
+            await store.saveRule(canonicalRule(d), wizard.rule?.id);
             setWizard(null);
           }}
           onClose={() => setWizard(null)}

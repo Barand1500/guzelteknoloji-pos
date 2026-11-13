@@ -8,8 +8,10 @@ const tabStyle = (active: boolean) =>
   }`;
 
 const chipStyle = (active: boolean) =>
-  `flex min-h-10 shrink-0 items-center rounded-full px-3 text-sm font-semibold whitespace-nowrap transition-colors ${
-    active ? 'bg-brand-50 text-brand-ink' : 'text-ink-muted hover:bg-surface-muted hover:text-ink'
+  `flex min-h-10 shrink-0 items-center rounded-full border px-3.5 text-sm font-semibold whitespace-nowrap transition-colors ${
+    active
+      ? 'border-brand-500/40 bg-brand-50 text-brand-ink'
+      : 'border-transparent text-ink-muted hover:bg-surface-muted hover:text-ink'
   }`;
 
 /**
@@ -32,7 +34,7 @@ export function SettingsTabs({ pathname }: { pathname: string }) {
       label: 'Entegrasyonlar',
       icon: Mail,
       active:
-        /\/(smtp|imap|google|cloudflare|whatsapp|recaptcha|entegrasyonlar|iletisim|robot-dogrulama|sosyal-giris)$/.test(
+        /\/(smtp|imap|google|cloudflare|whatsapp|sms|recaptcha|entegrasyonlar|iletisim|robot-dogrulama|sosyal-giris)$/.test(
           pathname,
         ),
     },

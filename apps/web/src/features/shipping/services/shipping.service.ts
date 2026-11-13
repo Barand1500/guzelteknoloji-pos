@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../lib/http';
+import { apiRequest } from '../../../lib/http';
 import { useDataService } from '../../../lib/catalog-data';
 import { shippingSeed } from '../../../mocks/shipping.mock';
 import {
@@ -15,27 +15,22 @@ import {
 
 export interface LoadedShipping {
   data: ShippingData;
-  /** true: sunucu uçları henüz yok (404); ekranda örnek veri var, değişiklikler yalnızca ekranda. */
+  /** true: açıkça seçilen test oturumunun örnek verisi. */
   sample: boolean;
 }
 
 const enc = encodeURIComponent;
 
-/** Sunucu: bkz. types.ts. Uç yoksa (404) örnek veriyle çalışılır. */
+/** Sunucu: bkz. types.ts. */
 export const shippingService = {
   load: async (): Promise<LoadedShipping> => {
-    try {
-      const carriers = await apiRequest<Carrier[]>('/api/kargo/firmalar');
-      const [locations, ...rest] = await Promise.all([
-        apiRequest<LocationNode[]>('/api/kargo/lokasyonlar'),
-        ...LIST_DEFS.map((d) => apiRequest<DefItem[]>(`/api/kargo/tanimlar/${d.key}`)),
-      ]);
-      const lists = Object.fromEntries(LIST_DEFS.map((d, i) => [d.key, rest[i]])) as ShippingData['lists'];
-      return { data: { carriers, locations, lists }, sample: false };
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404) return { data: shippingSeed(), sample: true };
-      throw e;
-    }
+    const carriers = await apiRequest<Carrier[]>('/api/kargo/firmalar');
+    const [locations, ...rest] = await Promise.all([
+      apiRequest<LocationNode[]>('/api/kargo/lokasyonlar'),
+      ...LIST_DEFS.map((d) => apiRequest<DefItem[]>(`/api/kargo/tanimlar/${d.key}`)),
+    ]);
+    const lists = Object.fromEntries(LIST_DEFS.map((d, i) => [d.key, rest[i]])) as ShippingData['lists'];
+    return { data: { carriers, locations, lists }, sample: false };
   },
   saveCarrier: (draft: CarrierDraft, id?: string) =>
     apiRequest<Carrier>(id ? `/api/kargo/firmalar/${enc(id)}` : '/api/kargo/firmalar', {

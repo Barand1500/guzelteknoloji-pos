@@ -2,7 +2,9 @@ import { Alert } from '../../../components/ui/Alert';
 import { TextField } from '../../../components/ui/TextField';
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch';
 import { useSiteSettings } from '../hooks/useSiteSettings';
-import { Badge, FieldGrid, SaveFooter, ScreenCard } from './Parts';
+import { useWorkspace } from '../../workspace/workspace-context';
+import { usePublishSaveAction } from '../../app-shell/save-action';
+import { Badge, FieldGrid, ScreenCard } from './Parts';
 
 const erpDefaults = {
   enabled: 'false',
@@ -13,7 +15,7 @@ const erpDefaults = {
   password: '',
 };
 
-const xmlDefaults = { enabled: 'true' };
+const xmlDefaults = { enabled: 'false', productUrlTemplate: '' };
 
 /** ERP Entegrasyon Bilgileri: alanlar `site_erp` bölümüne kaydedilir; test bağlantısı yapılmaz. */
 export function ErpScreen() {
@@ -26,12 +28,18 @@ export function ErpScreen() {
   // Ekranda "required" işaretli alanlar gerçekten zorunlu olsun; boş bilgiyle aktif edilmesin.
   const eksik =
     !v('apiUrl').trim() || !v('server').trim() || !v('database').trim() || !v('username').trim();
+  // Kaydet düğmesi sayfada değil, yüzen adadaki disket düğmesinde (Dock).
+  usePublishSaveAction({
+    onSave: () => void save(),
+    saving,
+    disabled: loading || !ready || (enabled && eksik),
+  });
 
   return (
     <div className="flex flex-col gap-4">
       <ScreenCard
         title="ERP Entegrasyon Bilgileri"
-        description="Vega erp entegrasyonunu bu sayfadan gerçekleştiriniz."
+        description="ERP bağlantı bilgilerini bu sayfadan yönetin."
         actions={
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold">Durum</span>
@@ -40,7 +48,7 @@ export function ErpScreen() {
               checked={enabled}
               onChange={(checked) => setValue('enabled', String(checked))}
             />
-            <Badge tone={enabled ? 'brand' : 'muted'}>{enabled ? 'Açık' : 'Kapalı'}</Badge>
+            <Badge tone={enabled ? 'brand' : 'muted'}>{enabled ? 'Aktif' : 'Pasif'}</Badge>
           </div>
         }
       >
@@ -80,30 +88,37 @@ export function ErpScreen() {
             />
           </FieldGrid>
           <Alert tone="info">
-            Bağlantı bilgileri yalnızca sunucuda şifreli saklanır; bu ekranda gerçek anahtar
-            tutulmaz ve bağlantı testi yapılmaz.
+            Şifre sunucuda şifreli saklanır. Bu ekran bağlantı bilgilerini kaydeder; gerçek veri
+            aktarımı için ERP servis bağlantısının tamamlanması gerekir.
           </Alert>
           {error && <Alert tone="error">{error}</Alert>}
         </div>
       </ScreenCard>
-      <SaveFooter
-        onSave={() => void save()}
-        saving={saving}
-        disabled={loading || !ready || eksik}
-        message={
-          message ?? (eksik ? 'API URL, sunucu, veritabanı ve kullanıcı adı zorunlu.' : null)
-        }
-      />
+      {enabled && eksik && (
+        <Alert tone="error">API URL, sunucu, veritabanı ve kullanıcı adı zorunlu.</Alert>
+      )}
+      {message && <Alert tone="info">{message}</Alert>}
     </div>
   );
 }
 
 /** Google & Meta XML: tek durum anahtarı (`site_xml`), bilgi notu ve örnek adres. */
 export function XmlScreen() {
-  const { values, setValue, loading, ready, saving, error, message, save } = useSiteSettings(
-    'site_xml',
-    xmlDefaults,
-  );
+  const { values, setValue, loading, ready, saving, error, message, feedUrl, save } =
+    useSiteSettings('site_xml', xmlDefaults);
+  const { data } = useWorkspace();
+  // Adres API'den gelmezse işletme kimliğinden türetilir; ekran "yükleniyor"da kalmaz.
+  const address =
+    feedUrl ??
+    (data?.business.id
+      ? `${window.location.origin}/api/site-feed/${data.business.id}/google.xml`
+      : null);
+  // Kaydet düğmesi sayfada değil, yüzen adadaki disket düğmesinde (Dock).
+  usePublishSaveAction({
+    onSave: () => void save(),
+    saving,
+    disabled: loading || !ready,
+  });
   const enabled = values.enabled === 'true';
 
   return (
@@ -119,7 +134,7 @@ export function XmlScreen() {
               checked={enabled}
               onChange={(checked) => setValue('enabled', String(checked))}
             />
-            <Badge tone={enabled ? 'brand' : 'muted'}>{enabled ? 'Açık' : 'Kapalı'}</Badge>
+            <Badge tone={enabled ? 'brand' : 'muted'}>{enabled ? 'Aktif' : 'Pasif'}</Badge>
           </div>
         }
       >
@@ -131,23 +146,15 @@ export function XmlScreen() {
 
       <ScreenCard
         title="Feed Adresi"
-        description="Aşağıdaki adres örnektir; yeni site kurulana kadar çalışır bir feed değildir."
+        description="Bu adresi Google Merchant Center veya Meta Commerce Manager kataloğuna ekleyin."
       >
         <p className="break-all rounded-2xl bg-surface-muted px-4 py-3 font-mono text-sm">
-          https://guzelteknoloji.com/google-meta-xml
-        </p>
-        <p className="mt-2 text-xs text-ink-muted">
-          Gerçek adres, site ve backend bağlantısı hazır olduğunda burada gösterilecek.
+          {address ?? '—'}
         </p>
       </ScreenCard>
 
       {error && <Alert tone="error">{error}</Alert>}
-      <SaveFooter
-        onSave={() => void save()}
-        saving={saving}
-        disabled={loading || !ready}
-        message={message}
-      />
+      {message && <Alert tone="info">{message}</Alert>}
     </div>
   );
 }

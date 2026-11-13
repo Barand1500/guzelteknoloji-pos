@@ -1,5 +1,6 @@
 import type { Prisma } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
+import { OrderLifecycle } from './order-lifecycle';
 import {
   ORDER_SOURCES,
   ORDER_STATUSES,
@@ -63,7 +64,11 @@ function toOrder(row: OrderRow): OrderRecord {
       qty: number(line.adet),
       unitPrice: number(line.birimFiyat),
       unitCost: line.birimMaliyet === null ? null : number(line.birimMaliyet),
+      ...(line.netTutar !== null ? { lineTotal: number(line.netTutar) } : {}),
     })),
+    managed: row.akisSurumu === 1,
+    shippingTotal: number(row.kargoTutari),
+    discountTotal: number(row.indirimTutari),
   };
 }
 
@@ -77,6 +82,7 @@ function toReturn(row: ReturnRow): ReturnRecord {
     date: row.tarih,
     status: asReturnStatus(row.durum),
     reason: row.sebep,
+    ...(row.siparisId ? { orderId: row.siparisId } : {}),
   };
 }
 
@@ -93,11 +99,7 @@ export class PrismaOrderStore implements OrderStore {
   }
 
   async updateOrderStatus(businessId: number, id: number, status: OrderStatus): Promise<boolean> {
-    const result = await this.db.siparis.updateMany({
-      where: { id, businessId },
-      data: { durum: status },
-    });
-    return result.count > 0;
+    return new OrderLifecycle(this.db).changeOrderStatus(businessId, id, status);
   }
 
   async listReturns(businessId: number): Promise<ReturnRecord[]> {
@@ -109,11 +111,7 @@ export class PrismaOrderStore implements OrderStore {
   }
 
   async updateReturnStatus(businessId: number, id: number, status: ReturnStatus): Promise<boolean> {
-    const result = await this.db.iadeTalebi.updateMany({
-      where: { id, businessId },
-      data: { durum: status },
-    });
-    return result.count > 0;
+    return new OrderLifecycle(this.db).changeReturnStatus(businessId, id, status);
   }
 
   countProducts(ownerId: number): Promise<number> {

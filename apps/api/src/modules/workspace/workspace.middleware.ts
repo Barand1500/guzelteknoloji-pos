@@ -8,6 +8,9 @@ import { readSessionToken } from '../auth/auth.cookies';
 import { HttpError } from '../../lib/http-error';
 import { WorkspaceAccess, hasPermission, type AccessContext } from './workspace.access';
 
+const readOnlyRequest = (path: string, method: string) =>
+  method === 'GET' || method === 'HEAD' || (method === 'POST' && /^\/api\/(kampanyalar\/hesapla|siparisler\/onizleme)\/?$/.test(path));
+
 export function requestPermission(
   path: string,
   method: string,
@@ -30,8 +33,12 @@ export function requestPermission(
       'cari-stok': 'settings',
       bildirimler: 'notifications',
       site: 'settings',
+      seo: 'settings',
       'odeme-sekilleri': 'settings',
       'resmi-tatiller': 'settings',
+      siparisler: 'orders',
+      musteriler: 'customers',
+      anasayfa: 'dashboard',
     } as const
   )[section as 'stok'];
   if (!resource) return null;
@@ -39,7 +46,7 @@ export function requestPermission(
   return {
     resource,
     action:
-      method === 'GET' ? 'read' : /\/(sil|kaldir)$/.test(path) || bulkDelete ? 'delete' : 'save',
+      readOnlyRequest(path, method) ? 'read' : /\/(sil|kaldir)$/.test(path) || bulkDelete ? 'delete' : 'save',
   };
 }
 
@@ -55,12 +62,7 @@ export function workspaceMiddleware(
     const permission = requestPermission(path, req.method, req.body);
     const account = path.startsWith('/api/hesap');
     const logout = path === '/api/auth/logout';
-    // Siparişler, anasayfa ve müşteriler yalnızca oturum ister; ayrı bir bölüm yetkisi yoktur.
-    const sessionOnly =
-      path.startsWith('/api/siparisler') ||
-      path.startsWith('/api/anasayfa') ||
-      path.startsWith('/api/musteriler');
-    if (!permission && !account && !logout && !sessionOnly) return next();
+    if (!permission && !account && !logout) return next();
     const token = readSessionToken(req, env);
     const session = token ? await auth.getSession(token) : null;
     if (!session) {
@@ -79,7 +81,7 @@ export function workspaceMiddleware(
     res.locals.actorSessionId = Number(session.session.id);
     const denied = permission && !hasPermission(ctx, permission.resource, permission.action);
     // Okuma istekleri logları şişirmez; yetkisiz denemeler ve tüm yazma işlemleri kayıt altındadır.
-    if (req.method !== 'GET' || denied) {
+    if (!readOnlyRequest(path, req.method) || denied) {
       const section =
         permission?.resource ??
         (path.includes('/kullanicilar')
@@ -88,8 +90,10 @@ export function workspaceMiddleware(
             ? 'roles'
             : path.includes('/ayarlar') || path.includes('/google')
               ? 'settings'
-              : path.startsWith('/api/siparisler') || path.startsWith('/api/anasayfa')
+              : path.startsWith('/api/siparisler')
                 ? 'orders'
+                : path.startsWith('/api/anasayfa')
+                  ? 'dashboard'
                 : path.startsWith('/api/musteriler')
                   ? 'customers'
                   : 'profile');

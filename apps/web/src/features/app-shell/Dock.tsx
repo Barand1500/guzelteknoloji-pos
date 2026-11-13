@@ -152,7 +152,9 @@ export function Dock() {
         />
 
         {tabs
-          ? tabs.items.slice(0, tabs.split ?? 2).map((t) => <DockTab key={t.id} tab={t} tabs={tabs} />)
+          ? tabs.items
+              .slice(0, tabs.split ?? 2)
+              .map((t) => <DockTab key={t.id} tab={t} tabs={tabs} />)
           : navLeft
               .filter((item) => {
                 const resource = pageResource(item.path);
@@ -163,12 +165,12 @@ export function Dock() {
               ))}
 
         {!section.addButton ? null : save ? (
-          can('products', 'save') ? (
+          can(pageResource(pathname) ?? 'products', 'save') ? (
             <button
               key={pathname}
               type="button"
               onClick={save.onSave}
-              disabled={save.saving}
+              disabled={save.saving || save.disabled}
               aria-label="Kaydet"
               title="Kaydet"
               className="relative -mt-7 mx-1 flex size-14 shrink-0 animate-turn-in items-center justify-center overflow-hidden rounded-full bg-brand-700 text-white shadow-soft ring-4 ring-surface-raised transition-[transform,opacity] duration-200 hover:scale-105 active:scale-95 disabled:opacity-80 md:mt-0 md:ring-0"

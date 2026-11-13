@@ -119,6 +119,7 @@ export function useWorkspacePermission(action: PermissionAction) {
 }
 
 export function pageResource(path: string): WorkspaceResource | null {
+  if (path.includes('/siparisler')) return 'orders';
   if (path.includes('/profil')) return null;
   if (path.includes('/kullanicilar')) return 'users';
   if (path.includes('/roller')) return 'roles';
