@@ -158,6 +158,21 @@ export class WorkspaceSettings {
       })
       .parse(body);
     const page = SETTINGS_PAGES.find((p) => p.key === section)!;
+    if (section === 'site_menu' && Object.values(input.values).some((value) => value.trim().length > 120))
+      throw new HttpError(400, 'VALIDATION_ERROR', 'Menü blok adı en fazla 120 karakter olmalı.');
+    if (section === 'general') {
+      const values = input.values;
+      if (values.calismaSekli && !['B2C', 'B2B', 'Katalog'].includes(values.calismaSekli))
+        throw new HttpError(400, 'VALIDATION_ERROR', 'Çalışma şekli B2C, B2B veya Katalog olmalı.');
+      for (const key of ['website', 'webAdresi', 'binListesiUrl']) {
+        if (values[key] && !z.url().refine((s) => /^https?:\/\//i.test(s)).safeParse(values[key]).success)
+          throw new HttpError(400, 'VALIDATION_ERROR', 'Geçerli bir HTTP/HTTPS adresi girin.');
+      }
+      if (values.acilisTarihi && !z.iso.date().safeParse(values.acilisTarihi).success)
+        throw new HttpError(400, 'VALIDATION_ERROR', 'Geçerli bir açılış tarihi girin.');
+      if (values.bayiSozlesmesi && !/^[0-9a-f-]{36}\.pdf$/.test(values.bayiSozlesmesi))
+        throw new HttpError(400, 'VALIDATION_ERROR', 'Bayi sözleşmesi dosyasını yeniden seçin.');
+    }
     if (
       section === 'general' &&
       'name' in input.values &&

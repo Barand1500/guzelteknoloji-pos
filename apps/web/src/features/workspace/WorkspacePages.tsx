@@ -45,6 +45,8 @@ import { UnsavedChanges } from './UnsavedChanges';
 import { visibleLogChanges } from './log-display';
 import { RobotChallenge } from '../auth/components/RobotChallenge';
 import { SettingsTabs } from './SettingsTabs';
+import { SmsTemplatesPanel } from './SmsTemplatesPanel';
+import { DealerContractField } from './DealerContractField';
 import { usePublishSaveAction } from '../app-shell/save-action';
 
 const base = '/api/hesap';
@@ -1048,10 +1050,10 @@ function SmsSettingsCard() {
           <p className="text-sm text-ink-muted">
             {tab === 'sms'
               ? 'Bildirim SMS’leri için bağlantı bilgileri.'
-              : 'Hazır mesajlar; gönderirken kullanılır.'}
+              : 'SMS şablonlarınızı ekleyin, düzenleyin ve dışa aktarın.'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        {tab === 'sms' && <div className="flex items-center gap-3">
           <span className="text-sm font-semibold">Durum</span>
           <ToggleSwitch
             label="SMS entegrasyonu aktif"
@@ -1061,7 +1063,7 @@ function SmsSettingsCard() {
           <span className="text-sm text-ink-muted">
             {draft.enabled === 'true' ? 'Aktif' : 'Pasif'}
           </span>
-        </div>
+        </div>}
       </div>
 
       {tab === 'sablonlar' ? (
@@ -1148,115 +1150,6 @@ function SmsSettingsCard() {
         </>
       )}
     </section>
-  );
-}
-
-interface SmsTemplate {
-  id: string;
-  name: string;
-  text: string;
-}
-
-/** SMS şablonları: hazır mesaj listesi; her değişiklik anında `site_sms_sablonlari` bölümüne yazılır. */
-function SmsTemplatesPanel() {
-  const rows = useRows<FullSettings>('/ayarlar/site_sms_sablonlari', {
-    values: {},
-    configured: [],
-  });
-  const [list, setList] = useState<SmsTemplate[] | null>(null);
-  const [name, setName] = useState('');
-  const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (rows.loading || rows.error || list !== null) return;
-    try {
-      const parsed: unknown = JSON.parse(rows.value.values.sablonlar ?? '[]');
-      setList(
-        Array.isArray(parsed)
-          ? parsed
-              .filter(
-                (item): item is SmsTemplate =>
-                  !!item &&
-                  typeof item === 'object' &&
-                  typeof (item as SmsTemplate).name === 'string',
-              )
-              .map((item, index) => ({
-                id: String(item.id ?? `s${index}`),
-                name: item.name,
-                text: typeof item.text === 'string' ? item.text : '',
-              }))
-          : [],
-      );
-    } catch {
-      setList([]);
-    }
-  }, [rows.loading, rows.error, rows.value, list]);
-
-  const persist = async (next: SmsTemplate[]) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await post('/ayarlar/site_sms_sablonlari', {
-        values: { sablonlar: JSON.stringify(next) },
-      });
-      setList(next);
-    } catch (e) {
-      setError(dataError(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const add = () => {
-    if (!name.trim() || !text.trim() || !list) return;
-    const next = [...list, { id: `t${Date.now()}`, name: name.trim(), text: text.trim() }];
-    setName('');
-    setText('');
-    void persist(next);
-  };
-
-  return (
-    <div className="space-y-4">
-      <LoadState {...rows} retry={rows.reload} />
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] sm:items-end">
-        <TextField label="Şablon Adı" value={name} onChange={(e) => setName(e.target.value)} />
-        <TextField label="Mesaj" value={text} onChange={(e) => setText(e.target.value)} />
-        <Button
-          flow={false}
-          type="button"
-          fullWidth={false}
-          disabled={busy || !name.trim() || !text.trim()}
-          onClick={add}
-        >
-          Ekle
-        </Button>
-      </div>
-      {error && <Alert tone="error">{error}</Alert>}
-      {list !== null && list.length === 0 && (
-        <p className="text-sm text-ink-muted">Henüz şablon yok.</p>
-      )}
-      <ul className="divide-y divide-line rounded-2xl border border-line">
-        {(list ?? []).map((item) => (
-          <li key={item.id} className="flex items-center gap-3 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{item.name}</p>
-              <p className="truncate text-xs text-ink-muted">{item.text}</p>
-            </div>
-            <button
-              type="button"
-              aria-label={`${item.name} şablonunu sil`}
-              disabled={busy}
-              onClick={() => void persist((list ?? []).filter((x) => x.id !== item.id))}
-              className="inline-flex size-9 items-center justify-center rounded-full text-ink-muted hover:bg-danger-soft hover:text-danger"
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 
@@ -1419,12 +1312,32 @@ function SocialLoginStatus() {
   );
 }
 
-function SettingsPageContent({
+function SettingsPageContent(props: { section: string; embedded?: boolean }) {
+  const [templates, setTemplates] = useState(false);
+  if (props.section !== 'smtp') return <SettingsPageForm {...props} />;
+  const arrows = <div className="flex items-center gap-1">
+    {['Önceki', 'Sonraki'].map((label, index) => <button key={label} type="button"
+      aria-label={templates ? `${label} SMTP ayarlarına geç` : `${index ? 'Sonraki ' : ''}E-posta şablonlarına geç`}
+      className="inline-flex size-9 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted"
+      onClick={() => setTemplates((value) => !value)}>{index ? <ChevronRight className="size-5" /> : <ChevronLeft className="size-5" />}</button>)}
+  </div>;
+  return <>
+    <div hidden={templates} className="h-full"><SettingsPageForm {...props} titleNavigation={arrows} /></div>
+    {templates && <section aria-label="E-Posta Şablonları" className={`${panel} space-y-5`}>
+      <div className="flex items-center gap-3"><h2 className="text-xl font-extrabold">E-Posta Şablonları</h2>{arrows}</div>
+      <SmsTemplatesPanel channel="email" />
+    </section>}
+  </>;
+}
+
+function SettingsPageForm({
   section,
   embedded = false,
+  titleNavigation,
 }: {
   section: string;
   embedded?: boolean;
+  titleNavigation?: ReactNode;
 }) {
   const integration = useContext(IntegrationDirtyContext);
   const reportDirty = integration?.reportDirty;
@@ -1442,6 +1355,7 @@ function SettingsPageContent({
    */
   const [baseline, setBaseline] = useState<Record<string, string> | null>(null);
   const [busy, setBusy] = useState(false);
+  const [documentBusy, setDocumentBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [params] = useSearchParams();
@@ -1471,6 +1385,7 @@ function SettingsPageContent({
     // aynı anlık görüntüye dayandığı için boş sayfada yanlış uyarı çıkmaz.
     const defaults: Record<string, string> = {
       ...rows.value.values,
+      ...(section === 'general' ? { calismaSekli: rows.value.values.calismaSekli || 'B2C' } : {}),
       ...(section === 'images' ? (data?.imageAppearance ?? {}) : {}),
       ...(['smtp', 'imap', 'google'].includes(section)
         ? {
@@ -1534,7 +1449,10 @@ function SettingsPageContent({
     }
   };
   const submit = async () => {
-    if (!page) return;
+    if (!page || documentBusy) return;
+    if (section === 'general' && ['name', 'website', 'webAdresi', 'acilisTarihi'].some((key) => !draft[key]?.trim())) {
+      setError('Sistem adı, sistem adresi, web adresi ve açılış tarihini doldurun.'); return;
+    }
     await run(async () => {
       await post(`/ayarlar/${page.key}`, { values: draft });
       // Kayıt başarılı: temiz başlangıç gönderilen değerler olur, uyarı hemen söner.
@@ -1557,7 +1475,7 @@ function SettingsPageContent({
       : {
           onSave: () => void submitRef.current(),
           saving: busy,
-          disabled: busy || !can('settings', 'save'),
+          disabled: busy || documentBusy || !can('settings', 'save'),
         },
   );
   useEffect(() => {
@@ -1623,7 +1541,7 @@ function SettingsPageContent({
             />
           )}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-extrabold">{page.title}</h2>
+            <div className="flex items-center gap-3"><h2 className="text-xl font-extrabold">{page.title}</h2>{titleNavigation}</div>
             <div className="flex flex-wrap items-center gap-3">
               {mailSection && (
                 <div className="w-48 shrink-0">
@@ -1704,11 +1622,15 @@ function SettingsPageContent({
           >
             {page.fields
               .filter((f) => f.key !== 'enabled')
+              .filter((f) => section !== 'general' || ['name', 'website', 'webAdresi', 'calismaSekli', 'acilisTarihi', 'binListesiUrl'].includes(f.key))
+              .sort((a, b) => section !== 'general' ? 0 : ['name', 'website', 'webAdresi', 'calismaSekli', 'acilisTarihi', 'binListesiUrl'].indexOf(a.key) - ['name', 'website', 'webAdresi', 'calismaSekli', 'acilisTarihi', 'binListesiUrl'].indexOf(b.key))
               .map((f) => {
                 const type = 'type' in f ? f.type : undefined;
                 return (
                   <div key={f.key} className={f.key === 'address' ? 'sm:col-span-2' : ''}>
-                    {section === 'images' ? (
+                    {section === 'general' && f.key === 'calismaSekli' ? (
+                      <SelectField label={f.label} value={draft[f.key] ?? 'B2C'} options={['B2C', 'B2B', 'Katalog'].map((value) => ({ value, label: value }))} onChange={(value) => setDraft({ ...draft, [f.key]: value })} />
+                    ) : section === 'images' ? (
                       <div className="flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-line px-4 py-3">
                         <span className="font-semibold">{f.label}</span>
                         <ToggleSwitch
@@ -1750,6 +1672,8 @@ function SettingsPageContent({
                       <TextField
                         label={f.label}
                         value={draft[f.key] ?? ''}
+                        type={section === 'general' && f.key === 'acilisTarihi' ? 'date' : section === 'general' && ['website', 'webAdresi', 'binListesiUrl'].includes(f.key) ? 'url' : 'text'}
+                        required={section === 'general' && ['name', 'website', 'webAdresi', 'acilisTarihi'].includes(f.key)}
                         numeric={type === 'port' ? 'integer' : undefined}
                         onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
                       />
@@ -1758,6 +1682,8 @@ function SettingsPageContent({
                 );
               })}
           </fieldset>
+          {section === 'general' && <DealerContractField file={draft.bayiSozlesmesi ?? ''} name={draft.bayiSozlesmesiAdi ?? ''} disabled={!can('settings', 'save') || demo || busy} onBusy={setDocumentBusy}
+            onChange={(file, name) => setDraft((previous) => ({ ...previous, bayiSozlesmesi: file, bayiSozlesmesiAdi: name }))} />}
           {section === 'imap' && (
             <p className="text-sm text-ink-muted">
               IMAP bağlantısı TLS ile şifrelenir. Standart port 993’tür.

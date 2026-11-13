@@ -29,6 +29,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { createRateLimiter } from '../../middleware/rate-limit';
 import { verifyRobot, whatsappRequest } from './workspace.integrations';
 import { sendNetgsmSms } from './netgsm';
+import { createWorkspaceDocumentsRouter } from './workspace.documents';
 
 const id = z.coerce.number().int().positive().max(2147483647);
 const name = z.string().trim().min(1, 'Ad girin.').max(120);
@@ -63,6 +64,7 @@ function note(res: Response, field: string, before: unknown, after: unknown) {
 export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: PasswordHasher) {
   const router = Router();
   router.use(createRateLimiter({ enabled: env.rateLimitEnabled, windowMs: 60000, limit: 180 }));
+  router.use('/belgeler', createWorkspaceDocumentsRouter(env.UPLOADS_DIR));
   const settings = new WorkspaceSettings(db, env.COOKIE_SECRET);
   const write = <T>(ctx: AccessContext, fn: (tx: Prisma.TransactionClient) => Promise<T>) =>
     db.$transaction(async (tx) => {
@@ -378,6 +380,7 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
         'whatsapp',
         'sms',
         'site_system',
+        'site_menu',
         'site_header',
         'site_defaults',
         'site_appearance',
@@ -385,6 +388,7 @@ export function createWorkspaceRouter(db: PrismaClient, env: Env, hasher: Passwo
         'site_xml',
         'site_iletisim',
         'site_sms_sablonlari',
+        'site_eposta_sablonlari',
       ])
       .parse(value);
   router.get('/ayarlar/:section', async (req, res) => {

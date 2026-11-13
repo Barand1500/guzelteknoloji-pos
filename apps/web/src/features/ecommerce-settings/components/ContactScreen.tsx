@@ -8,6 +8,11 @@ import { usePublishSaveAction } from '../../app-shell/save-action';
 import { formatTrPhone } from '../../../lib/phone';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import { FieldGrid, ScreenCard } from './Parts';
+import type { TaxOfficeDto } from '@gt/shared';
+import { apiRequest } from '../../../lib/http';
+import { dataError } from '../../../lib/catalog-data';
+import { useWorkspace } from '../../workspace/workspace-context';
+import { taxOfficeSeeds } from '../../../mocks/taxes.mock';
 
 const defaults = {
   unvan: '',
@@ -85,6 +90,16 @@ function parseBranches(raw: string): Branch[] {
  * Şubeler aynı bölümde `subeler` alanında JSON metni olarak tutulur.
  */
 export function ContactScreen() {
+  const { demo } = useWorkspace();
+  const [offices, setOffices] = useState<{ value: string; label: string }[]>([]);
+  const [officeError, setOfficeError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    const load = demo ? Promise.resolve(taxOfficeSeeds) : apiRequest<TaxOfficeDto[]>('/api/vergi-daireleri');
+    void load.then((list) => { if (active) setOffices(list.map((o) => ({ value: o.name, label: o.name }))); })
+      .catch((e) => { if (active) setOfficeError(dataError(e)); });
+    return () => { active = false; };
+  }, [demo]);
   const { values, setValue, loading, ready, saving, error, message, save } = useSiteSettings(
     'site_iletisim',
     defaults,
@@ -119,6 +134,7 @@ export function ContactScreen() {
 
   return (
     <div className="flex flex-col gap-4">
+      {officeError && <Alert tone="error">Vergi daireleri yüklenemedi: {officeError}</Alert>}
       <ScreenCard title="Firma Bilgileri" description="Vitrinde ve faturalarda görünen bilgiler.">
         <FieldGrid>
           <TextField
@@ -140,11 +156,10 @@ export function ContactScreen() {
             value={v('vergiNo')}
             onChange={(e) => setValue('vergiNo', e.target.value)}
           />
-          <TextField
-            label="Vergi Dairesi"
-            value={v('vergiDairesi')}
-            onChange={(e) => setValue('vergiDairesi', e.target.value)}
-          />
+          <SelectField label="Vergi Dairesi" value={v('vergiDairesi')}
+            options={[{ value: '', label: 'Vergi dairesi seçin' }, ...offices,
+              ...(v('vergiDairesi') && !offices.some((o) => o.value === v('vergiDairesi')) ? [{ value: v('vergiDairesi'), label: v('vergiDairesi') }] : [])]}
+            onChange={(value) => setValue('vergiDairesi', value)} />
         </FieldGrid>
       </ScreenCard>
 

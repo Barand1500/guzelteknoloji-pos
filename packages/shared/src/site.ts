@@ -61,6 +61,16 @@ export const WIDGET_TYPES = [
 ] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
+export const WIDGET_LAYOUTS = [
+  { value: 'urun-izgara', label: 'Ürün Izgarası', type: 'urun-raflari' },
+  { value: 'urun-serit', label: 'Ürün Şeridi', type: 'urun-raflari' },
+  { value: 'metin-urun', label: 'Metin ve Ürünler', type: 'urun-raflari' },
+  { value: 'gorsel-urun', label: 'Görsel ve Ürünler', type: 'urun-raflari' },
+  { value: 'sekmeli-urun', label: 'Sekmeli Ürünler', type: 'kategori' },
+  { value: 'ikili-banner', label: 'İkili Banner', type: 'banner' },
+  { value: 'tam-banner', label: 'Tam Genişlik Banner', type: 'banner' },
+] as const;
+
 export const widgetDraftSchema = z.strictObject({
   name: z.string().trim().min(1, 'Widget adı gerekli.').max(120),
   type: z.enum(WIDGET_TYPES),
@@ -69,7 +79,27 @@ export const widgetDraftSchema = z.strictObject({
   order: z.number().int().min(0).max(9999),
   /** Widget görseli (site görselleri tablosundaki kimlik); yoksa null. */
   imageId: z.string().regex(/^\d+$/).nullable(),
-  settings: z.record(z.string(), z.string().max(2000)),
+  settings: z.record(z.string(), z.string().max(2000)).superRefine((settings, ctx) => {
+    const invalid = (message: string) => ctx.addIssue({ code: 'custom', message });
+    if (settings.duzen && !WIDGET_LAYOUTS.some((layout) => layout.value === settings.duzen))
+      invalid('Geçersiz widget düzeni.');
+    if (settings.veriTuru && !['urun', 'kategori'].includes(settings.veriTuru))
+      invalid('Geçersiz widget veri türü.');
+    if (
+      settings.veriKimlikleri &&
+      (!/^[1-9]\d*(,[1-9]\d*)*$/.test(settings.veriKimlikleri) ||
+        settings.veriKimlikleri.split(',').length > 50)
+    )
+      invalid('En fazla 50 ürün veya kategori seçin.');
+    if (settings.veriKimlikleri && !settings.veriTuru) invalid('Widget veri türünü seçin.');
+    if (settings.ikinciGorselId && !/^[1-9]\d*$/.test(settings.ikinciGorselId))
+      invalid('Geçersiz ikinci görsel.');
+    for (const key of ['link', 'ikinciLink']) {
+      const link = settings[key];
+      if (link && !(/^\/(?!\/)/.test(link) || /^https?:\/\//i.test(link)))
+        invalid('Bağlantı / ile veya HTTP/HTTPS ile başlamalı.');
+    }
+  }),
 });
 export type WidgetDraftInput = z.infer<typeof widgetDraftSchema>;
 

@@ -15,6 +15,8 @@ import { MENU_ENTRIES, MENU_GROUPS, type MenuGroupKey } from '../../../mocks/eco
 import { useWorkspace } from '../../workspace/workspace-context';
 import { siteService } from '../services/site.service';
 import { Badge, EditAction, EmptyState, ScreenCard, SortableRow } from './Parts';
+import { MenuBlockNames } from './MenuBlockNames';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 
 type Grouped = Record<MenuGroupKey, MenuEntryDto[]>;
 
@@ -32,6 +34,7 @@ const demoMenu: MenuEntryDto[] = MENU_ENTRIES.map((entry, index) => ({ ...entry,
  * yerel olarak düzenlenir ve hiçbir API çağrısı yapılmaz.
  */
 export function MenuScreen() {
+  const blockNames = useSiteSettings('site_menu', {});
   const { demo } = useWorkspace();
   const [items, setItems] = useState<MenuEntryDto[]>(() => (demo ? [...demoMenu] : []));
   const [loading, setLoading] = useState(!demo);
@@ -191,6 +194,13 @@ export function MenuScreen() {
                   </span>
                 </summary>
                 <div className="space-y-2 border-t border-line p-3">
+                  {groupInfo.key.startsWith('alt') && groupInfo.key !== 'alt' && (
+                    <MenuBlockNames
+                      block={groupInfo.key}
+                      label={groupInfo.label}
+                      settings={blockNames}
+                    />
+                  )}
                   {visible.length === 0 ? (
                     <EmptyState>
                       {query ? 'Aramayla eşleşen öğe yok.' : 'Bu blokta öğe yok.'}

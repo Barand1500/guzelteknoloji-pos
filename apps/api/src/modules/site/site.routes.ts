@@ -227,6 +227,58 @@ export function createSiteRouter(db: PrismaClient, env: Env) {
   });
 
   // ── Widgetlar ─────────────────────────────────────────────────────────────
+  router.get('/widget-verileri', async (req, res) => {
+    const ctx = context(res);
+    requirePermission(ctx, 'settings', 'read');
+    const query = parse(
+      z.object({
+        tur: z.enum(['urun', 'kategori']),
+        arama: z.string().trim().max(120).default(''),
+        secili: z
+          .string()
+          .regex(/^(?:[1-9]\d*(?:,[1-9]\d*)*)?$/)
+          .max(1000)
+          .default(''),
+      }),
+      req.query,
+    );
+    const ids = query.secili ? query.secili.split(',').slice(0, 50).map(Number) : [];
+    const rows =
+      query.tur === 'kategori'
+        ? (
+            await db.kategori.findMany({
+              where: {
+                kullaniciId: ctx.ownerId,
+                ...(ids.length ? { id: { in: ids } } : { ad: { contains: query.arama } }),
+              },
+              orderBy: { ad: 'asc' },
+              take: 50,
+              select: { id: true, ad: true },
+            })
+          ).map((row) => ({ value: String(row.id), label: row.ad }))
+        : (
+            await db.stokKarti.findMany({
+              where: {
+                kullaniciKimligi: ctx.ownerId,
+                ...(ids.length
+                  ? { kimlik: { in: ids } }
+                  : {
+                      OR: [
+                        { stokAdi: { contains: query.arama } },
+                        { stokKodu: { contains: query.arama } },
+                      ],
+                    }),
+              },
+              orderBy: { kimlik: 'desc' },
+              take: 50,
+              select: { kimlik: true, stokAdi: true, stokKodu: true },
+            })
+          ).map((row) => ({
+            value: String(row.kimlik),
+            label: row.stokAdi || row.stokKodu || `Ürün ${row.kimlik}`,
+          }));
+    res.json(rows);
+  });
   router.get('/widgetlar', async (_req, res) => {
     const ctx = context(res);
     requirePermission(ctx, 'settings', 'read');

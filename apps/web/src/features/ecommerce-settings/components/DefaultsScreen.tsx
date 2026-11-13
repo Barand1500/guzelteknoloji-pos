@@ -477,10 +477,11 @@ export function DefaultsScreen() {
         <FieldGrid>
           <SelectField
             label="Stok Gösterimi"
-            value={v('stokGosterimi')}
+            value={v('stokGosterimi') === 'adet' ? 'tam' : v('stokGosterimi')}
             options={[
+              { value: 'var_yok', label: 'Stok Var/Yok' },
+              { value: 'kismi', label: 'Kısmi Stok Göster' },
               { value: 'tam', label: 'Tam Stok Göster' },
-              { value: 'adet', label: 'Yalnızca Adet Göster' },
             ]}
             onChange={(value) => setValue('stokGosterimi', value)}
           />

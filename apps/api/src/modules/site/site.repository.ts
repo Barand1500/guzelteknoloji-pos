@@ -282,6 +282,34 @@ export class SiteRepository {
   }
 
   async saveWidget(businessId: number, input: WidgetDraftInput, id?: number) {
+    if (input.settings.veriKimlikleri) {
+      const business = await this.db.isletme.findUnique({
+        where: { id: businessId },
+        select: { ownerId: true },
+      });
+      if (!business) throw new HttpError(404, 'NOT_FOUND', 'İşletme bulunamadı.');
+      const ids = [...new Set(input.settings.veriKimlikleri.split(',').map(Number))];
+      const found =
+        input.settings.veriTuru === 'kategori'
+          ? await this.db.kategori.count({
+              where: { kullaniciId: business.ownerId, id: { in: ids } },
+            })
+          : await this.db.stokKarti.count({
+              where: { kullaniciKimligi: business.ownerId, kimlik: { in: ids } },
+            });
+      if (found !== ids.length)
+        throw new HttpError(
+          400,
+          'VALIDATION_ERROR',
+          'Seçilen ürün veya kategori bu işletmede bulunamadı.',
+        );
+    }
+    if (input.settings.ikinciGorselId) {
+      const image = await this.db.siteGorseli.findFirst({
+        where: { id: Number(input.settings.ikinciGorselId), isletmeId: businessId },
+      });
+      if (!image) throw new HttpError(400, 'VALIDATION_ERROR', 'İkinci görsel bulunamadı.');
+    }
     let savedId: number | undefined = id;
     // Görsel kimliği istemciden gelir; başka işletmenin görseli bağlanamasın diye sahiplik doğrulanır.
     let gorselId: number | null = null;

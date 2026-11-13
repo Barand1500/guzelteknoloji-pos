@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LayoutTemplate, Plus } from 'lucide-react';
-import type { WidgetDto } from '@gt/shared';
+import { WIDGET_LAYOUTS, type WidgetDto } from '@gt/shared';
 import { Alert } from '../../../components/ui/Alert';
 import { Button } from '../../../components/ui/Button';
 import { ConfirmSheet } from '../../../components/ui/ConfirmSheet';
@@ -14,6 +14,9 @@ import { WIDGETS, WIDGET_TYPES } from '../../../mocks/ecommerce-settings';
 import { useSiteList } from '../hooks/useSiteList';
 import { fileToDataUrl, siteService } from '../services/site.service';
 import { ImagePicker, pickImage, type PickedImage } from './ImagePicker';
+import { WidgetLayoutPicker } from './WidgetLayoutPicker';
+import { WidgetDataPicker } from './WidgetDataPicker';
+import { TextAreaField } from '../../../components/ui/TextAreaField';
 import {
   BACKEND_NOTICE_ID,
   Badge,
@@ -210,7 +213,7 @@ export function WidgetsScreen() {
             ? 'Test modunda kayıt kapalıdır; alanlar yalnızca yerel önizleme içindir.'
             : 'Widget türü, görseli ve görünürlüğü.'
         }
-        size="md"
+        size="lg"
       >
         {form && (
           <WidgetForm
@@ -257,6 +260,18 @@ function WidgetForm({
   const [name, setName] = useState(widget?.name ?? '');
   const [type, setType] = useState<WidgetDto['type']>(widget?.type ?? 'slider');
   const [title, setTitle] = useState(widget?.title ?? '');
+  const [settings, setSettings] = useState<Record<string, string>>(() => ({ ...widget?.settings }));
+  const layout = settings.duzen ?? '';
+  const setSetting = (key: string, value: string) =>
+    setSettings((previous) => ({ ...previous, [key]: value }));
+  const [secondImage, setSecondImage] = useState<PickedImage | null>(() =>
+    widget?.settings.ikinciGorselId
+      ? {
+          name: 'Kayıtlı görsel',
+          url: imageAddress(`/api/site/gorseller/${widget.settings.ikinciGorselId}`) ?? '',
+        }
+      : null,
+  );
   const [visible, setVisible] = useState(widget?.visible ?? true);
   const [image, setImage] = useState<PickedImage | null>(() =>
     widget?.imageUrl
@@ -271,18 +286,23 @@ function WidgetForm({
   const nameError = touched && !name.trim() ? 'Widget adı gerekli.' : undefined;
 
   /** Gerçek oturumda dosya Base64'e çevrilip yüklenir; dönen kimlik widget kaydına yazılır. */
-  const chooseImage = async (file: File | undefined) => {
+  const chooseImage = async (file: File | undefined, second = false) => {
     if (!file) return;
     if (demo) {
-      pickImage(image, file, setImage);
+      pickImage(second ? secondImage : image, file, second ? setSecondImage : setImage);
       return;
     }
     setError(null);
     setUploading(true);
     try {
       const uploaded = await siteService.uploadImage('widget', await fileToDataUrl(file));
-      setImageId(uploaded.id);
-      setImage({ name: file.name, url: imageAddress(uploaded.url) ?? uploaded.url });
+      if (second) {
+        setSetting('ikinciGorselId', uploaded.id);
+        setSecondImage({ name: file.name, url: imageAddress(uploaded.url) ?? uploaded.url });
+      } else {
+        setImageId(uploaded.id);
+        setImage({ name: file.name, url: imageAddress(uploaded.url) ?? uploaded.url });
+      }
     } catch (e) {
       setError(dataError(e));
     } finally {
@@ -304,7 +324,7 @@ function WidgetForm({
           visible,
           order: widget?.order ?? order,
           imageId,
-          settings: widget?.settings ?? {},
+          settings,
         },
         widget?.id,
       );
@@ -324,6 +344,22 @@ function WidgetForm({
         void submit();
       }}
     >
+      <WidgetLayoutPicker
+        value={layout}
+        onChange={(value) => {
+          const selected = WIDGET_LAYOUTS.find((item) => item.value === value)!;
+          setType(selected.type);
+          setSettings((previous) => ({
+            ...previous,
+            duzen: value,
+            veriTuru: value === 'sekmeli-urun' ? 'kategori' : 'urun',
+            veriKimlikleri:
+              previous.veriTuru === (value === 'sekmeli-urun' ? 'kategori' : 'urun')
+                ? (previous.veriKimlikleri ?? '')
+                : '',
+          }));
+        }}
+      />
       <TextField
         label="Widget Adı"
         required
@@ -332,13 +368,41 @@ function WidgetForm({
         onChange={(e) => setName(e.target.value)}
         onBlur={() => setTouched(true)}
       />
-      <SelectField
-        label="Widget Türü"
-        value={type}
-        options={WIDGET_TYPES}
-        onChange={(value) => setType(value as WidgetDto['type'])}
-      />
+      {!layout && (
+        <SelectField
+          label="Widget Türü"
+          value={type}
+          options={WIDGET_TYPES}
+          onChange={(value) => setType(value as WidgetDto['type'])}
+        />
+      )}
       <TextField label="Başlık" value={title} onChange={(e) => setTitle(e.target.value)} />
+      {layout && !layout.includes('banner') && (
+        <WidgetDataPicker
+          key={layout === 'sekmeli-urun' ? 'kategori' : 'urun'}
+          type={layout === 'sekmeli-urun' ? 'kategori' : 'urun'}
+          ids={settings.veriKimlikleri ?? ''}
+          demo={demo}
+          onChange={(value) => setSetting('veriKimlikleri', value)}
+        />
+      )}
+      {layout && (
+        <>
+          <TextAreaField
+            label="Açıklama"
+            value={settings.aciklama ?? ''}
+            maxLength={2000}
+            onChange={(event) => setSetting('aciklama', event.target.value)}
+          />
+          <TextField
+            label="Bağlantı"
+            hint="Örn. /kampanyalar veya https://example.com"
+            value={settings.link ?? ''}
+            maxLength={300}
+            onChange={(event) => setSetting('link', event.target.value)}
+          />
+        </>
+      )}
       <ImagePicker
         label="Widget Görseli"
         hint="Genişlik en çok 1600 piksel; kare veya yatay görsel önerilir."
@@ -357,6 +421,32 @@ function WidgetForm({
           setImageId(null);
         }}
       />
+      {layout === 'ikili-banner' && (
+        <>
+          <ImagePicker
+            label="İkinci Banner Görseli"
+            value={secondImage}
+            busy={uploading}
+            onPick={(file) => void chooseImage(file, true)}
+            onClear={() => {
+              setSecondImage(null);
+              setSetting('ikinciGorselId', '');
+            }}
+          />
+          <TextField
+            label="İkinci Banner Başlığı"
+            value={settings.ikinciBaslik ?? ''}
+            maxLength={120}
+            onChange={(event) => setSetting('ikinciBaslik', event.target.value)}
+          />
+          <TextField
+            label="İkinci Banner Bağlantısı"
+            value={settings.ikinciLink ?? ''}
+            maxLength={300}
+            onChange={(event) => setSetting('ikinciLink', event.target.value)}
+          />
+        </>
+      )}
       <div className="flex items-center gap-3">
         <span className="text-sm font-semibold">Görünürlük</span>
         <ToggleSwitch label="Widget görünür" checked={visible} onChange={setVisible} />

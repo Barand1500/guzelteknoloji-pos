@@ -19,12 +19,11 @@ const defaults = {
   store: '',
   play2: '',
   link4: '',
-  istatistik: '',
 };
 
 /**
  * Sistem Ayarları (e-ticaret): site kimliği/iletişim alanları Genel Ayarlar'a taşındı.
- * Burada yalnızca bildirimler, özel kodlar, uygulama linkleri, köşe yazısı, istatistik ve
+ * Burada yalnızca bildirimler, özel kodlar, uygulama linkleri, köşe yazısı ve
  * kök dizin dosyaları kalır. Alanlar `site_system` bölümüne kaydedilir; kodlar çalıştırılmaz.
  */
 export function SystemSettingsScreen() {
@@ -112,16 +111,7 @@ export function SystemSettingsScreen() {
         </div>
       </ScreenCard>
 
-      <ScreenCard title="Ziyaretçi İstatistikleri">
-        <TextAreaField
-          label="İstatistik Kodu"
-          rows={3}
-          className="font-mono text-xs"
-          spellCheck={false}
-          value={v('istatistik')}
-          onChange={(e) => setValue('istatistik', e.target.value)}
-        />
-      </ScreenCard>
+
 
       <ScreenCard
         title="Ana Dizin Dosya Yüklemeleri"

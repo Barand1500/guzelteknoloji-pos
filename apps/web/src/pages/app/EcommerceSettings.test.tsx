@@ -50,7 +50,7 @@ describe('E-ticaret ayar ekranları', () => {
     expect(within(dialog).getByRole('button', { name: 'Kalın' })).toBeInTheDocument();
   });
 
-  it('site iletişim alanları Genel Ayarlar içinde gerçek formda yer alır', async () => {
+  it('Genel Ayarlar referanstaki sistem bilgilerini ister', async () => {
     mockFetch({
       ...login,
       'GET /api/hesap/ayarlar/general': () => jsonResponse(200, { values: {}, configured: [] }),
@@ -58,13 +58,12 @@ describe('E-ticaret ayar ekranları', () => {
     renderApp('/uygulama/ayarlar/general');
     expect(await screen.findByRole('heading', { level: 2, name: 'Genel Ayarlar' })).toBeVisible();
     for (const label of [
-      'İşletme Adı',
-      'Telefon / GSM',
-      'Adres',
-      'Site URL',
-      'İletişim E-postası',
-      'Site E-posta',
-      'Firma E-posta',
+      'Sistem Adı',
+      'Sistem Adresi',
+      'Web Adresi',
+      'Sistem Açılış Tarihi',
+      'BIN Listesi Linki',
+      'Bayi Sözleşmesi PDF',
     ]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }

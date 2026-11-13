@@ -65,6 +65,10 @@ export const siteService = {
 
   // ── Widgetlar ─────────────────────────────────────────────────────────────
   widgets: () => apiRequest<WidgetDto[]>(`${base}/widgetlar`),
+  widgetData: (type: string, search = '', selected = '') =>
+    apiRequest<{ value: string; label: string }[]>(
+      `${base}/widget-verileri?tur=${enc(type)}&arama=${enc(search)}&secili=${enc(selected)}`,
+    ),
   saveWidget: (draft: WidgetDraftInput, id?: string) =>
     apiRequest<WidgetDto>(id ? `${base}/widgetlar/${enc(id)}` : `${base}/widgetlar`, {
       method: 'POST',
