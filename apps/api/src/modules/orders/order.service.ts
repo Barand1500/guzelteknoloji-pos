@@ -134,6 +134,7 @@ const homeStatus = (status: OrderRecord['status']): 'delivered' | 'cancelled' | 
 export function buildHomeData(
   orders: OrderRecord[],
   productCount: number,
+  customerCount: number,
   period: HomePeriod,
   now: Date,
 ): HomeDataDto {
@@ -182,8 +183,6 @@ export function buildHomeData(
   const pending = periodOrders.filter((order) =>
     ['pending', 'preparing', 'shipped'].includes(order.status),
   ).length;
-  const customers = new Set(periodOrders.map((order) => order.customer.trim()).filter(Boolean));
-
   const payments = new Map<string, { orderCount: number; amount: number }>();
   for (const order of orders) {
     if (order.status === 'cancelled') continue;
@@ -220,7 +219,7 @@ export function buildHomeData(
     trend: revenue.map((point) => point.sales),
     stats: {
       orders: periodOrders.length,
-      customers: customers.size,
+      customers: customerCount,
       products: productCount,
       totalSales,
     },

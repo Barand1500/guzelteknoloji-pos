@@ -75,11 +75,12 @@ export function createHomeRouter(store: OrderStore, now: () => Date = () => new 
     const context = contextOf(res);
     const parsedPeriod = periodSchema.safeParse(req.query.donem ?? 'month');
     const period: HomePeriod = parsedPeriod.success ? parsedPeriod.data : 'month';
-    const [orders, productCount] = await Promise.all([
+    const [orders, productCount, customerCount] = await Promise.all([
       store.listOrders(context.business.id),
       store.countProducts(context.ownerId),
+      store.countCustomers(context.business.id),
     ]);
-    res.json(buildHomeData(orders, productCount, period, now()));
+    res.json(buildHomeData(orders, productCount, customerCount, period, now()));
   });
   return router;
 }

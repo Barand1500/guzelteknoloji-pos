@@ -24,6 +24,8 @@ export interface OrderStore {
   updateReturnStatus(businessId: number, id: number, status: ReturnStatus): Promise<boolean>;
   /** Anasayfadaki "Ürün" sayısı; katalog işletme sahibinin kullanıcı kimliğine bağlıdır. */
   countProducts(ownerId: number): Promise<number>;
+  /** İşletmenin kayıtlı müşteri sayısı. */
+  countCustomers(businessId: number): Promise<number>;
 }
 
 type OrderRow = Prisma.SiparisGetPayload<{ include: { satirlar: true } }>;
@@ -116,5 +118,9 @@ export class PrismaOrderStore implements OrderStore {
 
   countProducts(ownerId: number): Promise<number> {
     return this.db.stokKarti.count({ where: { kullaniciKimligi: ownerId } });
+  }
+
+  countCustomers(businessId: number): Promise<number> {
+    return this.db.musteri.count({ where: { businessId } });
   }
 }

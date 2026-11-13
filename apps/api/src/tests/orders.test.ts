@@ -79,6 +79,7 @@ const returns: ReturnRecord[] = [
 
 class FakeStore implements OrderStore {
   statusCalls: { businessId: number; id: number; status: OrderStatus }[] = [];
+  customerCountCalls: number[] = [];
 
   async listOrders(): Promise<OrderRecord[]> {
     return orders;
@@ -103,6 +104,11 @@ class FakeStore implements OrderStore {
 
   async countProducts(): Promise<number> {
     return 18;
+  }
+
+  async countCustomers(businessId: number): Promise<number> {
+    this.customerCountCalls.push(businessId);
+    return 42;
   }
 }
 
@@ -174,11 +180,11 @@ describe('sipariş listesi', () => {
 
 describe('anasayfa özeti', () => {
   it('aylık ciroyu, önceki ayı ve sipariş durumlarını hesaplar', () => {
-    const data = buildHomeData(orders, 18, 'month', NOW);
+    const data = buildHomeData(orders, 18, 42, 'month', NOW);
     // Kasım: 1200 + 600 + 800 (iptal hariç); Ekim: 2400
     expect(data.salesAmount).toBe(2600);
     expect(data.previousSalesAmount).toBe(2400);
-    expect(data.stats).toEqual({ orders: 4, customers: 4, products: 18, totalSales: 8000 });
+    expect(data.stats).toEqual({ orders: 4, customers: 42, products: 18, totalSales: 8000 });
     expect(data.orders).toEqual({ delivered: 1, cancelled: 1, pending: 2 });
     expect(data.recentOrders[0]?.id).toBe('1');
     expect(data.payments.find((p) => p.label === 'Kredi Kartı')?.amount).toBe(6600);
@@ -187,22 +193,25 @@ describe('anasayfa özeti', () => {
   });
 
   it('bugün ve tüm zamanlar dönemlerini ayrı hesaplar', () => {
-    const today = buildHomeData(orders, 18, 'today', NOW);
+    const today = buildHomeData(orders, 18, 42, 'today', NOW);
     expect(today.salesAmount).toBe(1200);
     expect(today.stats.orders).toBe(2);
     expect(today.orders).toEqual({ delivered: 1, cancelled: 1, pending: 0 });
 
-    const all = buildHomeData(orders, 18, 'all', NOW);
+    const all = buildHomeData(orders, 18, 42, 'all', NOW);
     expect(all.salesAmount).toBe(8000);
     expect(all.previousSalesAmount).toBe(0);
     expect(all.revenue.length).toBeGreaterThanOrEqual(2);
   });
 
   it('uç noktası dönem parametresini kabul eder, bilinmeyen dönemde aya döner', async () => {
-    const app = buildApp(new FakeStore());
+    const store = new FakeStore();
+    const app = buildApp(store);
     const month = await request(app).get('/api/anasayfa?donem=month');
     expect(month.status).toBe(200);
     expect(month.body).toMatchObject({ period: 'month', salesAmount: 2600 });
+    expect(month.body.stats.customers).toBe(42);
+    expect(store.customerCountCalls).toEqual([context.business.id]);
     const fallback = await request(app).get('/api/anasayfa?donem=bilinmeyen');
     expect(fallback.status).toBe(200);
     expect(fallback.body.period).toBe('month');
