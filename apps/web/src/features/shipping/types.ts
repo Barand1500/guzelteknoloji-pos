@@ -67,8 +67,7 @@ export const fromOf = (tiers: Tier[], i: number): number =>
 
 /** Verilen desi/kg için KDV hariç ücret (basamak yoksa null). */
 export function priceFor(tiers: Tier[], value: number): number | null {
-  // Hiç fiyat girilmemiş tablo (varsayılan tek basamak, 0 TL) "ücretsiz" değil "tanımsız" sayılır.
-  if (tiers.length === 1 && tiers[0]?.to === null && (tiers[0]?.price ?? 0) === 0) return null;
+  // Basamak yoksa tarife tanımsızdır; açıkça kaydedilmiş 0 TL ise bir satır olarak gelir ve korunur.
   if (tiers.length === 0 || value < 0) return null;
   const i = tiers.findIndex((t) => t.to === null || value <= t.to);
   const tier = tiers[i];

@@ -259,6 +259,30 @@ export class WorkspaceSettings {
           );
       }
     }
+    if (section === 'smtp' || section === 'imap') {
+      // Kural korunuyor: eksik işletme bilgisi ortak sunucuyla TAMAMLANMAZ. Ama yarım kayıt da
+      // oluşturulmaz: bağlantı alanlarından biri girildiyse gerekli alanların hepsi istenir.
+      // Kayıtlı şifre varsa boş gönderilmesi onu silmez (aşağıda boş değerler birleştirilmez).
+      const stored = await this.values(businessId, section, true);
+      const merged: Record<string, string> = { ...stored };
+      for (const [key, value] of Object.entries(input.values))
+        if (value.trim()) merged[key] = value;
+      for (const key of input.clear) delete merged[key];
+      const required =
+        section === 'smtp'
+          ? ['host', 'username', 'password', 'from']
+          : ['host', 'username', 'password'];
+      const started = required.some((key) => !!merged[key]?.trim());
+      const missing = required.filter((key) => !merged[key]?.trim());
+      if (started && missing.length > 0)
+        throw new HttpError(
+          400,
+          'VALIDATION_ERROR',
+          section === 'smtp'
+            ? 'Kendi SMTP bağlantınız için sunucu, kullanıcı adı, şifre ve gönderen adresi birlikte girilmelidir. Ortak sunucuyu kullanacaksanız bu alanları boş bırakın.'
+            : 'Kendi IMAP bağlantınız için sunucu, kullanıcı adı ve şifre birlikte girilmelidir. Ortak sunucuyu kullanacaksanız bu alanları boş bırakın.',
+        );
+    }
     if (section === 'sms') {
       // Etkinleştirmeden önce kimlik ve başlık gerçekten kayıtlı olmalı; yoksa test de çalışmaz.
       const stored = await this.values(businessId, 'sms', true);

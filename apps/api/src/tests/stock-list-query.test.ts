@@ -1,8 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '../generated/prisma/client';
 import { stockListQuery } from '../modules/stock/stock.api';
 import { stockListWhere } from '../modules/stock/stock-list-query';
+import { PrismaStockRepository } from '../modules/stock/stock.repository';
+import type { PrismaClient } from '../lib/prisma';
 
 // Execute the parameterized predicates against relational fixtures. MySQL deployment remains a separate integration check.
 let db: DatabaseSync;
@@ -68,6 +70,29 @@ function query(raw: Record<string, unknown> = {}, firstListId: number | undefine
 }
 
 describe('Ürün listesi sunucu süzgeçleri', () => {
+  it('liste ve toplu seçim sorguları yeniden adlandırılmış tarih kolonuyla çalışır', async () => {
+    db.exec(
+      "ALTER TABLE urunler ADD COLUMN olusturma_tarihi TEXT; UPDATE urunler SET olusturma_tarihi='2026-11-13';",
+    );
+    const tx = {
+      stokSecenegi: { findMany: async () => [], findFirst: async () => null },
+      $queryRaw: async (sql: Prisma.Sql) =>
+        db.prepare(sql.sql).all(...(sql.values as (string | number)[])),
+      stokKarti: { findMany: vi.fn(async () => []) },
+    };
+    const client = {
+      $transaction: async (fn: (transaction: typeof tx) => unknown) => fn(tx),
+    } as unknown as PrismaClient;
+    const repo = new PrismaStockRepository(client);
+    const input = stockListQuery.parse({ secenekler: '0' });
+    expect((await repo.list('1', input)).total).toBe(6);
+    expect(tx.stokKarti.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { kullaniciKimligi: 1, kimlik: { in: [7, 6, 5, 3, 2, 1] } },
+      }),
+    );
+    expect(await repo.selectIds('1', input)).toEqual({ ids: [7, 6, 5, 3, 2, 1], total: 6 });
+  });
   it('varyantların miktar toplamını ve kod/barkodunu kullanır; başka hesaba taşmaz', () => {
     db.exec(
       `INSERT INTO urun_varyantlari VALUES (2,'B-SIYAH','000987',10),(2,'B-BEYAZ',NULL,-2),(4,'OTHER-VARIANT','999987',100);`,

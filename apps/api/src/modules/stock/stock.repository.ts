@@ -864,7 +864,7 @@ export class PrismaStockRepository implements StockRepository {
         const ids = await tx.$queryRaw<
           { id: number }[]
         >(Prisma.sql`SELECT k.id FROM urunler k WHERE ${where}
-          ORDER BY k.olusturma_zamani DESC, k.id DESC LIMIT ${query.boyut} OFFSET ${(page - 1) * query.boyut}`);
+          ORDER BY k.olusturma_tarihi DESC, k.id DESC LIMIT ${query.boyut} OFFSET ${(page - 1) * query.boyut}`);
         const rows = await tx.stokKarti.findMany({
           where: { kullaniciKimligi: Number(userId), kimlik: { in: ids.map((row) => row.id) } },
           orderBy: [{ olusturmaTarihi: 'desc' }, { kimlik: 'desc' }],
@@ -1033,7 +1033,7 @@ export class PrismaStockRepository implements StockRepository {
         });
         const where = stockListWhere(Number(userId), query, first?.kimlik);
         const rows = await tx.$queryRaw<{ id: number }[]>(
-          Prisma.sql`SELECT k.id FROM urunler k WHERE ${where} ORDER BY k.olusturma_zamani DESC, k.id DESC LIMIT 1001`,
+          Prisma.sql`SELECT k.id FROM urunler k WHERE ${where} ORDER BY k.olusturma_tarihi DESC, k.id DESC LIMIT 1001`,
         );
         if (rows.length > 1000)
           throw new HttpError(

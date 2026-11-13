@@ -20,14 +20,21 @@ function conflict(error: unknown): never {
 }
 
 function priceList(
-  rows: { tur: string; sira: number; ustSinir: number | null; fiyat: Prisma.Decimal; birimBasi: boolean }[],
+  rows: {
+    tur: string;
+    sira: number;
+    ustSinir: number | null;
+    fiyat: Prisma.Decimal;
+    birimBasi: boolean;
+  }[],
   type: 'desi' | 'weight',
 ) {
   const items = rows
     .filter((row) => row.tur === type)
     .sort((a, b) => a.sira - b.sira)
     .map((row) => ({ to: row.ustSinir, price: Number(row.fiyat), perUnit: row.birimBasi }));
-  return items.length > 0 ? items : [{ to: null, price: 0, perUnit: false }];
+  // Hiç basamak yoksa boş dizi döner: "tanımsız" ile "açıkça 0 TL" böylece ayrılır.
+  return items;
 }
 
 /** Tanımlamalar › Kargo ve Nakliye verisi; tüm sorgular işletme kapsamlıdır. */
@@ -85,9 +92,7 @@ export class ShippingRepository {
       }
     }
     const list = await this.carriers(businessId);
-    const target = id
-      ? list.find((item) => item.id === String(id))
-      : list[list.length - 1];
+    const target = id ? list.find((item) => item.id === String(id)) : list[list.length - 1];
     if (!target) throw new HttpError(404, 'NOT_FOUND', 'Kargo firması bulunamadı.');
     return target;
   }
