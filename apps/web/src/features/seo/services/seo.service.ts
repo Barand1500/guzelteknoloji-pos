@@ -1,9 +1,4 @@
-import type {
-  SeoKind,
-  SeoListDto,
-  SeoRedirectDraftInput,
-  SeoSaveInput,
-} from '@gt/shared';
+import type { SeoKind, SeoListDto, SeoRedirectDraftInput, SeoSaveInput } from '@gt/shared';
 import { useDataService } from '../../../lib/catalog-data';
 import { apiRequest } from '../../../lib/http';
 import { useSession } from '../../auth/hooks/session-context';
@@ -21,7 +16,7 @@ export const seoService = {
   save: (kind: SeoKind, id: string, input: SeoSaveInput) =>
     apiRequest<void>(`/api/seo/${enc(kind)}/${enc(id)}`, { method: 'POST', body: input }),
   addRedirect: (draft: SeoRedirectDraftInput) =>
-    apiRequest<void>('/api/seo/yonlendirme', { method: 'POST', body: draft }),
+    apiRequest<{ id: string }>('/api/seo/yonlendirme', { method: 'POST', body: draft }),
   updateRedirect: (id: string, input: SeoSaveInput) =>
     apiRequest<void>(`/api/seo/yonlendirme/${enc(id)}`, { method: 'POST', body: input }),
   removeRedirect: (id: string) =>
@@ -37,8 +32,8 @@ export const demoSeoService: typeof seoService = {
     const q = ara?.trim() ? fold(ara.trim()) : '';
     const filtered = rows.filter((r) =>
       q
-        ? [r.name, r.address, r.seoTitle, r.seoDescription, ...r.redirects.map((x) => x.from)].some((t) =>
-            fold(t).includes(q),
+        ? [r.name, r.address, r.seoTitle, r.seoDescription, ...r.redirects.map((x) => x.from)].some(
+            (t) => fold(t).includes(q),
           )
         : true,
     );
@@ -50,7 +45,7 @@ export const demoSeoService: typeof seoService = {
     };
   },
   save: async () => undefined,
-  addRedirect: async () => undefined,
+  addRedirect: async () => ({ id: 'demo' }),
   updateRedirect: async () => undefined,
   removeRedirect: async () => undefined,
 };

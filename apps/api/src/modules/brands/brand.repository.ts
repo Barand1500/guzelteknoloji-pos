@@ -4,6 +4,7 @@ import type { Brand, BrandDraft, ProductRef } from '@gt/shared';
 import { Prisma } from '../../generated/prisma/client';
 import type { PrismaClient } from '../../lib/prisma';
 import { HttpError } from '../../lib/http-error';
+import { prepareUploadedImage } from '../../lib/image-processing';
 import { BrandLogoStorage, type LogoFormat } from './brand-logo.storage';
 
 const digest = (text: string | Buffer) => createHash('sha256').update(text).digest('hex');
@@ -34,7 +35,7 @@ const dto = (row: BrandRow): Brand => ({
   productCount: row._count.stokKartlari,
 });
 
-/** Base64 aktarımı çözülür ve içerik doğrulanır; özgün baytlar değiştirilmez. */
+/** Yeni yükleme doğrulanıp WebP hazırlanır; kayıtlı görseller yeniden işlenmez. */
 export async function prepareBrandLogo(value: string | null) {
   if (value === null || value.startsWith('/api/markalar/')) return null;
   const match = /^data:image\/(png|jpeg|webp|svg\+xml);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
@@ -52,8 +53,10 @@ export async function prepareBrandLogo(value: string | null) {
     const metadata = await image.metadata();
     const expected = match[1] === 'svg+xml' ? 'svg' : match[1];
     if (!metadata.format || metadata.format !== expected) throw new Error('Unsupported image');
-    return { data: original, format: expected as LogoFormat, logoHash: digest(original) };
-  } catch {
+    const prepared = await prepareUploadedImage(original, false);
+    return { ...prepared, logoHash: digest(prepared.data) };
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
     throw new HttpError(400, 'VALIDATION_ERROR', 'Logo okunamadı. Başka bir görsel seçin.');
   }
 }

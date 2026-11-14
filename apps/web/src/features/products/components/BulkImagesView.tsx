@@ -40,7 +40,7 @@ function toUrl(file: File): Promise<string> {
  * Toplu Görsel Yükleme: birçok görsel tek seferde seçilir; dosya adı ürünün stok kodu ya da barkodu
  * ise ürüne kendiliğinden eşlenir (`KOD.jpg`, aynı ürünün diğer resimleri `KOD_2.jpg`, `KOD_3.jpg`).
  * Eşleşmeyenlere ürün elle seçilir. Onaylamadan önce hangi ürüne hangi resimlerin gideceği görülür.
- * İlk resim vitrin resmidir. Gerçek oturumda özgün dosyalar sunucuya ve ürün kayıtlarına yazılır.
+ * İlk resim vitrin resmidir. Gerçek oturumda görseller WebP olarak sunucuya kaydedilir.
  */
 export function BulkImagesView() {
   const service = useProductService();
@@ -184,6 +184,7 @@ export function BulkImagesView() {
     try {
       const count = await service.applyImages(entries, replace);
       setDone({ products: entries.length, images: count });
+      void refresh();
     } catch (e) {
       setSaveError(dataError(e));
     } finally {
@@ -218,6 +219,13 @@ export function BulkImagesView() {
           <span className="text-ink">Toplu Görsel</span>
         </p>
       </nav>
+
+      {!service.isDemo && (
+        <p className="text-sm text-ink-muted">
+          Görseller WebP olarak kaydedilir. Şeffaf zemin açıksa arka plan kalıcı olarak temizlenir.
+          Uzun kenar en fazla 2048 pikseldir.
+        </p>
+      )}
 
       {done ? (
         <div className="mx-auto flex w-full max-w-xl animate-pop flex-col items-center gap-4 rounded-[1.75rem] bg-surface-raised px-6 py-12 text-center shadow-soft">

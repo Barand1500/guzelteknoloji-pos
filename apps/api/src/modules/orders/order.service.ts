@@ -4,6 +4,7 @@ import type {
   OrderRecord,
   ReturnRecord,
   RankedProductDto,
+  CompletedRefund,
 } from './order.types';
 
 /** Türkiye yaz saati uygulamadığı için sabit +03:00 kullanılır; dönem sınırları yerel güne göre. */
@@ -128,7 +129,7 @@ const homeStatus = (status: OrderRecord['status']): 'delivered' | 'cancelled' | 
 
 /**
  * Siparişlerden anasayfa sözleşmesini üretir. Ciro KDV dahil toplamdır; maliyet satırlardaki
- * `unitCost` alanından gelir (yoksa 0). Ürün sıralamasında "Sepette" sekmesi, satılan ürünlerin
+ * `unitCost` alanından gelir. Ürün sıralamasında "Sepette" sekmesi, satılan ürünlerin
  * adet sıralamasıdır; favori/fiyat alarmı olayları bu sürümde yoktur.
  */
 export function buildHomeData(
@@ -137,17 +138,30 @@ export function buildHomeData(
   customerCount: number,
   period: HomePeriod,
   now: Date,
+  refunds: CompletedRefund[] = [],
 ): HomeDataDto {
+  const ordersById = new Map(
+    orders.filter((order) => order.status !== 'cancelled').map((order) => [order.id, order]),
+  );
+  const validRefunds = refunds.filter(
+    (refund) => ordersById.has(refund.orderId) && refund.date <= now,
+  );
   const start = startOfPeriod(period, now);
   const periodOrders = orders
     .filter((order) => inRange(order.date, start, now))
     .sort((a, b) => b.date.getTime() - a.date.getTime());
   const sold = periodOrders.filter((order) => order.status !== 'cancelled');
-  const salesAmount = round2(sold.reduce((sum, order) => sum + order.totalWithVat, 0));
+  const salesAmount = round2(
+    sold.reduce((sum, order) => sum + order.totalWithVat, 0) -
+      validRefunds
+        .filter((refund) => inRange(refund.date, start, now))
+        .reduce((sum, refund) => sum + refund.amount, 0),
+  );
   const totalSales = round2(
     orders
       .filter((order) => order.status !== 'cancelled')
-      .reduce((sum, order) => sum + order.totalWithVat, 0),
+      .reduce((sum, order) => sum + order.totalWithVat, 0) -
+      validRefunds.reduce((sum, refund) => sum + refund.amount, 0),
   );
 
   const previous = previousRange(period, start);
@@ -160,18 +174,34 @@ export function buildHomeData(
               inRange(order.date, previous.start, previous.end) &&
               order.date < previous.end,
           )
-          .reduce((sum, order) => sum + order.totalWithVat, 0),
+          .reduce((sum, order) => sum + order.totalWithVat, 0) -
+          validRefunds
+            .filter((refund) => refund.date >= previous.start && refund.date < previous.end)
+            .reduce((sum, refund) => sum + refund.amount, 0),
       )
     : 0;
 
   const buckets = buildBuckets(period, now, orders);
-  const revenue = buckets.labels.map((label) => ({ label, sales: 0, cost: 0 }));
+  const revenue = buckets.labels.map((label) => ({ label, sales: 0, cost: 0, costUnknown: false }));
   for (const order of sold) {
     const index = buckets.index(order.date);
     const bucket = revenue[index];
     if (!bucket) continue;
     bucket.sales += order.totalWithVat;
     bucket.cost += lineCost(order);
+    if (order.lines.some((line) => line.unitCost === null)) bucket.costUnknown = true;
+  }
+  for (const refund of validRefunds.filter((item) => inRange(item.date, start, now))) {
+    const bucket = revenue[buckets.index(refund.date)];
+    const order = ordersById.get(refund.orderId)!;
+    if (!bucket) continue;
+    bucket.sales -= refund.amount;
+    for (const item of refund.lines) {
+      const line = order.lines.find((candidate) => candidate.id === item.lineId);
+      if (!line || line.unitCost === null) bucket.costUnknown = true;
+      else bucket.cost -= item.qty * line.unitCost;
+    }
+    if (!refund.lines.length) bucket.costUnknown = true;
   }
   for (const point of revenue) {
     point.sales = round2(point.sales);
@@ -190,6 +220,11 @@ export function buildHomeData(
     entry.orderCount += 1;
     entry.amount += order.totalWithVat;
     payments.set(order.paymentMethod, entry);
+  }
+  for (const refund of validRefunds) {
+    const order = ordersById.get(refund.orderId)!;
+    const entry = payments.get(order.paymentMethod);
+    if (entry) entry.amount -= refund.amount;
   }
 
   const ranked = new Map<string, RankedProductDto>();

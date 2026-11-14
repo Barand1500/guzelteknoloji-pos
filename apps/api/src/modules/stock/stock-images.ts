@@ -12,6 +12,7 @@ import { createRateLimiter } from '../../middleware/rate-limit';
 import { BrandLogoStorage, logoMime } from '../brands/brand-logo.storage';
 import { catalogWrite } from '../catalog/catalog.common';
 import { recordId, recordKey } from './stock.api';
+import { prepareUploadedImage } from '../../lib/image-processing';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const leaf = z.string().regex(/^[0-9a-f]{48}\.(png|jpg|webp)$/);
@@ -23,7 +24,7 @@ const commitSchema = z
       .array(
         z.strictObject({
           productId: z.union([recordId, recordKey.transform(Number)]),
-          tickets: z.array(z.string().max(1000)).min(1).max(300),
+          tickets: z.array(z.string().max(1000)).max(300),
           finalOrder: z
             .array(
               z.union([
@@ -42,6 +43,10 @@ const commitSchema = z
   .refine(
     (input) => input.entries.reduce((n, e) => n + e.tickets.length, 0) <= 300,
     'Bir seferde en fazla 300 görsel yüklenebilir.',
+  )
+  .refine(
+    (input) => input.entries.every((entry) => entry.tickets.length > 0 || (!input.replace && !!entry.finalOrder)),
+    'Yüklenecek görsel veya geçerli bir görsel sırası belirtin.',
   );
 
 export const stockImageUrl = (image: { id: number; dosyaAdi: string }) =>
@@ -145,8 +150,23 @@ export function createStockImages(env: Env, db: PrismaClient) {
       }
       if (format !== match[1])
         throw new HttpError(400, 'VALIDATION_ERROR', 'Görselin dosya türü içeriğiyle uyuşmuyor.');
+      // Şeffaflaştırma kararı istemciden alınmaz; oturumdaki işletmenin kayıtlı ayarı kullanılır.
+      const businessId = res.locals.workspace?.business.id as number | undefined;
+      const appearance = businessId
+        ? await db.isletmeAyari.findUnique({
+            where: { businessId_section: { businessId, section: 'images' } },
+            select: { values: true },
+          })
+        : null;
+      const values = appearance?.values;
+      const transparent =
+        !!values &&
+        typeof values === 'object' &&
+        !Array.isArray(values) &&
+        values.products === 'true';
+      const prepared = await prepareUploadedImage(data, transparent);
       await cleanup();
-      const file = await storage.write(data, format as 'png' | 'jpeg' | 'webp');
+      const file = await storage.write(prepared.data, prepared.format);
       res.status(201).json({ ticket: sign(file, Number(res.locals.stockUserId)) });
     },
   );
@@ -219,7 +239,7 @@ export function createStockImages(env: Env, db: PrismaClient) {
                 _max: { sira: true },
               })
             )._max.sira ?? -1;
-          if (!replay)
+          if (!replay && entry.files.length)
             await tx.stokGorseli.createMany({
               data: entry.files.map((dosyaAdi, i) => ({
                 stokKartiId: entry.id,

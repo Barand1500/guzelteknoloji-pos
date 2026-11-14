@@ -8,6 +8,7 @@ import { dataError } from '../../../lib/catalog-data';
 import { MAX_FILES, checkImageFile } from '../image-match';
 import { useProductService } from '../services/product.service';
 import type { ProductItem } from '../types';
+import { ImageOrderStrip, type ImageTile } from './ImageOrderStrip';
 
 interface ProductImagesSheetProps {
   product: ProductItem;
@@ -48,6 +49,7 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
   const [picked, setPicked] = useState<Picked[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [current, setCurrent] = useState(() => product.imageUrls ?? []);
   const input = useRef<HTMLInputElement>(null);
   const created = useRef(new Set<string>());
 
@@ -93,6 +95,20 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
     setError(null);
   };
 
+  const orderChanged = current.some((url, index) => url !== product.imageUrls?.[index]);
+  const saveOrder = async () => {
+    if (saving || !orderChanged) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await service.applyImages([{ productId: product.id, urls: [], finalOrder: current }], false);
+      onDone(0, false);
+    } catch (e) {
+      setError(dataError(e));
+      setSaving(false);
+    }
+  };
+
   const upload = async () => {
     if (saving || picked.length === 0 || !mode) return;
     setSaving(true);
@@ -104,6 +120,9 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
             productId: product.id,
             urls: picked.map((p) => p.url),
             files: picked.map((p) => p.file),
+            ...(mode === 'add' && orderChanged
+              ? { finalOrder: [...current, ...picked.map((p) => p.url)] }
+              : {}),
           },
         ],
         mode === 'replace',
@@ -116,7 +135,6 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
   };
 
   const supported = service.supportsImages;
-  const current = product.imageUrls ?? [];
 
   return (
     <Sheet
@@ -129,6 +147,12 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
     >
       <div className="flex flex-col gap-5">
         {supported ? null : <Alert tone="info">Ürün görseli sunucuda henüz desteklenmiyor.</Alert>}
+        {!service.isDemo && supported && (
+          <p className="text-sm text-ink-muted">
+            Görseller WebP olarak kaydedilir. Şeffaf zemin açıksa arka plan kalıcı olarak temizlenir.
+            Uzun kenar en fazla 2048 pikseldir.
+          </p>
+        )}
         {error ? <Alert tone="error">{error}</Alert> : null}
 
         <section aria-label="Mevcut görseller" className="flex flex-col gap-2">
@@ -141,26 +165,23 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
               Bu ürünün henüz görseli yok.
             </p>
           ) : (
-            <ul className="flex flex-wrap gap-2.5">
-              {current.map((url, index) => (
-                <li key={url} className="relative">
-                  <CatalogImage
-                    page="products"
-                    src={url}
-                    alt={`Mevcut görsel ${index + 1}`}
-                    className={[
-                      'size-20 rounded-2xl border border-line bg-surface-muted object-cover transition-opacity',
-                      mode === 'replace' && picked.length > 0 ? 'opacity-40' : '',
-                    ].join(' ')}
-                  />
-                  {index === 0 ? (
-                    <span className="absolute bottom-1 left-1 rounded-md bg-accent px-1.5 text-[0.625rem] font-extrabold text-ink">
-                      Vitrin
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+            <>
+              <ImageOrderStrip
+                productName={product.name}
+                tiles={current.map((url): ImageTile => ({ key: `e:${url}`, url, name: 'Mevcut görsel', existing: true }))}
+                lockExisting={!service.supportsImageOrder || saving || picked.length > 0}
+                onReorder={(tiles) => setCurrent(tiles.map((tile) => tile.url))}
+                onRemove={() => {}}
+              />
+              {current.length > 1 && service.supportsImageOrder && (
+                <p className="text-sm text-ink-muted">Görselleri sürükleyerek sıralayın. İlk görsel vitrinde gösterilir.</p>
+              )}
+              {orderChanged && (
+                <Button flow={false} disabled={picked.length > 0} loading={saving} loadingLabel="Kaydediliyor…" onClick={() => void saveOrder()}>
+                  Sıralamayı Kaydet
+                </Button>
+              )}
+            </>
           )}
         </section>
 

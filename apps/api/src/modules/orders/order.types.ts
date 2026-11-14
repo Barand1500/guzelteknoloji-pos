@@ -27,7 +27,7 @@ export interface OrderLineRecord {
   code: string;
   qty: number;
   unitPrice: number;
-  /** Satış anındaki birim maliyet; bilinmiyorsa null (kâr hesabında 0 sayılır). */
+  /** Satış anındaki birim maliyet; bilinmiyorsa null. */
   unitCost: number | null;
   lineTotal?: number;
 }
@@ -62,6 +62,13 @@ export interface ReturnRecord {
   orderId?: number;
 }
 
+export interface CompletedRefund {
+  orderId: number;
+  date: Date;
+  amount: number;
+  lines: { lineId: number; qty: number }[];
+}
+
 export interface RankedProductDto {
   id: string;
   name: string;
@@ -75,7 +82,7 @@ export interface HomeDataDto {
   previousSalesAmount: number;
   trend: number[];
   stats: { orders: number; customers: number; products: number; totalSales: number };
-  revenue: { label: string; sales: number; cost: number }[];
+  revenue: { label: string; sales: number; cost: number; costUnknown: boolean }[];
   orders: { delivered: number; cancelled: number; pending: number };
   recentOrders: {
     id: string;

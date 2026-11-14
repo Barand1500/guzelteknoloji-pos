@@ -42,10 +42,10 @@ export function useSeo(kind: SeoKind, ara: string, page: number, adet: number) {
   };
 
   const addRedirect = async (id: string, draft: SeoRedirectDraft) => {
-    if (!sample) await service.addRedirect({ kind, id, ...draft });
+    const redirectId = sample ? fresh() : (await service.addRedirect({ kind, id, ...draft })).id;
     patch((rows) =>
       rows.map((r) =>
-        r.id === id ? { ...r, redirects: [...r.redirects, { id: fresh(), ...draft }] } : r,
+        r.id === id ? { ...r, redirects: [...r.redirects, { id: redirectId, ...draft }] } : r,
       ),
     );
   };
@@ -62,7 +62,9 @@ export function useSeo(kind: SeoKind, ara: string, page: number, adet: number) {
 
   const removeRedirect = async (redirectId: string) => {
     if (!sample) await service.removeRedirect(redirectId);
-    patch((rows) => rows.map((r) => ({ ...r, redirects: r.redirects.filter((x) => x.id !== redirectId) })));
+    patch((rows) =>
+      rows.map((r) => ({ ...r, redirects: r.redirects.filter((x) => x.id !== redirectId) })),
+    );
   };
 
   return { data, sample, error, save, addRedirect, updateRedirect, removeRedirect };

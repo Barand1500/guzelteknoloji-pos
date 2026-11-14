@@ -63,8 +63,8 @@ export function createSeoRouter(env: Env, db: PrismaClient) {
     const ctx = context(res);
     requirePermission(ctx, 'settings', 'save');
     const draft = parse(seoRedirectDraftSchema, req.body);
-    await repo.addRedirect(ctx.ownerId, ctx.business.id, draft);
-    res.status(201).end();
+    const id = await repo.addRedirect(ctx.ownerId, ctx.business.id, draft);
+    res.status(201).json({ id: String(id) });
   });
 
   router.post('/yonlendirme/:id', async (req, res) => {

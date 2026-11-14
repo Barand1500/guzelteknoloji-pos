@@ -166,7 +166,7 @@ export const demoProductService = {
     let added = 0;
     items = items.map((p) => {
       const entry = entries.find((e) => e.productId === p.id);
-      if (!entry || entry.urls.length === 0) return p;
+      if (!entry || (entry.urls.length === 0 && !entry.finalOrder?.length)) return p;
       added += entry.urls.length;
       // finalOrder: kullanıcının sürükleyerek verdiği son sıra (mevcut + yeni görseller birlikte).
       const imageUrls =

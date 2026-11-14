@@ -13,8 +13,19 @@ import type { PrismaClient } from '../../lib/prisma';
 /** Vitrin adresi türetilerek gösterilir; vitrin yayına girene kadar kaydedilmez. */
 function slugify(value: string): string {
   const map: Record<string, string> = {
-    ç: 'c', Ç: 'c', ğ: 'g', Ğ: 'g', ı: 'i', I: 'i', İ: 'i', ö: 'o', Ö: 'o',
-    ş: 's', Ş: 's', ü: 'u', Ü: 'u',
+    ç: 'c',
+    Ç: 'c',
+    ğ: 'g',
+    Ğ: 'g',
+    ı: 'i',
+    I: 'i',
+    İ: 'i',
+    ö: 'o',
+    Ö: 'o',
+    ş: 's',
+    Ş: 's',
+    ü: 'u',
+    Ü: 'u',
   };
   const replaced = value.replace(/[çÇğĞıIİöÖşŞüÜ]/g, (ch) => map[ch] ?? ch);
   return (
@@ -64,14 +75,28 @@ export class SeoRepository {
       };
       const [total, pages, redirects] = await Promise.all([
         this.db.siteSayfasi.count({ where }),
-        this.db.siteSayfasi.findMany({ where, orderBy: [{ sira: 'asc' }, { id: 'asc' }], skip: (page - 1) * per, take: per }),
-        this.db.seoYonlendirmesi.findMany({ where: { businessId, tur: kind }, orderBy: [{ id: 'asc' }] }),
+        this.db.siteSayfasi.findMany({
+          where,
+          orderBy: [{ sira: 'asc' }, { id: 'asc' }],
+          skip: (page - 1) * per,
+          take: per,
+        }),
+        this.db.seoYonlendirmesi.findMany({
+          where: { businessId, tur: kind },
+          orderBy: [{ id: 'asc' }],
+        }),
       ]);
-      return { total, items: await Promise.all(pages.map((row) => this.toRow(kind, row, redirects))) };
+      return {
+        total,
+        items: await Promise.all(pages.map((row) => this.toRow(kind, row, redirects))),
+      };
     }
     const [total, redirects] = await Promise.all([
       this.count(kind, userId, text),
-      this.db.seoYonlendirmesi.findMany({ where: { businessId, tur: kind }, orderBy: [{ id: 'asc' }] }),
+      this.db.seoYonlendirmesi.findMany({
+        where: { businessId, tur: kind },
+        orderBy: [{ id: 'asc' }],
+      }),
     ]);
     const rows = await this.rows(kind, userId, text, (page - 1) * per, per);
     const items = await Promise.all(rows.map((row) => this.toRow(kind, row, redirects)));
@@ -86,7 +111,13 @@ export class SeoRepository {
     return this.db.stokKarti.count({ where: productWhere(userId, text) });
   }
 
-  private async rows(kind: SeoKind, userId: number, text: string | undefined, skip: number, take: number) {
+  private async rows(
+    kind: SeoKind,
+    userId: number,
+    text: string | undefined,
+    skip: number,
+    take: number,
+  ) {
     if (kind === 'kategori')
       return this.db.kategori.findMany({
         where: categoryWhere(userId, text),
@@ -113,14 +144,24 @@ export class SeoRepository {
       });
     return this.db.stokKarti.findMany({
       where: productWhere(userId, text),
-      select: { kimlik: true, stokAdi: true, stokKodu: true, seoBasligi: true, seoAciklamasi: true },
+      select: {
+        kimlik: true,
+        stokAdi: true,
+        stokKodu: true,
+        seoBasligi: true,
+        seoAciklamasi: true,
+      },
       orderBy: [{ olusturmaTarihi: 'desc' }, { kimlik: 'desc' }],
       skip,
       take,
     });
   }
 
-  private async toRow(kind: SeoKind, row: Record<string, unknown>, redirects: SeoRedirectRow[]): Promise<SeoRowDto> {
+  private async toRow(
+    kind: SeoKind,
+    row: Record<string, unknown>,
+    redirects: SeoRedirectRow[],
+  ): Promise<SeoRowDto> {
     const id = Number(row.id ?? row.kimlik);
     const name = String(row.ad ?? row.markaAdi ?? row.stokAdi ?? '');
     return {
@@ -132,14 +173,12 @@ export class SeoRepository {
       seoDescription: String(row.seoAciklamasi ?? ''),
       redirects: redirects
         .filter((r) => r.kaynakId !== null && r.kaynakId === id)
-        .map(
-          (r): SeoRedirectDto => ({
-            id: String(r.id),
-            from: r.eskiAdres,
-            seoTitle: r.seoBasligi,
-            seoDescription: r.seoAciklamasi,
-          }),
-        ),
+        .map((r): SeoRedirectDto => ({
+          id: String(r.id),
+          from: r.eskiAdres,
+          seoTitle: r.seoBasligi,
+          seoDescription: r.seoAciklamasi,
+        })),
     };
   }
 
@@ -167,24 +206,41 @@ export class SeoRepository {
     return `/${parts.join('/')}`;
   }
 
-  async save(userId: number, businessId: number, kind: SeoKind, id: number, input: SeoSaveInput): Promise<void> {
+  async save(
+    userId: number,
+    businessId: number,
+    kind: SeoKind,
+    id: number,
+    input: SeoSaveInput,
+  ): Promise<void> {
     const data = { seoBasligi: input.seoTitle, seoAciklamasi: input.seoDescription };
     const result =
       kind === 'sabit-sayfa'
         ? await this.db.siteSayfasi.updateMany({ where: { id, isletmeId: businessId }, data })
         : kind === 'kategori'
-        ? await this.db.kategori.updateMany({ where: { id, kullaniciId: userId }, data })
-        : kind === 'marka'
-          ? await this.db.marka.updateMany({ where: { kimlik: id, kullaniciKimligi: userId }, data })
-          : kind === 'firsat'
-            ? await this.db.firsat.updateMany({ where: { id, kullaniciId: userId }, data })
-            : await this.db.stokKarti.updateMany({ where: { kimlik: id, kullaniciKimligi: userId }, data });
+          ? await this.db.kategori.updateMany({ where: { id, kullaniciId: userId }, data })
+          : kind === 'marka'
+            ? await this.db.marka.updateMany({
+                where: { kimlik: id, kullaniciKimligi: userId },
+                data,
+              })
+            : kind === 'firsat'
+              ? await this.db.firsat.updateMany({ where: { id, kullaniciId: userId }, data })
+              : await this.db.stokKarti.updateMany({
+                  where: { kimlik: id, kullaniciKimligi: userId },
+                  data,
+                });
     if (result.count === 0) throw new HttpError(404, 'NOT_FOUND', 'Kayıt bulunamadı.');
   }
 
-  async addRedirect(userId: number, businessId: number, draft: SeoRedirectDraftInput): Promise<void> {
-    if (draft.id !== null) await this.requireSource(userId, businessId, draft.kind, Number(draft.id));
-    await this.db.seoYonlendirmesi
+  async addRedirect(
+    userId: number,
+    businessId: number,
+    draft: SeoRedirectDraftInput,
+  ): Promise<number> {
+    if (draft.id !== null)
+      await this.requireSource(userId, businessId, draft.kind, Number(draft.id));
+    const saved = await this.db.seoYonlendirmesi
       .create({
         data: {
           businessId,
@@ -200,20 +256,41 @@ export class SeoRepository {
           throw new HttpError(409, 'CONFLICT', 'Bu eski adres için zaten bir yönlendirme var.');
         throw error;
       });
+    return saved.id;
   }
 
   /** Yönlendirme yalnızca oturumdaki kullanıcının kendi sayfasına eklenebilir. */
-  private async requireSource(userId: number, businessId: number, kind: SeoKind, id: number): Promise<void> {
+  private async requireSource(
+    userId: number,
+    businessId: number,
+    kind: SeoKind,
+    id: number,
+  ): Promise<void> {
     const found =
       kind === 'sabit-sayfa'
-        ? await this.db.siteSayfasi.findFirst({ where: { id, isletmeId: businessId }, select: { id: true } })
+        ? await this.db.siteSayfasi.findFirst({
+            where: { id, isletmeId: businessId },
+            select: { id: true },
+          })
         : kind === 'kategori'
-        ? await this.db.kategori.findFirst({ where: { id, kullaniciId: userId }, select: { id: true } })
-        : kind === 'marka'
-          ? await this.db.marka.findFirst({ where: { kimlik: id, kullaniciKimligi: userId }, select: { kimlik: true } })
-          : kind === 'firsat'
-            ? await this.db.firsat.findFirst({ where: { id, kullaniciId: userId }, select: { id: true } })
-            : await this.db.stokKarti.findFirst({ where: { kimlik: id, kullaniciKimligi: userId }, select: { kimlik: true } });
+          ? await this.db.kategori.findFirst({
+              where: { id, kullaniciId: userId },
+              select: { id: true },
+            })
+          : kind === 'marka'
+            ? await this.db.marka.findFirst({
+                where: { kimlik: id, kullaniciKimligi: userId },
+                select: { kimlik: true },
+              })
+            : kind === 'firsat'
+              ? await this.db.firsat.findFirst({
+                  where: { id, kullaniciId: userId },
+                  select: { id: true },
+                })
+              : await this.db.stokKarti.findFirst({
+                  where: { kimlik: id, kullaniciKimligi: userId },
+                  select: { kimlik: true },
+                });
     if (!found) throw new HttpError(404, 'NOT_FOUND', 'Yönlendirme hedefi bulunamadı.');
   }
 
@@ -238,9 +315,7 @@ const categoryWhere = (userId: number, text: string | undefined): Prisma.Kategor
 });
 const brandWhere = (userId: number, text: string | undefined): Prisma.MarkaWhereInput => ({
   kullaniciKimligi: userId,
-  ...(text
-    ? { OR: [{ markaAdi: { contains: text } }, ...textOr(text)] }
-    : {}),
+  ...(text ? { OR: [{ markaAdi: { contains: text } }, ...textOr(text)] } : {}),
 });
 const dealWhere = (userId: number, text: string | undefined): Prisma.FirsatWhereInput => ({
   kullaniciId: userId,
@@ -250,11 +325,7 @@ const productWhere = (userId: number, text: string | undefined): Prisma.StokKart
   kullaniciKimligi: userId,
   ...(text
     ? {
-        OR: [
-          { stokAdi: { contains: text } },
-          { stokKodu: { contains: text } },
-          ...textOr(text),
-        ],
+        OR: [{ stokAdi: { contains: text } }, { stokKodu: { contains: text } }, ...textOr(text)],
       }
     : {}),
 });

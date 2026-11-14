@@ -200,6 +200,20 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     const after = (await productService.list()).find((p) => p.id === 'p1')!.imageUrls.length;
     expect(after).toBe(before + 1);
   });
+
+  it('mevcut ürün görsellerinin sırasını değiştirip kaydeder', async () => {
+    await productService.applyImages([{ productId: 'p1', urls: ['data:image/png;base64,a', 'data:image/png;base64,b'] }], true);
+    const user = await openProducts();
+    const row = document.querySelector('tr[data-product-id="p1"]') as HTMLElement;
+    await user.dblClick(within(row).getByTitle('Görselleri değiştirmek için çift tıklayın'));
+    const dialog = await screen.findByRole('dialog', { name: 'Ürün Görselleri' });
+    const tile = within(dialog).getAllByRole('button', { name: /Mevcut görsel \(sürükleyerek sırala\)/ })[0]!;
+    tile.focus();
+    await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+    await user.click(within(dialog).getByRole('button', { name: 'Sıralamayı Kaydet' }));
+    await screen.findByText(/görsel sırası kaydedildi/);
+    expect((await productService.list()).find((p) => p.id === 'p1')!.imageUrls).toEqual(['data:image/png;base64,b', 'data:image/png;base64,a']);
+  });
 });
 
 describe('Excel ile ürün yükleme sihirbazı', () => {

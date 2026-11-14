@@ -557,7 +557,9 @@ export function ProductsView() {
             setImagesFor(null);
             void refresh();
             showNotice(
-              replaced
+              count === 0
+                ? `${imagesForProduct.name} görsel sırası kaydedildi.`
+                : replaced
                 ? `${imagesForProduct.name} görselleri değiştirildi.`
                 : `${imagesForProduct.name} için ${count} görsel eklendi.`,
             );

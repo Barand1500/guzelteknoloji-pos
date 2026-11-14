@@ -19,7 +19,9 @@ function app(db: Record<string, unknown>, permissions: unknown[] = [], owner = t
     };
     next();
   });
-  server.use(createSeoRouter(testEnv({ RATE_LIMIT_ENABLED: 'false' }), db as unknown as PrismaClient));
+  server.use(
+    createSeoRouter(testEnv({ RATE_LIMIT_ENABLED: 'false' }), db as unknown as PrismaClient),
+  );
   return server;
 }
 
@@ -44,13 +46,21 @@ describe('SEO Ayarları API', () => {
         findMany: vi
           .fn()
           .mockResolvedValueOnce([
-            { id: 5, ad: 'Elektronik', ustId: null, seoBasligi: 'Elektronik Ürünler', seoAciklamasi: '' },
+            {
+              id: 5,
+              ad: 'Elektronik',
+              ustId: null,
+              seoBasligi: 'Elektronik Ürünler',
+              seoAciklamasi: '',
+            },
             { id: 6, ad: ' Telefonlar ', ustId: 5, seoBasligi: '', seoAciklamasi: '' },
           ])
           .mockResolvedValueOnce([]),
         findUnique: vi.fn().mockResolvedValue({ id: 5, ad: 'Elektronik', ustId: null }),
       },
-      seoYonlendirmesi: { findMany: vi.fn().mockResolvedValue([redirect, { ...redirect, id: 12, kaynakId: 6 }]) },
+      seoYonlendirmesi: {
+        findMany: vi.fn().mockResolvedValue([redirect, { ...redirect, id: 12, kaynakId: 6 }]),
+      },
     };
     const server = app(db);
 
@@ -98,13 +108,17 @@ describe('SEO Ayarları API', () => {
         count: vi.fn().mockResolvedValue(1),
         findMany: vi
           .fn()
-          .mockResolvedValue([{ kimlik: 9, markaAdi: 'Anka Kırtasiye', seoBasligi: '', seoAciklamasi: '' }]),
+          .mockResolvedValue([
+            { kimlik: 9, markaAdi: 'Anka Kırtasiye', seoBasligi: '', seoAciklamasi: '' },
+          ]),
       },
       stokKarti: {
         count: vi.fn().mockResolvedValue(1),
         findMany: vi
           .fn()
-          .mockResolvedValue([{ kimlik: 77, stokAdi: 'Kalem', stokKodu: 'KL-1', seoBasligi: '', seoAciklamasi: '' }]),
+          .mockResolvedValue([
+            { kimlik: 77, stokAdi: 'Kalem', stokKodu: 'KL-1', seoBasligi: '', seoAciklamasi: '' },
+          ]),
       },
       seoYonlendirmesi: { findMany: vi.fn().mockResolvedValue([]) },
     };
@@ -129,7 +143,17 @@ describe('SEO Ayarları API', () => {
     const server = app({
       siteSayfasi: {
         count: vi.fn().mockResolvedValue(1),
-        findMany: vi.fn().mockResolvedValue([{ id: 1, ad: 'Hakkımızda', slug: 'hakkimizda', seoBasligi: 'Biz Kimiz', seoAciklamasi: '' }]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            {
+              id: 1,
+              ad: 'Hakkımızda',
+              slug: 'hakkimizda',
+              seoBasligi: 'Biz Kimiz',
+              seoAciklamasi: '',
+            },
+          ]),
         updateMany,
       },
       seoYonlendirmesi: { findMany: vi.fn().mockResolvedValue([]) },
@@ -137,11 +161,20 @@ describe('SEO Ayarları API', () => {
     const list = await request(server).get('/sabit-sayfa');
     expect(list.status).toBe(200);
     expect(list.body.total).toBe(1);
-    expect(list.body.items[0]).toMatchObject({ id: '1', address: '/hakkimizda', seoTitle: 'Biz Kimiz' });
+    expect(list.body.items[0]).toMatchObject({
+      id: '1',
+      address: '/hakkimizda',
+      seoTitle: 'Biz Kimiz',
+    });
 
-    const save = await request(server).post('/sabit-sayfa/1').send({ seoTitle: 'A', seoDescription: 'B' });
+    const save = await request(server)
+      .post('/sabit-sayfa/1')
+      .send({ seoTitle: 'A', seoDescription: 'B' });
     expect(save.status).toBe(204);
-    expect(updateMany).toHaveBeenCalledWith({ where: { id: 1, isletmeId: 3 }, data: { seoBasligi: 'A', seoAciklamasi: 'B' } });
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 1, isletmeId: 3 },
+      data: { seoBasligi: 'A', seoAciklamasi: 'B' },
+    });
   });
 
   it('SEO başlık ve açıklamayı kendi kaydına yazar', async () => {
@@ -181,19 +214,33 @@ describe('SEO Ayarları API', () => {
   });
 
   it('yönlendirme ekler; sahipsiz hedef 404, tekrar adres 409 döner', async () => {
-    const create = vi.fn().mockResolvedValue({});
+    const create = vi.fn().mockResolvedValue({ id: 123 });
     const db = {
       kategori: { findFirst: vi.fn().mockResolvedValue({ id: 5 }) },
       marka: { findFirst: vi.fn().mockResolvedValue(null) },
       seoYonlendirmesi: { create },
     };
     const server = app(db);
-    const body = { kind: 'kategori', id: '5', from: '/eski-adres', seoTitle: '', seoDescription: '' };
+    const body = {
+      kind: 'kategori',
+      id: '5',
+      from: '/eski-adres',
+      seoTitle: '',
+      seoDescription: '',
+    };
 
     const ok = await request(server).post('/yonlendirme').send(body);
     expect(ok.status).toBe(201);
+    expect(ok.body.id).toBe('123');
     expect(create).toHaveBeenCalledWith({
-      data: { businessId: 3, tur: 'kategori', kaynakId: 5, eskiAdres: '/eski-adres', seoBasligi: '', seoAciklamasi: '' },
+      data: {
+        businessId: 3,
+        tur: 'kategori',
+        kaynakId: 5,
+        eskiAdres: '/eski-adres',
+        seoBasligi: '',
+        seoAciklamasi: '',
+      },
     });
 
     const foreign = await request(server)

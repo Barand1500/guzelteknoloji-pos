@@ -1596,8 +1596,9 @@ function SettingsPageForm({
           {section === 'images' && (
             <p className="text-sm text-ink-muted">
               Açık olduğunda görselin arkasındaki açık fon (düz ya da gradyanlı) ve çanta kulpu gibi
-              kapalı boşluklar temizlenir; ürünün kendi açık renkli yüzeyleri korunur. Özgün dosya
-              korunur; kapattığınızda özgün görsel gösterilir.
+              kapalı boşluklar temizlenir; ürünün kendi açık renkli yüzeyleri korunur. Yeni yüklenen
+              görseller WebP olarak kaydedilir. Ürünlerde bu ayar yeni yüklemelerin arka planını
+              kalıcı olarak temizler; diğer alanlarda görünümü değiştirir.
             </p>
           )}
           {(section === 'cloudflare' || section === 'recaptcha') && (
@@ -1632,7 +1633,16 @@ function SettingsPageForm({
                       <SelectField label={f.label} value={draft[f.key] ?? 'B2C'} options={['B2C', 'B2B', 'Katalog'].map((value) => ({ value, label: value }))} onChange={(value) => setDraft({ ...draft, [f.key]: value })} />
                     ) : section === 'images' ? (
                       <div className="flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-line px-4 py-3">
-                        <span className="font-semibold">{f.label}</span>
+                        <div className="min-w-0">
+                          <span className="font-semibold">{f.label}</span>
+                          {f.key === 'products' && (
+                            <p className="mt-1 text-sm text-ink-muted">
+                              Yeni ürün görselleri şeffaf WebP olarak kaydedilir; uzun kenar en fazla
+                              2048 pikseldir. Mevcut dosyalar değişmez. Ayarı kapatmak kaydedilen
+                              görsellerin arka planını geri getirmez.
+                            </p>
+                          )}
+                        </div>
                         <ToggleSwitch
                           label={f.label}
                           checked={draft[f.key] === 'true'}

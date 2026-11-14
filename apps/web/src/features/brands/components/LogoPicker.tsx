@@ -22,7 +22,7 @@ interface LogoPickerProps {
 /**
  * Logo seçici: dokunarak seç ya da (masaüstünde) dosyayı sürükleyip bırak. Seçilen dosya hemen
  * önizlenir. Yalnızca belirtilen görsel türleri ve en çok 2 MB kabul edilir.
- * Dosya içeriği formla gönderilir; sunucu doğrulayıp özgün biçimiyle kaydeder.
+ * Dosya içeriği formla gönderilir; sunucu doğrulayıp WebP olarak kaydeder.
  */
 export function LogoPicker({
   value,

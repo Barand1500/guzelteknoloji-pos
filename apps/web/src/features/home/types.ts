@@ -25,6 +25,7 @@ export interface RevenuePoint {
   /** Satış ve maliyet (kâr = satış − maliyet). Tutarlar TL. */
   sales: number;
   cost: number;
+  costUnknown?: boolean;
 }
 
 export interface RecentOrder {

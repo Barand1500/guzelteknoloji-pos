@@ -55,6 +55,32 @@ const orders: OrderRecord[] = [
   order(5, '2025-12-01T07:00:00.000Z', 'delivered', 'Bora Ticaret', 3000),
   order(6, '2026-11-01T07:00:00.000Z', 'shipped', 'Kasa Market', 800, 'Açık Hesap'),
 ];
+
+it('tamamlanan kısmi iadeyi tamamlandığı dönemde düşer ve eksik maliyeti bildirir', () => {
+  const sale = order(50, '2026-10-15T07:00:00Z', 'delivered', 'Müşteri', 1000);
+  sale.lines = [{ id: 500, name: 'Ürün', code: 'P', qty: 2, unitPrice: 500, unitCost: null }];
+  const refund = {
+    orderId: 50,
+    date: new Date('2026-11-10T07:00:00Z'),
+    amount: 200,
+    lines: [{ lineId: 500, qty: 1 }],
+  };
+  const data = buildHomeData([sale], 1, 1, 'month', NOW, [refund]);
+  expect(data.salesAmount).toBe(-200);
+  expect(data.stats.totalSales).toBe(800);
+  expect(data.revenue.some((point) => point.costUnknown)).toBe(true);
+});
+
+it('bilinen maliyetli kısmi iadeyi satıştan ve maliyetten düşer', () => {
+  const sale = order(51, '2026-11-10T07:00:00Z', 'delivered', 'Müşteri', 1000);
+  sale.lines = [{ id: 510, name: 'Ürün', code: 'P', qty: 2, unitPrice: 500, unitCost: 300 }];
+  const refund = { orderId: 51, date: new Date('2026-11-10T08:00:00Z'), amount: 500, lines: [{ lineId: 510, qty: 1 }] };
+  const data = buildHomeData([sale], 1, 1, 'month', NOW, [refund]);
+  expect(data.salesAmount).toBe(500);
+  expect(data.stats.totalSales).toBe(500);
+  expect(data.revenue.reduce((sum, point) => sum + point.cost, 0)).toBe(300);
+  expect(data.revenue.some((point) => point.costUnknown)).toBe(false);
+});
 // Ürün sıralaması için adetleri farklılaştır.
 orders[0]!.lines = [
   { id: 10, name: 'POS Cihazı', code: 'POS-1', qty: 2, unitPrice: 500, unitCost: 300 },

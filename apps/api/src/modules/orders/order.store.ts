@@ -8,6 +8,7 @@ import {
   RETURN_KINDS,
   RETURN_STATUSES,
   type OrderRecord,
+  type CompletedRefund,
   type OrderSource,
   type OrderStatus,
   type ReturnKind,
@@ -23,6 +24,7 @@ export interface OrderStore {
   listOrders(businessId: number): Promise<OrderRecord[]>;
   updateOrderStatus(businessId: number, id: number, status: OrderStatus): Promise<boolean>;
   listReturns(businessId: number): Promise<ReturnRecord[]>;
+  listCompletedRefunds?(businessId: number): Promise<CompletedRefund[]>;
   updateReturnStatus(businessId: number, id: number, status: ReturnStatus): Promise<boolean>;
   /** Anasayfadaki "Ürün" sayısı; katalog işletme sahibinin kullanıcı kimliğine bağlıdır. */
   countProducts(ownerId: number): Promise<number>;
@@ -100,6 +102,25 @@ export class PrismaOrderStore implements OrderStore {
       include: { satirlar: { orderBy: { sira: 'asc' } } },
     });
     return rows.map(toOrder);
+  }
+
+  async listCompletedRefunds(businessId: number): Promise<CompletedRefund[]> {
+    const rows = await this.db.iadeTalebi.findMany({
+      where: {
+        businessId,
+        durum: 'completed',
+        siparisId: { not: null },
+        tamamlanmaTarihi: { not: null },
+        iadeTutari: { not: null },
+      },
+      include: { satirlar: true },
+    });
+    return rows.map((row) => ({
+      orderId: row.siparisId!,
+      date: row.tamamlanmaTarihi!,
+      amount: number(row.iadeTutari!),
+      lines: row.satirlar.map((line) => ({ lineId: line.siparisSatiriId, qty: number(line.adet) })),
+    }));
   }
 
   async updateOrderStatus(businessId: number, id: number, status: OrderStatus): Promise<boolean> {

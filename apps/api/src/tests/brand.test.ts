@@ -5,7 +5,7 @@ import { brandDraftSchema } from '@gt/shared';
 
 describe('Marka logosu ve alan doğrulama', () => {
   it.each(['png', 'jpeg', 'webp'] as const)(
-    '%s içeriğini ve özgün boyutlarını korur',
+    '%s girdisini boyutlarını koruyarak WebP yapar',
     async (format) => {
       const file = await sharp({
         create: { width: 1200, height: 600, channels: 4, background: '#ffaa00' },
@@ -16,20 +16,23 @@ describe('Marka logosu ve alan doğrulama', () => {
         `data:image/${format};base64,${file.toString('base64')}`,
       );
       expect(result?.logoHash).toHaveLength(64);
-      expect(result!.data).toEqual(file);
       const metadata = await sharp(result!.data).metadata();
-      expect(metadata.format).toBe(format);
+      expect(metadata.format).toBe('webp');
       expect(metadata.width).toBe(1200);
       expect(metadata.height).toBe(600);
     },
   );
-  it('SVG içeriğini değiştirmeden korur', async () => {
+  it('SVG yüklemesini WebP olarak hazırlar', async () => {
     const svg = Buffer.from(
       '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="30"><rect width="100" height="30" fill="red"/></svg>',
     );
     const result = await prepareBrandLogo('data:image/svg+xml;base64,' + svg.toString('base64'));
-    expect(result!.data).toEqual(svg);
-    expect(result!.format).toBe('svg');
+    expect(result!.format).toBe('webp');
+    expect(await sharp(result!.data).metadata()).toMatchObject({
+      format: 'webp',
+      width: 100,
+      height: 30,
+    });
   });
   it('2 MB sınırını ve gerçek dosya içeriğini denetler', async () => {
     await expect(

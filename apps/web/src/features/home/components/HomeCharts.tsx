@@ -31,6 +31,7 @@ export function RevenueChart({ points, version }: { points: RevenuePoint[]; vers
   const top = Math.max(1, ...rows.map((r) => Math.max(r.sales, r.cost, r.profit)));
   const shown = SERIES.filter((s) => !hidden.has(s.id));
   const info = active !== null ? rows[active] : null;
+  const incomplete = rows.some((row) => row.costUnknown);
 
   return (
     <div className="flex flex-col gap-4">
@@ -66,7 +67,7 @@ export function RevenueChart({ points, version }: { points: RevenuePoint[]; vers
           {info ? (
             <>
               <b className="text-ink">{info.label}</b> · Satış {formatMoneyShort(info.sales)} · Kâr{' '}
-              {formatMoneyShort(info.profit)}
+              {info.costUnknown ? 'Maliyet eksik' : formatMoneyShort(info.profit)}
             </>
           ) : (
             'Çubuğun üzerine gelin'
@@ -88,7 +89,11 @@ export function RevenueChart({ points, version }: { points: RevenuePoint[]; vers
                 onMouseLeave={() => setActive(null)}
                 onFocus={() => setActive(i)}
                 onBlur={() => setActive(null)}
-                aria-label={`${r.label}: satış ${formatMoney(r.sales)}, maliyet ${formatMoney(r.cost)}, kâr ${formatMoney(r.profit)}`}
+                aria-label={
+                  r.costUnknown
+                    ? `${r.label}: satış ${formatMoney(r.sales)}, maliyet ve kâr bilinmiyor`
+                    : `${r.label}: satış ${formatMoney(r.sales)}, maliyet ${formatMoney(r.cost)}, kâr ${formatMoney(r.profit)}`
+                }
                 className={[
                   'group flex h-full w-full min-w-0 flex-col justify-end gap-1.5 rounded-xl px-1 transition-colors',
                   active === i ? 'bg-brand-50' : 'hover:bg-surface-muted/60',
@@ -96,6 +101,7 @@ export function RevenueChart({ points, version }: { points: RevenuePoint[]; vers
               >
                 <div className="flex flex-1 items-end justify-center gap-[0.2rem]">
                   {shown.map((s, k) => {
+                    if (r.costUnknown && s.id !== 'sales') return null;
                     const value = s.id === 'sales' ? r.sales : s.id === 'cost' ? r.cost : r.profit;
                     return (
                       <span
@@ -134,7 +140,11 @@ export function RevenueChart({ points, version }: { points: RevenuePoint[]; vers
                 {s.label}
               </dt>
               <dd className="mt-1 truncate text-sm font-extrabold sm:text-base">
-                <CountUp value={total} format={formatMoneyShort} />
+                {incomplete && s.id !== 'sales' ? (
+                  'Maliyet eksik'
+                ) : (
+                  <CountUp value={total} format={formatMoneyShort} />
+                )}
               </dd>
             </div>
           );
