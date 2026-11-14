@@ -210,6 +210,7 @@ describe('Ürün listesi (masaüstü tablo)', () => {
     const tile = within(dialog).getAllByRole('button', { name: /Mevcut görsel \(sürükleyerek sırala\)/ })[0]!;
     tile.focus();
     await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+    expect((await productService.list()).find((p) => p.id === 'p1')!.imageUrls).toEqual(['data:image/png;base64,a', 'data:image/png;base64,b']);
     await user.click(within(dialog).getByRole('button', { name: 'Sıralamayı Kaydet' }));
     await screen.findByText(/görsel sırası kaydedildi/);
     expect((await productService.list()).find((p) => p.id === 'p1')!.imageUrls).toEqual(['data:image/png;base64,b', 'data:image/png;base64,a']);

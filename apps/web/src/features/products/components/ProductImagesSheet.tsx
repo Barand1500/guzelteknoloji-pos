@@ -52,6 +52,7 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
   const [current, setCurrent] = useState(() => product.imageUrls ?? []);
   const input = useRef<HTMLInputElement>(null);
   const created = useRef(new Set<string>());
+  const orderSaving = useRef(false);
 
   useEffect(() => {
     const urls = created.current;
@@ -97,7 +98,8 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
 
   const orderChanged = current.some((url, index) => url !== product.imageUrls?.[index]);
   const saveOrder = async () => {
-    if (saving || !orderChanged) return;
+    if (orderSaving.current || saving || !orderChanged) return;
+    orderSaving.current = true;
     setSaving(true);
     setError(null);
     try {
@@ -105,6 +107,8 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
       onDone(0, false);
     } catch (e) {
       setError(dataError(e));
+    } finally {
+      orderSaving.current = false;
       setSaving(false);
     }
   };
@@ -140,7 +144,7 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
     <Sheet
       permission="save"
       open
-      onClose={onClose}
+      onClose={() => { if (!orderSaving.current) onClose(); }}
       size="lg"
       title="Ürün Görselleri"
       description={`${product.name} · ${product.code}`}
@@ -173,9 +177,6 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
                 onReorder={(tiles) => setCurrent(tiles.map((tile) => tile.url))}
                 onRemove={() => {}}
               />
-              {current.length > 1 && service.supportsImageOrder && (
-                <p className="text-sm text-ink-muted">Görselleri sürükleyerek sıralayın. İlk görsel vitrinde gösterilir.</p>
-              )}
               {orderChanged && (
                 <Button flow={false} disabled={picked.length > 0} loading={saving} loadingLabel="Kaydediliyor…" onClick={() => void saveOrder()}>
                   Sıralamayı Kaydet
@@ -190,7 +191,7 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
           type="file"
           multiple
           accept="image/jpeg,image/png,image/webp"
-          disabled={!supported}
+          disabled={!supported || saving}
           aria-label="Görsel dosyaları seç"
           className="sr-only"
           onChange={(e) => {
@@ -204,7 +205,7 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
             <Button
               variant="outline"
               flow={false}
-              disabled={!supported}
+              disabled={!supported || saving}
               onClick={() => open('add')}
               leadingIcon={<ImagePlus className="size-5" aria-hidden="true" />}
             >
@@ -213,7 +214,7 @@ export function ProductImagesSheet({ product, onDone, onClose }: ProductImagesSh
             <Button
               variant="outline"
               flow={false}
-              disabled={!supported || current.length === 0}
+              disabled={!supported || saving || current.length === 0}
               onClick={() => open('replace')}
               leadingIcon={<RefreshCw className="size-5" aria-hidden="true" />}
             >
